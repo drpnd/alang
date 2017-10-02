@@ -34,6 +34,8 @@ typedef struct {
 extern "C" {
 #endif
 
+    int tokenizer_tokenize(char *);
+
 #ifdef __cplusplus
 }
 #endif

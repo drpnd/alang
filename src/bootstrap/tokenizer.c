@@ -21,12 +21,17 @@
  * SOFTWARE.
  */
 
+#include "tokenizer.h"
+#include <stdio.h>
+
 /*
  * Tokenize
  */
 int
 tokenizer_tokenize(char *input)
 {
+    printf("%s", input);
+
     return 0;
 }
 

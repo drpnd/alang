@@ -23,6 +23,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include "alang.h"
+#include "tokenizer.h"
+
+#define FILE_MEMSIZE_DELTA  4096
 
 /*
  * Print out the help message and quit the program
@@ -35,14 +40,65 @@ usage(const char *prog)
 }
 
 /*
+ * Load the content of a file
+ */
+char *
+load_file(const char *fname)
+{
+    FILE *fp;
+    char buf[1024];
+    char *content;
+    char *nb;
+    off_t off;
+    size_t sz;
+    size_t len;
+
+    /* Open the input file */
+    fp = fopen(fname, "r");
+    if ( NULL == fp ) {
+        return NULL;
+    }
+
+    /* Allocate memory */
+    content = malloc(FILE_MEMSIZE_DELTA);
+    if ( NULL == content ) {
+        (void)fclose(fp);
+        return NULL;
+    }
+    sz = FILE_MEMSIZE_DELTA;
+
+    off = 0;
+    while ( NULL != fgets(buf, sizeof(buf), fp) ) {
+        len = strlen(buf);
+        /* Expand the memory */
+        while ( sz <= off + len ) {
+            nb = realloc(content, sz + FILE_MEMSIZE_DELTA);
+            if ( NULL == nb ) {
+                free(content);
+                (void)fclose(fp);
+                return NULL;
+            }
+            sz += FILE_MEMSIZE_DELTA;
+        }
+        memcpy(content + off, buf, len);
+        off += len;
+        content[off] = '\0';
+    }
+
+    /* Close the file */
+    (void)fclose(fp);
+
+    return content;
+}
+
+/*
  * Main routine
  */
 int
 main(int argc, const char *const argv[])
 {
     const char *fname;
-    FILE *fp;
-    char buf[1024];
+    char *content;
 
     if ( argc < 2 ) {
         usage(argv[0]);
@@ -51,15 +107,14 @@ main(int argc, const char *const argv[])
     /* Input file */
     fname = argv[1];
 
-    /* Open the input file */
-    fp = fopen(fname, "r");
-
-    while ( NULL != fgets(buf, sizeof(buf), fp) ) {
-        printf("%s", buf);
+    /* Load the content of the specified file */
+    content = load_file(fname);
+    if ( NULL == content ) {
+        fprintf(stderr, "Failed to load the content of the file: %s\n", fname);
+        return EXIT_FAILURE;
     }
 
-    /* Close the file */
-    (void)fclose(fp);
+    tokenizer_tokenize(content);
 
     return 0;
 }

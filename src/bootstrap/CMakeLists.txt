@@ -63,7 +63,7 @@ set (fexporter_VERSION "current-${BUILD_DATETIME}")
 #set (fexporter_VERSION_PATCH "0")
 
 
-set(HEADERS tokenizer.h token.h parser.h syntax.h)
+set(HEADERS alang.h tokenizer.h token.h parser.h syntax.h)
 set(SOURCES tokenizer.c parser.c)
 
 # alang-bootstrap
