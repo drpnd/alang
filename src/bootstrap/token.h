@@ -58,15 +58,6 @@ typedef enum {
     TOK_INT,
     TOK_FLOAT,
 
-    /* Types */
-    TOK_I32,                    /* i32 */
-    TOK_U32,                    /* u32 */
-    TOK_I64,                    /* i64 */
-    TOK_U64,                    /* u64 */
-    TOK_FP16,                   /* fp16 */
-    TOK_FP32,                   /* fp32 */
-    TOK_FP64,                   /* fp64 */
-
     /* Expressions */
     TOK_EQ,                     /* = */
     TOK_DEF,                    /* := */
