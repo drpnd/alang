@@ -26,17 +26,37 @@
 
 #include <stdint.h>
 
+#if __LP64__ || __LLP64__ || __ILP64__
+typedef uint64_t int_t;
+#elif __LP32__
+typedef uint32_t int_t;
+#endif
+typedef double fp_t;
+
+#define TOK_KW_MAXLEN   1024
+
 /*
  * Token type
  */
 typedef enum {
+    /* ID */
+    TOK_ID,
+
+    /* Newline */
+    TOK_NEWLINE,                /* \n */
 
     /* Nil */
     TOK_NIL,                    /* nil */
 
+    /* Boolean */
+    TOK_TRUE,                   /* true */
+    TOK_FALSE,                  /* false */
+
     /* Literals */
-    TOK_LIT_INT,
     TOK_LIT_STR,
+    TOK_LIT_CHAR,
+    TOK_INT,
+    TOK_FLOAT,
 
     /* Types */
     TOK_I32,                    /* i32 */
@@ -50,7 +70,7 @@ typedef enum {
     /* Expressions */
     TOK_EQ,                     /* = */
     TOK_DEF,                    /* := */
-    TOK_EQEQ,                   /* == */
+    TOK_EQ_EQ,                  /* == */
     TOK_NEQ,                    /* != */
     TOK_GT,                     /* > */
     TOK_GEQ,                    /* >= */
@@ -67,7 +87,7 @@ typedef enum {
     TOK_TILDE,                  /* ~ */
     TOK_LSHIFT,                 /* << */
     TOK_RSHIFT,                 /* >> */
-    TOK_XOR,                    /* ^ */
+    TOK_HAT,                    /* ^ */
     TOK_AMP,                    /* & */
     TOK_BAR,                    /* | */
 
@@ -86,22 +106,44 @@ typedef enum {
 
     /* Keywords */
     TOK_KW_FN,                  /* fn */
+    TOK_KW_OR,                  /* or */
+    TOK_KW_AND,                 /* and */
+    TOK_KW_NOT,                 /* not */
+    TOK_KW_RETURN,              /* return */
+    TOK_KW_CONTINUE,            /* continue */
+    TOK_KW_BREAK,               /* break */
+    TOK_KW_IF,                  /* if */
+    TOK_KW_ELSE,                /* else */
+    TOK_KW_WHILE,               /* while */
+    TOK_KW_FOR,                 /* for */
 
 } al_token_type_t;
 
 /*
  * Literals
  */
-typedef struct {
+typedef union {
     int64_t i64;
     uint64_t u64;
 } al_lit_token_t;
+
+typedef struct {
+    unsigned char *s;
+    int_t len;
+} al_string_t;
 
 /*
  * Token
  */
 typedef struct {
     al_token_type_t type;
+    union {
+        char *id;
+        unsigned char c;
+        al_string_t s;
+        int_t i;
+        fp_t f;
+    } u;
 } al_token_t;
 
 #ifdef __cplusplus

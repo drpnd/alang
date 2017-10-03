@@ -25,16 +25,47 @@
 #define _TOKENIZER_H
 
 #include "token.h"
+#include <stdint.h>
+#include <unistd.h>
 
+/* Invalid token */
+#define AL_EINVALTOK    2
+
+/*
+ * Token list
+ */
+typedef struct _token_entry al_token_entry_t;
+struct _token_entry {
+    al_token_t *tok;
+    al_token_entry_t *next;
+};
 typedef struct {
+    al_token_entry_t *head;
+    al_token_entry_t *tail;
+} al_token_list_t;
+
+/*
+ * Tokenizer
+ */
+typedef struct _tokenizer al_tokenizer_t;
+struct _tokenizer {
     char *buf;
-} tokenizer_t;
+    size_t sz;
+    off_t off;
+    int (*cur)(al_tokenizer_t *);
+    int (*next)(al_tokenizer_t *);
+    int _allocated;
+
+    /* Tokenized list of tokens */
+    al_token_list_t *tokens;
+};
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    int tokenizer_tokenize(char *);
+    al_tokenizer_t * tokenizer_init(al_tokenizer_t *, char *, size_t);
+    al_token_list_t * tokenizer_tokenize(char *);
 
 #ifdef __cplusplus
 }

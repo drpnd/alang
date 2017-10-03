@@ -21,6 +21,10 @@
  * SOFTWARE.
  */
 
+#include "parser.h"
+
+
+
 /*
  * Local variables:
  * tab-width: 4
