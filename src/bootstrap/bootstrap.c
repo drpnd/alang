@@ -26,6 +26,7 @@
 #include <string.h>
 #include "alang.h"
 #include "tokenizer.h"
+#include "parser.h"
 
 #define FILE_MEMSIZE_DELTA  4096
 
@@ -275,6 +276,7 @@ main(int argc, const char *const argv[])
     const char *fname;
     char *content;
     al_token_list_t *tokens;
+    al_stmt_vec_t *program;
 
     if ( argc < 2 ) {
         usage(argv[0]);
@@ -292,8 +294,17 @@ main(int argc, const char *const argv[])
 
     /* Run tokenizer */
     tokens = tokenizer_tokenize(content);
-    if ( NULL != tokens ) {
-        print_tokens(tokens);
+    if ( NULL == tokens ) {
+        fprintf(stderr, "Failed to tokenize.\n");
+        return EXIT_FAILURE;
+    }
+#if 0
+    print_tokens(tokens);
+#endif
+
+    program = parser_parse(tokens);
+    if ( NULL == program ) {
+        printf("XXX\n");
     }
 
     return 0;

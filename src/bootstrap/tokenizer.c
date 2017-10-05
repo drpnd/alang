@@ -573,7 +573,7 @@ _skip_comment_block(al_tokenizer_t *t)
 /*
  * Next token
  */
-int
+static int
 _next_token(al_tokenizer_t *t)
 {
     int c;
@@ -840,6 +840,9 @@ tokenizer_release(al_tokenizer_t *t)
     }
 }
 
+/*
+ * Release a token
+ */
 void
 token_release(al_token_t *tok)
 {
@@ -848,6 +851,10 @@ token_release(al_token_t *tok)
     }
     free(tok);
 }
+
+/*
+ * Release the list of tokens
+ */
 void
 token_list_release(al_token_list_t *l)
 {
@@ -887,6 +894,7 @@ tokenizer_tokenize(char *input)
         return NULL;
     }
     free(t);
+
     return t->tokens;
 }
 

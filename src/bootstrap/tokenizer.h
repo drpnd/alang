@@ -29,20 +29,7 @@
 #include <unistd.h>
 
 /* Invalid token */
-#define AL_EINVALTOK    2
-
-/*
- * Token list
- */
-typedef struct _token_entry al_token_entry_t;
-struct _token_entry {
-    al_token_t *tok;
-    al_token_entry_t *next;
-};
-typedef struct {
-    al_token_entry_t *head;
-    al_token_entry_t *tail;
-} al_token_list_t;
+#define AL_EINVALTOK    1
 
 /*
  * Tokenizer
@@ -65,7 +52,11 @@ extern "C" {
 #endif
 
     al_tokenizer_t * tokenizer_init(al_tokenizer_t *, char *, size_t);
+    void tokenizer_release(al_tokenizer_t *);
     al_token_list_t * tokenizer_tokenize(char *);
+
+    void token_release(al_token_t *);
+    void token_list_release(al_token_list_t *);
 
 #ifdef __cplusplus
 }

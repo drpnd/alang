@@ -113,11 +113,6 @@ typedef enum {
 /*
  * Literals
  */
-typedef union {
-    int64_t i64;
-    uint64_t u64;
-} al_lit_token_t;
-
 typedef struct {
     unsigned char *s;
     int_t len;
@@ -137,13 +132,18 @@ typedef struct {
     } u;
 } al_token_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
-#endif
+/*
+ * Token list
+ */
+typedef struct _token_entry al_token_entry_t;
+struct _token_entry {
+    al_token_t *tok;
+    al_token_entry_t *next;
+};
+typedef struct {
+    al_token_entry_t *head;
+    al_token_entry_t *tail;
+} al_token_list_t;
 
 #endif /* _TOKEN_H */
 
