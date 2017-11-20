@@ -21,44 +21,39 @@
  * SOFTWARE.
  */
 
-#ifndef _PARSER_H
-#define _PARSER_H
+#ifndef _ITYPE_H
+#define _ITYPE_H
 
-#include "token.h"
-#include "syntax.h"
-#include <stddef.h>
+#include <stdint.h>
+#include <inttypes.h>
+
+/* Internal type: 64 bit integer */
+typedef uint64_t int_t;
+#define AL_PRId         PRId64
+#define AL_PRIu         PRIu64
+#define AL_ITYPE_INT 64
+/* Internal type: FP80 */
+typedef long double fp_t;
+#define AL_ITYPE_FP     80
+#define AL_PRIf         "Lf"
+
+#if __LP64__ || __LLP64__ || __ILP64__
+#define AL_ITYPE_PTR    64
+#elif __LP32__
+#define AL_ITYPE_PTR    32
+#else
+#error "Unsupported pointer type."
+#endif
 
 /*
- * Parser
+ * Literals
  */
 typedef struct {
-    /* Tokens */
-    al_token_list_t *tokens;
+    unsigned char *s;
+    int_t len;
+} al_string_t;
 
-    /* Current token */
-    al_token_entry_t *cur;
-
-    /* Allocated */
-    int _allocated;
-
-    /* Program */
-    al_stmt_vec_t *program;
-} al_parser_t;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-    al_parser_t * parser_init(al_parser_t *, al_token_list_t *);
-    void parser_release(al_parser_t *);
-
-    al_stmt_vec_t * parser_parse(al_token_list_t *);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _PARSER_H */
+#endif /* _ITYPE_H */
 
 /*
  * Local variables:

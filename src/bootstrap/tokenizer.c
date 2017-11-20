@@ -357,6 +357,10 @@ _scan_keyword(al_tokenizer_t *t)
         type = TOK_KW_AND;
     } else if ( 0 == strcmp(buf, "fn") ) {
         type = TOK_KW_FN;
+    } else if ( 0 == strcmp(buf, "import") ) {
+        type = TOK_KW_IMPORT;
+    } else if ( 0 == strcmp(buf, "package") ) {
+        type = TOK_KW_PACKAGE;
     } else if ( 0 == strcmp(buf, "return") ) {
         type = TOK_KW_RETURN;
     } else if ( 0 == strcmp(buf, "continue") ) {

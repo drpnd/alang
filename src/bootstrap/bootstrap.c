@@ -99,170 +99,11 @@ void
 print_tokens(al_token_list_t *tokens)
 {
     al_token_entry_t *e;
-    ssize_t i;
 
     e = tokens->head;
     while ( NULL != e ) {
         printf(" ");
-        switch ( e->tok->type ) {
-        case TOK_ID:
-            printf("%s", e->tok->u.id);
-            break;
-        case TOK_NIL:
-            printf("nil");
-            break;
-        case TOK_TRUE:
-            printf("true");
-            break;
-        case TOK_FALSE:
-            printf("false");
-            break;
-        case TOK_KW_OR:
-            printf("or");
-            break;
-        case TOK_KW_AND:
-            printf("and");
-            break;
-        case TOK_KW_NOT:
-            printf("not");
-            break;
-        case TOK_KW_FN:
-            printf("fn");
-            break;
-        case TOK_KW_RETURN:
-            printf("return");
-            break;
-        case TOK_KW_CONTINUE:
-            printf("continue");
-            break;
-        case TOK_KW_BREAK:
-            printf("break");
-            break;
-        case TOK_KW_IF:
-            printf("if");
-            break;
-        case TOK_KW_ELSE:
-            printf("else");
-            break;
-        case TOK_KW_WHILE:
-            printf("while");
-            break;
-        case TOK_KW_FOR:
-            printf("for");
-            break;
-        case TOK_MINUS:
-            printf("-");
-            break;
-        case TOK_PLUS:
-            printf("+");
-            break;
-        case TOK_ASTERISK:
-            printf("*");
-            break;
-        case TOK_SLASH:
-            printf("/");
-            break;
-        case TOK_PERCENT:
-            printf("%%");
-            break;
-        case TOK_AMP:
-            printf("&");
-            break;
-        case TOK_BAR:
-            printf("|");
-            break;
-        case TOK_TILDE:
-            printf("~");
-            break;
-        case TOK_HAT:
-            printf("^");
-            break;
-        case TOK_COMMA:
-            printf(",");
-            break;
-        case TOK_PERIOD:
-            printf(".");
-            break;
-        case TOK_NOT:
-            printf("!");
-            break;
-        case TOK_NEQ:
-            printf("!=");
-            break;
-        case TOK_AT:
-            printf("@");
-            break;
-        case TOK_LT:
-            printf("<");
-            break;
-        case TOK_LSHIFT:
-            printf("<<");
-            break;
-        case TOK_LEQ:
-            printf("<=");
-            break;
-        case TOK_GT:
-            printf(">");
-            break;
-        case TOK_RSHIFT:
-            printf(">>");
-            break;
-        case TOK_GEQ:
-            printf(">=");
-            break;
-        case TOK_EQ:
-            printf("=");
-            break;
-        case TOK_EQ_EQ:
-            printf("==");
-            break;
-        case TOK_DEF:
-            printf(":=");
-            break;
-        case TOK_LBRACKET:
-            printf("[");
-            break;
-        case TOK_RBRACKET:
-            printf("]");
-            break;
-        case TOK_LBRACE:
-            printf("{");
-            break;
-        case TOK_RBRACE:
-            printf("}");
-            break;
-        case TOK_LPAREN:
-            printf("(");
-            break;
-        case TOK_RPAREN:
-            printf(")");
-            break;
-        case TOK_COLON:
-            printf(":");
-            break;
-        case TOK_SEMICOLON:
-            printf(";");
-            break;
-        case TOK_NEWLINE:
-            printf("\n");
-            break;
-        case TOK_FLOAT:
-            printf("%lf", e->tok->u.f);
-            break;
-        case TOK_INT:
-            printf("%llu", e->tok->u.i);
-            break;
-        case TOK_LIT_CHAR:
-            printf("%x", e->tok->u.c);
-            break;
-        case TOK_LIT_STR:
-            for ( i = 0; i < (ssize_t)e->tok->u.s.len; i++ ) {
-                printf("%02x", e->tok->u.s.s[i]);
-            }
-            break;
-        default:
-            printf("[UNK]");
-        }
+        al_print_token(e->tok);
         e = e->next;
     }
 }
@@ -304,7 +145,8 @@ main(int argc, const char *const argv[])
 
     program = parser_parse(tokens);
     if ( NULL == program ) {
-        printf("XXX\n");
+        fprintf(stderr, "Failed to parse the program.\n");
+        return EXIT_FAILURE;
     }
 
     return 0;

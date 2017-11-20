@@ -24,14 +24,9 @@
 #ifndef _TOKEN_H
 #define _TOKEN_H
 
+#include "itype.h"
+#include <stdio.h>
 #include <stdint.h>
-
-#if __LP64__ || __LLP64__ || __ILP64__
-typedef uint64_t int_t;
-#elif __LP32__
-typedef uint32_t int_t;
-#endif
-typedef double fp_t;
 
 #define TOK_KW_MAXLEN   1024
 
@@ -97,6 +92,8 @@ typedef enum {
 
     /* Keywords */
     TOK_KW_FN,                  /* fn */
+    TOK_KW_IMPORT,              /* import */
+    TOK_KW_PACKAGE,             /* package */
     TOK_KW_OR,                  /* or */
     TOK_KW_AND,                 /* and */
     TOK_KW_NOT,                 /* not */
@@ -109,14 +106,6 @@ typedef enum {
     TOK_KW_FOR,                 /* for */
 
 } al_token_type_t;
-
-/*
- * Literals
- */
-typedef struct {
-    unsigned char *s;
-    int_t len;
-} al_string_t;
 
 /*
  * Token
@@ -144,6 +133,177 @@ typedef struct {
     al_token_entry_t *head;
     al_token_entry_t *tail;
 } al_token_list_t;
+
+
+/*
+ * Print the given token
+ */
+static __inline__ void
+al_print_token(al_token_t *tok)
+{
+    ssize_t i;
+
+    switch ( tok->type ) {
+    case TOK_ID:
+        printf("%s", tok->u.id);
+        break;
+    case TOK_NIL:
+        printf("nil");
+        break;
+    case TOK_TRUE:
+        printf("true");
+        break;
+    case TOK_FALSE:
+        printf("false");
+        break;
+    case TOK_KW_OR:
+        printf("or");
+        break;
+    case TOK_KW_AND:
+        printf("and");
+        break;
+    case TOK_KW_NOT:
+        printf("not");
+        break;
+    case TOK_KW_FN:
+        printf("fn");
+        break;
+    case TOK_KW_RETURN:
+        printf("return");
+        break;
+    case TOK_KW_CONTINUE:
+        printf("continue");
+        break;
+    case TOK_KW_BREAK:
+        printf("break");
+        break;
+    case TOK_KW_IF:
+        printf("if");
+        break;
+    case TOK_KW_ELSE:
+        printf("else");
+        break;
+    case TOK_KW_WHILE:
+        printf("while");
+        break;
+    case TOK_KW_FOR:
+        printf("for");
+        break;
+    case TOK_MINUS:
+        printf("-");
+        break;
+    case TOK_PLUS:
+        printf("+");
+        break;
+    case TOK_ASTERISK:
+        printf("*");
+        break;
+    case TOK_SLASH:
+        printf("/");
+        break;
+    case TOK_PERCENT:
+        printf("%%");
+        break;
+    case TOK_AMP:
+        printf("&");
+        break;
+    case TOK_BAR:
+        printf("|");
+        break;
+    case TOK_TILDE:
+        printf("~");
+        break;
+    case TOK_HAT:
+        printf("^");
+        break;
+    case TOK_COMMA:
+        printf(",");
+        break;
+    case TOK_PERIOD:
+        printf(".");
+        break;
+    case TOK_NOT:
+        printf("!");
+        break;
+    case TOK_NEQ:
+        printf("!=");
+        break;
+    case TOK_AT:
+        printf("@");
+        break;
+    case TOK_LT:
+        printf("<");
+        break;
+    case TOK_LSHIFT:
+        printf("<<");
+        break;
+    case TOK_LEQ:
+        printf("<=");
+        break;
+    case TOK_GT:
+        printf(">");
+        break;
+    case TOK_RSHIFT:
+        printf(">>");
+        break;
+    case TOK_GEQ:
+        printf(">=");
+        break;
+    case TOK_EQ:
+        printf("=");
+        break;
+    case TOK_EQ_EQ:
+        printf("==");
+        break;
+    case TOK_DEF:
+        printf(":=");
+        break;
+    case TOK_LBRACKET:
+        printf("[");
+        break;
+    case TOK_RBRACKET:
+        printf("]");
+        break;
+    case TOK_LBRACE:
+        printf("{");
+        break;
+    case TOK_RBRACE:
+        printf("}");
+        break;
+    case TOK_LPAREN:
+        printf("(");
+        break;
+    case TOK_RPAREN:
+        printf(")");
+        break;
+    case TOK_COLON:
+        printf(":");
+        break;
+    case TOK_SEMICOLON:
+        printf(";");
+        break;
+    case TOK_NEWLINE:
+        printf("\n");
+        break;
+    case TOK_FLOAT:
+        printf("%" AL_PRIf, tok->u.f);
+        break;
+    case TOK_INT:
+        printf("%" AL_PRIu, tok->u.i);
+        break;
+    case TOK_LIT_CHAR:
+        printf("%02x", tok->u.c);
+        break;
+    case TOK_LIT_STR:
+        for ( i = 0; i < (ssize_t)tok->u.s.len; i++ ) {
+            printf("%02x", tok->u.s.s[i]);
+        }
+        break;
+    default:
+        printf("[UNK]");
+    }
+}
+
 
 #endif /* _TOKEN_H */
 
