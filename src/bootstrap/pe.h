@@ -32,7 +32,7 @@
  */
 typedef struct _IMAGE_DOS_HEADER {
     /* Signature */
-    uint16_t e_magic;         /* "MZ "0x5a4d */
+    uint16_t e_magic;         /* "MZ" 0x5a4d */
     /* # of bytes in the last page */
     uint16_t e_cblp;
     /* # of whole/partial pages (in 512-byte paging) */
@@ -70,6 +70,8 @@ typedef struct _IMAGE_DOS_HEADER {
 } __attribute__((packed)) IMAGE_DOS_HEADER;
 
 
+#define IMAGE_DOS_MAGIC 0x5a4d
+#define IMAGE_NT_MAGIC  0x00004550
 
 #define IMAGE_FILE_MACHINE_I386 0x014c
 #define IMAGE_FILE_MACHINE_IA64 0x0200
@@ -95,6 +97,15 @@ typedef struct _IMAGE_DOS_HEADER {
 #define IMAGE_NT_OPTIONAL_HDR64_MAGIC   0x20b
 #define IMAGE_ROM_OPTIONAL_HDR_MAGIC    0x107
 
+#define IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE 0x0040
+#define IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY 0x0080
+#define IMAGE_DLLCHARACTERISTICS_NX_COMPAT 0x0100
+#define IMAGE_DLLCHARACTERISTICS_NO_ISOLATION 0x0200
+#define IMAGE_DLLCHARACTERISTICS_NO_SEH 0x0400
+#define IMAGE_DLLCHARACTERISTICS_NO_BIND 0x0800
+#define IMAGE_DLLCHARACTERISTICS_WDM_DRIVER 0x2000
+#define IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE 0x8000
+
 /*
  * File header
  */
@@ -111,6 +122,21 @@ typedef struct _IMAGE_FILE_HEADER {
 
 /*
  * Image data directory
+ * 0: Export table address and size
+ * 1: Import table address and size
+ * 2: Resource table address and size
+ * 3: Exception table address and size
+ * 4: Certificate table address and size
+ * 5: Base relocation table address and size
+ * 6: Debugging information starting address and size
+ * 7: Architecture-specific data address and size
+ * 8: Global pointer register relative virtual address
+ * 9: Thread local storage (TLS) table address and size
+ * 10: Load configuration table address and size
+ * 11: Bound import table address and size
+ * 12: Import address table address and size
+ * 13: Delay import descriptor address and size
+ * 14: The CLR header address and size
  */
 typedef struct _IMAGE_DATA_DIRECTORY {
     uint32_t VirtualAddress;
@@ -142,6 +168,7 @@ typedef struct _IMAGE_OPTIONAL_HEADER {
     uint32_t Win32VersionValue;
     uint32_t SizeOfImage;
     uint32_t SizeOfHeaders;
+    /* Image file checksum */
     uint32_t CheckSum;
     uint16_t Subsystem;
     uint16_t DllCharacteristics;
@@ -166,7 +193,6 @@ typedef struct _IMAGE_OPTIONAL_HEADER64 {
     uint32_t SizeOfUninitializedData;
     uint32_t AddressOfEntryPoint;
     uint32_t BaseOfCode;
-    uint32_t BaseOfData;
     uint64_t ImageBase;
     uint32_t SectionAlignment;
     uint32_t FileAlignment;
