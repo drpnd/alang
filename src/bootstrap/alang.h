@@ -21,44 +21,18 @@
  * SOFTWARE.
  */
 
-#ifndef _PARSER_H
-#define _PARSER_H
-
-#include "token.h"
-#include "syntax.h"
-#include <stddef.h>
-
-/*
- * Parser
- */
-typedef struct {
-    /* Tokens */
-    al_token_list_t *tokens;
-
-    /* Current token */
-    al_token_entry_t *cur;
-
-    /* Allocated */
-    int _allocated;
-
-    /* Program */
-    al_stmt_vec_t *program;
-} al_parser_t;
+#ifndef _ALANG_H
+#define _ALANG_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    al_parser_t * parser_init(al_parser_t *, al_token_list_t *);
-    void parser_release(al_parser_t *);
-
-    al_decl_vec_t * parser_parse(al_token_list_t *);
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _PARSER_H */
+#endif /* _ALANG_H */
 
 /*
  * Local variables:

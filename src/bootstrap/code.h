@@ -21,44 +21,48 @@
  * SOFTWARE.
  */
 
-#ifndef _PARSER_H
-#define _PARSER_H
+#ifndef _CODE_H
+#define _CODE_H
 
-#include "token.h"
-#include "syntax.h"
-#include <stddef.h>
+#include <stdio.h>
+#include <stdint.h>
+
+struct code_binary {
+    uint8_t *text;
+    size_t len;
+};
+struct code_symbol {
+    char *name;
+    size_t size;
+    off_t pos;
+};
+
+struct code_symbols {
+    struct code_symbol *ents;
+    size_t size;
+};
+
+struct code {
+    struct code_binary bin;
+    struct code_symbols symbols;
+    struct code_symbols dsyms;
+};
 
 /*
- * Parser
+ * .text
+ * .data
+ * .bss
  */
-typedef struct {
-    /* Tokens */
-    al_token_list_t *tokens;
-
-    /* Current token */
-    al_token_entry_t *cur;
-
-    /* Allocated */
-    int _allocated;
-
-    /* Program */
-    al_stmt_vec_t *program;
-} al_parser_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    al_parser_t * parser_init(al_parser_t *, al_token_list_t *);
-    void parser_release(al_parser_t *);
-
-    al_decl_vec_t * parser_parse(al_token_list_t *);
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _PARSER_H */
+#endif /* _CODE_H */
 
 /*
  * Local variables:

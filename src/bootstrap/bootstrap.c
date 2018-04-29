@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2017 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2017-2018 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,6 +27,7 @@
 #include "alang.h"
 #include "tokenizer.h"
 #include "parser.h"
+#include "compiler.h"
 
 #define FILE_MEMSIZE_DELTA  4096
 
@@ -148,6 +149,8 @@ main(int argc, const char *const argv[])
         fprintf(stderr, "Failed to parse the program.\n");
         return EXIT_FAILURE;
     }
+
+    compiler_compile(program);
 
     return 0;
 }

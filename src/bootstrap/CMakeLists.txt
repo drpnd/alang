@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017 Hirochika Asai <asai@jar.jp>
+# Copyright (c) 2017-2018 Hirochika Asai <asai@jar.jp>
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -57,14 +57,15 @@ add_definitions (-DBUILD_DATETIME=\"${BUILD_DATETIME}\"
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "build")
 
-set (fexporter_VERSION "current-${BUILD_DATETIME}")
-#set (fexporter_VERSION_MAJOR "0")
-#set (fexporter_VERSION_MINOR "1")
-#set (fexporter_VERSION_PATCH "0")
+set (alang_bootstrap_VERSION "current-${BUILD_DATETIME}")
+#set (alang_bootstrap_VERSION_MAJOR "0")
+#set (alang_bootstrap_VERSION_MINOR "1")
+#set (alang_bootstrap_VERSION_PATCH "0")
 
 
-set(HEADERS alang.h tokenizer.h token.h parser.h syntax.h)
-set(SOURCES tokenizer.c parser.c)
+set(HEADERS alang.h tokenizer.h token.h parser.h syntax.h code.h compiler.h pe.h mach-o.h elf.h)
+set(SOURCES tokenizer.c parser.c mach-o.c elf.c pe.c compiler.c)
 
 # alang-bootstrap
 add_executable(minica bootstrap.c ${SOURCES} ${HEADERS})
+add_executable(test test.c ${SOURCES} ${HEADERS})

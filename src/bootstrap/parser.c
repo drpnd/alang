@@ -494,7 +494,7 @@ _parse_expr_atom(al_parser_t *parser)
         (void)_next_token(parser);
         break;
     default:
-        printf("ATOM\n");
+        printf("Not implemented ATOM\n");
         return NULL;
     }
 
@@ -1349,7 +1349,6 @@ _parse_decl_fn(al_parser_t *parser)
     decl->u.fn.rv = retvals;
     decl->u.fn.b = vec;
 
-    printf("fn %s %p %p\n", func->id, retvals, vec);
     return decl;
 }
 

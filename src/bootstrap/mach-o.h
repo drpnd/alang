@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2017 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2017-2018 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,44 +21,25 @@
  * SOFTWARE.
  */
 
-#ifndef _PARSER_H
-#define _PARSER_H
+#ifndef _MACH_O_H
+#define _MACH_O_H
 
-#include "token.h"
-#include "syntax.h"
-#include <stddef.h>
-
-/*
- * Parser
- */
-typedef struct {
-    /* Tokens */
-    al_token_list_t *tokens;
-
-    /* Current token */
-    al_token_entry_t *cur;
-
-    /* Allocated */
-    int _allocated;
-
-    /* Program */
-    al_stmt_vec_t *program;
-} al_parser_t;
+#include <stdio.h>
+#include <stdint.h>
+#include "code.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    al_parser_t * parser_init(al_parser_t *, al_token_list_t *);
-    void parser_release(al_parser_t *);
-
-    al_decl_vec_t * parser_parse(al_token_list_t *);
+    int mach_o_test2(struct code *, FILE *);
+    int mach_o_test(FILE *);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _PARSER_H */
+#endif /* _MACH_O_H */
 
 /*
  * Local variables:
