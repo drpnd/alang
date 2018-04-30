@@ -68,4 +68,4 @@ set(SOURCES tokenizer.c parser.c mach-o.c elf.c pe.c compiler.c)
 
 # alang-bootstrap
 add_executable(minica bootstrap.c ${SOURCES} ${HEADERS})
-add_executable(test test.c ${SOURCES} ${HEADERS})
+add_executable(mytest test.c ${SOURCES} ${HEADERS})
