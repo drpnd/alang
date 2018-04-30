@@ -85,8 +85,8 @@ main(int argc, const char *const argv[])
     code.dsyms.ents[0].pos = 0;
     code.dsyms.size = 1;
 
-    //elf_test2(&code, fp);
-    mach_o_test2(&code, fp);
+    elf_test2(&code, fp);
+    //mach_o_test2(&code, fp);
     //mach_o_test(fp);
 
     return 0;

@@ -187,6 +187,7 @@ enum {
     SHF_ALLOC = 0x2,            /* Section is allocated in memory image of
                                    program */
     SHF_EXECINSTR = 0x4,        /* Section contains executable instructions */
+    SHF_INFO = 0x40,
     SHF_MASKOS = 0x0f000000,    /* Environment-specific use */
     SHF_MASKPROC = 0xf0000000,  /* Processor-specific use */
 };
@@ -264,6 +265,10 @@ typedef struct {
                                            relocation */
     Elf64_Sxword        r_addend;       /* Constant part of expression */
 } __attribute__ ((packed)) Elf64_Rela;
+
+#define ELF64_R_SYM(i)      ((i) >> 32)
+#define ELF64_R_TYPE(i)     ((i) & 0xffffffffL)
+#define ELF64_R_INFO(s, t)  (((Elf64_Xword)(s) << 32) + ((t) & 0xffffffffL))
 
 /* Program header table entry */
 typedef struct {
@@ -424,6 +429,7 @@ elf_test2(struct code *code, FILE *fp)
     Elf64_Ehdr hdr;
     Elf64_Shdr shdr;
     Elf64_Sym sym;
+    Elf64_Rela rela;
     size_t nw;
     ssize_t i;
     off_t off;
@@ -432,6 +438,9 @@ elf_test2(struct code *code, FILE *fp)
     strtablen = 1;
     for ( i = 0; i < (ssize_t)code->symbols.size; i++ ) {
         strtablen += strlen(code->symbols.ents[i].name) + 1;
+    }
+    for ( i = 0; i < (ssize_t)code->dsyms.size; i++ ) {
+        strtablen += strlen(code->dsyms.ents[i].name) + 1;
     }
 
     /* Allocate the string table */
@@ -448,10 +457,15 @@ elf_test2(struct code *code, FILE *fp)
                strlen(code->symbols.ents[i].name) + 1);
         off += strlen(code->symbols.ents[i].name) + 1;
     }
+    for ( i = 0; i < (ssize_t)code->dsyms.size; i++ ) {
+        memcpy(strtab + off, code->dsyms.ents[i].name,
+               strlen(code->dsyms.ents[i].name) + 1);
+        off += strlen(code->dsyms.ents[i].name) + 1;
+    }
 
     /* Section header string table */
-    shstrtab = "\0.symtab\0.strtab\0.shstrtab\0.text\0.data\0.bss\0";
-    shstrtablen = 44;
+    shstrtab = "\0.symtab\0.strtab\0.shstrtab\0.text\0.data\0.bss\0.rela.text\0";
+    shstrtablen = 55;
 
     /* ELF header */
     hdr.e_ident[EI_MAG0] = '\x7f';
@@ -475,13 +489,16 @@ elf_test2(struct code *code, FILE *fp)
     hdr.e_phentsize = 0;
     hdr.e_phnum = 0;
     hdr.e_shentsize = 64;
-    hdr.e_shnum = 5;
-    hdr.e_shstrndx = 3;
+    hdr.e_shnum = 7;
+    hdr.e_shstrndx = 5;
 
     nw = fwrite(&hdr, sizeof(Elf64_Ehdr), 1, fp);
 
     fseeko(fp, 0x40, SEEK_SET);
     nw = fwrite(code->bin.text, code->bin.len, 1, fp);
+
+    fseeko(fp, 0xc0, SEEK_SET);
+    nw = fwrite("\x02\x00\x00\x00", 4, 1, fp);
 
     fseeko(fp, 0x100, SEEK_SET);
     sym.st_name = 0;
@@ -499,13 +516,19 @@ elf_test2(struct code *code, FILE *fp)
     nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
     sym.st_shndx = 2;
     nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
+    sym.st_name = 0x0e;
+    sym.st_info = ELF64_ST_INFO(STB_LOCAL, STT_OBJECT);
+    sym.st_shndx = 3;           /* .data */
+    sym.st_size = 4;
+    nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
+    sym.st_name = 0;
+    sym.st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
     sym.st_shndx = 3;
+    sym.st_size = 0;
     nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
     sym.st_shndx = 4;
     nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
-    sym.st_shndx = 5;
-    nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
-    sym.st_shndx = 6;
+    sym.st_shndx = 4;
     nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
     sym.st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
     sym.st_shndx = 1;
@@ -523,8 +546,20 @@ elf_test2(struct code *code, FILE *fp)
     fseeko(fp, 0x240, SEEK_SET);
     nw = fwrite(shstrtab, shstrtablen, 1, fp);
 
+    /* .rela.text */
+    fseeko(fp, 0x280, SEEK_SET);
+    rela.r_offset = 0xd;
+    rela.r_info = ELF64_R_INFO(4, R_X86_64_PC32); /* .data */
+    rela.r_addend = -4;
+    nw = fwrite(&rela, sizeof(Elf64_Rela), 1, fp);
+    rela.r_offset = 0x16;
+    rela.r_info = ELF64_R_INFO(4, R_X86_64_PC32); /* .data */
+    rela.r_addend = -4;
+    nw = fwrite(&rela, sizeof(Elf64_Rela), 1, fp);
+
     fseeko(fp, 0x300, SEEK_SET);
 
+    /* Null */
     shdr.sh_name = 0;
     shdr.sh_type = SHT_NULL;
     shdr.sh_flags = 0;
@@ -537,6 +572,7 @@ elf_test2(struct code *code, FILE *fp)
     shdr.sh_entsize = 0;
     nw = fwrite(&shdr, sizeof(Elf64_Shdr), 1, fp);
 
+    /* .text */
     shdr.sh_name = 27;
     shdr.sh_type = SHT_PROGBITS;
     shdr.sh_flags = SHF_ALLOC | SHF_EXECINSTR;
@@ -546,6 +582,32 @@ elf_test2(struct code *code, FILE *fp)
     shdr.sh_link = 0;
     shdr.sh_info = 0;
     shdr.sh_addralign = 1;
+    shdr.sh_entsize = 0;
+    nw = fwrite(&shdr, sizeof(Elf64_Shdr), 1, fp);
+
+    /* .rela.text */
+    shdr.sh_name = 44;
+    shdr.sh_type = SHT_RELA;
+    shdr.sh_flags = SHF_INFO;
+    shdr.sh_addr = 0;
+    shdr.sh_offset = 0x280;
+    shdr.sh_size = 0x30;
+    shdr.sh_link = 6;
+    shdr.sh_info = 1;
+    shdr.sh_addralign = 8;
+    shdr.sh_entsize = 0x18;
+    nw = fwrite(&shdr, sizeof(Elf64_Shdr), 1, fp);
+
+    /* .data */
+    shdr.sh_name = 33;
+    shdr.sh_type = SHT_PROGBITS;
+    shdr.sh_flags = SHF_WRITE | SHF_ALLOC;
+    shdr.sh_addr = 0;
+    shdr.sh_offset = 0xc0;
+    shdr.sh_size = 0x04;
+    shdr.sh_link = 0;
+    shdr.sh_info = 0;
+    shdr.sh_addralign = 4;
     shdr.sh_entsize = 0;
     nw = fwrite(&shdr, sizeof(Elf64_Shdr), 1, fp);
 
@@ -579,7 +641,7 @@ elf_test2(struct code *code, FILE *fp)
     shdr.sh_addr = 0;
     shdr.sh_offset = 0x100;
     shdr.sh_size = 0xf0;
-    shdr.sh_link = 2;
+    shdr.sh_link = 4;           /* index of strtab */
     shdr.sh_info = 8;
     shdr.sh_addralign = 8;
     shdr.sh_entsize = 0x18;
