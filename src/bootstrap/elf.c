@@ -514,12 +514,12 @@ elf_test2(struct code *code, FILE *fp)
     sym.st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
     sym.st_shndx = 1;
     nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
-    sym.st_shndx = 2;
-    nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
-    sym.st_name = 0x0e;
-    sym.st_info = ELF64_ST_INFO(STB_LOCAL, STT_OBJECT);
     sym.st_shndx = 3;           /* .data */
-    sym.st_size = 4;
+    nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
+    //sym.st_name = 0x0e;
+    //sym.st_info = ELF64_ST_INFO(STB_LOCAL, STT_OBJECT);
+    //sym.st_shndx = 3;           /* .data */
+    //sym.st_size = 4;
     nw = fwrite(&sym, sizeof(Elf64_Sym), 1, fp);
     sym.st_name = 0;
     sym.st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
@@ -549,11 +549,11 @@ elf_test2(struct code *code, FILE *fp)
     /* .rela.text */
     fseeko(fp, 0x280, SEEK_SET);
     rela.r_offset = 0xd;
-    rela.r_info = ELF64_R_INFO(4, R_X86_64_PC32); /* .data */
+    rela.r_info = ELF64_R_INFO(3, R_X86_64_PC32); /* .data */
     rela.r_addend = -4;
     nw = fwrite(&rela, sizeof(Elf64_Rela), 1, fp);
     rela.r_offset = 0x16;
-    rela.r_info = ELF64_R_INFO(4, R_X86_64_PC32); /* .data */
+    rela.r_info = ELF64_R_INFO(3, R_X86_64_PC32); /* .data */
     rela.r_addend = -4;
     nw = fwrite(&rela, sizeof(Elf64_Rela), 1, fp);
 
