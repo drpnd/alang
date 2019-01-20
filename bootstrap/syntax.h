@@ -24,6 +24,56 @@
 #ifndef _SYNTAX_H
 #define _SYNTAX_H
 
+/*
+ * Typedefs
+ */
+typedef struct _expr expr_t;
+
+/*
+ * Operations
+ */
+typedef enum {
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+} op_type_t;
+
+/*
+ * Type of fixes
+ */
+typedef enum {
+    FIX_INFIX,
+    FIX_PREFIX,
+} fix_t;
+
+/*
+ * Expression type
+ */
+typedef enum {
+    EXPR_OP,
+} expr_type_t;
+
+/*
+ * Operation
+ */
+typedef struct {
+    op_type_t type;
+    fix_t fix;
+    expr_t *e0;
+    expr_t *e1;
+} op_t;
+
+/*
+ * Expression
+ */
+struct _expr {
+    expr_type_t type;
+    union {
+        op_t *op;
+    } u;
+};
+
 #define COMPILER_ERROR(err)    do {                             \
         fprintf(stderr, "Fatal error on compiling the code\n"); \
         exit(err);                                              \
