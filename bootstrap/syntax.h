@@ -28,6 +28,8 @@
  * Typedefs
  */
 typedef struct _expr expr_t;
+typedef struct stmt stmt_t;
+typedef struct stmt_list stmt_list_t;
 
 /*
  * Operations
@@ -72,6 +74,32 @@ struct _expr {
     union {
         op_t *op;
     } u;
+};
+
+/*
+ * Statement type
+ */
+typedef enum {
+    STMT_EXPR,
+} stmt_type_t;
+
+/*
+ * Statement
+ */
+struct stmt {
+    stmt_type_t type;
+    union {
+        expr_t *expr;
+    } u;
+    stmt_t *next;
+};
+
+/*
+ * Statements
+ */
+struct stmt_list {
+    stmt_t *head;
+    stmt_t *tail;
 };
 
 #define COMPILER_ERROR(err)    do {                             \
