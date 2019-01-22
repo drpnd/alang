@@ -39,6 +39,7 @@ int yyerror(char const *);
 %token <intval>         TOK_LIT_INT
 %token <idval>          TOK_ID
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF TOK_NEWLINE
+%token TOK_PACKAGE TOK_FN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %type <expr> primary
 %locations

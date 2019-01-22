@@ -49,6 +49,10 @@ yywrap(void)
     /* Control sequences */
 [\t ]   ;                       /* ignore whitespaces */
 "\n"    return TOK_NEWLINE;
+"fn"    return TOK_FN;
+"package" {
+    return TOK_PACKAGE;
+}
     /* Identifier */
 [A-Za-z\_]* {
     char *val;
