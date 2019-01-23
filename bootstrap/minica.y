@@ -38,23 +38,37 @@ int yyerror(char const *);
 }
 %token <intval>         TOK_LIT_INT
 %token <idval>          TOK_ID
-%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF TOK_NEWLINE
+%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
+%token TOK_LPAREN TOK_RPAREN TOK_COMMA
 %token TOK_PACKAGE TOK_FN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
-%type <expr> primary
 %type <idval> id
-%type <void> package
+%type <void> package function
 %locations
 %%
 /* Syntax and parser */
+file:           package
+        |       function
+                ;
 package:        TOK_PACKAGE id
                 {
-                    printf("package %s\n", $2);
+                    printf("> package %s\n", $2);
                 }
                 ;
-primary:        TOK_LIT_INT
+function:       TOK_FN id TOK_LPAREN args TOK_RPAREN
                 {
-                    printf("%d\n", $1);
+                }
+                ;
+args:           arg
+                {
+                }
+        |       arg TOK_COMMA args
+                {
+                }
+                ;
+arg:            id id
+                {
+                    printf("%s %s\n", $1, $2);
                 }
                 ;
 id:             TOK_ID

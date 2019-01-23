@@ -44,15 +44,21 @@ yywrap(void)
 "&"     return TOK_BIT_AND;
 "<<"    return TOK_BIT_LSHIFT;
 ">>"    return TOK_BIT_RSHIFT;
+    /* Parentheses, brackets, etc... */
+"("     return TOK_LPAREN;
+")"     return TOK_RPAREN;
+","     return TOK_COMMA;
     /* Definition */
 ":="    return TOK_DEF;
     /* Control sequences */
-[\t ]   ;                       /* ignore whitespaces */
-"\n"    return TOK_NEWLINE;
-"fn"    return TOK_FN;
+[\r\n\t ] {
+    ;                       /* ignore whitespaces */
+}
+    /* Reserved keywords */
 "package" {
     return TOK_PACKAGE;
 }
+"fn"    return TOK_FN;
     /* Identifier */
 [A-Za-z\_]* {
     char *val;
