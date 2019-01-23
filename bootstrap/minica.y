@@ -42,16 +42,24 @@ int yyerror(char const *);
 %token TOK_PACKAGE TOK_FN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %type <expr> primary
+%type <idval> id
+%type <void> package
 %locations
 %%
 /* Syntax and parser */
+package:        TOK_PACKAGE id
+                {
+                    printf("package %s\n", $2);
+                }
+                ;
 primary:        TOK_LIT_INT
                 {
                     printf("%d\n", $1);
                 }
-        |       TOK_ID
+                ;
+id:             TOK_ID
                 {
-                    printf("%s\n", $1);
+                    $$ = $1;
                 }
                 ;
 %%
