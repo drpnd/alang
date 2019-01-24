@@ -40,22 +40,30 @@ int yyerror(char const *);
 %token <idval>          TOK_ID
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
 %token TOK_LPAREN TOK_RPAREN TOK_COMMA
-%token TOK_PACKAGE TOK_FN
+%token TOK_NEWLINE
+%token TOK_PACKAGE TOK_IMPORT TOK_FN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
-%type <idval> id
+%type <idval> identifier
 %type <void> package function
 %locations
 %%
 /* Syntax and parser */
 file:           package
+        |       import
         |       function
+        |       TOK_NEWLINE
                 ;
-package:        TOK_PACKAGE id
+package:        TOK_PACKAGE identifier TOK_NEWLINE
                 {
                     printf("> package %s\n", $2);
                 }
                 ;
-function:       TOK_FN id TOK_LPAREN args TOK_RPAREN
+import:         TOK_IMPORT identifier TOK_NEWLINE
+                {
+                    printf("> import %s\n", $2);
+                }
+                ;
+function:       TOK_FN identifier TOK_LPAREN args TOK_RPAREN
                 {
                 }
                 ;
@@ -66,12 +74,12 @@ args:           arg
                 {
                 }
                 ;
-arg:            id id
+arg:            identifier identifier
                 {
                     printf("%s %s\n", $1, $2);
                 }
                 ;
-id:             TOK_ID
+identifier:     TOK_ID
                 {
                     $$ = $1;
                 }

@@ -51,12 +51,16 @@ yywrap(void)
     /* Definition */
 ":="    return TOK_DEF;
     /* Control sequences */
-[\r\n\t ] {
+[\t ] {
     ;                       /* ignore whitespaces */
 }
+[\r\n]  return TOK_NEWLINE;
     /* Reserved keywords */
 "package" {
     return TOK_PACKAGE;
+}
+"import" {
+    return TOK_IMPORT;
 }
 "fn"    return TOK_FN;
     /* Identifier */
