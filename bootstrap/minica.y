@@ -33,8 +33,6 @@ int yyerror(char const *);
     int intval;
     char *idval;
     void *expr;
-    void *stmt;
-    void *stmt_list;
 }
 %token <intval>         TOK_LIT_INT
 %token <idval>          TOK_ID
@@ -48,7 +46,12 @@ int yyerror(char const *);
 %locations
 %%
 /* Syntax and parser */
-file:           package
+file:           blocks
+                ;
+blocks:         block
+        |       blocks block
+                ;
+block:          package
         |       import
         |       function
         |       TOK_NEWLINE
