@@ -64,7 +64,7 @@ yywrap(void)
 }
 "fn"    return TOK_FN;
     /* Identifier */
-[A-Za-z\_]* {
+[A-Za-z\_][A-Za-z\_0-9]* {
     char *val;
     val = strdup(yytext);
     if ( NULL == val ) {

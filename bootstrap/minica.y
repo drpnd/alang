@@ -49,7 +49,7 @@ int yyerror(char const *);
 file:           blocks
                 ;
 blocks:         block
-        |       blocks block
+        |       block blocks
                 ;
 block:          package
         |       import
@@ -68,6 +68,7 @@ import:         TOK_IMPORT identifier TOK_NEWLINE
                 ;
 function:       TOK_FN identifier TOK_LPAREN args TOK_RPAREN
                 {
+                    printf("> fn %s\n", $2);
                 }
                 ;
 args:           arg
