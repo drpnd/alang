@@ -47,6 +47,10 @@ yywrap(void)
     /* Parentheses, brackets, etc... */
 "("     return TOK_LPAREN;
 ")"     return TOK_RPAREN;
+"{"     return TOK_LBRACE;
+"}"     return TOK_RBRACE;
+"["     return TOK_LBRACKET;
+"]"     return TOK_RBRACKET;
 ","     return TOK_COMMA;
     /* Definition */
 ":="    return TOK_DEF;

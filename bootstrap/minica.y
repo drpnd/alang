@@ -37,7 +37,8 @@ int yyerror(char const *);
 %token <intval>         TOK_LIT_INT
 %token <idval>          TOK_ID
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
-%token TOK_LPAREN TOK_RPAREN TOK_COMMA
+%token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
+%token TOK_COMMA
 %token TOK_NEWLINE
 %token TOK_PACKAGE TOK_IMPORT TOK_FN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
@@ -67,6 +68,7 @@ import:         TOK_IMPORT identifier TOK_NEWLINE
                 }
                 ;
 function:       TOK_FN identifier TOK_LPAREN args TOK_RPAREN
+                TOK_LPAREN args TOK_RPAREN TOK_LBRACE blocks TOK_RBRACE
                 {
                     printf("> fn %s\n", $2);
                 }
