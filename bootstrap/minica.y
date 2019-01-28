@@ -54,6 +54,7 @@ blocks:         block
 block:          package
         |       import
         |       function
+        |       statement
                 ;
 package:        TOK_PACKAGE identifier
                 {
@@ -79,6 +80,13 @@ args:           arg
                 }
                 ;
 arg:            identifier identifier
+                {
+                    printf("%s %s\n", $1, $2);
+                }
+                ;
+statement:      declaration
+                ;
+declaration:    identifier identifier
                 {
                     printf("%s %s\n", $1, $2);
                 }
