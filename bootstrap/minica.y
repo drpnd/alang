@@ -39,7 +39,6 @@ int yyerror(char const *);
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
 %token TOK_COMMA
-%token TOK_NEWLINE
 %token TOK_PACKAGE TOK_IMPORT TOK_FN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %type <idval> identifier
@@ -55,14 +54,13 @@ blocks:         block
 block:          package
         |       import
         |       function
-        |       TOK_NEWLINE
                 ;
-package:        TOK_PACKAGE identifier TOK_NEWLINE
+package:        TOK_PACKAGE identifier
                 {
                     printf("> package %s\n", $2);
                 }
                 ;
-import:         TOK_IMPORT identifier TOK_NEWLINE
+import:         TOK_IMPORT identifier
                 {
                     printf("> import %s\n", $2);
                 }

@@ -55,10 +55,9 @@ yywrap(void)
     /* Definition */
 ":="    return TOK_DEF;
     /* Control sequences */
-[\t ] {
+[\r\n\t ] {
     ;                       /* ignore whitespaces */
 }
-[\r\n]  return TOK_NEWLINE;
     /* Reserved keywords */
 "package" {
     return TOK_PACKAGE;
