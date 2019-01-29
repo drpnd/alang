@@ -85,7 +85,13 @@ arg:            identifier identifier
                 }
                 ;
 statement:      declaration
+        |       stmt_assign
                 ;
+stmt_assign:    variable TOK_DEF value
+                ;
+variable:       declaration
+        |       identifier
+        ;
 declaration:    identifier identifier
                 {
                     printf("%s %s\n", $1, $2);
@@ -95,6 +101,9 @@ identifier:     TOK_ID
                 {
                     $$ = $1;
                 }
+                ;
+value:          TOK_LIT_INT
+        |       identifier
                 ;
 %%
 
