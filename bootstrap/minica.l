@@ -83,6 +83,13 @@ yywrap(void)
     yylval.intval = val;
     return TOK_LIT_INT;
 }
+[0-9]*\.[0-9]* {
+    float val;
+    sscanf(yytext, "%f", &val);
+    yylval.floatval = val;
+    return TOK_LIT_FLOAT;
+
+}
 %%
 
 /*

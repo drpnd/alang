@@ -31,10 +31,12 @@ int yyerror(char const *);
 %}
 %union {
     int intval;
+    float floatval;
     char *idval;
     void *expr;
 }
 %token <intval>         TOK_LIT_INT
+%token <floatval>       TOK_LIT_FLOAT
 %token <idval>          TOK_ID
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
@@ -103,6 +105,7 @@ identifier:     TOK_ID
                 }
                 ;
 value:          TOK_LIT_INT
+        |       TOK_LIT_FLOAT
         |       identifier
                 ;
 %%
