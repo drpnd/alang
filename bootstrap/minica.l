@@ -90,6 +90,20 @@ yywrap(void)
     return TOK_LIT_FLOAT;
 
 }
+\.[0-9]* {
+    float val;
+    sscanf(yytext, "%f", &val);
+    yylval.floatval = val;
+    return TOK_LIT_FLOAT;
+
+}
+[0-9]*\. {
+    float val;
+    sscanf(yytext, "%f", &val);
+    yylval.floatval = val;
+    return TOK_LIT_FLOAT;
+
+}
 %%
 
 /*
