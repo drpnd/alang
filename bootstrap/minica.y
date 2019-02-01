@@ -105,6 +105,9 @@ identifier:     TOK_ID
                 }
                 ;
 value:          TOK_LIT_INT
+                {
+                    printf("i:%d\n", $1);
+                }
         |       TOK_LIT_FLOAT
                 {
                     printf("fl:%f\n", $1);

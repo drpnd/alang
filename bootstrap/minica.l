@@ -83,21 +83,31 @@ yywrap(void)
     yylval.intval = val;
     return TOK_LIT_INT;
 }
-[0-9]*\.[0-9]* {
+0x[0-9a-fA-F]+ {
+    int val;
+    yylval.intval = strtol(yytext + 2, NULL, 16);
+    return TOK_LIT_INT;
+}
+0[0-7]* {
+    int val;
+    yylval.intval = strtol(yytext, NULL, 8);
+    return TOK_LIT_INT;
+}
+[0-9]+\.[0-9]+ {
     float val;
     sscanf(yytext, "%f", &val);
     yylval.floatval = val;
     return TOK_LIT_FLOAT;
 
 }
-\.[0-9]* {
+\.[0-9]+ {
     float val;
     sscanf(yytext, "%f", &val);
     yylval.floatval = val;
     return TOK_LIT_FLOAT;
 
 }
-[0-9]*\. {
+[0-9]+\. {
     float val;
     sscanf(yytext, "%f", &val);
     yylval.floatval = val;
