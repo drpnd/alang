@@ -114,6 +114,7 @@ yywrap(void)
     return TOK_LIT_FLOAT;
 
 }
+    /* String format */
 %%
 
 /*

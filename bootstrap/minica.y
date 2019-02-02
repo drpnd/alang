@@ -33,11 +33,13 @@ int yyerror(char const *);
     int intval;
     float floatval;
     char *idval;
+    char *strval;
     void *expr;
 }
 %token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
 %token <idval>          TOK_ID
+%token <strval>         TOK_LIT_STR
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
 %token TOK_COMMA
