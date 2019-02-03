@@ -114,6 +114,10 @@ value:          TOK_LIT_INT
                 {
                     printf("fl:%f\n", $1);
                 }
+        |       TOK_LIT_STR
+                {
+                    printf("str:%s\n", $1);
+                }
         |       identifier
                 ;
 %%
