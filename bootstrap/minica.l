@@ -23,15 +23,84 @@
 
 %{
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "y.tab.h"
 #define YY_USER_ACTION yylloc.first_line = yylloc.last_line = yylineno;
 
+#define STRING_CHUNK 4096
+struct string {
+    size_t len;
+    size_t size;
+    char *buf;
+};
+
+void yyerror(char *);
 int
 yywrap(void)
 {
     return 1;
 }
+
+static struct string buffer;
+static void
+_clear_buffer(void)
+{
+    buffer.len = 0;
+    if ( NULL == buffer.buf ) {
+        buffer.buf = malloc(STRING_CHUNK);
+        if ( NULL == buffer.buf ) {
+            yyerror("Memory error");
+        }
+        buffer.size = STRING_CHUNK;
+    }
+}
+void
+_append_buffer_str(const char *s)
+{
+    size_t len;
+    size_t nsize;
+    char *ptr;
+
+    len = strlen(s);
+    nsize = buffer.size;
+    while ( buffer.len + len > nsize ) {
+        nsize += STRING_CHUNK;
+    }
+    if ( nsize != buffer.size ) {
+        ptr = realloc(buffer.buf, nsize);
+        if ( NULL == ptr ) {
+            yyerror("Memory error");
+        }
+        buffer.buf = ptr;
+        buffer.size = nsize;
+    }
+    memcpy(buffer.buf + buffer.len, s, len);
+    buffer.len += len;
+}
+void
+_append_buffer_char(char c)
+{
+    size_t len;
+    size_t nsize;
+    char *ptr;
+
+    if ( buffer.len + 1 > buffer.size ) {
+        nsize = buffer.size + STRING_CHUNK;
+        nsize += STRING_CHUNK;
+        ptr = realloc(buffer.buf, nsize);
+        if ( NULL == ptr ) {
+            yyerror("Memory error");
+        }
+        buffer.buf = ptr;
+        buffer.size = nsize;
+    }
+    buffer.buf[buffer.len] = c;
+    buffer.len++;
+}
+
 %}
+%x string
 %option yylineno
 %%
     /* Arithmetic operations */
@@ -115,6 +184,18 @@ yywrap(void)
 
 }
     /* String format */
+\" { BEGIN string; _clear_buffer(); }
+<string>[^\\"\n]* {
+    _append_buffer_str(yytext);
+}
+<string>\\[\\"] {
+    _append_buffer_char(yytext[1]);
+}
+<string>\" {
+    yylval.strval = strdup(buffer.buf);
+    BEGIN 0;
+    return TOK_LIT_STR;
+}
 %%
 
 /*
