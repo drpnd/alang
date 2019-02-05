@@ -188,6 +188,12 @@ _append_buffer_char(char c)
 <string>[^\\"\n]* {
     _append_buffer_str(yytext);
 }
+<string>\\[0-7][0-7]?[0-7]? {
+    _append_buffer_char(strtol(yytext + 1, 0, 8));
+}
+<string>\\x[0-9a-fA-F][0-9a-fA-F]? {
+    _append_buffer_char(strtol(yytext + 2, 0, 16));
+}
 <string>\\[\\"] {
     _append_buffer_char(yytext[1]);
 }
