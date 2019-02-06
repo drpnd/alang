@@ -90,8 +90,29 @@ arg:            identifier identifier
                 ;
 statement:      declaration
         |       stmt_assign
+        |       stmt_expr
                 ;
-stmt_assign:    variable TOK_DEF value
+stmt_assign:    variable TOK_DEF expression
+                ;
+stmt_expr:      expression
+                ;
+expression:     a_expr
+                ;
+a_expr:         a_expr TOK_ADD m_expr
+                {
+                    printf("+ ");
+                }
+        |       a_expr TOK_SUB m_expr
+                {
+                    printf("-");
+                }
+        |       m_expr
+                ;
+m_expr:         m_expr TOK_MUL primary
+        |       m_expr TOK_DIV primary
+        |       primary
+                ;
+primary:        value
                 ;
 variable:       declaration
         |       identifier
