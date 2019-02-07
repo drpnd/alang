@@ -82,6 +82,9 @@ args:           arg
         |       arg TOK_COMMA args
                 {
                 }
+        |
+                {
+                }
                 ;
 arg:            identifier identifier
                 {
