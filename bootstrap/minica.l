@@ -101,6 +101,7 @@ _append_buffer_char(char c)
 
 %}
 %x string
+%x comment
 %option yylineno
 %%
     /* Arithmetic operations */
@@ -181,7 +182,6 @@ _append_buffer_char(char c)
     sscanf(yytext, "%f", &val);
     yylval.floatval = val;
     return TOK_LIT_FLOAT;
-
 }
     /* String format */
 \" { BEGIN string; _clear_buffer(); }
@@ -202,6 +202,12 @@ _append_buffer_char(char c)
     BEGIN 0;
     return TOK_LIT_STR;
 }
+    /* Comment */
+\/\/ { BEGIN comment; }
+<comment>\n {
+    BEGIN 0;
+}
+
 %%
 
 /*
