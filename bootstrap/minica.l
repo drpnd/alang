@@ -122,6 +122,7 @@ _append_buffer_char(char c)
 "["     return TOK_LBRACKET;
 "]"     return TOK_RBRACKET;
 ","     return TOK_COMMA;
+"@"     return TOK_ATMARK;
     /* Definition */
 ":="    return TOK_DEF;
     /* Control sequences */
