@@ -130,7 +130,10 @@ identifier:     TOK_ID
                     $$ = $1;
                 }
                 ;
-value:          TOK_LIT_INT
+value:          literal
+        |       identifier
+                ;
+literal:        TOK_LIT_INT
                 {
                     printf("i:%d\n", $1);
                 }
@@ -142,7 +145,6 @@ value:          TOK_LIT_INT
                 {
                     printf("str:%s\n", $1);
                 }
-        |       identifier
                 ;
 %%
 
