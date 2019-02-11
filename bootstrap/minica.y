@@ -119,6 +119,7 @@ primary:        value
                 ;
 variable:       declaration
         |       identifier
+        |       TOK_ATMARK identifier
         ;
 declaration:    identifier identifier
                 {
