@@ -70,11 +70,13 @@ import:         TOK_IMPORT identifier
                     printf("> import %s\n", $2);
                 }
                 ;
-function:       TOK_FN identifier TOK_LPAREN args TOK_RPAREN
-                TOK_LPAREN args TOK_RPAREN TOK_LBRACE blocks TOK_RBRACE
+function:       TOK_FN identifier funcargs funcargs
+                TOK_LBRACE blocks TOK_RBRACE
                 {
                     printf("> fn %s\n", $2);
                 }
+                ;
+funcargs:       TOK_LPAREN args TOK_RPAREN
                 ;
 args:           arg
                 {
