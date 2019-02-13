@@ -32,6 +32,18 @@ typedef struct stmt stmt_t;
 typedef struct stmt_list stmt_list_t;
 
 /*
+ * Literals
+ */
+typedef struct {
+    int type;
+    union {
+        int i;
+        float f;
+        char *s;
+    } u;
+} literal_t;
+
+/*
  * Operations
  */
 typedef enum {
