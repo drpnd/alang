@@ -21,6 +21,15 @@
  * SOFTWARE.
  */
 
+#include "syntax.h"
+#include <stdlib.h>
+
+literal_t *
+literal_new(void)
+{
+    return NULL;
+}
+
 /*
  * Local variables:
  * tab-width: 4

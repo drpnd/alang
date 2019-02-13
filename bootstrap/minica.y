@@ -35,6 +35,7 @@ int yyerror(char const *);
     char *idval;
     char *strval;
     void *expr;
+    void *lit;
 }
 %token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
@@ -47,6 +48,7 @@ int yyerror(char const *);
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %type <idval> identifier
 %type <void> package function
+%type <lit> literal
 %locations
 %%
 /* Syntax and parser */
