@@ -32,10 +32,19 @@ typedef struct stmt stmt_t;
 typedef struct stmt_list stmt_list_t;
 
 /*
+ * Literal types
+ */
+typedef enum {
+    LIT_INT,
+    LIT_FLOAT,
+    LIT_STRING,
+} literal_type_t;
+
+/*
  * Literals
  */
 typedef struct {
-    int type;
+    literal_type_t type;
     union {
         int i;
         float f;
@@ -122,6 +131,10 @@ struct stmt_list {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+    literal_t * literal_new_int(int);
+    literal_t * literal_new_float(float);
+    literal_t * literal_new_string(const char *);
 
 #ifdef __cplusplus
 }

@@ -23,11 +23,55 @@
 
 #include "syntax.h"
 #include <stdlib.h>
+#include <string.h>
 
 literal_t *
-literal_new(void)
+literal_new_int(int v)
 {
-    return NULL;
+    literal_t *lit;
+
+    lit = malloc(sizeof(literal_t));
+    if ( NULL == lit ) {
+        return NULL;
+    }
+    lit->type = LIT_INT;
+    lit->u.i = v;
+
+    return lit;
+}
+
+literal_t *
+literal_new_float(float v)
+{
+    literal_t *lit;
+
+    lit = malloc(sizeof(literal_t));
+    if ( NULL == lit ) {
+        return NULL;
+    }
+    lit->type = LIT_FLOAT;
+    lit->u.f = v;
+
+    return lit;
+}
+
+literal_t *
+literal_new_string(const char *v)
+{
+    literal_t *lit;
+
+    lit = malloc(sizeof(literal_t));
+    if ( NULL == lit ) {
+        return NULL;
+    }
+    lit->type = LIT_STRING;
+    lit->u.s = strdup(v);;
+    if ( NULL == lit->u.s ) {
+        free(lit);
+        return NULL;
+    }
+
+    return lit;
 }
 
 /*
