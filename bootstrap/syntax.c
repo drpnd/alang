@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+ * literal_new_int -- allocate an integer literal
+ */
 literal_t *
 literal_new_int(int v)
 {
@@ -40,6 +43,9 @@ literal_new_int(int v)
     return lit;
 }
 
+/*
+ * literal_new_float -- allocate a float literal
+ */
 literal_t *
 literal_new_float(float v)
 {
@@ -55,6 +61,9 @@ literal_new_float(float v)
     return lit;
 }
 
+/*
+ * literal_new_string -- allocate a string literal
+ */
 literal_t *
 literal_new_string(const char *v)
 {
