@@ -129,6 +129,11 @@ _append_buffer_char(char c)
 [\r\n\t ] {
     ;                       /* ignore whitespaces */
 }
+    /* Primitive types */
+"i8"    return TOK_TYPE_I8;
+"i16"   return TOK_TYPE_I16;
+"i32"   return TOK_TYPE_I32;
+"i64"   return TOK_TYPE_I64;
     /* Reserved keywords */
 "package" {
     return TOK_PACKAGE;

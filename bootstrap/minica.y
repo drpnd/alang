@@ -46,6 +46,7 @@ int yyerror(char const *);
 %token TOK_COMMA TOK_ATMARK
 %token TOK_PACKAGE TOK_IMPORT TOK_FN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
+%token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %type <idval> identifier
 %type <void> package function
 %type <lit> literal
@@ -90,9 +91,9 @@ args:           arg
                 {
                 }
                 ;
-arg:            identifier identifier
+arg:            identifier type
                 {
-                    printf("%s %s\n", $1, $2);
+                    printf("%s\n", $1);
                 }
                 ;
 statement:      declaration
@@ -125,9 +126,9 @@ variable:       declaration
         |       identifier
         |       TOK_ATMARK identifier
         ;
-declaration:    identifier identifier
+declaration:    identifier type
                 {
-                    printf("%s %s\n", $1, $2);
+                    printf("%s\n", $1);
                 }
                 ;
 identifier:     TOK_ID
@@ -135,8 +136,16 @@ identifier:     TOK_ID
                     $$ = $1;
                 }
                 ;
+type:           primitive
+        |       identifier
+                ;
 value:          literal
         |       identifier
+                ;
+primitive:      TOK_TYPE_I8
+        |       TOK_TYPE_I16
+        |       TOK_TYPE_I32
+        |       TOK_TYPE_I64
                 ;
 literal:        TOK_LIT_INT
                 {
