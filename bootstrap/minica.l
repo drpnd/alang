@@ -134,6 +134,8 @@ _append_buffer_char(char c)
 "i16"   return TOK_TYPE_I16;
 "i32"   return TOK_TYPE_I32;
 "i64"   return TOK_TYPE_I64;
+"fp32"  return TOK_TYPE_FP32;
+"fp65"  return TOK_TYPE_FP64;
     /* Reserved keywords */
 "package" {
     return TOK_PACKAGE;
