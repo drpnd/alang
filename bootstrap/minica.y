@@ -47,7 +47,7 @@ int yyerror(char const *);
 %token TOK_PACKAGE TOK_IMPORT TOK_FN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
-%token TOK_TYPE_FP32 TOK_TYPE_FP64
+%token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 %type <idval> identifier
 %type <void> package function
 %type <lit> literal
@@ -149,6 +149,7 @@ primitive:      TOK_TYPE_I8
         |       TOK_TYPE_I64
         |       TOK_TYPE_FP32
         |       TOK_TYPE_FP64
+        |       TOK_TYPE_STRING
                 ;
 literal:        TOK_LIT_INT
                 {
