@@ -105,46 +105,40 @@ _append_buffer_char(char c)
 %option yylineno
 %%
     /* Arithmetic operations */
-"+"     return TOK_ADD;
-"-"     return TOK_SUB;
-"*"     return TOK_MUL;
-"/"     return TOK_DIV;
+"+"         return TOK_ADD;
+"-"         return TOK_SUB;
+"*"         return TOK_MUL;
+"/"         return TOK_DIV;
     /* Bitwise operations */
-"|"     return TOK_BIT_OR;
-"&"     return TOK_BIT_AND;
-"<<"    return TOK_BIT_LSHIFT;
-">>"    return TOK_BIT_RSHIFT;
+"|"         return TOK_BIT_OR;
+"&"         return TOK_BIT_AND;
+"<<"        return TOK_BIT_LSHIFT;
+">>"        return TOK_BIT_RSHIFT;
     /* Parentheses, brackets, etc... */
-"("     return TOK_LPAREN;
-")"     return TOK_RPAREN;
-"{"     return TOK_LBRACE;
-"}"     return TOK_RBRACE;
-"["     return TOK_LBRACKET;
-"]"     return TOK_RBRACKET;
-","     return TOK_COMMA;
-"@"     return TOK_ATMARK;
+"("         return TOK_LPAREN;
+")"         return TOK_RPAREN;
+"{"         return TOK_LBRACE;
+"}"         return TOK_RBRACE;
+"["         return TOK_LBRACKET;
+"]"         return TOK_RBRACKET;
+","         return TOK_COMMA;
+"@"         return TOK_ATMARK;
     /* Definition */
-":="    return TOK_DEF;
+":="        return TOK_DEF;
     /* Control sequences */
-[\r\n\t ] {
-    ;                       /* ignore whitespaces */
-}
+[\r\n\t ]   ;                       /* ignore whitespaces */
     /* Primitive types */
-"i8"    return TOK_TYPE_I8;
-"i16"   return TOK_TYPE_I16;
-"i32"   return TOK_TYPE_I32;
-"i64"   return TOK_TYPE_I64;
-"fp32"  return TOK_TYPE_FP32;
-"fp64"  return TOK_TYPE_FP64;
+"i8"        return TOK_TYPE_I8;
+"i16"       return TOK_TYPE_I16;
+"i32"       return TOK_TYPE_I32;
+"i64"       return TOK_TYPE_I64;
+"fp32"      return TOK_TYPE_FP32;
+"fp64"      return TOK_TYPE_FP64;
 "string"    return TOK_TYPE_STRING;
     /* Reserved keywords */
-"package" {
-    return TOK_PACKAGE;
-}
-"import" {
-    return TOK_IMPORT;
-}
-"fn"    return TOK_FN;
+"package"   return TOK_PACKAGE;
+"import"    return TOK_IMPORT;
+"fn"        return TOK_FN;
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {
     char *val;
