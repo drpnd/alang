@@ -55,7 +55,7 @@ _clear_buffer(void)
         buffer.size = STRING_CHUNK;
     }
 }
-void
+static void
 _append_buffer_str(const char *s)
 {
     size_t len;
