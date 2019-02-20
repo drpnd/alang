@@ -49,6 +49,7 @@ int yyerror(char const *);
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 %type <idval> identifier
+%type <expr> primary
 %type <void> package function
 %type <lit> literal
 %locations
@@ -122,6 +123,9 @@ m_expr:         m_expr TOK_MUL primary
         |       primary
                 ;
 primary:        value
+                {
+                    $$ = expr_new();
+                }
                 ;
 variable:       declaration
         |       identifier

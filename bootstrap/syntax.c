@@ -84,6 +84,22 @@ literal_new_string(const char *v)
 }
 
 /*
+ * expr_new -- allocate an expression
+ */
+expr_t *
+expr_new(void)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+
+    return e;
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4
