@@ -78,7 +78,7 @@ _append_buffer_str(const char *s)
     memcpy(buffer.buf + buffer.len, s, len);
     buffer.len += len;
 }
-void
+static void
 _append_buffer_char(char c)
 {
     size_t len;
