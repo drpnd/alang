@@ -53,6 +53,32 @@ typedef struct {
 } literal_t;
 
 /*
+ * Variables
+ */
+typedef struct {
+    char *id;
+} var_t;
+
+/*
+ * Value type
+ */
+typedef enum {
+    VAR_LITERAL,
+    VAL_VAR,
+} val_type_t;
+
+/*
+ * Values
+ */
+typedef struct {
+    val_type_t type;
+    union {
+        literal_t *lit;
+        var_t *var;
+    } u;
+} val_t;
+
+/*
  * Operations
  */
 typedef enum {
@@ -74,6 +100,7 @@ typedef enum {
  * Expression type
  */
 typedef enum {
+    EXPR_VAR,
     EXPR_OP,
 } expr_type_t;
 
