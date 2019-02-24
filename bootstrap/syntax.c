@@ -84,6 +84,24 @@ literal_new_string(const char *v)
 }
 
 /*
+ * val_literal_new -- allocate a literal value with
+ */
+val_t *
+val_literal_new(literal_t *lit)
+{
+    val_t *v;
+
+    v = malloc(sizeof(val_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAL_LITERAL;
+    v->u.lit = lit;
+
+    return v;
+}
+
+/*
  * expr_new -- allocate an expression
  */
 expr_t *

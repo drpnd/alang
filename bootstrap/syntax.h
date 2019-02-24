@@ -63,7 +63,7 @@ typedef struct {
  * Value type
  */
 typedef enum {
-    VAR_LITERAL,
+    VAL_LITERAL,
     VAL_VAR,
 } val_type_t;
 
