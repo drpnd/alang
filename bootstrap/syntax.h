@@ -162,6 +162,7 @@ extern "C" {
     literal_t * literal_new_int(int);
     literal_t * literal_new_float(float);
     literal_t * literal_new_string(const char *);
+    val_t * val_literal_new(literal_t *);
 
 #ifdef __cplusplus
 }
