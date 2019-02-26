@@ -36,6 +36,7 @@ int yyerror(char const *);
     char *strval;
     void *expr;
     void *lit;
+    void *val;
 }
 %token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
@@ -49,6 +50,7 @@ int yyerror(char const *);
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 %type <idval> identifier
+%type <val> value
 %type <expr> primary
 %type <void> package function
 %type <lit> literal
@@ -145,6 +147,9 @@ type:           primitive
         |       identifier
                 ;
 value:          literal
+                {
+                    $$ = val_literal_new($1);
+                }
         |       identifier
                 ;
 primitive:      TOK_TYPE_I8
