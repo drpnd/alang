@@ -52,7 +52,7 @@ int yyerror(char const *);
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 %type <idval> identifier
 %type <val> value
-%type <type> primitive
+%type <type> primitive type
 %type <expr> primary
 %type <void> package function
 %type <lit> literal
@@ -146,7 +146,13 @@ identifier:     TOK_ID
                 }
                 ;
 type:           primitive
+                {
+                    $$ = $1;
+                }
         |       identifier
+                {
+                    $$ = type_id_new($1);
+                }
                 ;
 value:          literal
                 {

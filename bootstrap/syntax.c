@@ -119,6 +119,28 @@ type_primitive_new(type_type_t tt)
 }
 
 /*
+ * type_id_new -- allocate a type
+ */
+type_t *
+type_id_new(type_type_t tt, const char *id)
+{
+    type_t *t;
+
+    t = malloc(sizeof(type_t));
+    if ( NULL == t ) {
+        return NULL;
+    }
+    t->type = TYPE_ID;
+    t->u.id = strdup(id);
+    if ( NULL == t->u.id ) {
+        free(t);
+        return NULL;
+    }
+
+    return t;
+}
+
+/*
  * expr_new -- allocate an expression
  */
 expr_t *
