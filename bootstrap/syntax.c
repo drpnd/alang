@@ -102,6 +102,23 @@ val_literal_new(literal_t *lit)
 }
 
 /*
+ * type_primitive_new -- allocate a type
+ */
+type_t *
+type_primitive_new(type_type_t tt)
+{
+    type_t *t;
+
+    t = malloc(sizeof(type_t));
+    if ( NULL == t ) {
+        return NULL;
+    }
+    t->type = tt;
+
+    return t;
+}
+
+/*
  * expr_new -- allocate an expression
  */
 expr_t *

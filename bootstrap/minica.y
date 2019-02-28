@@ -34,6 +34,7 @@ int yyerror(char const *);
     float floatval;
     char *idval;
     char *strval;
+    void *type;
     void *expr;
     void *lit;
     void *val;
@@ -51,6 +52,7 @@ int yyerror(char const *);
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 %type <idval> identifier
 %type <val> value
+%type <type> primitive
 %type <expr> primary
 %type <void> package function
 %type <lit> literal
@@ -153,12 +155,33 @@ value:          literal
         |       identifier
                 ;
 primitive:      TOK_TYPE_I8
+                {
+                    $$ = type_primitive_new(TYPE_PRIMITIVE_I8);
+                }
         |       TOK_TYPE_I16
+                {
+                    $$ = type_primitive_new(TYPE_PRIMITIVE_I16);
+                }
         |       TOK_TYPE_I32
+                {
+                    $$ = type_primitive_new(TYPE_PRIMITIVE_I32);
+                }
         |       TOK_TYPE_I64
+                {
+                    $$ = type_primitive_new(TYPE_PRIMITIVE_I64);
+                }
         |       TOK_TYPE_FP32
+                {
+                    $$ = type_primitive_new(TYPE_PRIMITIVE_FP32);
+                }
         |       TOK_TYPE_FP64
+                {
+                    $$ = type_primitive_new(TYPE_PRIMITIVE_FP64);
+                }
         |       TOK_TYPE_STRING
+                {
+                    $$ = type_primitive_new(TYPE_PRIMITIVE_STRING);
+                }
                 ;
 literal:        TOK_LIT_INT
                 {

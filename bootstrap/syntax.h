@@ -79,6 +79,30 @@ typedef struct {
 } val_t;
 
 /*
+ * Type type
+ */
+typedef enum {
+    TYPE_PRIMITIVE_I8,
+    TYPE_PRIMITIVE_I16,
+    TYPE_PRIMITIVE_I32,
+    TYPE_PRIMITIVE_I64,
+    TYPE_PRIMITIVE_FP32,
+    TYPE_PRIMITIVE_FP64,
+    TYPE_PRIMITIVE_STRING,
+    TYPE_ID,
+} type_type_t;
+
+/*
+ * Types
+ */
+typedef struct {
+    type_type_t type;
+    union {
+        char *id;
+    } u;
+} type_t;
+
+/*
  * Operations
  */
 typedef enum {
@@ -162,6 +186,7 @@ extern "C" {
     literal_t * literal_new_int(int);
     literal_t * literal_new_float(float);
     literal_t * literal_new_string(const char *);
+    type_t * type_primitive_new(type_type_t);
     val_t * val_literal_new(literal_t *);
 
 #ifdef __cplusplus
