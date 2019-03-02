@@ -37,6 +37,7 @@ int yyerror(char const *);
     void *type;
     void *expr;
     void *lit;
+    void *var;
     void *val;
 }
 %token <intval>         TOK_LIT_INT
@@ -51,6 +52,7 @@ int yyerror(char const *);
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 %type <idval> identifier
+%type <var> variable
 %type <val> value
 %type <type> primitive type
 %type <expr> primary
@@ -132,8 +134,17 @@ primary:        value
                 }
                 ;
 variable:       declaration
+                {
+                    $$ = NULL;
+                }
         |       identifier
+                {
+                    $$ = var_id_new($1, 0);
+                }
         |       TOK_ATMARK identifier
+                {
+                    $$ = var_id_new($2, 1);
+                }
         ;
 declaration:    identifier type
                 {
@@ -159,6 +170,9 @@ value:          literal
                     $$ = val_literal_new($1);
                 }
         |       identifier
+                {
+                    $$ = NULL;
+                }
                 ;
 primitive:      TOK_TYPE_I8
                 {

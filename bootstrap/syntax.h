@@ -53,10 +53,21 @@ typedef struct {
 } literal_t;
 
 /*
+ * Variable type
+ */
+typedef enum {
+    VAR_ID,
+    VAR_PTR,
+} var_type_t;
+
+/*
  * Variables
  */
 typedef struct {
-    char *id;
+    var_type_t type;
+    union {
+        char *id;
+    } u;
 } var_t;
 
 /*
@@ -187,6 +198,7 @@ extern "C" {
     literal_t * literal_new_float(float);
     literal_t * literal_new_string(const char *);
     type_t * type_primitive_new(type_type_t);
+    var_t * var_id_new(char *, int);
     val_t * val_literal_new(literal_t *);
 
 #ifdef __cplusplus

@@ -84,7 +84,29 @@ literal_new_string(const char *v)
 }
 
 /*
- * val_literal_new -- allocate a literal value with
+ * var_id_new -- allocate an ID variable
+ */
+var_t *
+var_id_new(char *id, int ptr)
+{
+    var_t *v;
+
+    v = malloc(sizeof(var_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = ptr ? VAR_PTR : VAR_ID;
+    v->u.id = strdup(id);
+    if ( NULL == v->u.id ) {
+        free(v);
+        return NULL;
+    }
+
+    return v;
+}
+
+/*
+ * val_literal_new -- allocate a literal value
  */
 val_t *
 val_literal_new(literal_t *lit)
