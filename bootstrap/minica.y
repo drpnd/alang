@@ -169,9 +169,9 @@ value:          literal
                 {
                     $$ = val_literal_new($1);
                 }
-        |       identifier
+        |       variable
                 {
-                    $$ = NULL;
+                    $$ = val_variable_new($1);
                 }
                 ;
 primitive:      TOK_TYPE_I8

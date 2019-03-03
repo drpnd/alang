@@ -124,6 +124,24 @@ val_literal_new(literal_t *lit)
 }
 
 /*
+ * val_variable_new -- allocate a literal value
+ */
+val_t *
+val_variable_new(var_t *var)
+{
+    val_t *v;
+
+    v = malloc(sizeof(val_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAL_VAR;
+    v->u.var = var;
+
+    return v;
+}
+
+/*
  * type_primitive_new -- allocate a type
  */
 type_t *

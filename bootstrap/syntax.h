@@ -200,6 +200,7 @@ extern "C" {
     type_t * type_primitive_new(type_type_t);
     var_t * var_id_new(char *, int);
     val_t * val_literal_new(literal_t *);
+    val_t * val_variable_new(var_t *);
 
 #ifdef __cplusplus
 }
