@@ -114,6 +114,20 @@ typedef struct {
 } type_t;
 
 /*
+ * Declarations
+ */
+typedef struct {
+    char *id;
+    type_t *type;
+} decl_t;
+
+/*
+ * Arguments
+ */
+typedef struct {
+} arg_t;
+
+/*
  * Operations
  */
 typedef enum {
@@ -201,6 +215,7 @@ extern "C" {
     var_t * var_id_new(char *, int);
     val_t * val_literal_new(literal_t *);
     val_t * val_variable_new(var_t *);
+    decl_t * decl_new(const char *, type_t *);
 
 #ifdef __cplusplus
 }

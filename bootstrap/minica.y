@@ -35,6 +35,7 @@ int yyerror(char const *);
     char *idval;
     char *strval;
     void *type;
+    void *decl;
     void *expr;
     void *lit;
     void *var;
@@ -54,6 +55,7 @@ int yyerror(char const *);
 %type <idval> identifier
 %type <var> variable
 %type <val> value
+%type <decl> declaration
 %type <type> primitive type
 %type <expr> primary
 %type <void> package function
@@ -148,7 +150,7 @@ variable:       declaration
         ;
 declaration:    identifier type
                 {
-                    printf("%s\n", $1);
+                    $$ = decl_new($1, $2);
                 }
                 ;
 identifier:     TOK_ID

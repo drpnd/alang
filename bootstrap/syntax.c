@@ -181,6 +181,28 @@ type_id_new(type_type_t tt, const char *id)
 }
 
 /*
+ * decl_ -- allocate a type
+ */
+decl_t *
+decl_new(const char *id, type_t *type)
+{
+    decl_t *dcl;
+
+    dcl = malloc(sizeof(decl_t));
+    if ( NULL == dcl ) {
+        return NULL;
+    }
+    dcl->id = strdup(id);
+    if ( NULL == dcl->id ) {
+        free(dcl);
+        return NULL;
+    }
+    dcl->type = type;
+
+    return dcl;
+}
+
+/*
  * expr_new -- allocate an expression
  */
 expr_t *
