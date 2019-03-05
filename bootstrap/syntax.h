@@ -125,7 +125,9 @@ typedef struct {
  * Arguments
  */
 typedef struct {
-} arg_t;
+    int nr;
+    decl_t **decl;
+} args_t;
 
 /*
  * Operations
