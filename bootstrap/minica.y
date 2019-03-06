@@ -55,7 +55,7 @@ int yyerror(char const *);
 %type <idval> identifier
 %type <var> variable
 %type <val> value
-%type <decl> declaration
+%type <decl> declaration arg
 %type <type> primitive type
 %type <expr> primary
 %type <void> package function
@@ -101,10 +101,7 @@ args:           arg
                 {
                 }
                 ;
-arg:            identifier type
-                {
-                    printf("%s\n", $1);
-                }
+arg:            declaration
                 ;
 statement:      declaration
         |       stmt_assign
