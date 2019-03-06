@@ -40,6 +40,8 @@ int yyerror(char const *);
     void *lit;
     void *var;
     void *val;
+    void *arg;
+    void *args;
 }
 %token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
@@ -55,7 +57,8 @@ int yyerror(char const *);
 %type <idval> identifier
 %type <var> variable
 %type <val> value
-%type <decl> declaration arg
+%type <decl> declaration
+%type <arg> arg
 %type <type> primitive type
 %type <expr> primary
 %type <void> package function
@@ -102,6 +105,9 @@ args:           arg
                 }
                 ;
 arg:            declaration
+                {
+                    $$ = arg_new($1);
+                }
                 ;
 statement:      declaration
         |       stmt_assign

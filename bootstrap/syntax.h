@@ -126,7 +126,7 @@ typedef struct {
  */
 typedef struct _arg arg_t;
 struct _arg {
-    decl_t *arg;
+    decl_t *decl;
     arg_t*next;
 };
 typedef struct {
@@ -223,6 +223,7 @@ extern "C" {
     val_t * val_literal_new(literal_t *);
     val_t * val_variable_new(var_t *);
     decl_t * decl_new(const char *, type_t *);
+    arg_t * arg_new(decl_t *);
 
 #ifdef __cplusplus
 }

@@ -181,7 +181,7 @@ type_id_new(type_type_t tt, const char *id)
 }
 
 /*
- * decl_ -- allocate a type
+ * decl_new -- allocate a declaration
  */
 decl_t *
 decl_new(const char *id, type_t *type)
@@ -200,6 +200,24 @@ decl_new(const char *id, type_t *type)
     dcl->type = type;
 
     return dcl;
+}
+
+/*
+ * arg_new -- allocate an argument
+ */
+arg_t *
+arg_new(decl_t *dcl)
+{
+    arg_t *arg;
+
+    arg = malloc(sizeof(arg_t));
+    if ( NULL == arg ) {
+        return NULL;
+    }
+    arg->decl = dcl;
+    arg->next = NULL;
+
+    return arg;
 }
 
 /*
