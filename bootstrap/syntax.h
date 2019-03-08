@@ -129,10 +129,6 @@ struct _arg {
     decl_t *decl;
     arg_t*next;
 };
-typedef struct {
-    int nr;
-    decl_t **decl;
-} args_t;
 
 /*
  * Operations
@@ -224,6 +220,7 @@ extern "C" {
     val_t * val_variable_new(var_t *);
     decl_t * decl_new(const char *, type_t *);
     arg_t * arg_new(decl_t *);
+    arg_t * arg_prepend(arg_t *, arg_t *);
 
 #ifdef __cplusplus
 }

@@ -221,6 +221,16 @@ arg_new(decl_t *dcl)
 }
 
 /*
+ * arg_prepend -- prepend an argument to the list
+ */
+arg_t *
+arg_prepend(arg_t *arg, arg_t *args)
+{
+    arg->next = args;
+    return arg;
+}
+
+/*
  * expr_new -- allocate an expression
  */
 expr_t *

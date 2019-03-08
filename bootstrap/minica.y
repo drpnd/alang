@@ -41,7 +41,6 @@ int yyerror(char const *);
     void *var;
     void *val;
     void *arg;
-    void *args;
 }
 %token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
@@ -58,7 +57,7 @@ int yyerror(char const *);
 %type <var> variable
 %type <val> value
 %type <decl> declaration
-%type <arg> arg
+%type <arg> arg args funcargs
 %type <type> primitive type
 %type <expr> primary
 %type <void> package function
@@ -93,15 +92,21 @@ function:       TOK_FN identifier funcargs funcargs
                 }
                 ;
 funcargs:       TOK_LPAREN args TOK_RPAREN
+                {
+                    $$ = $2;
+                }
                 ;
 args:           arg
                 {
+                    $$ = $1;
                 }
         |       arg TOK_COMMA args
                 {
+                    $$ = arg_prepend($1, $3);
                 }
         |
                 {
+                    $$ = NULL;
                 }
                 ;
 arg:            declaration
