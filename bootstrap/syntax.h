@@ -127,7 +127,7 @@ typedef struct {
 typedef struct _arg arg_t;
 struct _arg {
     decl_t *decl;
-    arg_t*next;
+    arg_t *next;
 };
 
 /*
