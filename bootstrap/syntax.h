@@ -131,6 +131,15 @@ struct _arg {
 };
 
 /*
+ * Function
+ */
+typedef struct {
+    char *id;
+    arg_t *args;
+    arg_t *rets;
+} func_t;
+
+/*
  * Operations
  */
 typedef enum {
