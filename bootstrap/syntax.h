@@ -230,6 +230,7 @@ extern "C" {
     decl_t * decl_new(const char *, type_t *);
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);
+    func_t * func_new(char *, arg_t *, arg_t *);
 
 #ifdef __cplusplus
 }

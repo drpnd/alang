@@ -41,6 +41,7 @@ int yyerror(char const *);
     void *var;
     void *val;
     void *arg;
+    void *func;
 }
 %token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
@@ -60,7 +61,8 @@ int yyerror(char const *);
 %type <arg> arg args funcargs
 %type <type> primitive type
 %type <expr> primary
-%type <void> package function
+%type <func> function
+%type <void> package
 %type <lit> literal
 %locations
 %%
@@ -88,6 +90,7 @@ import:         TOK_IMPORT identifier
 function:       TOK_FN identifier funcargs funcargs
                 TOK_LBRACE blocks TOK_RBRACE
                 {
+                    $$ = func_new($2, $3, $4);
                     printf("> fn %s\n", $2);
                 }
                 ;

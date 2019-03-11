@@ -247,6 +247,30 @@ expr_new(void)
 }
 
 /*
+ * func_new -- allocate a function
+ */
+func_t *
+func_new(char *id, arg_t *args, arg_t *rets)
+{
+    func_t *f;
+
+    f = malloc(sizeof(func_t));
+    if ( NULL == f ) {
+        return NULL;
+    }
+    f->id = strdup(id);
+    if ( NULL == f->id ) {
+        free(f);
+        return NULL;
+    }
+    f->args = args;
+    f->rets = rets;
+
+    return f;
+}
+
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4
