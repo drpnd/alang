@@ -250,7 +250,7 @@ expr_new(void)
  * func_new -- allocate a function
  */
 func_t *
-func_new(char *id, arg_t *args, arg_t *rets)
+func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
 {
     func_t *f;
 
@@ -265,6 +265,7 @@ func_new(char *id, arg_t *args, arg_t *rets)
     }
     f->args = args;
     f->rets = rets;
+    f->block = block;
 
     return f;
 }

@@ -28,8 +28,8 @@
  * Typedefs
  */
 typedef struct _expr expr_t;
-typedef struct stmt stmt_t;
-typedef struct stmt_list stmt_list_t;
+typedef struct _stmt stmt_t;
+typedef struct _stmt_list stmt_list_t;
 
 /*
  * Literal types
@@ -137,6 +137,7 @@ typedef struct {
     char *id;
     arg_t *args;
     arg_t *rets;
+    stmt_list_t *block;
 } func_t;
 
 /*
@@ -195,7 +196,7 @@ typedef enum {
 /*
  * Statement
  */
-struct stmt {
+struct _stmt {
     stmt_type_t type;
     union {
         expr_t *expr;
@@ -206,7 +207,7 @@ struct stmt {
 /*
  * Statements
  */
-struct stmt_list {
+struct _stmt_list {
     stmt_t *head;
     stmt_t *tail;
 };
@@ -230,7 +231,7 @@ extern "C" {
     decl_t * decl_new(const char *, type_t *);
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);
-    func_t * func_new(char *, arg_t *, arg_t *);
+    func_t * func_new(char *, arg_t *, arg_t *, stmt_list_t *);
 
 #ifdef __cplusplus
 }
