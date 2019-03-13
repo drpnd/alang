@@ -270,6 +270,24 @@ func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
     return f;
 }
 
+/*
+ * stmt_new_expr -- allocate a statement
+ */
+stmt_t *
+stmt_new(expr_t *e)
+{
+    stmt_t *stmt;
+
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_EXPR;
+    stmt->u.expr = e;
+    stmt->next = NULL;
+
+    return stmt;
+}
 
 /*
  * Local variables:
