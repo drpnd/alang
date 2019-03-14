@@ -274,7 +274,7 @@ func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
  * stmt_new_expr -- allocate a statement
  */
 stmt_t *
-stmt_new(expr_t *e)
+stmt_new_expr(expr_t *e)
 {
     stmt_t *stmt;
 

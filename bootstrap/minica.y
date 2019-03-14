@@ -42,6 +42,7 @@ int yyerror(char const *);
     void *val;
     void *arg;
     void *func;
+    void *stmt;
     void *stmts;
 }
 %token <intval>         TOK_LIT_INT
@@ -61,8 +62,9 @@ int yyerror(char const *);
 %type <decl> declaration
 %type <arg> arg args funcargs
 %type <type> primitive type
-%type <expr> primary
+%type <expr> primary expression a_expr m_expr
 %type <func> function
+%type <stmt> stmt_expr
 %type <stmts> blocks
 %type <void> package
 %type <lit> literal
@@ -126,18 +128,29 @@ statement:      declaration
 stmt_assign:    variable TOK_DEF expression
                 ;
 stmt_expr:      expression
+                {
+                    $$ = stmt_new_expr($1);
+                }
                 ;
 expression:     a_expr
+                {
+                    $$ = $1;
+                }
                 ;
 a_expr:         a_expr TOK_ADD m_expr
                 {
+                    $$ = NULL;
                     printf("+ ");
                 }
         |       a_expr TOK_SUB m_expr
                 {
+                    $$ = NULL;
                     printf("-");
                 }
         |       m_expr
+                {
+                    $$ = NULL;
+                }
                 ;
 m_expr:         m_expr TOK_MUL primary
         |       m_expr TOK_DIV primary
