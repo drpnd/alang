@@ -232,7 +232,7 @@ extern "C" {
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);
     func_t * func_new(char *, arg_t *, arg_t *, stmt_list_t *);
-    stmt_t * stmt_new(expr_t *);
+    stmt_t * stmt_new_expr(expr_t *);
 
 #ifdef __cplusplus
 }
