@@ -247,6 +247,26 @@ expr_new(void)
 }
 
 /*
+ * op_new_infix -- allocate an infix operation
+ */
+op_t *
+op_new_infix(expr_t *e0, expr_t *e1, op_type_t type)
+{
+    op_t *op;
+
+    op = malloc(sizeof(op_t));
+    if ( NULL == op ) {
+        return NULL;
+    }
+    op->fix = FIX_INFIX;
+    op->type = type;
+    op->e0 = e0;
+    op->e1 = e1;
+
+    return op;
+}
+
+/*
  * func_new -- allocate a function
  */
 func_t *
