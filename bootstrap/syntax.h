@@ -234,6 +234,7 @@ extern "C" {
     func_t * func_new(char *, arg_t *, arg_t *, stmt_list_t *);
     stmt_t * stmt_new_expr(expr_t *);
     op_t * op_new_infix(expr_t *, expr_t *, op_type_t);
+    op_t * op_new_prefix(expr_t *, op_type_t);
 
 #ifdef __cplusplus
 }

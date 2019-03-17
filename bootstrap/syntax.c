@@ -267,6 +267,26 @@ op_new_infix(expr_t *e0, expr_t *e1, op_type_t type)
 }
 
 /*
+ * op_new_prefix -- allocate a prefixed operation
+ */
+op_t *
+op_new_prefix(expr_t *e0, op_type_t type)
+{
+    op_t *op;
+
+    op = malloc(sizeof(op_t));
+    if ( NULL == op ) {
+        return NULL;
+    }
+    op->fix = FIX_PREFIX;
+    op->type = type;
+    op->e0 = e0;
+    op->e1 = NULL;
+
+    return op;
+}
+
+/*
  * func_new -- allocate a function
  */
 func_t *
