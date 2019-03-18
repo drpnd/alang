@@ -287,6 +287,52 @@ op_new_prefix(expr_t *e0, op_type_t type)
 }
 
 /*
+ * expr_op_new_infix -- allocate an infix operation expression
+ */
+expr_t *
+expr_op_new_infix(expr_t *e0, expr_t *e1, op_type_t type)
+{
+    op_t *op;
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    op = op_new_infix(e0, e1, type);
+    if ( NULL == op ) {
+        return NULL;
+    }
+    e->type = EXPR_OP;
+    e->u.op = op;
+
+    return e;
+}
+
+/*
+ * expr_op_new_prefix -- allocate a prefixed operation expression
+ */
+expr_t *
+expr_op_new_prefix(expr_t *e0, op_type_t type)
+{
+    op_t *op;
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    op = op_new_prefix(e0, type);
+    if ( NULL == op ) {
+        return NULL;
+    }
+    e->type = EXPR_OP;
+    e->u.op = op;
+
+    return e;
+}
+
+/*
  * func_new -- allocate a function
  */
 func_t *
