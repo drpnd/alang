@@ -139,22 +139,30 @@ expression:     a_expr
                 ;
 a_expr:         a_expr TOK_ADD m_expr
                 {
-                    $$ = NULL;
-                    printf("+ ");
+                    $$ = expr_op_new_infix($1, $3, OP_ADD);
                 }
         |       a_expr TOK_SUB m_expr
                 {
-                    $$ = NULL;
+                    $$ = expr_op_new_infix($1, $3, OP_SUB);
                     printf("-");
                 }
         |       m_expr
                 {
-                    $$ = NULL;
+                    $$ = $1;
                 }
                 ;
 m_expr:         m_expr TOK_MUL primary
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_MUL);
+                }
         |       m_expr TOK_DIV primary
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_DIV);
+                }
         |       primary
+                {
+                    $$ = $1;
+                }
                 ;
 primary:        value
                 {
