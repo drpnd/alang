@@ -231,10 +231,10 @@ arg_prepend(arg_t *arg, arg_t *args)
 }
 
 /*
- * expr_new -- allocate an expression
+ * expr_new_val -- allocate an expression with a value
  */
 expr_t *
-expr_new(void)
+expr_new_val(val_t *val)
 {
     expr_t *e;
 
@@ -242,6 +242,8 @@ expr_new(void)
     if ( NULL == e ) {
         return NULL;
     }
+    e->type = EXPR_VAL;
+    e->u.val = val;
 
     return e;
 }

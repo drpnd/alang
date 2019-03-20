@@ -162,7 +162,7 @@ typedef enum {
  * Expression type
  */
 typedef enum {
-    EXPR_VAR,
+    EXPR_VAL,
     EXPR_OP,
 } expr_type_t;
 
@@ -182,6 +182,7 @@ typedef struct {
 struct _expr {
     expr_type_t type;
     union {
+        val_t *val;
         op_t *op;
     } u;
 };

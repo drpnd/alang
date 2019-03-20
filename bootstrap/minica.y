@@ -166,7 +166,7 @@ m_expr:         m_expr TOK_MUL primary
                 ;
 primary:        value
                 {
-                    $$ = expr_new();
+                    $$ = expr_new_val($1);
                 }
                 ;
 variable:       declaration
