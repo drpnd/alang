@@ -106,6 +106,24 @@ var_id_new(char *id, int ptr)
 }
 
 /*
+ * var_decl_new -- allocate a declaration variable
+ */
+var_t *
+var_decl_new(decl_t *decl)
+{
+    var_t *v;
+
+    v = malloc(sizeof(var_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAR_DECL;
+    v->u.decl = decl;
+
+    return v;
+}
+
+/*
  * val_literal_new -- allocate a literal value
  */
 val_t *

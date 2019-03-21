@@ -53,43 +53,6 @@ typedef struct {
 } literal_t;
 
 /*
- * Variable type
- */
-typedef enum {
-    VAR_ID,
-    VAR_PTR,
-} var_type_t;
-
-/*
- * Variables
- */
-typedef struct {
-    var_type_t type;
-    union {
-        char *id;
-    } u;
-} var_t;
-
-/*
- * Value type
- */
-typedef enum {
-    VAL_LITERAL,
-    VAL_VAR,
-} val_type_t;
-
-/*
- * Values
- */
-typedef struct {
-    val_type_t type;
-    union {
-        literal_t *lit;
-        var_t *var;
-    } u;
-} val_t;
-
-/*
  * Type type
  */
 typedef enum {
@@ -120,6 +83,45 @@ typedef struct {
     char *id;
     type_t *type;
 } decl_t;
+
+/*
+ * Variable type
+ */
+typedef enum {
+    VAR_ID,
+    VAR_PTR,
+    VAR_DECL,
+} var_type_t;
+
+/*
+ * Variables
+ */
+typedef struct {
+    var_type_t type;
+    union {
+        char *id;
+        decl_t *decl;
+    } u;
+} var_t;
+
+/*
+ * Value type
+ */
+typedef enum {
+    VAL_LITERAL,
+    VAL_VAR,
+} val_type_t;
+
+/*
+ * Values
+ */
+typedef struct {
+    val_type_t type;
+    union {
+        literal_t *lit;
+        var_t *var;
+    } u;
+} val_t;
 
 /*
  * Arguments
@@ -227,6 +229,7 @@ extern "C" {
     literal_t * literal_new_string(const char *);
     type_t * type_primitive_new(type_type_t);
     var_t * var_id_new(char *, int);
+    var_t * var_decl_new(decl_t *);
     val_t * val_literal_new(literal_t *);
     val_t * val_variable_new(var_t *);
     decl_t * decl_new(const char *, type_t *);

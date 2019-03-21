@@ -171,7 +171,7 @@ primary:        value
                 ;
 variable:       declaration
                 {
-                    $$ = NULL;
+                    $$ = var_decl_new($1);
                 }
         |       identifier
                 {
