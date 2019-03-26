@@ -144,7 +144,6 @@ a_expr:         a_expr TOK_ADD m_expr
         |       a_expr TOK_SUB m_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_SUB);
-                    printf("-");
                 }
         |       m_expr
                 {
