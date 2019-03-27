@@ -95,7 +95,6 @@ function:       TOK_FN identifier funcargs funcargs
                 TOK_LBRACE blocks TOK_RBRACE
                 {
                     $$ = func_new($2, $3, $4, $6);
-                    printf("> fn %s\n", $2);
                 }
                 ;
 funcargs:       TOK_LPAREN args TOK_RPAREN
