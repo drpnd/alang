@@ -64,7 +64,7 @@ int yyerror(char const *);
 %type <type> primitive type
 %type <expr> primary expression a_expr m_expr
 %type <func> function
-%type <stmt> stmt_expr
+%type <stmt> statement stmt_decl stmt_assign stmt_expr
 %type <stmts> blocks
 %type <void> package
 %type <lit> literal
@@ -120,11 +120,19 @@ arg:            declaration
                     $$ = arg_new($1);
                 }
                 ;
-statement:      declaration
+statement:      stmt_decl
         |       stmt_assign
         |       stmt_expr
                 ;
+stmt_decl:      declaration
+                {
+                    $$ = NULL;
+                }
+                ;
 stmt_assign:    variable TOK_DEF expression
+                {
+                    $$ = NULL;
+                }
                 ;
 stmt_expr:      expression
                 {
