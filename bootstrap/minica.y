@@ -131,7 +131,7 @@ stmt_decl:      declaration
                 ;
 stmt_assign:    variable TOK_DEF expression
                 {
-                    $$ = NULL;
+                    $$ = stmt_new_assign($1, $3);
                 }
                 ;
 stmt_expr:      expression

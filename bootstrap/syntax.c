@@ -377,7 +377,27 @@ func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
 }
 
 /*
- * stmt_new_expr -- allocate a statement
+ * stmt_new_assign -- allocate an assign statement
+ */
+stmt_t *
+stmt_new_assign(var_t *var, expr_t *e)
+{
+    stmt_t *stmt;
+
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_ASSIGN;
+    stmt->u.assign.var = var;
+    stmt->u.assign.e = e;
+    stmt->next = NULL;
+
+    return stmt;
+}
+
+/*
+ * stmt_new_expr -- allocate an expression statement
  */
 stmt_t *
 stmt_new_expr(expr_t *e)
