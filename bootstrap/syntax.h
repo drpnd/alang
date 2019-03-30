@@ -193,6 +193,7 @@ struct _expr {
  * Statement type
  */
 typedef enum {
+    STMT_DECL,
     STMT_ASSIGN,
     STMT_EXPR,
 } stmt_type_t;
@@ -211,6 +212,7 @@ typedef struct {
 struct _stmt {
     stmt_type_t type;
     union {
+        decl_t *decl;
         stmt_assign_t assign;
         expr_t *expr;
     } u;
