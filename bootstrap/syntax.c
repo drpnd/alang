@@ -377,6 +377,25 @@ func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
 }
 
 /*
+ * stmt_new_decl -- allocate a declaration statement
+ */
+stmt_t *
+stmt_new_decl(decl_t *decl)
+{
+    stmt_t *stmt;
+
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_DECL;
+    stmt->u.decl = decl;
+    stmt->next = NULL;
+
+    return stmt;
+}
+
+/*
  * stmt_new_assign -- allocate an assign statement
  */
 stmt_t *
