@@ -126,7 +126,7 @@ statement:      stmt_decl
                 ;
 stmt_decl:      declaration
                 {
-                    $$ = NULL;
+                    $$ = stmt_new_decl($1);
                 }
                 ;
 stmt_assign:    variable TOK_DEF expression
