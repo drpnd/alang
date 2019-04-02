@@ -121,8 +121,17 @@ arg:            declaration
                 }
                 ;
 statement:      stmt_decl
+                {
+                    $$ = $1;
+                }
         |       stmt_assign
+                {
+                    $$ = $1;
+                }
         |       stmt_expr
+                {
+                    $$ = $1;
+                }
                 ;
 stmt_decl:      declaration
                 {
