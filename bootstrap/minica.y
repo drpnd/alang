@@ -81,6 +81,8 @@ block:          package
         |       function
         |       statement
                 ;
+statements:     statement statements
+                ;
 package:        TOK_PACKAGE identifier
                 {
                     printf("> package %s\n", $2);
