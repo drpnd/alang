@@ -65,7 +65,7 @@ int yyerror(char const *);
 %type <expr> primary expression a_expr m_expr
 %type <func> function
 %type <stmt> statement stmt_decl stmt_assign stmt_expr
-%type <stmts> blocks statements
+%type <stmts> statements
 %type <void> package
 %type <lit> literal
 %locations
@@ -197,15 +197,15 @@ primary:        value
                 ;
 variable:       declaration
                 {
-                    $$ = var_decl_new($1);
+                    $$ = var_new_decl($1);
                 }
         |       identifier
                 {
-                    $$ = var_id_new($1, 0);
+                    $$ = var_new_id($1, 0);
                 }
         |       TOK_ATMARK identifier
                 {
-                    $$ = var_id_new($2, 1);
+                    $$ = var_new_id($2, 1);
                 }
         ;
 declaration:    identifier type
@@ -224,45 +224,45 @@ type:           primitive
                 }
         |       identifier
                 {
-                    $$ = type_id_new($1);
+                    $$ = type_new_id($1);
                 }
                 ;
 value:          literal
                 {
-                    $$ = val_literal_new($1);
+                    $$ = val_new_literal($1);
                 }
         |       variable
                 {
-                    $$ = val_variable_new($1);
+                    $$ = val_new_variable($1);
                 }
                 ;
 primitive:      TOK_TYPE_I8
                 {
-                    $$ = type_primitive_new(TYPE_PRIMITIVE_I8);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_I8);
                 }
         |       TOK_TYPE_I16
                 {
-                    $$ = type_primitive_new(TYPE_PRIMITIVE_I16);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_I16);
                 }
         |       TOK_TYPE_I32
                 {
-                    $$ = type_primitive_new(TYPE_PRIMITIVE_I32);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_I32);
                 }
         |       TOK_TYPE_I64
                 {
-                    $$ = type_primitive_new(TYPE_PRIMITIVE_I64);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_I64);
                 }
         |       TOK_TYPE_FP32
                 {
-                    $$ = type_primitive_new(TYPE_PRIMITIVE_FP32);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
                 }
         |       TOK_TYPE_FP64
                 {
-                    $$ = type_primitive_new(TYPE_PRIMITIVE_FP64);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP64);
                 }
         |       TOK_TYPE_STRING
                 {
-                    $$ = type_primitive_new(TYPE_PRIMITIVE_STRING);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_STRING);
                 }
                 ;
 literal:        TOK_LIT_INT

@@ -239,12 +239,12 @@ extern "C" {
     literal_t * literal_new_int(int);
     literal_t * literal_new_float(float);
     literal_t * literal_new_string(const char *);
-    type_t * type_primitive_new(type_type_t);
-    type_t * type_id_new(const char *);
-    var_t * var_id_new(char *, int);
-    var_t * var_decl_new(decl_t *);
-    val_t * val_literal_new(literal_t *);
-    val_t * val_variable_new(var_t *);
+    type_t * type_new_primitive(type_type_t);
+    type_t * type_new_id(const char *);
+    var_t * var_new_id(char *, int);
+    var_t * var_new_decl(decl_t *);
+    val_t * val_new_literal(literal_t *);
+    val_t * val_new_variable(var_t *);
     decl_t * decl_new(const char *, type_t *);
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);

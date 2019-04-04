@@ -84,10 +84,10 @@ literal_new_string(const char *v)
 }
 
 /*
- * var_id_new -- allocate an ID variable
+ * var_new_id -- allocate an ID variable
  */
 var_t *
-var_id_new(char *id, int ptr)
+var_new_id(char *id, int ptr)
 {
     var_t *v;
 
@@ -106,10 +106,10 @@ var_id_new(char *id, int ptr)
 }
 
 /*
- * var_decl_new -- allocate a declaration variable
+ * var_new_decl -- allocate a declaration variable
  */
 var_t *
-var_decl_new(decl_t *decl)
+var_new_decl(decl_t *decl)
 {
     var_t *v;
 
@@ -124,10 +124,10 @@ var_decl_new(decl_t *decl)
 }
 
 /*
- * val_literal_new -- allocate a literal value
+ * val_new_literal -- allocate a literal value
  */
 val_t *
-val_literal_new(literal_t *lit)
+val_new_literal(literal_t *lit)
 {
     val_t *v;
 
@@ -142,10 +142,10 @@ val_literal_new(literal_t *lit)
 }
 
 /*
- * val_variable_new -- allocate a literal value
+ * val_new_variable -- allocate a literal value
  */
 val_t *
-val_variable_new(var_t *var)
+val_new_variable(var_t *var)
 {
     val_t *v;
 
@@ -160,10 +160,10 @@ val_variable_new(var_t *var)
 }
 
 /*
- * type_primitive_new -- allocate a type
+ * type_new_primitive -- allocate a type
  */
 type_t *
-type_primitive_new(type_type_t tt)
+type_new_primitive(type_type_t tt)
 {
     type_t *t;
 
@@ -177,10 +177,10 @@ type_primitive_new(type_type_t tt)
 }
 
 /*
- * type_id_new -- allocate a type
+ * type_new_id -- allocate a type
  */
 type_t *
-type_id_new(const char *id)
+type_new_id(const char *id)
 {
     type_t *t;
 
