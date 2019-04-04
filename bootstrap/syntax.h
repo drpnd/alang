@@ -240,6 +240,7 @@ extern "C" {
     literal_t * literal_new_float(float);
     literal_t * literal_new_string(const char *);
     type_t * type_primitive_new(type_type_t);
+    type_t * type_id_new(type_type_t, const char *);
     var_t * var_id_new(char *, int);
     var_t * var_decl_new(decl_t *);
     val_t * val_literal_new(literal_t *);
@@ -253,6 +254,7 @@ extern "C" {
     stmt_t * stmt_new_expr(expr_t *);
     op_t * op_new_infix(expr_t *, expr_t *, op_type_t);
     op_t * op_new_prefix(expr_t *, op_type_t);
+    expr_t * expr_new_val(val_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
 
