@@ -435,6 +435,17 @@ stmt_new_expr(expr_t *e)
 }
 
 /*
+ * stmt_prepend -- prepend a statement to the list
+ */
+stmt_t *
+stmt_prepend(stmt_t *stmt, stmt_t *stmts)
+{
+    stmt->next = stmts;
+
+    return stmt;
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4

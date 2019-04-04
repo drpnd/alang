@@ -252,6 +252,7 @@ extern "C" {
     stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_t *, expr_t *);
     stmt_t * stmt_new_expr(expr_t *);
+    stmt_t * stmt_prepend(stmt_t *, stmt_t *);
     op_t * op_new_infix(expr_t *, expr_t *, op_type_t);
     op_t * op_new_prefix(expr_t *, op_type_t);
     expr_t * expr_new_val(val_t *);

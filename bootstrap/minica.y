@@ -85,11 +85,11 @@ block:          package
                 ;
 statements:     statement
                 {
-                    $$ = NULL;
+                    $$ = $1;
                 }
         |       statement statements
                 {
-                    $$ = NULL;
+                    $$ = stmt_prepend($1, $2);
                 }
                 ;
 package:        TOK_PACKAGE identifier
