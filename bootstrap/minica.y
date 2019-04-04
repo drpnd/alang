@@ -65,7 +65,7 @@ int yyerror(char const *);
 %type <expr> primary expression a_expr m_expr
 %type <func> function
 %type <stmt> statement stmt_decl stmt_assign stmt_expr
-%type <stmts> blocks
+%type <stmts> blocks statements
 %type <void> package
 %type <lit> literal
 %locations
@@ -80,8 +80,17 @@ block:          package
         |       import
         |       function
         |       statement
+                {
+                }
                 ;
-statements:     statement statements
+statements:     statement
+                {
+                    $$ = NULL;
+                }
+        |       statement statements
+                {
+                    $$ = NULL;
+                }
                 ;
 package:        TOK_PACKAGE identifier
                 {
@@ -94,7 +103,7 @@ import:         TOK_IMPORT identifier
                 }
                 ;
 function:       TOK_FN identifier funcargs funcargs
-                TOK_LBRACE blocks TOK_RBRACE
+                TOK_LBRACE statements TOK_RBRACE
                 {
                     $$ = func_new($2, $3, $4, $6);
                 }
