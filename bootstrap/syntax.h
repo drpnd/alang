@@ -240,7 +240,7 @@ extern "C" {
     literal_t * literal_new_float(float);
     literal_t * literal_new_string(const char *);
     type_t * type_primitive_new(type_type_t);
-    type_t * type_id_new(type_type_t, const char *);
+    type_t * type_id_new(const char *);
     var_t * var_id_new(char *, int);
     var_t * var_decl_new(decl_t *);
     val_t * val_literal_new(literal_t *);

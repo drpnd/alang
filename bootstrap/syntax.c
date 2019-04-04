@@ -180,7 +180,7 @@ type_primitive_new(type_type_t tt)
  * type_id_new -- allocate a type
  */
 type_t *
-type_id_new(type_type_t tt, const char *id)
+type_id_new(const char *id)
 {
     type_t *t;
 
