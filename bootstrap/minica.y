@@ -195,6 +195,15 @@ primary:        value
                     $$ = expr_new_val($1);
                 }
                 ;
+value:          literal
+                {
+                    $$ = val_new_literal($1);
+                }
+        |       variable
+                {
+                    $$ = val_new_variable($1);
+                }
+                ;
 variable:       declaration
                 {
                     $$ = var_new_decl($1);
@@ -225,15 +234,6 @@ type:           primitive
         |       identifier
                 {
                     $$ = type_new_id($1);
-                }
-                ;
-value:          literal
-                {
-                    $$ = val_new_literal($1);
-                }
-        |       variable
-                {
-                    $$ = val_new_variable($1);
                 }
                 ;
 primitive:      TOK_TYPE_I8
