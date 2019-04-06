@@ -80,9 +80,6 @@ blocks:         block
 block:          package
         |       import
         |       function
-        |       statement
-                {
-                }
                 ;
 statements:     statement
                 {
