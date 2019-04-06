@@ -227,6 +227,13 @@ struct _stmt_list {
     stmt_t *tail;
 };
 
+/*
+ * Code
+ */
+typedef struct {
+    stmt_list_t *stmts;
+} code_t;
+
 #define COMPILER_ERROR(err)    do {                             \
         fprintf(stderr, "Fatal error on compiling the code\n"); \
         exit(err);                                              \
