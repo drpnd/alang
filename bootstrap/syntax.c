@@ -446,6 +446,28 @@ stmt_prepend(stmt_t *stmt, stmt_t *stmts)
 }
 
 /*
+ * import -- import statement
+ */
+import_t *
+import_new(char *id)
+{
+    import_t *import;
+
+    import = malloc(sizeof(import_t));
+    if ( NULL == import ) {
+        return NULL;
+    }
+    import->id = strdup(id);
+    if ( NULL == import->id ) {
+        free(import);
+        return NULL;
+    }
+
+    return import;
+}
+
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4

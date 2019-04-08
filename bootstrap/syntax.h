@@ -24,6 +24,8 @@
 #ifndef _SYNTAX_H
 #define _SYNTAX_H
 
+#include <unistd.h>
+
 /*
  * Typedefs
  */
@@ -228,11 +230,17 @@ struct _stmt_list {
 };
 
 /*
- * Code
+ * Import
  */
 typedef struct {
-    stmt_list_t *stmts;
-} code_t;
+    char *id;
+} import_t;
+
+/*
+ * Code file
+ */
+typedef struct {
+} code_file_t;
 
 #define COMPILER_ERROR(err)    do {                             \
         fprintf(stderr, "Fatal error on compiling the code\n"); \

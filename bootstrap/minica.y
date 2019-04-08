@@ -28,7 +28,7 @@
 #include "syntax.h"
 int yylex();
 int yyerror(char const *);
-code_t code;
+//code_t code;
 %}
 %union {
     int intval;
@@ -312,7 +312,7 @@ main(int argc, const char *const argv[])
     extern FILE *yyin;
 
     /* Initialize */
-    code.stmts = NULL;
+    //code.stmts = NULL;
 
     if ( argc < 2 ) {
         yyin = stdin;
