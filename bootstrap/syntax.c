@@ -491,6 +491,21 @@ import_new(char *id)
     return import;
 }
 
+/*
+ * code_file_init -- initialie code file
+ */
+int
+code_file_init(code_file_t *code)
+{
+    code->funcs.n = 0;
+    code->funcs.size = VECTOR_SIZE;
+    code->funcs.vec = malloc(VECTOR_SIZE * sizeof(func_t *));
+    if ( NULL == code->funcs.vec ) {
+        return -1;
+    }
+
+    return 0;
+}
 
 /*
  * Local variables:

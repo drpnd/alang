@@ -252,6 +252,7 @@ typedef struct {
  * Code file
  */
 typedef struct {
+    func_vec_t funcs;
 } code_file_t;
 
 #define COMPILER_ERROR(err)    do {                             \
@@ -286,6 +287,7 @@ extern "C" {
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
     import_t * import_new(char *);
+    int code_file_init(code_file_t *);
 
 #ifdef __cplusplus
 }
