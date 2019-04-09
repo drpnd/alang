@@ -446,7 +446,32 @@ stmt_prepend(stmt_t *stmt, stmt_t *stmts)
 }
 
 /*
- * import -- import statement
+ * func_vec_add -- add a function to the function vector
+ */
+int
+func_vec_add(func_vec_t *vec, func_t *func)
+{
+    func_t **nvec;
+    size_t resized;
+
+    if ( vec->n >= vec->size ) {
+        /* Resize */
+        resized = vec->size + VECTOR_DELTA;
+        nvec = realloc(vec->vec, resized * sizeof(func_t *));
+        if ( NULL == nvec ) {
+            return -1;
+        }
+        vec->vec = nvec;
+        vec->size = resized;
+    }
+    vec->vec[vec->n] = func;
+    vec->n++;
+
+    return 0;
+}
+
+/*
+ * import_new -- allocate a new import statement
  */
 import_t *
 import_new(char *id)

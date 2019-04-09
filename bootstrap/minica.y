@@ -45,6 +45,7 @@ int yyerror(char const *);
     void *func;
     void *stmt;
     void *stmts;
+    void *import;
 }
 %token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
@@ -57,6 +58,7 @@ int yyerror(char const *);
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
+%type <import> import
 %type <idval> identifier
 %type <var> variable
 %type <val> value
@@ -97,7 +99,7 @@ package:        TOK_PACKAGE identifier
                 ;
 import:         TOK_IMPORT identifier
                 {
-                    printf("> import %s\n", $2);
+                    $$ = import_new($2);
                 }
                 ;
 function:       TOK_FN identifier funcargs funcargs

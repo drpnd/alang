@@ -26,6 +26,9 @@
 
 #include <unistd.h>
 
+#define VECTOR_SIZE     32
+#define VECTOR_DELTA    32
+
 /*
  * Typedefs
  */
@@ -237,6 +240,15 @@ typedef struct {
 } import_t;
 
 /*
+ * Functions
+ */
+typedef struct {
+    size_t n;
+    size_t size;
+    func_t **vec;
+} func_vec_t;
+
+/*
  * Code file
  */
 typedef struct {
@@ -273,6 +285,7 @@ extern "C" {
     expr_t * expr_new_val(val_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
+    import_t * import_new(char *);
 
 #ifdef __cplusplus
 }
