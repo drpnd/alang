@@ -471,6 +471,31 @@ func_vec_add(func_vec_t *vec, func_t *func)
 }
 
 /*
+ * import_vec_add -- add an import statement to the import vector
+ */
+int
+import_vec_add(import_vec_t *vec, import_t *import)
+{
+    import_t **nvec;
+    size_t resized;
+
+    if ( vec->n >= vec->size ) {
+        /* Resize */
+        resized = vec->size + VECTOR_DELTA;
+        nvec = realloc(vec->vec, resized * sizeof(import_t *));
+        if ( NULL == nvec ) {
+            return -1;
+        }
+        vec->vec = nvec;
+        vec->size = resized;
+    }
+    vec->vec[vec->n] = import;
+    vec->n++;
+
+    return 0;
+}
+
+/*
  * import_new -- allocate a new import statement
  */
 import_t *

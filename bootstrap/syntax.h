@@ -249,6 +249,15 @@ typedef struct {
 } func_vec_t;
 
 /*
+ * Import statements
+ */
+typedef struct {
+    size_t n;
+    size_t size;
+    import_t **vec;
+} import_vec_t;
+
+/*
  * Code file
  */
 typedef struct {
@@ -286,6 +295,8 @@ extern "C" {
     expr_t * expr_new_val(val_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
+    int func_vec_add(func_vec_t *, func_t *);
+    int import_vec_add(import_vec_t *, import_t *);
     import_t * import_new(char *);
     int code_file_init(code_file_t *);
 
