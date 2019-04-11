@@ -81,7 +81,13 @@ blocks:         block
                 ;
 block:          package
         |       import
+                {
+                    import_vec_add(&code.imports, $1);
+                }
         |       function
+                {
+                    func_vec_add(&code.funcs, $1);
+                }
                 ;
 statements:     statement
                 {

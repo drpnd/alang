@@ -262,6 +262,7 @@ typedef struct {
  */
 typedef struct {
     func_vec_t funcs;
+    import_vec_t imports;
 } code_file_t;
 
 #define COMPILER_ERROR(err)    do {                             \
