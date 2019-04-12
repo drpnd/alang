@@ -339,6 +339,12 @@ main(int argc, const char *const argv[])
         fprintf(stderr, "Parse error!\n");
         exit(EXIT_FAILURE);
     }
+
+    /* Test output */
+    ssize_t i;
+    for ( i = 0; i < (ssize_t)code.funcs.n; i++ ) {
+        printf("func: %s\n", code.funcs.vec[i]->id);
+    }
 }
 
 /*
