@@ -523,15 +523,15 @@ int
 code_file_init(code_file_t *code)
 {
     code->funcs.n = 0;
-    code->funcs.size = VECTOR_SIZE;
-    code->funcs.vec = malloc(VECTOR_SIZE * sizeof(func_t *));
+    code->funcs.size = VECTOR_INIT_SIZE;
+    code->funcs.vec = malloc(VECTOR_INIT_SIZE * sizeof(func_t *));
     if ( NULL == code->funcs.vec ) {
         return -1;
     }
 
     code->imports.n = 0;
-    code->imports.size = VECTOR_SIZE;
-    code->imports.vec = malloc(VECTOR_SIZE * sizeof(import_t *));
+    code->imports.size = VECTOR_INIT_SIZE;
+    code->imports.vec = malloc(VECTOR_INIT_SIZE * sizeof(import_t *));
     if ( NULL == code->imports.vec ) {
         return -1;
     }

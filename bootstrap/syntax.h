@@ -26,8 +26,8 @@
 
 #include <unistd.h>
 
-#define VECTOR_SIZE     32
-#define VECTOR_DELTA    32
+#define VECTOR_INIT_SIZE    32
+#define VECTOR_DELTA        32
 
 /*
  * Typedefs
