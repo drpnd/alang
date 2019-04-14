@@ -26,10 +26,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "syntax.h"
+
 int yylex();
 int yyerror(char const *);
 code_file_t code;
 %}
+
 %union {
     int intval;
     float floatval;
@@ -47,6 +49,7 @@ code_file_t code;
     void *stmts;
     void *import;
 }
+
 %token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
 %token <idval>          TOK_ID
@@ -71,8 +74,11 @@ code_file_t code;
 %type <stmts> statements
 %type <void> package
 %type <lit> literal
+
 %locations
+
 %%
+
 /* Syntax and parser */
 file:           blocks
                 ;
