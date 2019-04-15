@@ -16,8 +16,9 @@ y.tab.h: minica.y
 lex.yy.c: minica.l y.tab.h
 	$(LEX) $^
 syntax.o: syntax.c syntax.h
+compile.o: compile.c
 
-minica: y.tab.o lex.yy.o syntax.o
+minica: y.tab.o lex.yy.o syntax.o compile.o
 	$(CC) -o $@ $^
 
 clean:
