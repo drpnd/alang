@@ -21,6 +21,7 @@
  * SOFTWARE.
  */
 
+#include "syntax.h"
 
 /*
  * Local variables:
