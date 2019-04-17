@@ -346,6 +346,8 @@ main(int argc, const char *const argv[])
         exit(EXIT_FAILURE);
     }
 
+    compile(&code);
+
     /* Test output */
     ssize_t i;
     for ( i = 0; i < (ssize_t)code.funcs.n; i++ ) {

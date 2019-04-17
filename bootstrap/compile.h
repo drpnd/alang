@@ -21,19 +21,22 @@
  * SOFTWARE.
  */
 
+#ifndef _COMPILE_H
+#define _COMPILE_H
+
 #include "syntax.h"
-#include "compile.h"
 
-/*
- * Compiile
- */
-int
-compile(code_file_t *code)
-{
-    (void)code;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    return 0;
+    int compile(code_file_t *);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* _COMPILE_H */
 
 /*
  * Local variables:
