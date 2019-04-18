@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "syntax.h"
+#include "compile.h"
 
 int yylex();
 int yyerror(char const *);
@@ -346,13 +347,10 @@ main(int argc, const char *const argv[])
         exit(EXIT_FAILURE);
     }
 
+    /* Compile */
     compile(&code);
 
-    /* Test output */
-    ssize_t i;
-    for ( i = 0; i < (ssize_t)code.funcs.n; i++ ) {
-        printf("func: %s\n", code.funcs.vec[i]->id);
-    }
+    return EXIT_SUCCESS;
 }
 
 /*

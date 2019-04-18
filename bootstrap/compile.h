@@ -25,6 +25,14 @@
 #define _COMPILE_H
 
 #include "syntax.h"
+#include <stdio.h>
+
+/*
+ * Compiler
+ */
+typedef struct {
+    FILE *fout;
+} compiler_t;
 
 #ifdef __cplusplus
 extern "C" {

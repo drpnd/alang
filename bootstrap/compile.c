@@ -23,14 +23,42 @@
 
 #include "syntax.h"
 #include "compile.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 /*
- * Compiile
+ * compile_func -- compile function
+ */
+int
+compile_func(compiler_t *c, func_t *fn)
+{
+    (void)c;
+    (void)fn->id;
+    (void)fn->block;
+
+    return 0;
+}
+
+/*
+ * compile -- compiile code
  */
 int
 compile(code_file_t *code)
 {
-    (void)code;
+    compiler_t *c;
+
+    /* Allocate compiler */
+    c = malloc(sizeof(compiler_t));
+    if ( NULL == c ) {
+        return EXIT_FAILURE;
+    }
+    c->fout = NULL;
+
+    /* Test output */
+    ssize_t i;
+    for ( i = 0; i < (ssize_t)code->funcs.n; i++ ) {
+        printf("func: %s\n", code->funcs.vec[i]->id);
+    }
 
     return 0;
 }
