@@ -32,9 +32,27 @@
 int
 compile_func(compiler_t *c, func_t *fn)
 {
+    stmt_t *s;
     (void)c;
     (void)fn->id;
-    (void)fn->block;
+
+    /* All statements in the block */
+    s = fn->block->head;
+    while ( NULL != s ) {
+        switch ( s->type ) {
+        case STMT_DECL:
+            /* Type declaration */
+            break;
+        case STMT_ASSIGN:
+            /* Assign variable */
+            break;
+        case STMT_EXPR:
+            /* Experssion */
+            break;
+        }
+        /* Next statement */
+        s = s->next;
+    }
 
     return 0;
 }
