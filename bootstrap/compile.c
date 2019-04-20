@@ -27,6 +27,52 @@
 #include <stdlib.h>
 
 /*
+ * compile_op -- compile an operator
+ */
+int
+compile_op(compiler_t *c, op_t *op)
+{
+    switch ( op->fix ) {
+    case FIX_INFIX:
+        break;
+    case FIX_PREFIX:
+        break;
+    }
+
+    return 0;
+}
+
+/*
+ * compile_expr -- compile an expression
+ */
+int
+compile_expr(compiler_t *c, expr_t *e)
+{
+    int ret;
+
+    switch ( e->type ) {
+    case EXPR_VAL:
+        /* Value */
+        switch ( e->u.val->type ) {
+        case VAL_LITERAL:
+            break;
+        case VAL_VAR:
+            break;
+        }
+        break;
+    case EXPR_OP:
+        /* Operator */
+        ret = compile_op(c, e->u.op);
+        if ( ret < 0 ) {
+            return ret;
+        }
+        break;
+    }
+
+    return 0;
+}
+
+/*
  * compile_func -- compile function
  */
 int
