@@ -139,6 +139,7 @@ _append_buffer_char(char c)
 "package"   return TOK_PACKAGE;
 "import"    return TOK_IMPORT;
 "fn"        return TOK_FN;
+"cr"        return TOK_COROUTINE;
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {
     char *val;
