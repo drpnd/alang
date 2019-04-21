@@ -45,6 +45,7 @@ code_file_t code;
     void *var;
     void *val;
     void *arg;
+    void *coroutine;
     void *func;
     void *stmt;
     void *stmts;
@@ -71,6 +72,7 @@ code_file_t code;
 %type <type> primitive type
 %type <expr> primary expression a_expr m_expr
 %type <func> function
+%type <coroutine> coroutine
 %type <stmt> statement stmt_decl stmt_assign stmt_expr
 %type <stmts> statements
 %type <void> package
@@ -91,6 +93,7 @@ block:          package
                 {
                     import_vec_add(&code.imports, $1);
                 }
+        |       coroutine
         |       function
                 {
                     func_vec_add(&code.funcs, $1);
@@ -113,6 +116,12 @@ package:        TOK_PACKAGE identifier
 import:         TOK_IMPORT identifier
                 {
                     $$ = import_new($2);
+                }
+                ;
+coroutine:      TOK_COROUTINE identifier funcargs funcargs
+                TOK_LBRACE statements TOK_RBRACE
+                {
+                    printf("> coroutine %s\n", $2);
                 }
                 ;
 function:       TOK_FN identifier funcargs funcargs
