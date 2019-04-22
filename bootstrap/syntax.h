@@ -148,6 +148,16 @@ typedef struct {
 } func_t;
 
 /*
+ * Coroutine
+ */
+typedef struct {
+    char *id;
+    arg_t *args;
+    arg_t *rets;
+    stmt_list_t *block;
+} coroutine_t;
+
+/*
  * Operations
  */
 typedef enum {
@@ -249,6 +259,15 @@ typedef struct {
 } func_vec_t;
 
 /*
+ * Coroutines
+ */
+typedef struct {
+    size_t n;
+    size_t size;
+    coroutine_t **vec;
+} coroutine_vec_t;
+
+/*
  * Import statements
  */
 typedef struct {
@@ -262,6 +281,7 @@ typedef struct {
  */
 typedef struct {
     func_vec_t funcs;
+    coroutine_vec_t coroutines;
     import_vec_t imports;
 } code_file_t;
 
@@ -287,6 +307,7 @@ extern "C" {
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);
     func_t * func_new(char *, arg_t *, arg_t *, stmt_list_t *);
+    coroutine_t * coroutine_new(char *, arg_t *, arg_t *, stmt_list_t *);
     stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_t *, expr_t *);
     stmt_t * stmt_new_expr(expr_t *);
@@ -297,6 +318,7 @@ extern "C" {
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
     int func_vec_add(func_vec_t *, func_t *);
+    int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
     int import_vec_add(import_vec_t *, import_t *);
     import_t * import_new(char *);
     int code_file_init(code_file_t *);

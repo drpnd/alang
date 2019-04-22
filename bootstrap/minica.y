@@ -94,6 +94,9 @@ block:          package
                     import_vec_add(&code.imports, $1);
                 }
         |       coroutine
+                {
+                    coroutine_vec_add(&code.coroutines, $1);
+                }
         |       function
                 {
                     func_vec_add(&code.funcs, $1);
@@ -121,7 +124,7 @@ import:         TOK_IMPORT identifier
 coroutine:      TOK_COROUTINE identifier funcargs funcargs
                 TOK_LBRACE statements TOK_RBRACE
                 {
-                    printf("> coroutine %s\n", $2);
+                    $$ = coroutine_new($2, $3, $4, $6);
                 }
                 ;
 function:       TOK_FN identifier funcargs funcargs

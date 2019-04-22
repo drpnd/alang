@@ -377,6 +377,30 @@ func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
 }
 
 /*
+ * coroutine_new -- allocate a coroutine
+ */
+coroutine_t *
+coroutine_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
+{
+    coroutine_t *cr;
+
+    cr = malloc(sizeof(coroutine_t));
+    if ( NULL == cr ) {
+        return NULL;
+    }
+    cr->id = strdup(id);
+    if ( NULL == cr->id ) {
+        free(cr);
+        return NULL;
+    }
+    cr->args = args;
+    cr->rets = rets;
+    cr->block = block;
+
+    return cr;
+}
+
+/*
  * stmt_new_decl -- allocate a declaration statement
  */
 stmt_t *
@@ -465,6 +489,31 @@ func_vec_add(func_vec_t *vec, func_t *func)
         vec->size = resized;
     }
     vec->vec[vec->n] = func;
+    vec->n++;
+
+    return 0;
+}
+
+/*
+ * coroutine_vec_add -- add a coroutine to the coroutine vector
+ */
+int
+coroutine_vec_add(coroutine_vec_t *vec, coroutine_t *cr)
+{
+    coroutine_t **nvec;
+    size_t resized;
+
+    if ( vec->n >= vec->size ) {
+        /* Resize */
+        resized = vec->size + VECTOR_DELTA;
+        nvec = realloc(vec->vec, resized * sizeof(coroutine_t *));
+        if ( NULL == nvec ) {
+            return -1;
+        }
+        vec->vec = nvec;
+        vec->size = resized;
+    }
+    vec->vec[vec->n] = cr;
     vec->n++;
 
     return 0;

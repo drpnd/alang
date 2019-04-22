@@ -123,6 +123,9 @@ compile(code_file_t *code)
     for ( i = 0; i < (ssize_t)code->funcs.n; i++ ) {
         printf("func: %s\n", code->funcs.vec[i]->id);
     }
+    for ( i = 0; i < (ssize_t)code->coroutines.n; i++ ) {
+        printf("coroutine: %s\n", code->coroutines.vec[i]->id);
+    }
 
     return 0;
 }
