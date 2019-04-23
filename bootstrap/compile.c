@@ -109,6 +109,28 @@ compile_func(compiler_t *c, func_t *fn)
 int
 compile_coroutine(compiler_t *c, coroutine_t *cr)
 {
+    stmt_t *s;
+    (void)c;
+    (void)cr->id;
+
+    /* All statements in the block */
+    s = cr->block->head;
+    while ( NULL != s ) {
+        switch ( s->type ) {
+        case STMT_DECL:
+            /* Type declaration */
+            break;
+        case STMT_ASSIGN:
+            /* Assign variable */
+            break;
+        case STMT_EXPR:
+            /* Experssion */
+            break;
+        }
+        /* Next statement */
+        s = s->next;
+    }
+
     return 0;
 }
 
