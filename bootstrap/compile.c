@@ -73,7 +73,7 @@ compile_expr(compiler_t *c, expr_t *e)
 }
 
 /*
- * compile_func -- compile function
+ * compile_func -- compile a function
  */
 int
 compile_func(compiler_t *c, func_t *fn)
@@ -100,6 +100,15 @@ compile_func(compiler_t *c, func_t *fn)
         s = s->next;
     }
 
+    return 0;
+}
+
+/*
+ * compile_coroutine -- compile a coroutine
+ */
+int
+compile_coroutine(compiler_t *c, coroutine_t *cr)
+{
     return 0;
 }
 
