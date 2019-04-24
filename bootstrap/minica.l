@@ -208,7 +208,7 @@ _append_buffer_char(char c)
 }
     /* Comment */
 \/\/ { BEGIN comment; }
-<comment>\n {
+<comment>[^\n]*\n {
     BEGIN 0;
 }
 
