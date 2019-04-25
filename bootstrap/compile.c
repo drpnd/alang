@@ -73,6 +73,27 @@ compile_expr(compiler_t *c, expr_t *e)
 }
 
 /*
+ * compile_stmt -- compile a statement
+ */
+int
+compile_stmt(compiler_t *c, stmt_t *s)
+{
+    switch ( s->type ) {
+    case STMT_DECL:
+        /* Type declaration */
+        break;
+    case STMT_ASSIGN:
+        /* Assign variable */
+        break;
+    case STMT_EXPR:
+        /* Experssion */
+        break;
+    }
+
+    return 0;
+}
+
+/*
  * compile_func -- compile a function
  */
 int
@@ -85,17 +106,7 @@ compile_func(compiler_t *c, func_t *fn)
     /* All statements in the block */
     s = fn->block->head;
     while ( NULL != s ) {
-        switch ( s->type ) {
-        case STMT_DECL:
-            /* Type declaration */
-            break;
-        case STMT_ASSIGN:
-            /* Assign variable */
-            break;
-        case STMT_EXPR:
-            /* Experssion */
-            break;
-        }
+        compile_stmt(c, s);
         /* Next statement */
         s = s->next;
     }
@@ -116,17 +127,7 @@ compile_coroutine(compiler_t *c, coroutine_t *cr)
     /* All statements in the block */
     s = cr->block->head;
     while ( NULL != s ) {
-        switch ( s->type ) {
-        case STMT_DECL:
-            /* Type declaration */
-            break;
-        case STMT_ASSIGN:
-            /* Assign variable */
-            break;
-        case STMT_EXPR:
-            /* Experssion */
-            break;
-        }
+        compile_stmt(c, s);
         /* Next statement */
         s = s->next;
     }
