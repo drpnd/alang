@@ -34,8 +34,11 @@ compile_op(compiler_t *c, op_t *op)
 {
     switch ( op->fix ) {
     case FIX_INFIX:
+        (void)op->e0;
+        (void)op->e1;
         break;
     case FIX_PREFIX:
+        (void)op->e0;
         break;
     }
 
