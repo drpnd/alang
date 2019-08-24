@@ -38,6 +38,21 @@ typedef enum {
 } register_type_t;
 
 /*
+ * Variable
+ */
+typedef struct {
+    var_t *var;
+    register_type_t reg;
+} scope_var_t;
+
+/*
+ * Scope
+ */
+typedef struct {
+    scope_var_t var;
+} scope_t;
+
+/*
  * Compiler
  */
 typedef struct {
