@@ -113,7 +113,13 @@ statements:     statement
                 ;
 package:        TOK_PACKAGE identifier
                 {
-                    printf("> package %s\n", $2);
+                    int ret;
+                    ret = package_define(&code, $2);
+                    if ( 0 != ret ) {
+                        /* Already defined */
+                        yyerror("Another package is already specified in this "
+                                "file.");
+                    }
                 }
                 ;
 import:         TOK_IMPORT identifier

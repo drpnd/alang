@@ -12,4 +12,7 @@ bootstrap:
 all:
 	$(MAKE) bootstrap
 
-.PHONY: all bootstrap
+clean:
+	$(MAKE) -C bootstrap clean
+
+.PHONY: all clean bootstrap

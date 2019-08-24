@@ -280,6 +280,7 @@ typedef struct {
  * Code file
  */
 typedef struct {
+    char *package;
     func_vec_t funcs;
     coroutine_vec_t coroutines;
     import_vec_t imports;
@@ -321,6 +322,7 @@ extern "C" {
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
     int import_vec_add(import_vec_t *, import_t *);
     import_t * import_new(char *);
+    int package_define(code_file_t *, const char *);
     int code_file_init(code_file_t *);
 
 #ifdef __cplusplus

@@ -566,11 +566,30 @@ import_new(char *id)
 }
 
 /*
+ * Define package
+ */
+int
+package_define(code_file_t *code, const char *package)
+{
+    if ( NULL != code->package ) {
+        return -1;
+    }
+    code->package = strdup(package);
+    if ( NULL == code->package ) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
  * code_file_init -- initialie code file
  */
 int
 code_file_init(code_file_t *code)
 {
+    code->package = NULL;
+
     code->funcs.n = 0;
     code->funcs.size = VECTOR_INIT_SIZE;
     code->funcs.vec = malloc(VECTOR_INIT_SIZE * sizeof(func_t *));
