@@ -104,7 +104,7 @@ block:          package
                 ;
 statements:     statement
                 {
-                    $$ = $1;
+                    $$ = stmt_list_new($1);
                 }
         |       statement statements
                 {

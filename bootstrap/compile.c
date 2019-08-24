@@ -103,13 +103,14 @@ int
 compile_func(compiler_t *c, func_t *fn)
 {
     stmt_t *s;
+    int ret;
     (void)c;
     (void)fn->id;
 
     /* All statements in the block */
     s = fn->block->head;
     while ( NULL != s ) {
-        compile_stmt(c, s);
+        ret = compile_stmt(c, s);
         /* Next statement */
         s = s->next;
     }
@@ -145,6 +146,7 @@ int
 compile(code_file_t *code)
 {
     compiler_t *c;
+    int ret;
 
     /* Allocate compiler */
     c = malloc(sizeof(compiler_t));
@@ -157,6 +159,10 @@ compile(code_file_t *code)
     ssize_t i;
     for ( i = 0; i < (ssize_t)code->funcs.n; i++ ) {
         printf("func: %s\n", code->funcs.vec[i]->id);
+        ret = compile_func(c, code->funcs.vec[i]);
+        if ( ret < 0 ) {
+            fprintf(stderr, "Compile error\n");
+        }
     }
     for ( i = 0; i < (ssize_t)code->coroutines.n; i++ ) {
         printf("coroutine: %s\n", code->coroutines.vec[i]->id);

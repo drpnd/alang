@@ -459,14 +459,33 @@ stmt_new_expr(expr_t *e)
 }
 
 /*
+ * stmt_list_new -- create a new statement list
+ */
+stmt_list_t *
+stmt_list_new(stmt_t *stmt)
+{
+    stmt_list_t *block;
+
+    block = malloc(sizeof(stmt_list_t));
+    if ( NULL == block ) {
+        return NULL;
+    }
+    block->head = stmt;
+    block->tail = stmt;
+
+    return block;
+}
+
+/*
  * stmt_prepend -- prepend a statement to the list
  */
-stmt_t *
-stmt_prepend(stmt_t *stmt, stmt_t *stmts)
+stmt_list_t *
+stmt_prepend(stmt_t *stmt, stmt_list_t *block)
 {
-    stmt->next = stmts;
+    stmt->next = block->head;
+    block->head = stmt;
 
-    return stmt;
+    return block;
 }
 
 /*
