@@ -28,6 +28,16 @@
 #include <stdio.h>
 
 /*
+ * Register type
+ */
+typedef enum {
+    REG_I8,
+    REG_I16,
+    REG_I32,
+    REG_I64,
+} register_type_t;
+
+/*
  * Compiler
  */
 typedef struct {
