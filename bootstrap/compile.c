@@ -26,23 +26,70 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+int compile_expr(compiler_t *, expr_t *);
+
+/*
+ * compile_infix -- compile an infix operator
+ */
+int
+compile_infix(compiler_t *c, op_type_t type, expr_t *e0, expr_t *e1)
+{
+    int ret;
+
+    ret = compile_expr(c, e0);
+    if ( ret < 0 ) {
+        return ret;
+    }
+    ret = compile_expr(c, e1);
+    if ( ret < 0 ) {
+        return ret;
+    }
+
+    switch ( type ) {
+    case OP_ADD:
+        break;
+    case OP_SUB:
+        break;
+    case OP_MUL:
+        break;
+    case OP_DIV:
+        break;
+    default:
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * compile_prefix -- compile a prefix operator
+ */
+int
+compile_prefix(compiler_t *c, op_type_t type, expr_t *e)
+{
+    return -1;
+}
+
 /*
  * compile_op -- compile an operator
  */
 int
 compile_op(compiler_t *c, op_t *op)
 {
+    int ret;
+
     switch ( op->fix ) {
     case FIX_INFIX:
-        (void)op->e0;
-        (void)op->e1;
+        ret = compile_infix(c, op->type, op->e0, op->e1);
         break;
     case FIX_PREFIX:
-        (void)op->e0;
+        ret = compile_prefix(c, op->type, op->e0);
         break;
+    default:
+        ret = -1;
     }
 
-    return 0;
+    return ret;
 }
 
 /*
@@ -76,20 +123,58 @@ compile_expr(compiler_t *c, expr_t *e)
 }
 
 /*
+ * compile_assign -- compile an assign statement
+ */
+int
+compile_assign(compiler_t *c, stmt_assign_t *s)
+{
+    int ret;
+
+    /* Variable */
+    switch ( s->var->type ) {
+    case VAR_ID:
+        printf("var id %s\n", s->var->u.id);
+        break;
+    case VAR_PTR:
+        printf("var ptr\n");
+        break;
+    case VAR_DECL:
+        printf("var decl %s\n", s->var->u.decl->id);
+        break;
+    default:
+        return -1;
+    }
+    ret = compile_expr(c, s->e);
+    if ( ret < 0 ) {
+        return ret;
+    }
+
+    return 0;
+}
+
+/*
  * compile_stmt -- compile a statement
  */
 int
 compile_stmt(compiler_t *c, stmt_t *s)
 {
+    int ret;
+
     switch ( s->type ) {
     case STMT_DECL:
         /* Type declaration */
+        return -1;
         break;
     case STMT_ASSIGN:
         /* Assign variable */
+        ret = compile_assign(c, &s->u.assign);
+        if ( ret < 0 ) {
+            return -1;
+        }
         break;
     case STMT_EXPR:
         /* Experssion */
+        return -1;
         break;
     }
 
@@ -111,6 +196,9 @@ compile_func(compiler_t *c, func_t *fn)
     s = fn->block->head;
     while ( NULL != s ) {
         ret = compile_stmt(c, s);
+        if ( ret < 0 ) {
+            return ret;
+        }
         /* Next statement */
         s = s->next;
     }
@@ -125,13 +213,17 @@ int
 compile_coroutine(compiler_t *c, coroutine_t *cr)
 {
     stmt_t *s;
+    int ret;
     (void)c;
     (void)cr->id;
 
     /* All statements in the block */
     s = cr->block->head;
     while ( NULL != s ) {
-        compile_stmt(c, s);
+        ret = compile_stmt(c, s);
+        if ( ret < 0 ) {
+            return ret;
+        }
         /* Next statement */
         s = s->next;
     }
