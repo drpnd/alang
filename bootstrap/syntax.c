@@ -106,17 +106,15 @@ var_new_id(char *id, int ptr)
         return NULL;
     }
 
-    if ( NULL != stack ) {
-        s = malloc(sizeof(var_stack_t));
-        if ( NULL == s ) {
-            free(v->u.id);
-            free(v);
-            return NULL;
-        }
-        s->var = v;
-        s->next = stack;
-        stack = s;
+    s = malloc(sizeof(var_stack_t));
+    if ( NULL == s ) {
+        free(v->u.id);
+        free(v);
+        return NULL;
     }
+    s->var = v;
+    s->next = stack;
+    stack = s;
 
     return v;
 }
@@ -128,6 +126,7 @@ var_t *
 var_new_decl(decl_t *decl)
 {
     var_t *v;
+    var_stack_t *s;
 
     v = malloc(sizeof(var_t));
     if ( NULL == v ) {
@@ -135,6 +134,15 @@ var_new_decl(decl_t *decl)
     }
     v->type = VAR_DECL;
     v->u.decl = decl;
+
+    s = malloc(sizeof(var_stack_t));
+    if ( NULL == s ) {
+        free(v);
+        return NULL;
+    }
+    s->var = v;
+    s->next = stack;
+    stack = s;
 
     return v;
 }
