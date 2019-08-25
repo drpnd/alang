@@ -110,6 +110,15 @@ typedef struct {
 } var_t;
 
 /*
+ * Variable sets
+ */
+typedef struct _var_stack var_stack_t;
+struct _var_stack {
+    var_t *var;
+    var_stack_t *next;
+};
+
+/*
  * Value type
  */
 typedef enum {
@@ -145,6 +154,8 @@ typedef struct {
     arg_t *args;
     arg_t *rets;
     stmt_list_t *block;
+    /* Variables */
+    var_stack_t *vars;
 } func_t;
 
 /*

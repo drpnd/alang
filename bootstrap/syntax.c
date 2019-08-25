@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Global variable */
+var_stack_t *stack;
+
 /*
  * literal_new_int -- allocate an integer literal
  */
@@ -90,6 +93,7 @@ var_t *
 var_new_id(char *id, int ptr)
 {
     var_t *v;
+    var_stack_t *s;
 
     v = malloc(sizeof(var_t));
     if ( NULL == v ) {
@@ -100,6 +104,18 @@ var_new_id(char *id, int ptr)
     if ( NULL == v->u.id ) {
         free(v);
         return NULL;
+    }
+
+    if ( NULL != stack ) {
+        s = malloc(sizeof(var_stack_t));
+        if ( NULL == s ) {
+            free(v->u.id);
+            free(v);
+            return NULL;
+        }
+        s->var = v;
+        s->next = stack;
+        stack = s;
     }
 
     return v;
@@ -372,6 +388,8 @@ func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
     f->args = args;
     f->rets = rets;
     f->block = block;
+
+    f->vars = stack;
 
     return f;
 }
