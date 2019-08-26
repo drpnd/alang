@@ -95,6 +95,16 @@ var_new_id(char *id, int ptr)
     var_t *v;
     var_stack_t *s;
 
+    /* Check the stack */
+    s = stack;
+    while ( NULL != s ) {
+        if ( 0 == strcmp(s->var->u.id, id) ) {
+            /* Found */
+            return v;
+        }
+        s = s->next;
+    }
+
     v = malloc(sizeof(var_t));
     if ( NULL == v ) {
         return NULL;
