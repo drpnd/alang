@@ -100,7 +100,7 @@ var_new_id(char *id, int ptr)
     while ( NULL != s ) {
         if ( 0 == strcmp(s->var->u.id, id) ) {
             /* Found */
-            return v;
+            return s->var;
         }
         s = s->next;
     }
