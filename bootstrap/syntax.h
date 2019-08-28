@@ -114,6 +114,7 @@ typedef struct {
  */
 typedef struct _var_stack var_stack_t;
 struct _var_stack {
+    char *id;
     var_t *var;
     var_stack_t *next;
 };

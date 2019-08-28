@@ -22,6 +22,7 @@
  */
 
 #include "syntax.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -98,7 +99,7 @@ var_new_id(char *id, int ptr)
     /* Check the stack */
     s = stack;
     while ( NULL != s ) {
-        if ( 0 == strcmp(s->var->u.id, id) ) {
+        if ( 0 == strcmp(s->id, id) ) {
             /* Found */
             return s->var;
         }
@@ -122,6 +123,13 @@ var_new_id(char *id, int ptr)
         free(v);
         return NULL;
     }
+    s->id = strdup(id);
+    if ( NULL == s->id ) {
+        free(v->u.id);
+        free(v);
+        free(s);
+        return NULL;
+    }
     s->var = v;
     s->next = stack;
     stack = s;
@@ -138,6 +146,17 @@ var_new_decl(decl_t *decl)
     var_t *v;
     var_stack_t *s;
 
+    /* Check the stack */
+    s = stack;
+    while ( NULL != s ) {
+        if ( 0 == strcmp(s->id, decl->id) ) {
+            /* Already defined */
+            fprintf(stderr, "Variable %s is already defined.\n", s->id);
+            return NULL;
+        }
+        s = s->next;
+    }
+
     v = malloc(sizeof(var_t));
     if ( NULL == v ) {
         return NULL;
@@ -148,6 +167,12 @@ var_new_decl(decl_t *decl)
     s = malloc(sizeof(var_stack_t));
     if ( NULL == s ) {
         free(v);
+        return NULL;
+    }
+    s->id = strdup(decl->id);
+    if ( NULL == s->id ) {
+        free(v);
+        free(s);
         return NULL;
     }
     s->var = v;
