@@ -18,7 +18,7 @@ lex.yy.c: minica.l y.tab.h
 syntax.o: syntax.c syntax.h
 compile.o: compile.c
 
-minica: y.tab.o lex.yy.o syntax.o compile.o
+minica: y.tab.o lex.yy.o syntax.o compile.o arch/x86-64/x86-64.o ld/mach-o.o
 	$(CC) -o $@ $^
 
 clean:
