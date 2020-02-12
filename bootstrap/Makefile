@@ -16,7 +16,7 @@ y.tab.h: minica.y
 lex.yy.c: minica.l y.tab.h
 	$(LEX) $^
 syntax.o: syntax.c syntax.h
-compile.o: compile.c
+compile.o: compile.c compile.h
 
 minica: y.tab.o lex.yy.o syntax.o compile.o arch/x86-64/x86-64.o ld/mach-o.o
 	$(CC) -o $@ $^
