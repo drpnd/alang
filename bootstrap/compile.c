@@ -231,24 +231,13 @@ compile_coroutine(compiler_t *c, coroutine_t *cr)
     return 0;
 }
 
-/*
- * compile -- compiile code
- */
 int
-compile(code_file_t *code)
+compile_code(compiler_t *c, code_file_t *code)
 {
-    compiler_t *c;
     int ret;
-
-    /* Allocate compiler */
-    c = malloc(sizeof(compiler_t));
-    if ( NULL == c ) {
-        return EXIT_FAILURE;
-    }
-    c->fout = NULL;
+    ssize_t i;
 
     /* Test output */
-    ssize_t i;
     for ( i = 0; i < (ssize_t)code->funcs.n; i++ ) {
         printf("func: %s\n", code->funcs.vec[i]->id);
         ret = compile_func(c, code->funcs.vec[i]);
@@ -259,6 +248,26 @@ compile(code_file_t *code)
     for ( i = 0; i < (ssize_t)code->coroutines.n; i++ ) {
         printf("coroutine: %s\n", code->coroutines.vec[i]->id);
     }
+
+    return 0;
+}
+
+/*
+ * compile -- compiile code
+ */
+int
+compile(code_file_t *code)
+{
+    compiler_t *c;
+
+    /* Allocate compiler */
+    c = malloc(sizeof(compiler_t));
+    if ( NULL == c ) {
+        return EXIT_FAILURE;
+    }
+    c->fout = NULL;
+
+    compile_code(c, code);
 
     return 0;
 }

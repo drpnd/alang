@@ -35,6 +35,10 @@ typedef enum {
     REG_I16,
     REG_I32,
     REG_I64,
+    MEM_I8,
+    MEM_I16,
+    MEM_I32,
+    MEM_I64,
 } register_type_t;
 
 /*
@@ -51,6 +55,38 @@ typedef struct {
 typedef struct {
     scope_var_t var;
 } scope_t;
+
+/*
+ * Opcode
+ */
+typedef enum {
+    OPCODE_ADD,
+} opcode_t;
+
+/*
+ * Operand type
+ */
+typedef enum {
+    OPERAND_VAR,
+} operand_type_t;
+
+/*
+ * Operand
+ */
+typedef struct {
+    operand_type_t type;
+    union {
+        scope_var_t var;
+    } u;
+} operand_t;
+
+/*
+ * Instruction
+ */
+typedef struct {
+    opcode_t opcode;
+    operand_t operands[3];
+} instr_t;
 
 /*
  * Compiler
