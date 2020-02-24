@@ -21,6 +21,8 @@
  * SOFTWARE.
  */
 
+#include <stdint.h>
+
 #define MH_MAGIC_64             0xfeedfacfUL
 #define CPUTYPE_X86_64          0x01000007UL
 #define CPUSUBTYPE_X86_64       0x00000003UL
@@ -107,6 +109,121 @@ enum reloc_type_x86_64 {
     X86_64_RELOC_SIGNED_4,
     X86_64_RELOC_TLV,
 };
+
+/*
+ * Mach-O 64-bit header
+ */
+struct mach_header_64 {
+    uint32_t magic;
+    uint32_t cputype;
+    uint32_t cpusubtype;
+    uint32_t filetype;
+    /* # of load commands following the header structure */
+    uint32_t ncmds;
+    /* # of bytes occupied by the load commands */
+    uint32_t sizeofcmds;
+    uint32_t flags;
+    uint32_t reserved;
+} __attribute__ ((packed));
+
+struct load_command {
+    uint32_t cmd;
+    uint32_t cmdsize;
+} __attribute__ ((packed));
+
+struct segment_command_64 {
+    uint32_t cmd;
+    uint32_t cmdsize;
+    char segname[16];
+    uint64_t vmaddr;
+    uint64_t vmsize;
+    uint64_t fileoff;
+    uint64_t filesize;
+    uint32_t maxprot;
+    uint32_t initprot;
+    uint32_t nsects;
+    uint32_t flags;
+} __attribute__ ((packed));
+
+struct version_min_command {
+    uint32_t cmd;
+    uint32_t cmdsize;
+    uint32_t version;
+    uint32_t sdk;
+};
+
+struct symtab_command {
+    uint32_t cmd;
+    uint32_t cmdsize;
+    uint32_t symoff;
+    uint32_t nsyms;
+    uint32_t stroff;
+    uint32_t strsize;
+};
+
+struct dysymtab_command {
+    uint32_t cmd;
+    uint32_t cmdsize;
+
+    uint32_t ilocalsym;
+    uint32_t nlocalsym;
+    uint32_t iextdefsym;
+    uint32_t nextdefsym;
+    uint32_t iundefsym;
+    uint32_t nundefsym;
+
+    uint32_t tocoff;
+    uint32_t ntoc;
+
+    uint32_t modtaboff;
+    uint32_t nmodtab;
+
+    uint32_t extrefsymoff;
+    uint32_t nextrefsyms;
+
+    uint32_t indirectsymoff;
+    uint32_t nindirectsyms;
+
+    uint32_t extreloff;
+    uint32_t nextrel;
+
+    uint32_t locreloff;
+    uint32_t nlocrel;
+} __attribute__ ((packed));
+
+struct section_64 {
+    char sectname[16];
+    char segname[16];
+    uint64_t addr;
+    uint64_t size;
+    uint32_t offset;
+    uint32_t align;
+    uint32_t reloff;
+    uint32_t nreloc;
+    uint32_t flags;
+    uint32_t reserved1;
+    uint32_t reserved2;
+    uint32_t reserved3;
+} __attribute__ ((packed));
+
+struct relocation_info {
+    int32_t r_address;
+    uint32_t r_symbolnum:24,
+        r_pcrel:1,
+        r_length:2,
+        r_extern:1,
+        r_type:4;
+} __attribute__ ((packed));
+
+struct nlist_64 {
+    union {
+        int32_t n_strx;
+    } n_un;
+    uint8_t n_type;
+    uint8_t n_sect;
+    uint16_t n_desc;
+    uint64_t n_value;
+} __attribute__ ((packed));
 
 /*
  * Local variables:
