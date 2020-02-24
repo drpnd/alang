@@ -226,6 +226,33 @@ struct nlist_64 {
 } __attribute__ ((packed));
 
 /*
+ * Export
+ */
+int
+mach_o_export(void)
+{
+    struct mach_header_64 hdr;
+    int sizeofcmds;
+    int ncmds;
+
+    /* Example */
+    ncmds = 4;
+    sizeofcmds = 0x1b0;
+
+    /* Header */
+    hdr.magic = MH_MAGIC_64;
+    hdr.cputype = CPUTYPE_X86_64;
+    hdr.cpusubtype = CPUSUBTYPE_X86_64;
+    hdr.filetype = FILETYPE_OBJECT;
+    hdr.ncmds = ncmds;
+    hdr.sizeofcmds = sizeofcmds;
+    hdr.flags = SUBSECTIONS_VIA_SYMBOLS;
+    hdr.reserved = 0;
+
+    return 0;
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4
