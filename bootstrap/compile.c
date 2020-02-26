@@ -231,6 +231,9 @@ compile_coroutine(compiler_t *c, coroutine_t *cr)
     return 0;
 }
 
+/*
+ * compile_code -- compile code
+ */
 int
 compile_code(compiler_t *c, code_file_t *code)
 {
