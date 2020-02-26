@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019-2020 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,6 +26,18 @@
 
 #include "syntax.h"
 #include <stdio.h>
+
+/*
+ * Assembler
+ */
+typedef struct {
+} assembler_t;
+
+/*
+ * Linker
+ */
+typedef struct {
+} linker_t;
 
 /*
  * Register type
@@ -97,6 +109,8 @@ typedef struct {
  * Compiler
  */
 typedef struct {
+    /* Assembler */
+    /* Linker */
     FILE *fout;
 } compiler_t;
 
