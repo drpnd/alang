@@ -26,6 +26,7 @@
 
 #include "syntax.h"
 #include <stdio.h>
+#include <stdint.h>
 
 /*
  * Assembler
