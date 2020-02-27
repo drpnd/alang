@@ -24,13 +24,6 @@
 #include "../compile.h"
 #include <stdint.h>
 
-/*
- * Loader operations
- */
-typedef struct {
-    int (*export)(compiler_t *);
-} ld_ops_t;
-
 #define MH_MAGIC_64             0xfeedfacfUL
 #define CPUTYPE_X86_64          0x01000007UL
 #define CPUSUBTYPE_X86_64       0x00000003UL
@@ -237,7 +230,7 @@ struct nlist_64 {
  * Export
  */
 int
-mach_o_export(compiler_t *compiler)
+mach_o_export(void)
 {
     struct mach_header_64 hdr;
     int sizeofcmds;

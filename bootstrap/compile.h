@@ -28,15 +28,33 @@
 #include <stdio.h>
 
 /*
+ * Assembler operations
+ */
+typedef struct {
+    int (*assemble)(void *);
+} assembler_ops_t;
+
+/*
  * Assembler
  */
 typedef struct {
+    void *spec;
+    assembler_ops_t ops;
 } assembler_t;
+
+/*
+ * Loader operations
+ */
+typedef struct {
+    int (*export)(void *);
+} ld_ops_t;
 
 /*
  * Linker
  */
 typedef struct {
+    void *spec;
+    ld_ops_t ops;
 } linker_t;
 
 /*
