@@ -24,27 +24,45 @@
 #ifndef _ARCH_H
 #define _ARCH_H
 
+#include <stdio.h>
+#include <stdint.h>
 #include <unistd.h>
 
+typedef enum {
+    ARCH_REF_REL32,
+} arch_ref_type_t;
+
 /*
- * Reference
+ * Symbol
  */
 typedef struct {
+    char *label;
     off_t pos;
     size_t size;
     uint64_t *ref;
-} arch_ref_t;
+} arch_sym_t;
 
 /*
  * Architecture-specific code
  */
 typedef struct {
+    uint8_t *s;
+    size_t size;
+
+    /* Symbols */
+    struct {
+        int n;
+        arch_sym_t *syms;
+    } sym;
 
 } arch_code_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+    /* ld/mach-o.c */
+    int mach_o_export(FILE *, arch_code_t *);
 
 #ifdef __cplusplus
 }

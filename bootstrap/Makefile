@@ -7,7 +7,7 @@
 #
 
 all:
-	$(MAKE) minica
+	$(MAKE) minica minica_test_ld
 
 y.tab.c: minica.y
 	$(YACC) -d $^
@@ -19,6 +19,9 @@ syntax.o: syntax.c syntax.h
 compile.o: compile.c compile.h
 
 minica: y.tab.o lex.yy.o syntax.o compile.o arch/x86-64/x86-64.o ld/mach-o.o
+	$(CC) -o $@ $^
+
+minica_test_ld: tests/minica_test_ld.o ld/mach-o.o
 	$(CC) -o $@ $^
 
 clean:

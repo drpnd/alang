@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2018 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,73 +21,59 @@
  * SOFTWARE.
  */
 
+#include "../arch.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
-#include "code.h"
-#include "pe.h"
-#include "mach-o.h"
-#include "elf.h"
-
-#define FILE_MEMSIZE_DELTA  4096
 
 /*
- * Print out the help message and quit the program
- */
-void
-usage(const char *prog)
-{
-    fprintf(stderr, "Usage: %s <file>\n", prog);
-    exit(EXIT_FAILURE);
-}
-
-/*
- * Main routine
+ * Main routine for the linker test
  */
 int
 main(int argc, const char *const argv[])
 {
-    const char *file;
+    arch_code_t code;
     FILE *fp;
-    struct code code;
+    uint8_t s[] = {
+        0x48, 0x89, 0xf8,       /* mov %rdi, %rax */
+        0x48, 0xff, 0xc0,       /* inc %rax */
+        0xc3,                   /* retq */
+        0x90,
+        0x48, 0x89, 0xf8,       /* mov %rdi, %rax */
+        0x48, 0xff, 0xc0,       /* inc %rax */
+        0x48, 0xff, 0xc0,       /* inc %rax */
+        0xc3,                   /* retq */
+        0x90, 0x90, 0x90, 0x90, 0x90, 0x90
+    };
 
-    if ( argc != 2 ) {
-        usage(argv[0]);
+    code.size = sizeof(s);
+    code.s = malloc(code.size);
+    if ( NULL == code.s ) {
+        return -1;
     }
-    file = argv[1];
+    memcpy(code.s, s, code.size);
 
-    fp = fopen(file, "w");
+    code.sym.n = 2;
+    code.sym.syms = malloc(sizeof(arch_sym_t) * code.sym.n);
+    if ( NULL == code.sym.syms ) {
+        free(code.s);
+        return -1;
+    }
+    code.sym.syms[0].label = "_func";
+    code.sym.syms[0].pos = 0;
+    code.sym.syms[1].label = "_func2";
+    code.sym.syms[1].pos = 8;
+
+    /* Open the output file */
+    fp = fopen("mach-o-test.o", "w+");
     if ( NULL == fp ) {
-        perror("fopen():");
+        free(code.sym.syms);
+        free(code.s);
         return -1;
     }
 
-    code.bin.text = (uint8_t *)"\x48\x31\xc0\x48\xff\xc0\xc3\x90\x48\x31\xc0\x8b\x05\x00\x00\x00\x00\x48\xff\xc0\x89\x05\x00\x00\x00\x00\xc3\x90\x90";
-    code.bin.len = 30;
-    code.symbols.ents = malloc(sizeof(struct code_symbol) * 3);
-    if ( NULL == code.symbols.ents ) {
-        return -1;
-    }
-    code.symbols.ents[0].name = "_func";
-    code.symbols.ents[0].pos = 0;
-    code.symbols.ents[1].name = "_func2";
-    code.symbols.ents[1].pos = 8;
-    code.symbols.ents[2].name = "_func2.i";
-    code.symbols.ents[2].pos = 0;
-    code.symbols.size = 2;
-
-    code.dsyms.ents = malloc(sizeof(struct code_symbol) * 1);
-    if ( NULL == code.dsyms.ents ) {
-        return -1;
-    }
-    code.dsyms.ents[0].name = "_func2.i";
-    code.dsyms.ents[0].size = 4;
-    code.dsyms.ents[0].pos = 0;
-    code.dsyms.size = 1;
-
-    //elf_test2(&code, fp);
-    //mach_o_test2(&code, fp);
-    mach_o_test(fp);
+    mach_o_export(fp, &code);
 
     return 0;
 }
