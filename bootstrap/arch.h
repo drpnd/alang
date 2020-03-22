@@ -64,6 +64,9 @@ extern "C" {
     /* ld/mach-o.c */
     int mach_o_export(FILE *, arch_code_t *);
 
+    /* ld/elf.c */
+    int elf_export(FILE *, arch_code_t *);
+
 #ifdef __cplusplus
 }
 #endif
