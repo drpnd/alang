@@ -238,8 +238,6 @@ mach_o_export(FILE *fp, arch_code_t *code)
     struct mach_header_64 hdr;
     struct segment_command_64 seg;
     struct section_64 sect_text;
-    struct section_64 sect_ld;
-    struct section_64 sect_eh;
     struct version_min_command vercmd;
     struct symtab_command symtab;
     struct dysymtab_command dysymtab;
@@ -295,7 +293,7 @@ mach_o_export(FILE *fp, arch_code_t *code)
     /* Relocation information: Describes an item in the file that uses an
        address that needs to be updated when the address is changed. */
     relinfo[0].r_address = 0;
-    relinfo[0].r_symbolnum = 2;
+    relinfo[0].r_symbolnum = code->sym.n;
     relinfo[0].r_pcrel = 0;
     relinfo[0].r_length = 3;    /* 4 bytes (PPC_RELOC_BR14) */
     relinfo[0].r_extern = 0;
@@ -309,7 +307,7 @@ mach_o_export(FILE *fp, arch_code_t *code)
     relinfo[1].r_type = 0;
 
     /* Example */
-    ncmds = 3;
+    ncmds = 4;
     nsects = 1;
     sizeofcmds = 0x1b0;
 
@@ -352,37 +350,6 @@ mach_o_export(FILE *fp, arch_code_t *code)
     sect_text.reserved2 = 0;
     sect_text.reserved3 = 0;
 
-    /* Linker section */
-    memset(&sect_ld, 0, sizeof(struct section_64));
-    strncpy(sect_ld.sectname, "__compact_unwind", 16);
-    strcpy(sect_ld.segname, "__LD");
-    sect_ld.addr = 0x18;
-    sect_ld.size = 0x20;
-    sect_ld.offset = 0x1e8;
-    sect_ld.align = 3;
-    sect_ld.reloff = 0x248;
-    sect_ld.nreloc = 2;
-    sect_ld.flags = S_ATTR_DEBUG;
-    sect_ld.reserved1 = 0;
-    sect_ld.reserved2 = 0;
-    sect_ld.reserved3 = 0;
-
-    /* eh_frame section */
-    memset(&sect_eh, 0, sizeof(struct section_64));
-    strcpy(sect_eh.sectname, "__eh_frame");
-    strcpy(sect_eh.segname, "__LD");
-    sect_eh.addr = 0x38;
-    sect_eh.size = 0x40;
-    sect_eh.offset = 0x208;
-    sect_eh.align = 3;
-    sect_eh.reloff = 0;
-    sect_eh.nreloc = 0;
-    sect_eh.flags = S_ATTR_NO_TOC | S_ATTR_STRIP_STATIC_SYMS
-        | S_ATTR_LIVE_SUPPORT | S_COALESCED;
-    sect_eh.reserved1 = 0;
-    sect_eh.reserved2 = 0;
-    sect_eh.reserved3 = 0;
-
     /* Version min command */
     vercmd.cmd = LC_VERSION_MIN_MACOSX;
     vercmd.cmdsize = sizeof(struct version_min_command);
@@ -397,33 +364,61 @@ mach_o_export(FILE *fp, arch_code_t *code)
     symtab.stroff = 0x280;
     symtab.strsize = strtablen;
 
+    /* Dysymtab command */
+    dysymtab.cmd = LC_DYSYMTAB;
+    dysymtab.cmdsize = sizeof(struct dysymtab_command);
+    dysymtab.ilocalsym = 0;
+    dysymtab.nlocalsym = 0;
+    dysymtab.iextdefsym = 0;
+    dysymtab.nextdefsym = 2;
+    dysymtab.iundefsym = 2;
+    dysymtab.nundefsym = 0;
+    dysymtab.tocoff = 0;
+    dysymtab.ntoc = 0;
+    dysymtab.modtaboff = 0;
+    dysymtab.nmodtab = 0;
+    dysymtab.extrefsymoff = 0;
+    dysymtab.nextrefsyms = 0;
+    dysymtab.indirectsymoff = 0;
+    dysymtab.nindirectsyms = 0;
+    dysymtab.extreloff = 0;
+    dysymtab.nextrel = 0;
+    dysymtab.locreloff = 0;
+    dysymtab.nlocrel = 0;
+
     /* Write the header */
     nw = fwrite(&hdr, sizeof(struct mach_header_64), 1, fp);
-    if ( nw != sizeof(struct mach_header_64) ) {
+    if ( nw != 1 ) {
         return -1;
     }
 
     /* Write the segment command */
     nw = fwrite(&seg, sizeof(struct segment_command_64), 1, fp);
-    if ( nw != sizeof(struct segment_command_64) ) {
+    if ( nw != 1 ) {
         return -1;
     }
 
     /* Write the text section */
     nw = fwrite(&sect_text, sizeof(struct section_64), 1, fp);
-    if ( nw != sizeof(struct section_64) ) {
+    if ( nw != 1 ) {
         return -1;
     }
 
     /* Write the version command */
     nw = fwrite(&vercmd, sizeof(struct version_min_command), 1, fp);
-    if ( nw != sizeof(struct version_min_command) ) {
+    if ( nw != 1 ) {
         return -1;
     }
 
     /* Write the symbol table command */
     nw = fwrite(&symtab, sizeof(struct symtab_command), 1, fp);
-    if ( nw != sizeof(struct symtab_command) ) {
+    if ( nw != 1 ) {
+        return -1;
+    }
+
+    /* Write the dynamic symbol table command */
+    nw = fwrite(&dysymtab, sizeof(struct dysymtab_command), 1, fp);
+    if ( nw != 1 ) {
         return -1;
     }
 
@@ -437,11 +432,11 @@ mach_o_export(FILE *fp, arch_code_t *code)
     /* Write the relocation information */
     fseeko(fp, 0x248, SEEK_SET);
     nw = fwrite(&relinfo[0], sizeof(struct relocation_info), 1, fp);
-    if ( nw != sizeof(struct relocation_info) ) {
+    if ( nw != 1 ) {
         return -1;
     }
     nw = fwrite(&relinfo[1], sizeof(struct relocation_info), 1, fp);
-    if ( nw != sizeof(struct relocation_info) ) {
+    if ( nw != 1 ) {
         return -1;
     }
 
@@ -449,14 +444,14 @@ mach_o_export(FILE *fp, arch_code_t *code)
     fseeko(fp, 0x260, SEEK_SET);
     for ( i = 0; i < code->sym.n; i++ ) {
         nw = fwrite(&nl[i], sizeof(struct nlist_64), 1, fp);
-        if ( nw != sizeof(struct nlist_64) ) {
+        if ( nw != 1 ) {
             return -1;
         }
     }
 
     /* Write the symbol table string */
     fseeko(fp, 0x280, SEEK_SET);
-    nw = fwrite(strtab, strtablen, 1, fp);
+    nw = fwrite(strtab, 1, strtablen, fp);
     if ( nw != (ssize_t)strtablen ) {
         return -1;
     }

@@ -33,6 +33,7 @@
 int
 main(int argc, const char *const argv[])
 {
+    int ret;
     arch_code_t code;
     FILE *fp;
     uint8_t s[] = {
@@ -73,7 +74,10 @@ main(int argc, const char *const argv[])
         return -1;
     }
 
-    mach_o_export(fp, &code);
+    ret = mach_o_export(fp, &code);
+    if ( ret < 0 ) {
+        fprintf(stderr, "Failed.\n");
+    }
 
     return 0;
 }
