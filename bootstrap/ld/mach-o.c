@@ -240,7 +240,6 @@ mach_o_export(FILE *fp, arch_code_t *code)
     struct section_64 sect_text;
     struct version_min_command vercmd;
     struct symtab_command symtab;
-    struct relocation_info relinfo[2];
     struct nlist_64 *nl;
     int sizeofcmds;
     int ncmds;
@@ -288,22 +287,6 @@ mach_o_export(FILE *fp, arch_code_t *code)
         strcpy(strtab + stroff, code->sym.syms[i].label);
         stroff += strlen(code->sym.syms[i].label) + 1;
     }
-
-    /* Relocation information: Describes an item in the file that uses an
-       address that needs to be updated when the address is changed. */
-    relinfo[0].r_address = 0;
-    relinfo[0].r_symbolnum = code->sym.n;
-    relinfo[0].r_pcrel = 0;
-    relinfo[0].r_length = 3;    /* 4 bytes (PPC_RELOC_BR14) */
-    relinfo[0].r_extern = 0;
-    relinfo[0].r_type = 0;
-
-    relinfo[1].r_address = 0;
-    relinfo[1].r_symbolnum = 1;
-    relinfo[1].r_pcrel = 0;
-    relinfo[1].r_length = 3;    /* 4 bytes (PPC_RELOC_BR14) */
-    relinfo[1].r_extern = 0;
-    relinfo[1].r_type = 0;
 
     /* Example */
     ncmds = 3;
@@ -398,17 +381,6 @@ mach_o_export(FILE *fp, arch_code_t *code)
     fseeko(fp, codepoint, SEEK_SET);
     nw = fwrite(code->s, 1, code->size, fp);
     if ( nw != (ssize_t)code->size ) {
-        return -1;
-    }
-
-    /* Write the relocation information */
-    fseeko(fp, 0x248, SEEK_SET);
-    nw = fwrite(&relinfo[0], sizeof(struct relocation_info), 1, fp);
-    if ( nw != 1 ) {
-        return -1;
-    }
-    nw = fwrite(&relinfo[1], sizeof(struct relocation_info), 1, fp);
-    if ( nw != 1 ) {
         return -1;
     }
 
