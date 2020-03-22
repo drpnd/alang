@@ -287,18 +287,15 @@ mach_o_export(FILE *fp, arch_code_t *code)
         stroff += strlen(code->sym.syms[i].label) + 1;
     }
 
-    /* Example */
+    /* Calculate the offsets */
     ncmds = 3;
     nsects = 1;
     sizeofcmds = sizeof(struct segment_command_64)
         + sizeof(struct section_64) * nsects
-        + sizeof(struct version_min_command)
-        + sizeof(struct symtab_command);
-
+        + sizeof(struct version_min_command) + sizeof(struct symtab_command);
     codepoint = sizeof(struct mach_header_64) + sizeofcmds;
     codepoint = ((codepoint + 15) / 16) * 16;
     codesize = ((code->size + 15) / 16) * 16;
-
     symoff = codepoint + codesize;
 
     /* Header */
