@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019 Hirochika Asai
+# Copyright (c) 2019-2020 Hirochika Asai
 # All rights reserved.
 #
 # Authors:
@@ -21,7 +21,7 @@ compile.o: compile.c compile.h
 minica: y.tab.o lex.yy.o syntax.o compile.o arch/x86-64/x86-64.o ld/mach-o.o
 	$(CC) -o $@ $^
 
-minica_test_ld: tests/minica_test_ld.o ld/mach-o.o
+minica_test_ld: tests/minica_test_ld.o ld/mach-o.o ld/elf.o
 	$(CC) -o $@ $^
 
 clean:

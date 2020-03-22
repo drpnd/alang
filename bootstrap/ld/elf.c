@@ -30,7 +30,7 @@
  * Export
  */
 int
-elf_export(FILE *fp, arch_code_t *code);
+elf_export(FILE *fp, arch_code_t *code)
 {
     return -1;
 }
