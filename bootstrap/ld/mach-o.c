@@ -247,6 +247,7 @@ mach_o_export(FILE *fp, arch_code_t *code)
     struct nlist_64 *nl;
     int sizeofcmds;
     int ncmds;
+    int nsects;
     ssize_t nw;
     char *strtab;
     int i;
@@ -307,9 +308,9 @@ mach_o_export(FILE *fp, arch_code_t *code)
     relinfo[1].r_extern = 0;
     relinfo[1].r_type = 0;
 
-
     /* Example */
-    ncmds = 4;
+    ncmds = 3;
+    nsects = 1;
     sizeofcmds = 0x1b0;
 
     /* Header */
@@ -324,7 +325,8 @@ mach_o_export(FILE *fp, arch_code_t *code)
 
     /* Segment command */
     seg.cmd = LC_SEGMENT_64;
-    seg.cmdsize = 0x98;
+    seg.cmdsize = sizeof(struct segment_command_64)
+        + sizeof(struct section_64) * nsects;
     memset(seg.segname, 0, 16);
     seg.vmaddr = 0;
     seg.vmsize = 0x20;
@@ -332,7 +334,7 @@ mach_o_export(FILE *fp, arch_code_t *code)
     seg.filesize = 0x20;
     seg.maxprot = 0x07;
     seg.initprot = 0x07;
-    seg.nsects = 1;
+    seg.nsects = nsects;
     seg.flags = 0;
 
     /* Text section */
@@ -383,7 +385,7 @@ mach_o_export(FILE *fp, arch_code_t *code)
 
     /* Version min command */
     vercmd.cmd = LC_VERSION_MIN_MACOSX;
-    vercmd.cmdsize = 0x10;
+    vercmd.cmdsize = sizeof(struct version_min_command);
     vercmd.version = 0x000a0c00;
     vercmd.sdk = 0;
 
@@ -394,28 +396,6 @@ mach_o_export(FILE *fp, arch_code_t *code)
     symtab.nsyms = code->sym.n;
     symtab.stroff = 0x280;
     symtab.strsize = strtablen;
-
-    /* Dysymtab command */
-    dysymtab.cmd = LC_DYSYMTAB;
-    dysymtab.cmdsize = sizeof(struct dysymtab_command);
-    dysymtab.ilocalsym = 0;
-    dysymtab.nlocalsym = 0;
-    dysymtab.iextdefsym = 0;
-    dysymtab.nextdefsym = 2;
-    dysymtab.iundefsym = 2;
-    dysymtab.nundefsym = 0;
-    dysymtab.tocoff = 0;
-    dysymtab.ntoc = 0;
-    dysymtab.modtaboff = 0;
-    dysymtab.nmodtab = 0;
-    dysymtab.extrefsymoff = 0;
-    dysymtab.nextrefsyms = 0;
-    dysymtab.indirectsymoff = 0;
-    dysymtab.nindirectsyms = 0;
-    dysymtab.extreloff = 0;
-    dysymtab.nextrel = 0;
-    dysymtab.locreloff = 0;
-    dysymtab.nlocrel = 0;
 
     /* Write the header */
     nw = fwrite(&hdr, sizeof(struct mach_header_64), 1, fp);
@@ -431,9 +411,6 @@ mach_o_export(FILE *fp, arch_code_t *code)
 
     /* Write the symbol table command */
     nw = fwrite(&symtab, sizeof(struct symtab_command), 1, fp);
-
-    /* Write the dynamic symbol table command */
-    nw = fwrite(&dysymtab, sizeof(struct dysymtab_command), 1, fp);
 
     /* Write the program code */
     fseeko(fp, codepoint, SEEK_SET);
