@@ -399,37 +399,67 @@ mach_o_export(FILE *fp, arch_code_t *code)
 
     /* Write the header */
     nw = fwrite(&hdr, sizeof(struct mach_header_64), 1, fp);
+    if ( nw != sizeof(struct mach_header_64) ) {
+        return -1;
+    }
 
     /* Write the segment command */
     nw = fwrite(&seg, sizeof(struct segment_command_64), 1, fp);
+    if ( nw != sizeof(struct segment_command_64) ) {
+        return -1;
+    }
 
     /* Write the text section */
     nw = fwrite(&sect_text, sizeof(struct section_64), 1, fp);
+    if ( nw != sizeof(struct section_64) ) {
+        return -1;
+    }
 
     /* Write the version command */
     nw = fwrite(&vercmd, sizeof(struct version_min_command), 1, fp);
+    if ( nw != sizeof(struct version_min_command) ) {
+        return -1;
+    }
 
     /* Write the symbol table command */
     nw = fwrite(&symtab, sizeof(struct symtab_command), 1, fp);
+    if ( nw != sizeof(struct symtab_command) ) {
+        return -1;
+    }
 
     /* Write the program code */
     fseeko(fp, codepoint, SEEK_SET);
     nw = fwrite(code->s, 1, code->size, fp);
+    if ( nw != (ssize_t)code->size ) {
+        return -1;
+    }
 
     /* Write the relocation information */
     fseeko(fp, 0x248, SEEK_SET);
     nw = fwrite(&relinfo[0], sizeof(struct relocation_info), 1, fp);
+    if ( nw != sizeof(struct relocation_info) ) {
+        return -1;
+    }
     nw = fwrite(&relinfo[1], sizeof(struct relocation_info), 1, fp);
+    if ( nw != sizeof(struct relocation_info) ) {
+        return -1;
+    }
 
     /* Write the symbol table */
     fseeko(fp, 0x260, SEEK_SET);
     for ( i = 0; i < code->sym.n; i++ ) {
         nw = fwrite(&nl[i], sizeof(struct nlist_64), 1, fp);
+        if ( nw != sizeof(struct nlist_64) ) {
+            return -1;
+        }
     }
 
     /* Write the symbol table string */
     fseeko(fp, 0x280, SEEK_SET);
     nw = fwrite(strtab, strtablen, 1, fp);
+    if ( nw != (ssize_t)strtablen ) {
+        return -1;
+    }
 
     return 0;
 }
