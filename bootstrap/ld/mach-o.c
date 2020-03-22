@@ -247,12 +247,11 @@ mach_o_export(FILE *fp, arch_code_t *code)
     ssize_t nw;
     char *strtab;
     int i;
-
     off_t codepoint;
+    size_t codesize;
     size_t strtablen;
     ssize_t stroff;
-
-    codepoint = 0x1d0;
+    off_t symoff;
 
     strtablen = 1;
     for ( i = 0; i < code->sym.n; i++ ) {
@@ -291,7 +290,16 @@ mach_o_export(FILE *fp, arch_code_t *code)
     /* Example */
     ncmds = 3;
     nsects = 1;
-    sizeofcmds = 0x1b0;
+    sizeofcmds = sizeof(struct segment_command_64)
+        + sizeof(struct section_64) * nsects
+        + sizeof(struct version_min_command)
+        + sizeof(struct symtab_command);
+
+    codepoint = sizeof(struct mach_header_64) + sizeofcmds;
+    codepoint = ((codepoint + 15) / 16) * 16;
+    codesize = ((code->size + 15) / 16) * 16;
+
+    symoff = codepoint + codesize;
 
     /* Header */
     hdr.magic = MH_MAGIC_64;
@@ -309,9 +317,9 @@ mach_o_export(FILE *fp, arch_code_t *code)
         + sizeof(struct section_64) * nsects;
     memset(seg.segname, 0, 16);
     seg.vmaddr = 0;
-    seg.vmsize = 0x20;
+    seg.vmsize = codesize;
     seg.fileoff = codepoint;
-    seg.filesize = 0x20;
+    seg.filesize = codesize;
     seg.maxprot = 0x07;
     seg.initprot = 0x07;
     seg.nsects = nsects;
@@ -341,9 +349,9 @@ mach_o_export(FILE *fp, arch_code_t *code)
     /* Symtab command */
     symtab.cmd = LC_SYMTAB;
     symtab.cmdsize = sizeof(struct symtab_command);
-    symtab.symoff = 0x260;
+    symtab.symoff = symoff;
     symtab.nsyms = code->sym.n;
-    symtab.stroff = 0x280;
+    symtab.stroff = symoff + code->sym.n * sizeof(struct nlist_64);
     symtab.strsize = strtablen;
 
 
@@ -385,7 +393,7 @@ mach_o_export(FILE *fp, arch_code_t *code)
     }
 
     /* Write the symbol table */
-    fseeko(fp, 0x260, SEEK_SET);
+    fseeko(fp, symoff, SEEK_SET);
     for ( i = 0; i < code->sym.n; i++ ) {
         nw = fwrite(&nl[i], sizeof(struct nlist_64), 1, fp);
         if ( nw != 1 ) {
@@ -394,7 +402,7 @@ mach_o_export(FILE *fp, arch_code_t *code)
     }
 
     /* Write the symbol table string */
-    fseeko(fp, 0x280, SEEK_SET);
+    fseeko(fp, symoff + code->sym.n * sizeof(struct nlist_64), SEEK_SET);
     nw = fwrite(strtab, 1, strtablen, fp);
     if ( nw != (ssize_t)strtablen ) {
         return -1;
