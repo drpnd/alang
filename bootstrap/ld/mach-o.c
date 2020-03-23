@@ -245,10 +245,10 @@ mach_o_export(FILE *fp, arch_code_t *code)
     int ncmds;
     int nsects;
     ssize_t nw;
-    char *strtab;
     int i;
     off_t codepoint;
     size_t codesize;
+    char *strtab;
     size_t strtablen;
     ssize_t stroff;
     off_t symoff;
