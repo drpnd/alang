@@ -423,7 +423,8 @@ elf_export(FILE *fp, arch_code_t *code)
     size_t shstrtablen;
     off_t shoff;
     int i;
-    Elf64_Shdr *sects;
+    ssize_t nw;
+    Elf64_Shdr *shdr;
     Elf64_Sym *syms;
     int nsects;
     Elf64_Phdr phdr[2];
@@ -433,6 +434,7 @@ elf_export(FILE *fp, arch_code_t *code)
             .shdr.sh_type = SHT_NULL,
             .shdr.sh_flags = 0,
             .shdr.sh_addr = 0,
+            .shdr.sh_offset = 0,
             .shdr.sh_size = 0,
             .shdr.sh_link = 0,
             .shdr.sh_info = 0,
@@ -444,10 +446,11 @@ elf_export(FILE *fp, arch_code_t *code)
             .shdr.sh_type = SHT_PROGBITS,
             .shdr.sh_flags = SHF_ALLOC | SHF_EXECINSTR,
             .shdr.sh_addr = 0,
+            .shdr.sh_offset = 0,
             .shdr.sh_size = code->size,
             .shdr.sh_link = 0,
             .shdr.sh_info = 0,
-            .shdr.sh_addralign = 3, /* 2^3 */
+            .shdr.sh_addralign = 8, /* 2^3 */
             .shdr.sh_entsize = 0,
         },
         {
@@ -455,10 +458,11 @@ elf_export(FILE *fp, arch_code_t *code)
             .shdr.sh_type = SHT_PROGBITS,
             .shdr.sh_flags = SHF_WRITE | SHF_ALLOC,
             .shdr.sh_addr = 0,
+            .shdr.sh_offset = 0,
             .shdr.sh_size = 8,
             .shdr.sh_link = 0,
             .shdr.sh_info = 0,
-            .shdr.sh_addralign = 3, /* 2^3 */
+            .shdr.sh_addralign = 8, /* 2^3 */
             .shdr.sh_entsize = 0,
         },
         {
@@ -466,10 +470,11 @@ elf_export(FILE *fp, arch_code_t *code)
             .shdr.sh_type = SHT_STRTAB,
             .shdr.sh_flags = 0,
             .shdr.sh_addr = 0,
-            .shdr.sh_size = 0,
+            .shdr.sh_offset = 0x600,
+            .shdr.sh_size = 0x100,
             .shdr.sh_link = 0,
             .shdr.sh_info = 0,
-            .shdr.sh_addralign = 0,
+            .shdr.sh_addralign = 1,
             .shdr.sh_entsize = 0,
         },
         {
@@ -477,10 +482,11 @@ elf_export(FILE *fp, arch_code_t *code)
             .shdr.sh_type = SHT_SYMTAB,
             .shdr.sh_flags = 0,
             .shdr.sh_addr = 0,
+            .shdr.sh_offset = 0,
             .shdr.sh_size = 0,
             .shdr.sh_link = 0,
             .shdr.sh_info = 0,
-            .shdr.sh_addralign = 0,
+            .shdr.sh_addralign = 1,
             .shdr.sh_entsize = 0,
         },
         {
@@ -488,14 +494,14 @@ elf_export(FILE *fp, arch_code_t *code)
             .shdr.sh_type = SHT_STRTAB,
             .shdr.sh_flags = 0,
             .shdr.sh_addr = 0,
+            .shdr.sh_offset = 0,
             .shdr.sh_size = 0,
             .shdr.sh_link = 0,
             .shdr.sh_info = 0,
-            .shdr.sh_addralign = 0,
+            .shdr.sh_addralign = 1,
             .shdr.sh_entsize = 0,
         },
     };
-
 
     /* ELF header */
     hdr.e_ident[EI_MAG0] = '\x7f';
@@ -508,6 +514,19 @@ elf_export(FILE *fp, arch_code_t *code)
     hdr.e_ident[EI_OSABI] = ELFOSABI_SYSV;
     hdr.e_ident[EI_ABIVERSION] = 0;
     hdr.e_ident[EI_PAD] = 0;
+    hdr.e_type = ET_REL;
+    hdr.e_machine = EM_X86_64;
+    hdr.e_version = 1;
+    hdr.e_entry = 0;
+    hdr.e_phoff = sizeof(Elf64_Ehdr);
+    hdr.e_shoff = 0x300;
+    hdr.e_flags = 0;
+    hdr.e_ehsize = sizeof(Elf64_Ehdr);
+    hdr.e_phentsize = sizeof(Elf64_Phdr);
+    hdr.e_phnum = 2;
+    hdr.e_shentsize = sizeof(Elf64_Shdr);
+    hdr.e_shnum = 6;
+    hdr.e_shstrndx = 3;
 
     /* Program headers */
     phdr[0].p_type = PT_LOAD;
@@ -515,7 +534,7 @@ elf_export(FILE *fp, arch_code_t *code)
     phdr[0].p_offset = 0;
     phdr[0].p_vaddr = 0;
     phdr[0].p_paddr = 0;
-    phdr[0].p_filesz = 0;
+    phdr[0].p_filesz = code->size;
     phdr[0].p_memsz = 0;
     phdr[0].p_align = 21;
 
@@ -530,8 +549,8 @@ elf_export(FILE *fp, arch_code_t *code)
 
     /* Section headers */
     nsects = (int)(sizeof(sections)/sizeof(sections[0]));
-    sects = alloca(sizeof(Elf64_Shdr) * nsects);
-    if ( NULL == sects ) {
+    shdr = alloca(sizeof(Elf64_Shdr) * nsects);
+    if ( NULL == shdr ) {
         return -1;
     }
 
@@ -540,11 +559,11 @@ elf_export(FILE *fp, arch_code_t *code)
     shoff = 0x40;
     for ( i = 0; i < nsects; i++ ) {
         strcpy(shstrtab + shstrtablen, sections[i].name);
-        memcpy(&sects[i], &sections[i].shdr, sizeof(Elf64_Shdr));
-        sects[i].sh_name = shstrtablen;
-        if ( sects[i].sh_size > 0 ) {
-            sects[i].sh_offset = shoff;
-            shoff += sects[i].sh_size;
+        memcpy(&shdr[i], &sections[i].shdr, sizeof(Elf64_Shdr));
+        shdr[i].sh_name = shstrtablen;
+        if ( shdr[i].sh_size > 0 ) {
+            //shdr[i].sh_offset = shoff;
+            shoff += shdr[i].sh_size;
         }
         shstrtablen += strlen(sections[i].name) + 1;
     }
@@ -590,7 +609,40 @@ elf_export(FILE *fp, arch_code_t *code)
         stroff += strlen(code->sym.syms[i].label) + 1;
     }
 
-    return -1;
+    /* Write the header */
+    nw = fwrite(&hdr, sizeof(Elf64_Ehdr), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+
+    /* Write the program headers */
+    nw = fwrite(phdr, sizeof(Elf64_Phdr), 2, fp);
+    if ( nw != 2 ) {
+        return -1;
+    }
+
+    /* Write the program headers */
+    fseeko(fp, 0x300, SEEK_SET);
+    nw = fwrite(shdr, sizeof(Elf64_Shdr), nsects, fp);
+    if ( nw != nsects ) {
+        return -1;
+    }
+
+    /* Write the section header string table */
+    fseeko(fp, 0x600, SEEK_SET);
+    nw = fwrite(shstrtab, 1, shstrtablen, fp);
+    if ( nw != (ssize_t)shstrtablen ) {
+        return -1;
+    }
+
+    /* Write the string table */
+    fseeko(fp, 0x700, SEEK_SET);
+    nw = fwrite(strtab, 1, strtablen, fp);
+    if ( nw != (ssize_t)strtablen ) {
+        return -1;
+    }
+
+    return 0;
 }
 
 /*
