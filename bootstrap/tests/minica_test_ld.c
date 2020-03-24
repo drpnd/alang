@@ -79,6 +79,23 @@ main(int argc, const char *const argv[])
         fprintf(stderr, "Failed.\n");
     }
 
+    fclose(fp);
+
+    /* Open the output file */
+    fp = fopen("elf-test.o", "w+");
+    if ( NULL == fp ) {
+        free(code.sym.syms);
+        free(code.s);
+        return -1;
+    }
+
+    ret = elf_export(fp, &code);
+    if ( ret < 0 ) {
+        fprintf(stderr, "Failed.\n");
+    }
+
+    fclose(fp);
+
     return 0;
 }
 
