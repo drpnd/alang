@@ -63,8 +63,10 @@ main(int argc, const char *const argv[])
     }
     code.sym.syms[0].label = "_func";
     code.sym.syms[0].pos = 0;
+    code.sym.syms[0].size = 8;
     code.sym.syms[1].label = "_func2";
     code.sym.syms[1].pos = 8;
+    code.sym.syms[1].size = 16;
 
     /* Open the output file */
     fp = fopen("mach-o-test.o", "w+");

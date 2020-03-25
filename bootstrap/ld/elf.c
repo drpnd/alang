@@ -424,84 +424,173 @@ elf_export(FILE *fp, arch_code_t *code)
     off_t shoff;
     int i;
     ssize_t nw;
-    Elf64_Shdr *shdr;
-    Elf64_Sym *syms;
     int nsects;
-    Elf64_Phdr phdr[2];
-    const struct section sections[] = {
-        {
-            .name = "",
-            .shdr.sh_type = SHT_NULL,
-            .shdr.sh_flags = 0,
-            .shdr.sh_addr = 0,
-            .shdr.sh_offset = 0,
-            .shdr.sh_size = 0,
-            .shdr.sh_link = 0,
-            .shdr.sh_info = 0,
-            .shdr.sh_addralign = 0,
-            .shdr.sh_entsize = 0,
-        },
-        {
-            .name = ".text",
-            .shdr.sh_type = SHT_PROGBITS,
-            .shdr.sh_flags = SHF_ALLOC | SHF_EXECINSTR,
-            .shdr.sh_addr = 0,
-            .shdr.sh_offset = 0,
-            .shdr.sh_size = code->size,
-            .shdr.sh_link = 0,
-            .shdr.sh_info = 0,
-            .shdr.sh_addralign = 8, /* 2^3 */
-            .shdr.sh_entsize = 0,
-        },
-        {
-            .name = ".data",
-            .shdr.sh_type = SHT_PROGBITS,
-            .shdr.sh_flags = SHF_WRITE | SHF_ALLOC,
-            .shdr.sh_addr = 0,
-            .shdr.sh_offset = 0,
-            .shdr.sh_size = 8,
-            .shdr.sh_link = 0,
-            .shdr.sh_info = 0,
-            .shdr.sh_addralign = 8, /* 2^3 */
-            .shdr.sh_entsize = 0,
-        },
-        {
-            .name = ".shstrtab",
-            .shdr.sh_type = SHT_STRTAB,
-            .shdr.sh_flags = 0,
-            .shdr.sh_addr = 0,
-            .shdr.sh_offset = 0x600,
-            .shdr.sh_size = 0x100,
-            .shdr.sh_link = 0,
-            .shdr.sh_info = 0,
-            .shdr.sh_addralign = 1,
-            .shdr.sh_entsize = 0,
-        },
-        {
-            .name = ".symtab",
-            .shdr.sh_type = SHT_SYMTAB,
-            .shdr.sh_flags = 0,
-            .shdr.sh_addr = 0,
-            .shdr.sh_offset = 0,
-            .shdr.sh_size = 0,
-            .shdr.sh_link = 0,
-            .shdr.sh_info = 0,
-            .shdr.sh_addralign = 1,
-            .shdr.sh_entsize = 0,
-        },
-        {
-            .name = ".strtab",
-            .shdr.sh_type = SHT_STRTAB,
-            .shdr.sh_flags = 0,
-            .shdr.sh_addr = 0,
-            .shdr.sh_offset = 0,
-            .shdr.sh_size = 0,
-            .shdr.sh_link = 0,
-            .shdr.sh_info = 0,
-            .shdr.sh_addralign = 1,
-            .shdr.sh_entsize = 0,
-        },
+    Elf64_Sym *syms;
+
+    /* Build the sections */
+    shstrtablen = 0;
+    Elf64_Shdr shdr_null = {
+        .sh_name = 0,
+        .sh_type = SHT_NULL,
+        .sh_flags = 0,
+        .sh_addr = 0,
+        .sh_offset = 0,
+        .sh_size = 0,
+        .sh_link = 0,
+        .sh_info = 0,
+        .sh_addralign = 0,
+        .sh_entsize = 0,
     };
+    strcpy(shstrtab + shstrtablen, "");
+    shstrtablen += strlen("") + 1;
+
+    Elf64_Shdr shdr_text = {
+        .sh_name = shstrtablen,
+        .sh_type = SHT_PROGBITS,
+        .sh_flags = SHF_ALLOC | SHF_EXECINSTR,
+        .sh_addr = 0,
+        .sh_offset = 0,
+        .sh_size = code->size,
+        .sh_link = 0,
+        .sh_info = 0,
+        .sh_addralign = 8, /* 2^3 */
+        .sh_entsize = 0,
+    };
+    strcpy(shstrtab + shstrtablen, ".text");
+    shstrtablen += strlen(".text") + 1;
+
+    Elf64_Shdr shdr_data = {
+        .sh_name = shstrtablen,
+        .sh_type = SHT_PROGBITS,
+        .sh_flags = SHF_WRITE | SHF_ALLOC,
+        .sh_addr = 0,
+        .sh_offset = 0,
+        .sh_size = 0,
+        .sh_link = 0,
+        .sh_info = 0,
+        .sh_addralign = 1,
+        .sh_entsize = 0,
+    };
+    strcpy(shstrtab + shstrtablen, ".data");
+    shstrtablen += strlen(".data") + 1;
+
+    Elf64_Shdr shdr_shstrtab = {
+        .sh_name = shstrtablen,
+        .sh_type = SHT_STRTAB,
+        .sh_flags = 0,
+        .sh_addr = 0,
+        .sh_offset = 0,
+        .sh_size = 0x100,
+        .sh_link = 0,
+        .sh_info = 0,
+        .sh_addralign = 1,
+        .sh_entsize = 0,
+    };
+    strcpy(shstrtab + shstrtablen, ".shstrtab");
+    shstrtablen += strlen(".shstrtab") + 1;
+
+    Elf64_Shdr shdr_symtab = {
+        .sh_name = shstrtablen,
+        .sh_type = SHT_SYMTAB,
+        .sh_flags = 0,
+        .sh_addr = 0,
+        .sh_offset = 0,
+        .sh_size = 0,
+        .sh_link = 5,
+        .sh_info = 3,           /* Index of first non-local symbol */
+        .sh_addralign = 1,
+        .sh_entsize = sizeof(Elf64_Sym),
+    };
+    strcpy(shstrtab + shstrtablen, ".symtab");
+    shstrtablen += strlen(".symtab") + 1;
+
+    Elf64_Shdr shdr_strtab = {
+        .sh_name = shstrtablen,
+        .sh_type = SHT_STRTAB,
+        .sh_flags = 0,
+        .sh_addr = 0,
+        .sh_offset = 0,
+        .sh_size = 0,
+        .sh_link = 0,
+        .sh_info = 0,
+        .sh_addralign = 1,
+        .sh_entsize = 0,
+    };
+    strcpy(shstrtab + shstrtablen, ".strtab");
+    shstrtablen += strlen(".strtab") + 1;
+
+    /* Align */
+    shstrtablen = ((shstrtablen + 7) / 8) * 8;
+
+    /* .strtab */
+    strtablen = 1;
+    for ( i = 0; i < code->sym.n; i++ ) {
+        /* Add the length of the label */
+        strtablen += strlen(code->sym.syms[i].label) + 1;
+    }
+    /* Align */
+    strtablen = ((strtablen + 7) / 8) * 8;
+
+    nsects = 6;
+    shdr_text.sh_offset = sizeof(Elf64_Ehdr);
+
+    /* Allocate */
+    strtab = alloca(strtablen);
+    if ( NULL == strtab ) {
+        return -1;
+    }
+    memset(strtab, 0, strtablen);
+    syms = alloca(sizeof(Elf64_Sym) * (code->sym.n + 3));
+    if ( NULL == syms ) {
+        return -1;
+    }
+    /* Null */
+    syms[0].st_name = 0;
+    syms[0].st_info = 0;
+    syms[0].st_other = 0;
+    syms[0].st_shndx = 0;
+    syms[0].st_value = 0;
+    syms[0].st_size = 0;
+
+    /* .text */
+    syms[1].st_name = 0;
+    syms[1].st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
+    syms[1].st_other = 0;
+    syms[1].st_shndx = 1;
+    syms[1].st_value = shdr_text.sh_offset;
+    syms[1].st_size = 0;
+
+    /* .data */
+    syms[2].st_name = 0;
+    syms[2].st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
+    syms[2].st_other = 0;
+    syms[2].st_shndx = 2;
+    syms[2].st_value = 0;
+    syms[2].st_size = 0;
+
+    stroff = 1;
+    for ( i = 0; i < code->sym.n; i++ ) {
+        /* nlist_64: Describes an entry in the symbol table for 64-bit
+           architectures. */
+        syms[i + 3].st_name = stroff;
+        syms[i + 3].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
+        syms[i + 3].st_other = 0;
+        syms[i + 3].st_shndx = 1; /* .text */
+        syms[i + 3].st_value = code->sym.syms[i].pos;
+        syms[i + 3].st_size = code->sym.syms[i].size;
+
+        /* Symbol table */
+        strcpy(strtab + stroff, code->sym.syms[i].label);
+        stroff += strlen(code->sym.syms[i].label) + 1;
+    }
+
+    shoff = sizeof(Elf64_Ehdr) + code->size;
+    shdr_shstrtab.sh_offset = shoff + sizeof(Elf64_Shdr) * nsects;
+    shdr_shstrtab.sh_size = shstrtablen;
+    shdr_symtab.sh_offset = shdr_shstrtab.sh_offset + shstrtablen;
+    shdr_symtab.sh_size = sizeof(Elf64_Sym) * (code->sym.n + 3);
+    shdr_strtab.sh_offset = shdr_symtab.sh_offset + shdr_symtab.sh_size;
+    shdr_strtab.sh_size = strtablen;
 
     /* ELF header */
     hdr.e_ident[EI_MAG0] = '\x7f';
@@ -518,96 +607,15 @@ elf_export(FILE *fp, arch_code_t *code)
     hdr.e_machine = EM_X86_64;
     hdr.e_version = 1;
     hdr.e_entry = 0;
-    hdr.e_phoff = sizeof(Elf64_Ehdr);
-    hdr.e_shoff = 0x300;
+    hdr.e_phoff = 0;
+    hdr.e_shoff = shoff;
     hdr.e_flags = 0;
     hdr.e_ehsize = sizeof(Elf64_Ehdr);
-    hdr.e_phentsize = sizeof(Elf64_Phdr);
-    hdr.e_phnum = 2;
+    hdr.e_phentsize = 0;
+    hdr.e_phnum = 0;
     hdr.e_shentsize = sizeof(Elf64_Shdr);
-    hdr.e_shnum = 6;
+    hdr.e_shnum = nsects;
     hdr.e_shstrndx = 3;
-
-    /* Program headers */
-    phdr[0].p_type = PT_LOAD;
-    phdr[0].p_flags = PF_R | PF_X;
-    phdr[0].p_offset = 0;
-    phdr[0].p_vaddr = 0;
-    phdr[0].p_paddr = 0;
-    phdr[0].p_filesz = code->size;
-    phdr[0].p_memsz = 0;
-    phdr[0].p_align = 21;
-
-    phdr[1].p_type = PT_GNU_STACK;
-    phdr[1].p_flags = PF_R | PF_W | PF_X;
-    phdr[1].p_offset = 0;
-    phdr[1].p_vaddr = 0;
-    phdr[1].p_paddr = 0;
-    phdr[1].p_filesz = 0;
-    phdr[1].p_memsz = 0;
-    phdr[1].p_align = 3;
-
-    /* Section headers */
-    nsects = (int)(sizeof(sections)/sizeof(sections[0]));
-    shdr = alloca(sizeof(Elf64_Shdr) * nsects);
-    if ( NULL == shdr ) {
-        return -1;
-    }
-
-    /* Build the section string table */
-    shstrtablen = 0;
-    shoff = 0x40;
-    for ( i = 0; i < nsects; i++ ) {
-        strcpy(shstrtab + shstrtablen, sections[i].name);
-        memcpy(&shdr[i], &sections[i].shdr, sizeof(Elf64_Shdr));
-        shdr[i].sh_name = shstrtablen;
-        if ( shdr[i].sh_size > 0 ) {
-            //shdr[i].sh_offset = shoff;
-            shoff += shdr[i].sh_size;
-        }
-        shstrtablen += strlen(sections[i].name) + 1;
-    }
-
-    strtablen = 1;
-    for ( i = 0; i < code->sym.n; i++ ) {
-        /* Add the length of the label */
-        strtablen += strlen(code->sym.syms[i].label) + 1;
-    }
-    /* Align */
-    strtablen = ((strtablen + 7) / 8) * 8;
-
-    /* Allocate */
-    strtab = alloca(strtablen);
-    if ( NULL == strtab ) {
-        return -1;
-    }
-    memset(strtab, 0, strtablen);
-    syms = alloca(sizeof(Elf64_Sym) * (code->sym.n + 1));
-    if ( NULL == syms ) {
-        return -1;
-    }
-    syms[0].st_name = 0;
-    syms[0].st_info = 0;
-    syms[0].st_other = 0;
-    syms[0].st_shndx = 0;
-    syms[0].st_value = 0;
-    syms[0].st_size = 0;
-
-    stroff = 1;
-    for ( i = 0; i < code->sym.n; i++ ) {
-        /* nlist_64: Describes an entry in the symbol table for 64-bit
-           architectures. */
-        syms[i + 1].st_name = 0;
-        syms[i + 1].st_info = 0;
-        syms[i + 1].st_other = 0;
-        syms[i + 1].st_shndx = 0;
-        syms[i + 1].st_value = 0;
-        syms[i + 1].st_size = 0;
-
-        /* Symbol table */
-        strcpy(strtab + stroff, code->sym.syms[i].label);
-        stroff += strlen(code->sym.syms[i].label) + 1;
-    }
 
     /* Write the header */
     nw = fwrite(&hdr, sizeof(Elf64_Ehdr), 1, fp);
@@ -615,28 +623,51 @@ elf_export(FILE *fp, arch_code_t *code)
         return -1;
     }
 
-    /* Write the program headers */
-    nw = fwrite(phdr, sizeof(Elf64_Phdr), 2, fp);
-    if ( nw != 2 ) {
+    /* Write the program */
+    nw = fwrite(code->s, 1, code->size, fp);
+    if ( nw != (ssize_t)code->size ) {
         return -1;
     }
 
-    /* Write the program headers */
-    fseeko(fp, 0x300, SEEK_SET);
-    nw = fwrite(shdr, sizeof(Elf64_Shdr), nsects, fp);
-    if ( nw != nsects ) {
+    /* Write the section headers */
+    nw = fwrite(&shdr_null, sizeof(Elf64_Shdr), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+    nw = fwrite(&shdr_text, sizeof(Elf64_Shdr), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+    nw = fwrite(&shdr_data, sizeof(Elf64_Shdr), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+    nw = fwrite(&shdr_shstrtab, sizeof(Elf64_Shdr), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+    nw = fwrite(&shdr_symtab, sizeof(Elf64_Shdr), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+    nw = fwrite(&shdr_strtab, sizeof(Elf64_Shdr), 1, fp);
+    if ( nw != 1 ) {
         return -1;
     }
 
     /* Write the section header string table */
-    fseeko(fp, 0x600, SEEK_SET);
     nw = fwrite(shstrtab, 1, shstrtablen, fp);
     if ( nw != (ssize_t)shstrtablen ) {
         return -1;
     }
 
+    /* Write the symbol headers */
+    nw = fwrite(syms, sizeof(Elf64_Sym), code->sym.n + 3, fp);
+    if ( nw != (ssize_t)(code->sym.n + 3) ) {
+        return -1;
+    }
+
     /* Write the string table */
-    fseeko(fp, 0x700, SEEK_SET);
     nw = fwrite(strtab, 1, strtablen, fp);
     if ( nw != (ssize_t)strtablen ) {
         return -1;
