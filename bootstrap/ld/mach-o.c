@@ -238,8 +238,11 @@ mach_o_export(FILE *fp, arch_code_t *code)
     struct mach_header_64 hdr;
     struct segment_command_64 seg;
     struct section_64 sect_text;
+    struct section_64 sect_data;
+    struct section_64 sect_bss;
     struct version_min_command vercmd;
     struct symtab_command symtab;
+    struct relocation_info *relocinfo;
     struct nlist_64 *nl;
     int sizeofcmds;
     int ncmds;
@@ -252,6 +255,18 @@ mach_o_export(FILE *fp, arch_code_t *code)
     size_t strtablen;
     ssize_t stroff;
     off_t symoff;
+
+    /* FIXME: Relocation info */
+    relocinfo = alloca(sizeof(struct relocation_info) * 1);
+    if ( NULL == relocinfo ) {
+        return -1;
+    }
+    relocinfo[0].r_address = 27;
+    relocinfo[0].r_symbolnum = 3;
+    relocinfo[0].r_pcrel = 1;
+    relocinfo[0].r_length = 2;
+    relocinfo[0].r_extern = 1;
+    relocinfo[0].r_type = X86_64_RELOC_SIGNED;
 
     strtablen = 1;
     for ( i = 0; i < code->sym.n; i++ ) {
@@ -278,7 +293,11 @@ mach_o_export(FILE *fp, arch_code_t *code)
            architectures. */
         nl[i].n_un.n_strx = stroff;
         nl[i].n_type = N_SECT | N_EXT;
-        nl[i].n_sect = 0x01;
+        if ( code->sym.syms[i].type == ARCH_SYM_LOCAL ) {
+            nl[i].n_sect = 0x03;
+        } else {
+            nl[i].n_sect = 0x01;
+        }
         nl[i].n_desc = REFERENCE_FLAG_DEFINED;
         nl[i].n_value = code->sym.syms[i].pos;
 
@@ -289,14 +308,15 @@ mach_o_export(FILE *fp, arch_code_t *code)
 
     /* Calculate the offsets */
     ncmds = 3;
-    nsects = 1;
+    nsects = 3;
     sizeofcmds = sizeof(struct segment_command_64)
         + sizeof(struct section_64) * nsects
         + sizeof(struct version_min_command) + sizeof(struct symtab_command);
     codepoint = sizeof(struct mach_header_64) + sizeofcmds;
     codepoint = ((codepoint + 15) / 16) * 16;
     codesize = ((code->size + 15) / 16) * 16;
-    symoff = codepoint + codesize;
+    /* FIXME */
+    symoff = codepoint + codesize + 8 + sizeof(struct relocation_info) * 1;
 
     /* Header */
     hdr.magic = MH_MAGIC_64;
@@ -314,9 +334,9 @@ mach_o_export(FILE *fp, arch_code_t *code)
         + sizeof(struct section_64) * nsects;
     memset(seg.segname, 0, 16);
     seg.vmaddr = 0;
-    seg.vmsize = codesize;
+    seg.vmsize = codesize + 8;
     seg.fileoff = codepoint;
-    seg.filesize = codesize;
+    seg.filesize = codesize + 8;
     seg.maxprot = 0x07;
     seg.initprot = 0x07;
     seg.nsects = nsects;
@@ -330,12 +350,42 @@ mach_o_export(FILE *fp, arch_code_t *code)
     sect_text.size = code->size;
     sect_text.offset = codepoint;
     sect_text.align = 4;
-    sect_text.reloff = 0;
-    sect_text.nreloc = 0;
+    sect_text.reloff = codepoint + codesize + 8;
+    sect_text.nreloc = 1;
     sect_text.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS;
     sect_text.reserved1 = 0;
     sect_text.reserved2 = 0;
     sect_text.reserved3 = 0;
+
+    /* Data section */
+    memset(&sect_data, 0, sizeof(struct section_64));
+    strcpy(sect_data.sectname, "__data");
+    strcpy(sect_data.segname, "__DATA");
+    sect_data.addr = codesize;
+    sect_data.size = 0;
+    sect_data.offset = 0;
+    sect_data.align = 2;
+    sect_data.reloff = 0;
+    sect_data.nreloc = 0;
+    sect_data.flags = S_REGULAR;
+    sect_data.reserved1 = 0;
+    sect_data.reserved2 = 0;
+    sect_data.reserved3 = 0;
+
+    /* BSS section */
+    memset(&sect_bss, 0, sizeof(struct section_64));
+    strcpy(sect_bss.sectname, "__bss");
+    strcpy(sect_bss.segname, "__DATA");
+    sect_bss.addr = codesize;
+    sect_bss.size = 8;          /* FIXME */
+    sect_bss.offset = 0;
+    sect_bss.align = 3;
+    sect_bss.reloff = 0;
+    sect_bss.nreloc = 0;
+    sect_bss.flags = S_ZEROFILL;
+    sect_bss.reserved1 = 0;
+    sect_bss.reserved2 = 0;
+    sect_bss.reserved3 = 0;
 
     /* Version min command */
     vercmd.cmd = LC_VERSION_MIN_MACOSX;
@@ -370,6 +420,18 @@ mach_o_export(FILE *fp, arch_code_t *code)
         return -1;
     }
 
+    /* Write the data section */
+    nw = fwrite(&sect_data, sizeof(struct section_64), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+
+    /* Write the bss section */
+    nw = fwrite(&sect_bss, sizeof(struct section_64), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+
     /* Write the version command */
     nw = fwrite(&vercmd, sizeof(struct version_min_command), 1, fp);
     if ( nw != 1 ) {
@@ -386,6 +448,21 @@ mach_o_export(FILE *fp, arch_code_t *code)
     fseeko(fp, codepoint, SEEK_SET);
     nw = fwrite(code->s, 1, code->size, fp);
     if ( nw != (ssize_t)code->size ) {
+        return -1;
+    }
+    fseeko(fp, codepoint + codesize, SEEK_SET);
+
+    /* Write the data/bss (FIXME) */
+    uint8_t buf[8];
+    memset(buf, 0, 8);
+    nw = fwrite(buf, 1, 8, fp);
+    if ( nw != (ssize_t)8 ) {
+        return -1;
+    }
+
+    /* Write the relocation info */
+    nw = fwrite(relocinfo, sizeof(struct relocation_info), 1, fp);
+    if ( nw != 1 ) {
         return -1;
     }
 

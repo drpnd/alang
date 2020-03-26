@@ -46,7 +46,13 @@ main(int argc, const char *const argv[])
         0x48, 0xff, 0xc0,       /* inc %rax */
         0x48, 0xff, 0xc0,       /* inc %rax */
         0xc3,                   /* retq */
-        0x90, 0x90, 0x90, 0x90, 0x90, 0x90
+        0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+        0x48, 0x8d, 0x3d, 0x00, 0x00, 0x00, 0x00, /* lea 0x0(%rip),%rdi */
+        0x48, 0x8b, 0x07,       /* mov (%rdi),%rax */
+        0x48, 0xff, 0xc0,       /* inc %rax */
+        0x48, 0x89, 0x07,       /* mov %rax,(%rdi) */
+        0xc3,                   /* retq */
+        0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90
     };
 
     lus = 0;
@@ -63,7 +69,7 @@ main(int argc, const char *const argv[])
     }
     memcpy(code.s, s, code.size);
 
-    code.sym.n = 2;
+    code.sym.n = 4;
     code.sym.syms = malloc(sizeof(arch_sym_t) * code.sym.n);
     if ( NULL == code.sym.syms ) {
         free(code.s);
@@ -77,6 +83,14 @@ main(int argc, const char *const argv[])
     code.sym.syms[1].label = lus ? "_func2" : "func2";
     code.sym.syms[1].pos = 8;
     code.sym.syms[1].size = 16;
+    code.sym.syms[2].type = ARCH_SYM_FUNC;
+    code.sym.syms[2].label = lus ? "_func3" : "func3";
+    code.sym.syms[2].pos = 24;
+    code.sym.syms[2].size = 24;
+    code.sym.syms[3].type = ARCH_SYM_LOCAL;
+    code.sym.syms[3].label = "data";
+    code.sym.syms[3].pos = code.size;
+    code.sym.syms[3].size = 8;
 
     /* Open the output file */
     fp = fopen("mach-o-test.o", "w+");

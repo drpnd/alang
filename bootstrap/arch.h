@@ -36,6 +36,7 @@ typedef enum {
  * Symbol type
  */
 typedef enum {
+    ARCH_SYM_LOCAL,
     ARCH_SYM_FUNC,
 } arch_sym_type_t;
 
