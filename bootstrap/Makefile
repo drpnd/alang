@@ -22,7 +22,7 @@ minica: y.tab.o lex.yy.o syntax.o compile.o arch/x86-64/x86-64.o ld/mach-o.o
 	$(CC) -o $@ $^
 
 minica_test_ld: tests/minica_test_ld.o ld/mach-o.o ld/elf.o
-	$(CC) -o $@ $^
+	$(CC) -g -o $@ $^
 
 clean:
 	rm -f *.o minica y.y.tab.c y.tab.h lex.yy.c
