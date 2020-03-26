@@ -36,6 +36,7 @@ main(int argc, const char *const argv[])
     int ret;
     arch_code_t code;
     FILE *fp;
+    int lus;
     uint8_t s[] = {
         0x48, 0x89, 0xf8,       /* mov %rdi, %rax */
         0x48, 0xff, 0xc0,       /* inc %rax */
@@ -47,6 +48,13 @@ main(int argc, const char *const argv[])
         0xc3,                   /* retq */
         0x90, 0x90, 0x90, 0x90, 0x90, 0x90
     };
+
+    lus = 0;
+    if ( argc >= 2 ) {
+        if ( 0 == strcmp(argv[1], "-fleading-underscore") ) {
+            lus = 1;
+        }
+    }
 
     code.size = sizeof(s);
     code.s = malloc(code.size);
@@ -61,10 +69,10 @@ main(int argc, const char *const argv[])
         free(code.s);
         return -1;
     }
-    code.sym.syms[0].label = "_func";
+    code.sym.syms[0].label = lus ? "_func" : "func";
     code.sym.syms[0].pos = 0;
     code.sym.syms[0].size = 8;
-    code.sym.syms[1].label = "_func2";
+    code.sym.syms[1].label = lus ? "_func2" : "func2";
     code.sym.syms[1].pos = 8;
     code.sym.syms[1].size = 16;
 
