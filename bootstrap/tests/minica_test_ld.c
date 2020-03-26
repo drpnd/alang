@@ -69,9 +69,11 @@ main(int argc, const char *const argv[])
         free(code.s);
         return -1;
     }
+    code.sym.syms[0].type = ARCH_SYM_FUNC;
     code.sym.syms[0].label = lus ? "_func" : "func";
     code.sym.syms[0].pos = 0;
     code.sym.syms[0].size = 8;
+    code.sym.syms[1].type = ARCH_SYM_FUNC;
     code.sym.syms[1].label = lus ? "_func2" : "func2";
     code.sym.syms[1].pos = 8;
     code.sym.syms[1].size = 16;

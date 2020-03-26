@@ -33,9 +33,17 @@ typedef enum {
 } arch_ref_type_t;
 
 /*
+ * Symbol type
+ */
+typedef enum {
+    ARCH_SYM_FUNC,
+} arch_sym_type_t;
+
+/*
  * Symbol
  */
 typedef struct {
+    arch_sym_type_t type;
     char *label;
     off_t pos;
     size_t size;
