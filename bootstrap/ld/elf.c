@@ -404,11 +404,6 @@ elf64_hash(const unsigned char *name)
     return h;
 }
 
-struct section {
-    const char *name;
-    Elf64_Shdr shdr;
-};
-
 /*
  * Export
  */
@@ -459,6 +454,22 @@ elf_export(FILE *fp, arch_code_t *code)
     strcpy(shstrtab + shstrtablen, ".text");
     shstrtablen += strlen(".text") + 1;
 
+    Elf64_Shdr shdr_rela = {
+        .sh_name = shstrtablen,
+        .sh_type = SHT_RELA,
+        .sh_flags = SHF_WRITE | SHF_ALLOC,
+        .sh_addr = 0,
+        .sh_offset = 0,
+        .sh_size = 0,
+        .sh_link = 0,
+        .sh_info = 1,           /* Section index of section to which the
+                                   relocations apply */
+        .sh_addralign = 8, /* 2^3 */
+        .sh_entsize = sizeof(Elf64_Rela),
+    };
+    strcpy(shstrtab + shstrtablen, ".text.rela");
+    shstrtablen += strlen(".text.rela") + 1;
+
     Elf64_Shdr shdr_data = {
         .sh_name = shstrtablen,
         .sh_type = SHT_PROGBITS,
@@ -473,6 +484,21 @@ elf_export(FILE *fp, arch_code_t *code)
     };
     strcpy(shstrtab + shstrtablen, ".data");
     shstrtablen += strlen(".data") + 1;
+
+    Elf64_Shdr shdr_bss = {
+        .sh_name = shstrtablen,
+        .sh_type = SHT_NOBITS,
+        .sh_flags = SHF_WRITE | SHF_ALLOC,
+        .sh_addr = 0,
+        .sh_offset = 0,
+        .sh_size = 0,
+        .sh_link = 0,
+        .sh_info = 0,
+        .sh_addralign = 1,
+        .sh_entsize = 0,
+    };
+    strcpy(shstrtab + shstrtablen, ".bss");
+    shstrtablen += strlen(".bss") + 1;
 
     Elf64_Shdr shdr_shstrtab = {
         .sh_name = shstrtablen,
@@ -531,7 +557,7 @@ elf_export(FILE *fp, arch_code_t *code)
     /* Align */
     strtablen = ((strtablen + 7) / 8) * 8;
 
-    nsects = 6;
+    nsects = 8;
     shdr_text.sh_offset = sizeof(Elf64_Ehdr);
 
     /* Allocate */
@@ -540,7 +566,7 @@ elf_export(FILE *fp, arch_code_t *code)
         return -1;
     }
     memset(strtab, 0, strtablen);
-    syms = alloca(sizeof(Elf64_Sym) * (code->sym.n + 3));
+    syms = alloca(sizeof(Elf64_Sym) * (code->sym.n + 4));
     if ( NULL == syms ) {
         return -1;
     }
@@ -564,20 +590,28 @@ elf_export(FILE *fp, arch_code_t *code)
     syms[2].st_name = 0;
     syms[2].st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
     syms[2].st_other = 0;
-    syms[2].st_shndx = 2;
+    syms[2].st_shndx = 3;
     syms[2].st_value = 0;
     syms[2].st_size = 0;
+
+    /* .bss */
+    syms[3].st_name = 0;
+    syms[3].st_info = ELF64_ST_INFO(STB_LOCAL, STT_SECTION);
+    syms[3].st_other = 0;
+    syms[3].st_shndx = 4;
+    syms[3].st_value = 0;
+    syms[3].st_size = 0;
 
     stroff = 1;
     for ( i = 0; i < code->sym.n; i++ ) {
         /* nlist_64: Describes an entry in the symbol table for 64-bit
            architectures. */
-        syms[i + 3].st_name = stroff;
-        syms[i + 3].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
-        syms[i + 3].st_other = 0;
-        syms[i + 3].st_shndx = 1; /* .text */
-        syms[i + 3].st_value = code->sym.syms[i].pos;
-        syms[i + 3].st_size = code->sym.syms[i].size;
+        syms[i + 4].st_name = stroff;
+        syms[i + 4].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
+        syms[i + 4].st_other = 0;
+        syms[i + 4].st_shndx = 1; /* .text */
+        syms[i + 4].st_value = code->sym.syms[i].pos;
+        syms[i + 4].st_size = code->sym.syms[i].size;
 
         /* Symbol table */
         strcpy(strtab + stroff, code->sym.syms[i].label);
@@ -588,7 +622,7 @@ elf_export(FILE *fp, arch_code_t *code)
     shdr_shstrtab.sh_offset = shoff + sizeof(Elf64_Shdr) * nsects;
     shdr_shstrtab.sh_size = shstrtablen;
     shdr_symtab.sh_offset = shdr_shstrtab.sh_offset + shstrtablen;
-    shdr_symtab.sh_size = sizeof(Elf64_Sym) * (code->sym.n + 3);
+    shdr_symtab.sh_size = sizeof(Elf64_Sym) * (code->sym.n + 4);
     shdr_strtab.sh_offset = shdr_symtab.sh_offset + shdr_symtab.sh_size;
     shdr_strtab.sh_size = strtablen;
 
@@ -615,7 +649,7 @@ elf_export(FILE *fp, arch_code_t *code)
     hdr.e_phnum = 0;
     hdr.e_shentsize = sizeof(Elf64_Shdr);
     hdr.e_shnum = nsects;
-    hdr.e_shstrndx = 3;
+    hdr.e_shstrndx = 5;
 
     /* Write the header */
     nw = fwrite(&hdr, sizeof(Elf64_Ehdr), 1, fp);
@@ -638,7 +672,15 @@ elf_export(FILE *fp, arch_code_t *code)
     if ( nw != 1 ) {
         return -1;
     }
+    nw = fwrite(&shdr_rela, sizeof(Elf64_Shdr), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
     nw = fwrite(&shdr_data, sizeof(Elf64_Shdr), 1, fp);
+    if ( nw != 1 ) {
+        return -1;
+    }
+    nw = fwrite(&shdr_bss, sizeof(Elf64_Shdr), 1, fp);
     if ( nw != 1 ) {
         return -1;
     }
@@ -662,8 +704,8 @@ elf_export(FILE *fp, arch_code_t *code)
     }
 
     /* Write the symbol headers */
-    nw = fwrite(syms, sizeof(Elf64_Sym), code->sym.n + 3, fp);
-    if ( nw != (ssize_t)(code->sym.n + 3) ) {
+    nw = fwrite(syms, sizeof(Elf64_Sym), code->sym.n + 4, fp);
+    if ( nw != (ssize_t)(code->sym.n + 4) ) {
         return -1;
     }
 

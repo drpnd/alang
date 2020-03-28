@@ -37,6 +37,7 @@ typedef enum {
  */
 typedef enum {
     ARCH_SYM_LOCAL,
+    ARCH_SYM_GLOBAL,
     ARCH_SYM_FUNC,
 } arch_sym_type_t;
 
