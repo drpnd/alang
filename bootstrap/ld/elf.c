@@ -421,6 +421,7 @@ elf_export(FILE *fp, arch_code_t *code)
     ssize_t nw;
     int nsects;
     Elf64_Sym *syms;
+    Elf64_Rela *rela;
 
     /* Build the sections */
     shstrtablen = 0;
@@ -461,9 +462,9 @@ elf_export(FILE *fp, arch_code_t *code)
         .sh_addr = 0,
         .sh_offset = 0,
         .sh_size = 0,
-        .sh_link = 0,
-        .sh_info = 1,           /* Section index of section to which the
-                                   relocations apply */
+        .sh_link = 6,         /* Symbol table reference by relocations */
+        .sh_info = 1,         /* Section index of section to which the
+                                 relocations apply */
         .sh_addralign = 8, /* 2^3 */
         .sh_entsize = sizeof(Elf64_Rela),
     };
@@ -522,8 +523,8 @@ elf_export(FILE *fp, arch_code_t *code)
         .sh_addr = 0,
         .sh_offset = 0,
         .sh_size = 0,
-        .sh_link = 5,
-        .sh_info = 3,           /* Index of first non-local symbol */
+        .sh_link = 7,
+        .sh_info = 4,           /* Index of first non-local symbol */
         .sh_addralign = 1,
         .sh_entsize = sizeof(Elf64_Sym),
     };
@@ -547,6 +548,15 @@ elf_export(FILE *fp, arch_code_t *code)
 
     /* Align */
     shstrtablen = ((shstrtablen + 7) / 8) * 8;
+
+    /* FIXME: Relocation */
+    rela = alloca(sizeof(Elf64_Rela) * 1);
+    if ( NULL == rela ) {
+        return -1;
+    }
+    rela[0].r_offset = 27;
+    rela[0].r_info = ELF64_R_INFO(3, R_X86_64_PC32); /* .bss */
+    rela[0].r_addend = -4;
 
     /* .strtab */
     strtablen = 1;
@@ -607,7 +617,19 @@ elf_export(FILE *fp, arch_code_t *code)
         /* nlist_64: Describes an entry in the symbol table for 64-bit
            architectures. */
         syms[i + 4].st_name = stroff;
-        syms[i + 4].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
+        switch ( code->sym.syms[i].type ) {
+        case ARCH_SYM_LOCAL:
+            syms[i + 4].st_info = ELF64_ST_INFO(STB_LOCAL, STT_NOTYPE);
+            break;
+        case ARCH_SYM_GLOBAL:
+            syms[i + 4].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE);
+            break;
+        case ARCH_SYM_FUNC:
+            syms[i + 4].st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
+            break;
+        default:
+            return -1;
+        }
         syms[i + 4].st_other = 0;
         syms[i + 4].st_shndx = 1; /* .text */
         syms[i + 4].st_value = code->sym.syms[i].pos;
@@ -618,7 +640,12 @@ elf_export(FILE *fp, arch_code_t *code)
         stroff += strlen(code->sym.syms[i].label) + 1;
     }
 
-    shoff = sizeof(Elf64_Ehdr) + code->size;
+    /* FIXME */
+    shdr_bss.sh_offset = sizeof(Elf64_Ehdr) + code->size;
+    shdr_bss.sh_size = 8;
+    shdr_rela.sh_offset = sizeof(Elf64_Ehdr) + code->size + 8;
+    shdr_rela.sh_size = sizeof(Elf64_Rela) * 1;
+    shoff = sizeof(Elf64_Ehdr) + code->size + 8 + sizeof(Elf64_Rela) * 1;
     shdr_shstrtab.sh_offset = shoff + sizeof(Elf64_Shdr) * nsects;
     shdr_shstrtab.sh_size = shstrtablen;
     shdr_symtab.sh_offset = shdr_shstrtab.sh_offset + shstrtablen;
@@ -660,6 +687,18 @@ elf_export(FILE *fp, arch_code_t *code)
     /* Write the program */
     nw = fwrite(code->s, 1, code->size, fp);
     if ( nw != (ssize_t)code->size ) {
+        return -1;
+    }
+
+    /* FIXME: Write the relocation */
+    uint8_t buf[8];
+    memset(buf, 0, 8);
+    nw = fwrite(buf, 1, 8, fp);
+    if ( nw != (ssize_t)8 ) {
+        return -1;
+    }
+    nw = fwrite(rela, sizeof(Elf64_Rela), 1, fp);
+    if ( nw != 1 ) {
         return -1;
     }
 
