@@ -258,6 +258,18 @@ mach_o_export(FILE *fp, arch_code_t *code)
     int datasize;
     int bsssize;
 
+    /* Predefined parameters */
+    ncmds = 3;
+    nsects = 3;
+    sizeofcmds = sizeof(struct segment_command_64)
+        + sizeof(struct section_64) * nsects
+        + sizeof(struct version_min_command) + sizeof(struct symtab_command);
+    codepoint = sizeof(struct mach_header_64) + sizeofcmds;
+    codepoint = ((codepoint + 15) / 16) * 16;
+
+    /* Calculate the code size */
+    codesize = ((code->text.size + 15) / 16) * 16;
+
     /* Calculate the size of data and bss segments */
     datasize = 0;
     bsssize = 0;
@@ -275,6 +287,8 @@ mach_o_export(FILE *fp, arch_code_t *code)
             break;
         }
     }
+    datasize = ((datasize + 15) / 16) * 16;
+    bsssize = ((bsssize + 15) / 16) * 16;
 
     /* Relocation info */
     relocinfo = alloca(sizeof(struct relocation_info) * code->rel.n);
@@ -284,10 +298,10 @@ mach_o_export(FILE *fp, arch_code_t *code)
     for ( i = 0; i < code->rel.n; i++ ) {
         relocinfo[i].r_address = code->rel.rels[i].pos;
         relocinfo[i].r_symbolnum = code->rel.rels[i].sym;
-        relocinfo[i].r_pcrel = 1;
         relocinfo[i].r_extern = 1;
         switch ( code->rel.rels[i].type ) {
         case ARCH_REL_PC32:
+            relocinfo[i].r_pcrel = 1;
             relocinfo[i].r_length = 2;
             relocinfo[i].r_type = X86_64_RELOC_SIGNED;
             break;
@@ -298,15 +312,14 @@ mach_o_export(FILE *fp, arch_code_t *code)
         }
     }
 
+    /* Build the string table for symbols */
     strtablen = 1;
     for ( i = 0; i < code->sym.n; i++ ) {
         /* Add the length of the label */
         strtablen += strlen(code->sym.syms[i].label) + 1;
     }
-    /* Align */
     strtablen = ((strtablen + 7) / 8) * 8;
 
-    /* Allocate */
     strtab = alloca(strtablen);
     if ( NULL == strtab ) {
         return -1;
@@ -316,15 +329,6 @@ mach_o_export(FILE *fp, arch_code_t *code)
     if ( NULL == nl ) {
         return -1;
     }
-
-    ncmds = 3;
-    nsects = 3;
-    sizeofcmds = sizeof(struct segment_command_64)
-        + sizeof(struct section_64) * nsects
-        + sizeof(struct version_min_command) + sizeof(struct symtab_command);
-    codepoint = sizeof(struct mach_header_64) + sizeofcmds;
-    codepoint = ((codepoint + 15) / 16) * 16;
-    codesize = ((code->text.size + 15) / 16) * 16;
 
     stroff = 1;
     for ( i = 0; i < code->sym.n; i++ ) {
