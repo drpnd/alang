@@ -344,6 +344,7 @@ mach_o_export(FILE *fp, arch_code_t *code)
             nl[i].n_value = code->sym.syms[i].pos + codesize;
             break;
         case ARCH_SYM_FUNC:
+            /* .text */
             nl[i].n_sect = 0x01;
             nl[i].n_value = code->sym.syms[i].pos;
             break;
