@@ -62,17 +62,26 @@ main(int argc, const char *const argv[])
         }
     }
 
-    code.size = sizeof(s);
-    code.s = malloc(code.size);
-    if ( NULL == code.s ) {
+    code.text.size = sizeof(s);
+    code.text.s = malloc(code.text.size);
+    if ( NULL == code.text.s ) {
         return -1;
     }
-    memcpy(code.s, s, code.size);
+    memcpy(code.text.s, s, code.text.size);
 
-    code.sym.n = 4;
+    code.data.size = 8;
+    code.data.s = malloc(code.data.size);
+    if ( NULL == code.data.s ) {
+        free(code.text.s);
+        return -1;
+    }
+    memset(code.data.s, 0, code.data.size);
+
+    code.sym.n = 5;
     code.sym.syms = malloc(sizeof(arch_sym_t) * code.sym.n);
     if ( NULL == code.sym.syms ) {
-        free(code.s);
+        free(code.text.s);
+        free(code.data.s);
         return -1;
     }
     code.sym.syms[0].type = ARCH_SYM_FUNC;
@@ -88,15 +97,27 @@ main(int argc, const char *const argv[])
     code.sym.syms[2].pos = 24;
     code.sym.syms[2].size = 24;
     code.sym.syms[3].type = ARCH_SYM_LOCAL;
-    code.sym.syms[3].label = "data";
-    code.sym.syms[3].pos = code.size;
+    code.sym.syms[3].label = "data1";
+    code.sym.syms[3].pos = 0;
     code.sym.syms[3].size = 8;
+    code.sym.syms[4].type = ARCH_SYM_GLOBAL;
+    code.sym.syms[4].label = "data2";
+    code.sym.syms[4].pos = 0;
+    code.sym.syms[4].size = 8;
+
+    code.rel.n = 1;
+    code.rel.rels = malloc(sizeof(arch_rel_t) * code.rel.n);
+    code.rel.rels[0].type = ARCH_REL_PC32;
+    code.rel.rels[0].pos = 27;
+    code.rel.rels[0].sym = 3;
 
     /* Open the output file */
     fp = fopen("mach-o-test.o", "w+");
     if ( NULL == fp ) {
         free(code.sym.syms);
-        free(code.s);
+        free(code.rel.rels);
+        free(code.text.s);
+        free(code.data.s);
         return -1;
     }
 
@@ -111,7 +132,9 @@ main(int argc, const char *const argv[])
     fp = fopen("elf-test.o", "w+");
     if ( NULL == fp ) {
         free(code.sym.syms);
-        free(code.s);
+        free(code.rel.rels);
+        free(code.text.s);
+        free(code.data.s);
         return -1;
     }
 

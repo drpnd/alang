@@ -446,7 +446,7 @@ elf_export(FILE *fp, arch_code_t *code)
         .sh_flags = SHF_ALLOC | SHF_EXECINSTR,
         .sh_addr = 0,
         .sh_offset = 0,
-        .sh_size = code->size,
+        .sh_size = code->text.size,
         .sh_link = 0,
         .sh_info = 0,
         .sh_addralign = 8, /* 2^3 */
@@ -641,11 +641,11 @@ elf_export(FILE *fp, arch_code_t *code)
     }
 
     /* FIXME */
-    shdr_bss.sh_offset = sizeof(Elf64_Ehdr) + code->size;
+    shdr_bss.sh_offset = sizeof(Elf64_Ehdr) + code->text.size;
     shdr_bss.sh_size = 8;
-    shdr_rela.sh_offset = sizeof(Elf64_Ehdr) + code->size + 8;
+    shdr_rela.sh_offset = sizeof(Elf64_Ehdr) + code->text.size + 8;
     shdr_rela.sh_size = sizeof(Elf64_Rela) * 1;
-    shoff = sizeof(Elf64_Ehdr) + code->size + 8 + sizeof(Elf64_Rela) * 1;
+    shoff = sizeof(Elf64_Ehdr) + code->text.size + 8 + sizeof(Elf64_Rela) * 1;
     shdr_shstrtab.sh_offset = shoff + sizeof(Elf64_Shdr) * nsects;
     shdr_shstrtab.sh_size = shstrtablen;
     shdr_symtab.sh_offset = shdr_shstrtab.sh_offset + shstrtablen;
@@ -685,8 +685,8 @@ elf_export(FILE *fp, arch_code_t *code)
     }
 
     /* Write the program */
-    nw = fwrite(code->s, 1, code->size, fp);
-    if ( nw != (ssize_t)code->size ) {
+    nw = fwrite(code->text.s, 1, code->text.size, fp);
+    if ( nw != (ssize_t)code->text.size ) {
         return -1;
     }
 

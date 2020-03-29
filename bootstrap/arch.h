@@ -28,9 +28,21 @@
 #include <stdint.h>
 #include <unistd.h>
 
+/*
+ * Relocation type
+ */
 typedef enum {
-    ARCH_REF_REL32,
-} arch_ref_type_t;
+    ARCH_REL_PC32,
+} arch_rel_type_t;
+
+/*
+ * Relocation
+ */
+typedef struct {
+    arch_rel_type_t type;
+    off_t pos;
+    int sym;
+} arch_rel_t;
 
 /*
  * Symbol type
@@ -56,14 +68,29 @@ typedef struct {
  * Architecture-specific code
  */
 typedef struct {
-    uint8_t *s;
-    size_t size;
+    /* Text */
+    struct {
+        uint8_t *s;
+        size_t size;
+    } text;
+
+    /* Data */
+    struct {
+        uint8_t *s;
+        size_t size;
+    } data;
 
     /* Symbols */
     struct {
         int n;
         arch_sym_t *syms;
     } sym;
+
+    /* Relocations */
+    struct {
+        int n;
+        arch_rel_t *rels;
+    } rel;
 
 } arch_code_t;
 
