@@ -33,6 +33,7 @@
  */
 typedef enum {
     ARCH_REL_PC32,
+    ARCH_REL_BRANCH,
 } arch_rel_type_t;
 
 /*
