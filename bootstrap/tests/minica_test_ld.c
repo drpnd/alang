@@ -62,6 +62,8 @@ main(int argc, const char *const argv[])
         }
     }
 
+    code.cpu = ARCH_CPU_X86_64;
+
     code.text.size = sizeof(s);
     code.text.s = malloc(code.text.size);
     if ( NULL == code.text.s ) {

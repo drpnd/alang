@@ -29,6 +29,13 @@
 #include <unistd.h>
 
 /*
+ * Architecture
+ */
+typedef enum {
+    ARCH_CPU_X86_64,
+} arch_cpu_t;
+
+/*
  * Relocation type
  */
 typedef enum {
@@ -69,6 +76,8 @@ typedef struct {
  * Architecture-specific code
  */
 typedef struct {
+    arch_cpu_t cpu;
+
     /* Text */
     struct {
         uint8_t *s;
