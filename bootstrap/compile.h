@@ -119,10 +119,28 @@ typedef struct {
 /*
  * Instruction
  */
-typedef struct {
+typedef struct _instr compiler_instr_t;
+struct _instr {
     opcode_t opcode;
     operand_t operands[3];
-} instr_t;
+    compiler_instr_t *next;
+};
+
+/*
+ * Block type
+ */
+typedef enum {
+    BLOCK_FUNC,
+} compiler_block_type_t;
+
+/*
+ * Block
+ */
+typedef struct {
+    compiler_block_type_t type;
+    const char *label;
+    compiler_instr_t *instr;
+} compiler_block_t;
 
 /*
  * Compiler

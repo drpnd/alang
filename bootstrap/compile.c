@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019-2020 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,6 +25,7 @@
 #include "compile.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int compile_expr(compiler_t *, expr_t *);
 
@@ -156,7 +157,7 @@ compile_assign(compiler_t *c, stmt_assign_t *s)
  * compile_stmt -- compile a statement
  */
 int
-compile_stmt(compiler_t *c, stmt_t *s)
+compile_stmt(compiler_t *c, compiler_block_t *b, stmt_t *s)
 {
     int ret;
 
@@ -187,15 +188,25 @@ compile_stmt(compiler_t *c, stmt_t *s)
 int
 compile_func(compiler_t *c, func_t *fn)
 {
+    compiler_block_t *b;
     stmt_t *s;
     int ret;
     (void)c;
     (void)fn->id;
 
+    /* Allocate a block */
+    b = malloc(sizeof(compiler_block_t));
+    b->type = BLOCK_FUNC;
+    b->label = strdup(fn->id);
+    if ( NULL == b->label ) {
+        free(b);
+        return -1;
+    }
+
     /* All statements in the block */
     s = fn->block->head;
     while ( NULL != s ) {
-        ret = compile_stmt(c, s);
+        ret = compile_stmt(c, b, s);
         if ( ret < 0 ) {
             return ret;
         }
