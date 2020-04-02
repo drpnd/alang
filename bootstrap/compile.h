@@ -131,6 +131,7 @@ struct _instr {
  */
 typedef enum {
     BLOCK_FUNC,
+    BLOCK_COROUTINE,
 } compiler_block_type_t;
 
 /*
