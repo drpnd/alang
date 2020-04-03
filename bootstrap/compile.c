@@ -223,15 +223,25 @@ compile_func(compiler_t *c, func_t *fn)
 int
 compile_coroutine(compiler_t *c, coroutine_t *cr)
 {
+    compiler_block_t *b;
     stmt_t *s;
     int ret;
     (void)c;
     (void)cr->id;
 
+    /* Allocate a block */
+    b = malloc(sizeof(compiler_block_t));
+    b->type = BLOCK_FUNC;
+    b->label = strdup(cr->id);
+    if ( NULL == b->label ) {
+        free(b);
+        return -1;
+    }
+
     /* All statements in the block */
     s = cr->block->head;
     while ( NULL != s ) {
-        ret = compile_stmt(c, s);
+        ret = compile_stmt(c, b, s);
         if ( ret < 0 ) {
             return ret;
         }
