@@ -432,12 +432,21 @@ _reg2code(uint8_t *code, x86_64_rex_t *rex, int *size,
 
 
 /*
- * /digit
+ * /digit: r/m
  */
 static int
-_encode_digit(uint8_t *code, uint8_t digit, uint8_t rm)
+_encode_digit(uint8_t *code, uint8_t digit, uint8_t mod, uint8_t rm)
 {
-    return _encode_modrm(code, digit, 0, rm);
+    return _encode_modrm(code, digit, mod, rm);
+}
+
+/*
+ * /r: register + r/m
+ */
+static int
+_encode_r(uint8_t *code, uint8_t reg, uint8_t mod, uint8_t rm)
+{
+    return _encode_modrm(code, reg, mod, rm);
 }
 
 /*
