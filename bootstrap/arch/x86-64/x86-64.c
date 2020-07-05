@@ -519,6 +519,16 @@ _encode_io(uint8_t *code, uint64_t i)
 }
 
 /*
+ * +rb,+rw,+rd,+ro
+ */
+static int
+_encode_rx(uint8_t *code, uint8_t op, uint8_t reg)
+{
+    *code = op + reg;
+    return 0;
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4
