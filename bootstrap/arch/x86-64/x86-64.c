@@ -22,6 +22,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 
 /*
  * x86-64 registers
@@ -447,6 +448,46 @@ static int
 _encode_r(uint8_t *code, uint8_t reg, uint8_t mod, uint8_t rm)
 {
     return _encode_modrm(code, reg, mod, rm);
+}
+
+/*
+ * cb,cw,cd,cp,co,ct
+ */
+static int
+_encode_cb(uint8_t *code, uint8_t c)
+{
+    *code = c;
+    return 0;
+}
+static int
+_encode_cw(uint8_t *code, uint8_t *c)
+{
+    memcpy(code, c, 2);
+    return 0;
+}
+static int
+_encode_cd(uint8_t *code, uint8_t *c)
+{
+    memcpy(code, c, 4);
+    return 0;
+}
+static int
+_encode_cp(uint8_t *code, uint8_t *c)
+{
+    memcpy(code, c, 6);
+    return 0;
+}
+static int
+_encode_co(uint8_t *code, uint8_t *c)
+{
+    memcpy(code, c, 8);
+    return 0;
+}
+static int
+_encode_ct(uint8_t *code, uint8_t *c)
+{
+    memcpy(code, c, 10);
+    return 0;
 }
 
 /*
