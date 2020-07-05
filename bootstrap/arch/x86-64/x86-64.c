@@ -162,7 +162,7 @@ typedef enum {
 typedef struct {
     int l;
     uint8_t a[32];
-} instr;
+} instr_t;
 
 /*
  * Encode ModR/M
@@ -427,6 +427,44 @@ _reg2code(uint8_t *code, x86_64_rex_t *rex, int *size,
         return -1;
     }
 
+    return 0;
+}
+
+
+/*
+ * /digit
+ */
+static int
+_encode_digit(uint8_t *code, uint8_t digit, uint8_t rm)
+{
+    return _encode_modrm(code, digit, 0, rm);
+}
+
+/*
+ * ib,iw,id,io
+ */
+static int
+_encode_ib(uint8_t *code, uint8_t i)
+{
+    *code = i;
+    return 0;
+}
+static int
+_encode_iw(uint8_t *code, uint16_t i)
+{
+    *(uint16_t *)code = i;
+    return 0;
+}
+static int
+_encode_id(uint8_t *code, uint32_t i)
+{
+    *(uint32_t *)code = i;
+    return 0;
+}
+static int
+_encode_io(uint8_t *code, uint64_t i)
+{
+    *(uint64_t *)code = i;
     return 0;
 }
 
