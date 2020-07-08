@@ -160,6 +160,29 @@ typedef enum {
 #define REX_X           (1<<1)
 #define REX_B           (1)
 
+/* Group 1 */
+#define LOCK            0xf0
+#define REPNE           0xf2
+#define REPNZ           REPNE
+#define REP             0xf3
+#define REPE            REP
+#define REPZ            REP
+
+/* Group 2 */
+#define OVERRIDE_CS     0x2e
+#define OVERRIDE_SS     0x36
+#define OVERRIDE_DS     0x3e
+#define OVERRIDE_ES     0x26
+#define OVERRIDE_FS     0x64
+#define OVERRIDE_GS     0x65
+#define BRANCH_NOT_TAKEN    0x2e /* only with jcc */
+#define BRANCH_TAKEN    0x3e    /* only with jcc */
+
+/* Group 3 */
+#define OVERRIDE_OPERAND_SIZE   0x66
+/* Group 4 */
+#define OVERRIDE_ADDR_SIZE  0x67
+
 typedef struct {
     int l;
     uint8_t a[32];
@@ -520,6 +543,7 @@ _encode_io(uint8_t *code, uint64_t i)
 
 /*
  * +rb,+rw,+rd,+ro
+ * +i
  */
 static int
 _encode_rx(uint8_t *code, uint8_t op, uint8_t reg)
