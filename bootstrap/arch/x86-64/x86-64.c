@@ -188,6 +188,26 @@ typedef struct {
     uint8_t a[32];
 } instr_t;
 
+typedef enum {
+    OPERAND_REG,
+    OPERAND_MEM,
+    OPERAND_IMM,
+} operand_type_t;
+
+typedef struct {
+    int reg;
+    int32_t disp;
+} operand_mem_t;
+
+typedef struct {
+    operand_type_t type;
+    union {
+        int reg;
+        operand_mem_t mem;
+        uint32_t imm;
+    } u;
+} operand_t;
+
 /*
  * Encode ModR/M
  */
@@ -549,6 +569,31 @@ static int
 _encode_rx(uint8_t *code, uint8_t op, uint8_t reg)
 {
     *code = op + reg;
+    return 0;
+}
+
+/*
+ * RM
+ */
+int
+encode_rm(uint8_t *code, operand_t op1, operand_t op2)
+{
+    if ( op1.type != OPERAND_REG ) {
+        return -1;
+    }
+    if ( op2.type != OPERAND_REG && op2.type != OPERAND_MEM ) {
+        return -1;
+    }
+
+    if ( op2.type == OPERAND_MEM ) {
+        /* Memory */
+        if ( op2.u.mem.disp <= 0x7f && op2.u.mem.disp >= -0x80 ) {
+            /* 1-byte displacement */
+        } else {
+            /* 4-byte displacement */
+        }
+    }
+
     return 0;
 }
 
