@@ -24,98 +24,108 @@
 #include <stdint.h>
 #include <string.h>
 
+#define REG_CODE(r)     ((r) & 0x7)
+#define REG_REX(r)      (((r) >> 3) & 0x1)
+#define REG_REX0(r)     (((r) >> 4) & 0x1)
+#define REG_NE(r)       (((r) >> 5) & 0x1)
+#define REG_SIZE(r)     (((r) >> 8) & 0xff)
+
+#define REG_ENCODE(code, rex, rex0, ne, size)                           \
+    ((code) | ((rex) << 3) | ((rex0) << 4) | ((ne) << 5) | ((size) << 8))
+
+
 /*
  * x86-64 registers
  */
 typedef enum {
-    REG_UNKNOWN = -1,
+    REG_NONE = -1,
     /* IP */
-    REG_EIP = 0,
+    REG_EIP,
     REG_RIP,
     /* AX */
-    REG_AL,
-    REG_AH,
-    REG_AX,
-    REG_EAX,
-    REG_RAX,
+    REG_AL = REG_ENCODE(0, 0, 0, 0, 1),
+    REG_AH = REG_ENCODE(4, 0, 0, 1, 1),
+    REG_AX = REG_ENCODE(0, 0, 0, 0, 2),
+    REG_EAX = REG_ENCODE(0, 0, 0, 0, 4),
+    REG_RAX = REG_ENCODE(0, 0, 0, 0, 8),
     /* CX */
-    REG_CL,
-    REG_CH,
-    REG_CX,
-    REG_ECX,
-    REG_RCX,
+    REG_CL = REG_ENCODE(1, 0, 0, 0, 1),
+    REG_CH = REG_ENCODE(5, 0, 0, 1, 1),
+    REG_CX = REG_ENCODE(1, 0, 0, 0, 2),
+    REG_ECX = REG_ENCODE(1, 0, 0, 0, 4),
+    REG_RCX = REG_ENCODE(1, 0, 0, 0, 8),
     /* DX */
-    REG_DL,
-    REG_DH,
-    REG_DX,
-    REG_EDX,
-    REG_RDX,
+    REG_DL = REG_ENCODE(2, 0, 0, 0, 1),
+    REG_DH = REG_ENCODE(6, 0, 0, 1, 1),
+    REG_DX = REG_ENCODE(2, 0, 0, 0, 2),
+    REG_EDX = REG_ENCODE(2, 0, 0, 0, 4),
+    REG_RDX = REG_ENCODE(2, 0, 0, 0, 8),
     /* BX */
-    REG_BL,
-    REG_BH,
-    REG_BX,
-    REG_EBX,
-    REG_RBX,
+    REG_BL = REG_ENCODE(3, 0, 0, 0, 1),
+    REG_BH = REG_ENCODE(7, 0, 0, 1, 1),
+    REG_BX = REG_ENCODE(3, 0, 0, 0, 2),
+    REG_EBX = REG_ENCODE(3, 0, 0, 0, 4),
+    REG_RBX = REG_ENCODE(3, 0, 0, 0, 8),
     /* SP */
-    REG_SPL,
-    REG_SP,
-    REG_ESP,
-    REG_RSP,
+    REG_SPL = REG_ENCODE(4, 0, 1, 0, 1),
+    REG_SP = REG_ENCODE(4, 0, 0, 0, 2),
+    REG_ESP = REG_ENCODE(4, 0, 0, 0, 4),
+    REG_RSP = REG_ENCODE(4, 0, 0, 0, 8),
     /* BP */
-    REG_BPL,
-    REG_BP,
-    REG_EBP,
-    REG_RBP,
+    REG_BPL = REG_ENCODE(5, 0, 1, 0, 1),
+    REG_BP = REG_ENCODE(5, 0, 0, 0, 2),
+    REG_EBP = REG_ENCODE(5, 0, 0, 0, 4),
+    REG_RBP = REG_ENCODE(5, 0, 0, 0, 8),
     /* SI */
-    REG_SIL,
-    REG_SI,
-    REG_ESI,
-    REG_RSI,
+    REG_SIL = REG_ENCODE(6, 0, 1, 0, 1),
+    REG_SI = REG_ENCODE(6, 0, 0, 0, 2),
+    REG_ESI = REG_ENCODE(6, 0, 0, 0, 4),
+    REG_RSI = REG_ENCODE(6, 0, 0, 0, 8),
     /* DI */
-    REG_DIL,
-    REG_DI,
-    REG_EDI,
-    REG_RDI,
+    REG_DIL = REG_ENCODE(7, 0, 1, 0, 1),
+    REG_DI = REG_ENCODE(7, 0, 0, 0, 2),
+    REG_EDI = REG_ENCODE(7, 0, 0, 0, 4),
+    REG_RDI = REG_ENCODE(7, 0, 0, 0, 8),
     /* R8 */
-    REG_R8L,
-    REG_R8W,
-    REG_R8D,
-    REG_R8,
+    REG_R8L = REG_ENCODE(0, 1, 0, 0, 1),
+    REG_R8W = REG_ENCODE(0, 1, 0, 0, 2),
+    REG_R8D = REG_ENCODE(0, 1, 0, 0, 4),
+    REG_R8 = REG_ENCODE(0, 1, 0, 0, 8),
     /* R9 */
-    REG_R9L,
-    REG_R9W,
-    REG_R9D,
-    REG_R9,
+    REG_R9L = REG_ENCODE(1, 1, 0, 0, 1),
+    REG_R9W = REG_ENCODE(1, 1, 0, 0, 2),
+    REG_R9D = REG_ENCODE(1, 1, 0, 0, 4),
+    REG_R9 = REG_ENCODE(1, 1, 0, 0, 8),
     /* R10 */
-    REG_R10L,
-    REG_R10W,
-    REG_R10D,
-    REG_R10,
+    REG_R10L = REG_ENCODE(2, 1, 0, 0, 1),
+    REG_R10W = REG_ENCODE(2, 1, 0, 0, 2),
+    REG_R10D = REG_ENCODE(2, 1, 0, 0, 4),
+    REG_R10 = REG_ENCODE(2, 1, 0, 0, 8),
     /* R11 */
-    REG_R11L,
-    REG_R11W,
-    REG_R11D,
-    REG_R11,
+    REG_R11L = REG_ENCODE(3, 1, 0, 0, 1),
+    REG_R11W = REG_ENCODE(3, 1, 0, 0, 2),
+    REG_R11D = REG_ENCODE(3, 1, 0, 0, 4),
+    REG_R11 = REG_ENCODE(3, 1, 0, 0, 8),
     /* R12 */
-    REG_R12L,
-    REG_R12W,
-    REG_R12D,
-    REG_R12,
+    REG_R12L = REG_ENCODE(4, 1, 0, 0, 1),
+    REG_R12W = REG_ENCODE(4, 1, 0, 0, 2),
+    REG_R12D = REG_ENCODE(4, 1, 0, 0, 4),
+    REG_R12 = REG_ENCODE(4, 1, 0, 0, 8),
     /* R13 */
-    REG_R13L,
-    REG_R13W,
-    REG_R13D,
-    REG_R13,
+    REG_R13L = REG_ENCODE(5, 1, 0, 0, 1),
+    REG_R13W = REG_ENCODE(5, 1, 0, 0, 2),
+    REG_R13D = REG_ENCODE(5, 1, 0, 0, 4),
+    REG_R13 = REG_ENCODE(5, 1, 0, 0, 8),
     /* R14 */
-    REG_R14L,
-    REG_R14W,
-    REG_R14D,
-    REG_R14,
+    REG_R14L = REG_ENCODE(6, 1, 0, 0, 1),
+    REG_R14W = REG_ENCODE(6, 1, 0, 0, 2),
+    REG_R14D = REG_ENCODE(6, 1, 0, 0, 4),
+    REG_R14 = REG_ENCODE(6, 1, 0, 0, 8),
     /* R15 */
-    REG_R15L,
-    REG_R15W,
-    REG_R15D,
-    REG_R15,
+    REG_R15L = REG_ENCODE(7, 1, 0, 0, 1),
+    REG_R15W = REG_ENCODE(7, 1, 0, 0, 2),
+    REG_R15D = REG_ENCODE(7, 1, 0, 0, 4),
+    REG_R15 = REG_ENCODE(7, 1, 0, 0, 8),
     /* Segment registers */
     REG_CS,
     REG_DS,
@@ -196,6 +206,8 @@ typedef enum {
 
 typedef struct {
     int reg;
+    int sindex;
+    int scale;
     int32_t disp;
 } operand_mem_t;
 
@@ -235,245 +247,6 @@ _encode_sib(uint8_t *sib, int base, int idx, int ss)
 
     return 0;
 }
-
-/*
- * Convert register to the code
- */
-static int
-_reg2code(uint8_t *code, x86_64_rex_t *rex, int *size,
-          x86_64_reg_t reg)
-{
-    /* Code & REX prefix */
-    switch ( reg ) {
-    case REG_AL:
-    case REG_AX:
-    case REG_EAX:
-    case REG_RAX:
-        *code = 0;
-        *rex = REX_NONE;
-        break;
-    case REG_CL:
-    case REG_CX:
-    case REG_ECX:
-    case REG_RCX:
-        *code = 1;
-        *rex = REX_NONE;
-        break;
-    case REG_DL:
-    case REG_DX:
-    case REG_EDX:
-    case REG_RDX:
-        *code = 2;
-        *rex = REX_NONE;
-        break;
-    case REG_BL:
-    case REG_BX:
-    case REG_EBX:
-    case REG_RBX:
-        *code = 3;
-        *rex = REX_NONE;
-        break;
-    case REG_AH:
-        *code = 4;
-        *rex = REX_NE;
-        break;
-    case REG_SP:
-    case REG_ESP:
-    case REG_RSP:
-        *code = 4;
-        *rex = REX_NONE;
-        break;
-    case REG_SPL:
-        *code = 4;
-        *rex = REX_FALSE;
-        break;
-    case REG_CH:
-        *code = 5;
-        *rex = REX_NE;
-        break;
-    case REG_BP:
-    case REG_EBP:
-    case REG_RBP:
-        *code = 5;
-        *rex = REX_NONE;
-        break;
-    case REG_BPL:
-        *code = 5;
-        *rex = REX_FALSE;
-        break;
-    case REG_DH:
-        *code = 6;
-        *rex = REX_NE;
-        break;
-    case REG_SI:
-    case REG_ESI:
-    case REG_RSI:
-        *code = 6;
-        *rex = REX_NONE;
-        break;
-    case REG_SIL:
-        *code = 6;
-        *rex = REX_FALSE;
-        break;
-    case REG_BH:
-        *code = 7;
-        *rex = REX_NE;
-        break;
-    case REG_DI:
-    case REG_EDI:
-    case REG_RDI:
-        *code = 7;
-        *rex = REX_NONE;
-        break;
-    case REG_DIL:
-        *code = 7;
-        *rex = REX_FALSE;
-        break;
-    case REG_R8L:
-    case REG_R8W:
-    case REG_R8D:
-    case REG_R8:
-        *code = 0;
-        *rex = REX_TRUE;
-        break;
-    case REG_R9L:
-    case REG_R9W:
-    case REG_R9D:
-    case REG_R9:
-        *code = 1;
-        *rex = REX_TRUE;
-        break;
-    case REG_R10L:
-    case REG_R10W:
-    case REG_R10D:
-    case REG_R10:
-        *code = 2;
-        *rex = REX_TRUE;
-        break;
-    case REG_R11L:
-    case REG_R11W:
-    case REG_R11D:
-    case REG_R11:
-        *code = 3;
-        *rex = REX_TRUE;
-        break;
-    case REG_R12L:
-    case REG_R12W:
-    case REG_R12D:
-    case REG_R12:
-        *code = 4;
-        *rex = REX_TRUE;
-        break;
-    case REG_R13L:
-    case REG_R13W:
-    case REG_R13D:
-    case REG_R13:
-        *code = 5;
-        *rex = REX_TRUE;
-        break;
-    case REG_R14L:
-    case REG_R14W:
-    case REG_R14D:
-    case REG_R14:
-        *code = 6;
-        *rex = REX_TRUE;
-        break;
-    case REG_R15L:
-    case REG_R15W:
-    case REG_R15D:
-    case REG_R15:
-        *code = 7;
-        *rex = REX_TRUE;
-        break;
-    default:
-        return -1;
-    }
-
-    /* Size */
-    switch ( reg ) {
-    case REG_AL:
-    case REG_AH:
-    case REG_CL:
-    case REG_CH:
-    case REG_DL:
-    case REG_DH:
-    case REG_BL:
-    case REG_BH:
-    case REG_SPL:
-    case REG_BPL:
-    case REG_SIL:
-    case REG_DIL:
-    case REG_R8L:
-    case REG_R9L:
-    case REG_R10L:
-    case REG_R11L:
-    case REG_R12L:
-    case REG_R13L:
-    case REG_R14L:
-    case REG_R15L:
-        *size = 1;
-        break;
-    case REG_AX:
-    case REG_CX:
-    case REG_DX:
-    case REG_BX:
-    case REG_SP:
-    case REG_BP:
-    case REG_SI:
-    case REG_DI:
-    case REG_R8W:
-    case REG_R9W:
-    case REG_R10W:
-    case REG_R11W:
-    case REG_R12W:
-    case REG_R13W:
-    case REG_R14W:
-    case REG_R15W:
-        *size = 2;
-        break;
-    case REG_EAX:
-    case REG_ECX:
-    case REG_EDX:
-    case REG_EBX:
-    case REG_ESP:
-    case REG_EBP:
-    case REG_ESI:
-    case REG_EDI:
-    case REG_R8D:
-    case REG_R9D:
-    case REG_R10D:
-    case REG_R11D:
-    case REG_R12D:
-    case REG_R13D:
-    case REG_R14D:
-    case REG_R15D:
-        *size = 4;
-        break;
-    case REG_RAX:
-    case REG_RCX:
-    case REG_RDX:
-    case REG_RBX:
-    case REG_RSP:
-    case REG_RBP:
-    case REG_RSI:
-    case REG_RDI:
-    case REG_R8:
-    case REG_R9:
-    case REG_R10:
-    case REG_R11:
-    case REG_R12:
-    case REG_R13:
-    case REG_R14:
-    case REG_R15:
-        *size = 8;;
-        break;
-    default:
-        return -1;
-    }
-
-    return 0;
-}
-
 
 /*
  * /digit: r/m
@@ -569,6 +342,69 @@ static int
 _encode_rx(uint8_t *code, uint8_t op, uint8_t reg)
 {
     *code = op + reg;
+    return 0;
+}
+
+/*
+ * Encode memory
+ */
+static int
+_encode_mem(uint8_t *code, operand_t op)
+{
+    int rex;
+    int rex0;
+    int ne;
+    int size;
+    int sindex;
+    int ss;
+
+    if ( op.type != OPERAND_MEM ) {
+        return -1;
+    }
+
+    if ( op.u.mem.sindex != REG_NONE ) {
+        /* Encode SIB */
+        sindex = REG_CODE(op.u.mem.sindex);
+        rex = REG_REX(op.u.mem.sindex);
+        rex0 = REG_REX0(op.u.mem.sindex);
+        ne = REG_NE(op.u.mem.sindex);
+        size = REG_SIZE(op.u.mem.sindex);
+        if ( REG_NE(op.u.mem.sindex) == REX_NE ) {
+            /* Not encodable */
+            return -1;
+        }
+
+        /* Resolve SS */
+        switch ( op.u.mem.scale ) {
+        case 1:
+            ss = 0;
+            break;
+        case 2:
+            ss = 1;
+            break;
+        case 4:
+            ss = 2;
+            break;
+        case 8:
+            ss = 3;
+            break;
+        default:
+            /* Invalid scale */
+            return -1;
+        }
+    }
+
+    op.u.mem.reg;
+    op.u.mem.scale;
+    op.u.mem.sindex;
+
+    /* Memory */
+    if ( op.u.mem.disp <= 0x7f && op.u.mem.disp >= -0x80 ) {
+        /* 1-byte displacement */
+    } else {
+        /* 4-byte displacement */
+    }
+
     return 0;
 }
 
