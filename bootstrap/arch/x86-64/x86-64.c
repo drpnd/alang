@@ -251,7 +251,7 @@ typedef struct {
  * Encode ModR/M
  */
 static int
-_encode_modrm(int reg, int mod, int rm)
+_modrm(int reg, int mod, int rm)
 {
     if ( reg < 0 || reg > 7 || mod < 0 || mod > 3 || rm < 0 || rm > 7 ) {
         return -1;
@@ -263,7 +263,7 @@ _encode_modrm(int reg, int mod, int rm)
  * Encode SIB
  */
 static int
-_encode_sib(int base, int idx, int ss)
+_sib(int base, int idx, int ss)
 {
     if ( base < 0 || base > 7 || idx < 0 || idx > 7 || ss < 0 || ss > 3 ) {
         return -1;
@@ -278,7 +278,7 @@ static int
 _encode_digit(uint8_t *code, uint8_t digit, uint8_t mod, uint8_t rm)
 {
     int ret;
-    ret = _encode_modrm(digit, mod, rm);
+    ret = _modrm(digit, mod, rm);
     if ( ret < 0 ) {
         return -1;
     }
@@ -294,7 +294,7 @@ static int
 _encode_r(uint8_t *code, uint8_t reg, uint8_t mod, uint8_t rm)
 {
     int ret;
-    ret = _encode_modrm(reg, mod, rm);
+    ret = _modrm(reg, mod, rm);
     if ( ret < 0 ) {
         return -1;
     }
@@ -408,7 +408,7 @@ _rex(int rex, x86_64_reg_t r, x86_64_reg_t rmbase, x86_64_reg_t s)
 }
 
 static int
-_encode_modrm_only(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
+_encode_modrm(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
                    x86_64_reg_t rm)
 {
     int ret;
@@ -421,7 +421,7 @@ _encode_modrm_only(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
         return -1;
     }
 
-    modrm = _encode_modrm(REG_CODE(reg), mod, REG_CODE(rm));
+    modrm = _modrm(REG_CODE(reg), mod, REG_CODE(rm));
     if ( modrm < 0 ) {
         return -1;
     }
@@ -445,12 +445,12 @@ _encode_modrm_sib(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
         return -1;
     }
 
-    modrm = _encode_modrm(REG_CODE(reg), mod, 4);
+    modrm = _modrm(REG_CODE(reg), mod, 4);
     if ( modrm < 0 ) {
         return -1;
     }
 
-    sib = _encode_sib(REG_CODE(base), REG_CODE(idx), ss);
+    sib = _sib(REG_CODE(base), REG_CODE(idx), ss);
     if ( sib < 0 ) {
         return -1;
     }
@@ -483,7 +483,7 @@ _encode_rm_reg(uint8_t *code, int *rex, operand_t op1, operand_t op2)
     rm = op2.u.reg;
 
     /* Encode registers */
-    ret = _encode_modrm_only(code, rex, 3, r, rm);
+    ret = _encode_modrm(code, rex, 3, r, rm);
     if ( ret < 0 ) {
         return -1;
     }
@@ -538,7 +538,7 @@ _encode_rm_mem(uint8_t *code, int *rex, operand_t op1, operand_t op2)
         mod = 2;
     }
 
-    /* Check if SIB needed */
+    /* Check if SIB is needed */
     if ( (op2.u.mem.sindex != REG_NONE && op2.u.mem.reg != REG_NONE) || ss )  {
         /* Encode SIB */
         ret = _encode_modrm_sib(code, rex, mod, op1.u.reg,
@@ -549,7 +549,7 @@ _encode_rm_mem(uint8_t *code, int *rex, operand_t op1, operand_t op2)
         size = ret;
     } else if ( op2.u.mem.sindex == REG_NONE && op2.u.mem.reg == REG_NONE ) {
         /* Displacement only (disp32 for any displacement values) */
-        ret = _encode_modrm_only(code, rex, op1.u.reg, REG_NONE, 5);
+        ret = _encode_modrm(code, rex, op1.u.reg, REG_NONE, 5);
         if ( ret < 0 ) {
             return -1;
         }
@@ -558,7 +558,7 @@ _encode_rm_mem(uint8_t *code, int *rex, operand_t op1, operand_t op2)
         mod = 2;
     } else {
         /* ss=0, then ModR/M is used without SIB */
-        ret = _encode_modrm_only(code, rex, mod, op1.u.reg, op2.u.mem.sindex);
+        ret = _encode_modrm(code, rex, mod, op1.u.reg, op2.u.mem.sindex);
         if ( ret < 0 ) {
             return -1;
         }
