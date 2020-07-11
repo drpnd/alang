@@ -407,6 +407,9 @@ _rex(int rex, x86_64_reg_t r, x86_64_reg_t rmbase, x86_64_reg_t s)
     return rex;
 }
 
+/*
+ * Encode ModR/M without SIB
+ */
 static int
 _encode_modrm(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
                    x86_64_reg_t rm)
@@ -430,6 +433,10 @@ _encode_modrm(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
 
     return 1;
 }
+
+/*
+ * Encode ModR/M with SIB
+ */
 static int
 _encode_modrm_sib(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
                   x86_64_reg_t base, x86_64_reg_t idx, int ss)
