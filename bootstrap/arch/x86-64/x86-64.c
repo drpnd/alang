@@ -263,14 +263,12 @@ _encode_modrm(int reg, int mod, int rm)
  * Encode SIB
  */
 static int
-_encode_sib(uint8_t *sib, int base, int idx, int ss)
+_encode_sib(int base, int idx, int ss)
 {
     if ( base < 0 || base > 7 || idx < 0 || idx > 7 || ss < 0 || ss > 3 ) {
         return -1;
     }
-    *sib = (ss << 6) | (idx << 3) | base;
-
-    return 0;
+    return (ss << 6) | (idx << 3) | base;
 }
 
 /*
@@ -385,10 +383,120 @@ _encode_rx(uint8_t *code, uint8_t op, uint8_t reg)
 }
 
 /*
+ * REX prefix
+ */
+static int
+_rex(int rex, x86_64_reg_t r, x86_64_reg_t rmbase, x86_64_reg_t s)
+{
+    /* REX.R: ModR/M reg */
+    /* REX.X: SIB index */
+    /* REX.B: ModR/M r/m or SIB base */
+    rex = 0;
+    rex |= REG_REX(r) ? REX_R : 0;
+    rex |= REG_REX(s) ? REX_X : 0;
+    rex |= REG_REX(rmbase) ? REX_B : 0;
+
+    if ( rex ) {
+        if ( REG_NE(r) || REG_NE(s) || REG_NE(rmbase) ) {
+            /* Not encodable */
+            return -1;
+        }
+        rex |= REX;
+    }
+
+    return rex;
+}
+
+static int
+_encode_modrm_only(int *rex, int mod, x86_64_reg_t r1, x86_64_reg_t r2)
+{
+    int ret;
+
+    /* Resolve rex */
+    ret = _rex(*rex, r1, r2, REG_NONE);
+    if ( ret < 0 ) {
+        /* Not encodable */
+        return -1;
+    }
+    *rex = ret;
+
+    ret = _encode_modrm(REG_CODE(r1), mod, REG_CODE(r2));
+    if ( ret < 0 ) {
+        return -1;
+    }
+
+    return ret;
+}
+static int
+_encode_modrm_sib(int *rex, int mod, x86_64_reg_t r1, x86_64_reg_t r2,
+                  x86_64_reg_t r3, int ss)
+{
+    int ret;
+
+    /* Resolve rex */
+    ret = _rex(*rex, r1, r2, r3);
+    if ( ret < 0 ) {
+        /* Not encodable */
+        return -1;
+    }
+    *rex = ret;
+
+    ret = _encode_modrm(REG_CODE(r1), mod, 4);
+    if ( ret < 0 ) {
+        return -1;
+    }
+
+    ret = _encode_sib(REG_CODE(r2), REG_CODE(r3), ss);
+    if ( ret < 0 ) {
+        return -1;
+    }
+
+    return ret;
+}
+
+/*
+ * RR
+ */
+static int
+_encode_rm_reg(uint8_t *code, operand_t op1, operand_t op2)
+{
+    int r;
+    int rm;
+    int mod;
+    int rex;
+    int ret;
+
+    /* Check the operand type */
+    if ( op1.type != OPERAND_REG || op2.type != OPERAND_REG ) {
+        return -1;
+    }
+
+    /* First operand */
+    r = op1.u.reg;
+
+    /* Second operand */
+    rm = op2.u.reg;
+
+    /* Encode registers */
+    mod = 3;
+    rex = _rex(0, r, rm, REG_NONE);
+    if ( rex < 0 ) {
+        return -1;
+    }
+    ret = _encode_modrm(REG_CODE(r), mod, REG_CODE(rm));
+    if ( ret < 0 ) {
+        return -1;
+    }
+    *code = ret;
+
+    return 1;
+}
+
+/*
  * Encode memory
  */
 static int
-_encode_mem(uint8_t *code, operand_t op)
+_encode_rm_mem(uint8_t *code, operand_t op1, operand_t op2)
 {
     /* REX.R: ModR/M reg */
     /* REX.X: SIB index */
@@ -406,122 +514,64 @@ _encode_mem(uint8_t *code, operand_t op)
     int ret;
     uint8_t modrm;
 
-    /* Memory */
-    if ( op.type == OPERAND_REG ) {
-        mod = 3;
-        r = REG_CODE(op.u.reg);
-    } else if ( op.type == OPERAND_MEM ) {
-        /* Resolve SS */
-        switch ( op.u.mem.scale ) {
-        case 1:
-            ss = 0;
-            break;
-        case 2:
-            ss = 1;
-            break;
-        case 4:
-            ss = 2;
-            break;
-        case 8:
-            ss = 3;
-            break;
-        default:
-            /* Invalid scale */
-            return -1;
-        }
-
-        /* Check if SIB needed */
-        if ( op.u.mem.sindex != REG_NONE && op.u.mem.reg != REG_NONE )  {
-            /* Encode SIB */
-            rm = 4;
-        } else if ( op.u.mem.sindex != REG_NONE ) {
-
-        } else if ( op.u.mem.reg != REG_NONE ) {
-            r = REG_CODE(op.u.mem.reg);
-            rm = r;
-        } else {
-            /* Displacement only */
-            mod = 0;
-            rm = 5;
-            ret = _encode_modrm(0, mod, rm);
-            code[0] = ret;
-            memcpy(code + 1, &op.u.mem.disp, 4);
-            return 0;
-        }
-
-        /* Check the displacement */
-        if ( op.u.mem.disp == 0 ) {
-            /* No displacement */
-            mod = 0;
-        } else if ( op.u.mem.disp <= 0x7f && op.u.mem.disp >= -0x80 ) {
-            /* 1-byte displacement */
-            mod = 1;
-        } else {
-            /* 4-byte displacement */
-            mod = 2;
-        }
+    /* Check the operand type */
+    if ( op1.type != OPERAND_REG || op2.type != OPERAND_MEM ) {
+        return -1;
     }
 
-    if ( op.u.mem.sindex != REG_NONE ) {
-        /* Encode SIB */
-        sindex = REG_CODE(op.u.mem.sindex);
-        rex = REG_REX(op.u.mem.sindex);
-        rex0 = REG_REX0(op.u.mem.sindex);
-        ne = REG_NE(op.u.mem.sindex);
-        size = REG_SIZE(op.u.mem.sindex);
-        if ( REG_NE(op.u.mem.sindex) ) {
-            /* Not encodable */
-            return -1;
-        }
+    /* Resolve SS */
+    switch ( op2.u.mem.scale ) {
+    case 1:
+        ss = 0;
+        break;
+    case 2:
+        ss = 1;
+        break;
+    case 4:
+        ss = 2;
+        break;
+    case 8:
+        ss = 3;
+        break;
+    default:
+        /* Invalid scale */
+        return -1;
+    }
 
-        /* Resolve SS */
-        switch ( op.u.mem.scale ) {
-        case 1:
-            ss = 0;
-            break;
-        case 2:
-            ss = 1;
-            break;
-        case 4:
-            ss = 2;
-            break;
-        case 8:
-            ss = 3;
-            break;
-        default:
-            /* Invalid scale */
-            return -1;
-        }
+    /* Check if SIB needed */
+    if ( op2.u.mem.sindex != REG_NONE && op2.u.mem.reg != REG_NONE )  {
+        /* Encode SIB */
+        rm = 4;
+    } else if ( op2.u.mem.sindex != REG_NONE ) {
+        r = REG_CODE(op2.u.mem.sindex);
+    } else if ( op2.u.mem.reg != REG_NONE ) {
+        r = REG_CODE(op2.u.mem.reg);
+        rm = r;
+    } else {
+        /* Displacement only */
+        mod = 0;
+        rm = 5;
+        ret = _encode_modrm(0, mod, rm);
+        code[0] = ret;
+        memcpy(code + 1, &op2.u.mem.disp, 4);
+        return 0;
+    }
+
+
+    /* Check the displacement */
+    if ( op2.u.mem.disp == 0 ) {
+        /* No displacement */
+        mod = 0;
+    } else if ( op2.u.mem.disp <= 0x7f && op2.u.mem.disp >= -0x80 ) {
+        /* 1-byte displacement */
+        mod = 1;
+    } else {
+        /* 4-byte displacement */
+        mod = 2;
     }
 
     return 0;
 }
-
-/*
- * REX prefix
- */
-static int
-_rex(int rex, x86_64_reg_t r, x86_64_reg_t rm, x86_64_reg_t s)
-{
-    /* REX.R: ModR/M reg */
-    /* REX.X: SIB index */
-    /* REX.B: ModR/M r/m or SIB base */
-    rex = 0;
-    rex |= REG_REX(r) ? REX_R : 0;
-    rex |= REG_REX(s) ? REX_X : 0;
-    rex |= REG_REX(rm) ? REX_B : 0;
-
-    if ( rex ) {
-        if ( REG_NE(r) || REG_NE(s) || REG_NE(rm) ) {
-            /* Not encodable */
-            return -1;
-        }
-        rex |= REX;
-    }
-
-    return rex;
-}
-
 
 /*
  * RM
@@ -529,12 +579,6 @@ _rex(int rex, x86_64_reg_t r, x86_64_reg_t rm, x86_64_reg_t s)
 int
 encode_rm(uint8_t *code, operand_t op1, operand_t op2)
 {
-    int r;
-    int rm;
-    int mod;
-    int ret;
-    int rex;
-
     /* Check the operand type */
     if ( op1.type != OPERAND_REG ) {
         return -1;
@@ -543,35 +587,14 @@ encode_rm(uint8_t *code, operand_t op1, operand_t op2)
         return -1;
     }
 
-    /* Get the firt operand */
-    r = op1.u.reg;
-
+    /* Check the second operand */
     if ( op2.type == OPERAND_REG ) {
-        /* Encode ModR/M */
-        mod = 3;
-        rm = op2.u.reg;
-        rex = _rex(0, r, rm, REG_NONE);
-        if ( rex < 0 ) {
-            return -1;
-        }
-        ret = _encode_modrm(REG_CODE(r), mod, REG_CODE(rm));
-        if ( ret < 0 ) {
-            return -1;
-        }
-        *code = ret;
-        return 0;
+        return _encode_rm_reg(code, op1, op2);
+    } else if ( op2.type == OPERAND_MEM ) {
+        return _encode_rm_mem(code, op1, op2);
     }
 
-    if ( op2.type == OPERAND_MEM ) {
-        /* Memory */
-        if ( op2.u.mem.disp <= 0x7f && op2.u.mem.disp >= -0x80 ) {
-            /* 1-byte displacement */
-        } else {
-            /* 4-byte displacement */
-        }
-    }
-
-    return 0;
+    return -1;
 }
 
 /*
