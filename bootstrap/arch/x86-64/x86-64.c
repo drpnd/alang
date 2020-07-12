@@ -232,7 +232,7 @@ typedef enum {
 } operand_type_t;
 
 typedef struct {
-    int reg;
+    int base;
     int sindex;
     int scale;
     int32_t disp;
@@ -545,15 +545,15 @@ _encode_rm_mem(uint8_t *code, int *rex, operand_t op1, operand_t op2)
     }
 
     /* Check if SIB is needed */
-    if ( (op2.u.mem.sindex != REG_NONE && op2.u.mem.reg != REG_NONE) || ss )  {
+    if ( (op2.u.mem.sindex != REG_NONE && op2.u.mem.base != REG_NONE) || ss )  {
         /* Encode SIB */
         ret = _encode_modrm_sib(code, rex, mod, op1.u.reg,
-                                op2.u.mem.reg, op2.u.mem.sindex, ss);
+                                op2.u.mem.base, op2.u.mem.sindex, ss);
         if ( ret < 0 ) {
             return -1;
         }
         size = ret;
-    } else if ( op2.u.mem.sindex == REG_NONE && op2.u.mem.reg == REG_NONE ) {
+    } else if ( op2.u.mem.sindex == REG_NONE && op2.u.mem.base == REG_NONE ) {
         /* Displacement only (disp32 for any displacement values) */
         ret = _encode_modrm(code, rex, op1.u.reg, REG_NONE, 5);
         if ( ret < 0 ) {
@@ -591,8 +591,8 @@ _encode_rm_mem(uint8_t *code, int *rex, operand_t op1, operand_t op2)
 /*
  * RM
  */
-int
-encode_rm(uint8_t *code, int *rex, operand_t op1, operand_t op2)
+static int
+_encode_rm(uint8_t *code, int *rex, operand_t op1, operand_t op2)
 {
     /* Check the operand type */
     if ( op1.type != OPERAND_REG ) {
@@ -612,6 +612,49 @@ encode_rm(uint8_t *code, int *rex, operand_t op1, operand_t op2)
     return -1;
 }
 
+/*
+ * MR
+ */
+static int
+_encode_mr(uint8_t *code, int *rex, operand_t op1, operand_t op2)
+{
+    return _encode_rm(code, rex, op2, op1);
+}
+
+/*
+ * MI
+ */
+static int
+_encode_mi(uint8_t *code, int *rex, operand_t op1, operand_t op2, size_t size)
+{
+    /* Pseudo operand */
+    operand_t pop;
+    int ret;
+
+    if ( op1.type != OPERAND_REG && op1.type != OPERAND_MEM ) {
+        return -1;
+    }
+    if ( op2.type != OPERAND_IMM ) {
+        return -1;
+    }
+
+    pop.type = OPERAND_REG;
+    pop.u.reg = REG_NONE;
+    if ( op1.type == OPERAND_REG ) {
+        ret = _encode_rm_reg(code, rex, pop, op1);
+    } else if ( op1.type == OPERAND_MEM ) {
+        ret = _encode_rm_mem(code, rex, pop, op1);
+    } else {
+        return -1;
+    }
+    if ( ret < 0 ) {
+        return -1;
+    }
+    memcpy(code + ret, &op2.u.imm, size);
+
+    return ret + size;
+}
+
 int
 x86_64_test(uint8_t *code)
 {
@@ -621,7 +664,7 @@ x86_64_test(uint8_t *code)
     operand_t op2 = { .type = OPERAND_REG, .u.reg = REG_RDI };
 
     rex = REX_W;
-    ret = encode_rm(code + 2, &rex, op1, op2);
+    ret = _encode_rm(code + 2, &rex, op1, op2);
     if ( ret < 0 ) {
         return -1;
     }
