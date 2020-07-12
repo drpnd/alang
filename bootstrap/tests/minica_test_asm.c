@@ -43,9 +43,9 @@ main(int argc, const char *const argv[])
     if ( ret < 0 ) {
         return -1;
     }
-    printf("Code: ");
+    printf("Code:");
     for ( i = 0; i < ret; i ++ ) {
-        printf("%02x", code[i]);
+        printf(" %02x", code[i]);
     }
     printf("\n");
 

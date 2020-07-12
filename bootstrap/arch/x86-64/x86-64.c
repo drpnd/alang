@@ -391,7 +391,6 @@ _rex(int rex, x86_64_reg_t r, x86_64_reg_t rmbase, x86_64_reg_t s)
     /* REX.R: ModR/M reg */
     /* REX.X: SIB index */
     /* REX.B: ModR/M r/m or SIB base */
-    rex = 0;
     rex |= REG_REX(r) ? REX_R : 0;
     rex |= REG_REX(s) ? REX_X : 0;
     rex |= REG_REX(rmbase) ? REX_B : 0;
@@ -621,13 +620,15 @@ x86_64_test(uint8_t *code)
     operand_t op1 = { .type = OPERAND_REG, .u.reg = REG_RAX };
     operand_t op2 = { .type = OPERAND_REG, .u.reg = REG_RDI };
 
-    rex = 0;
-    ret = encode_rm(code, &rex, op1, op2);
+    rex = REX_W;
+    ret = encode_rm(code + 2, &rex, op1, op2);
     if ( ret < 0 ) {
         return -1;
     }
+    code[0] = rex;
+    code[1] = 0x89;
 
-    return ret;
+    return ret + 2;
 }
 
 /*
