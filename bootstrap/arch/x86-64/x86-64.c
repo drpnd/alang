@@ -428,7 +428,7 @@ _encode_modrm(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
     if ( modrm < 0 ) {
         return -1;
     }
-    *code = ret;
+    *code = modrm;
     *rex = ret;
 
     return 1;
@@ -611,6 +611,23 @@ encode_rm(uint8_t *code, int *rex, operand_t op1, operand_t op2)
     }
 
     return -1;
+}
+
+int
+x86_64_test(uint8_t *code)
+{
+    int rex;
+    int ret;
+    operand_t op1 = { .type = OPERAND_REG, .u.reg = REG_RAX };
+    operand_t op2 = { .type = OPERAND_REG, .u.reg = REG_RDI };
+
+    rex = 0;
+    ret = encode_rm(code, &rex, op1, op2);
+    if ( ret < 0 ) {
+        return -1;
+    }
+
+    return ret;
 }
 
 /*

@@ -7,7 +7,7 @@
 #
 
 all:
-	$(MAKE) minica minica_test_ld
+	$(MAKE) minica minica_test_ld minica_test_asm
 
 y.tab.c: minica.y
 	$(YACC) -d $^
@@ -22,6 +22,9 @@ minica: y.tab.o lex.yy.o syntax.o compile.o arch/x86-64/x86-64.o ld/mach-o.o
 	$(CC) -o $@ $^
 
 minica_test_ld: tests/minica_test_ld.o ld/mach-o.o ld/elf.o
+	$(CC) -g -o $@ $^
+
+minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o
 	$(CC) -g -o $@ $^
 
 clean:
