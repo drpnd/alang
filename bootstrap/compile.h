@@ -70,6 +70,12 @@ typedef enum {
     MEM_I16,
     MEM_I32,
     MEM_I64,
+    REG_FP16,
+    REG_FP32,
+    REG_FP64,
+    MEM_FP16,
+    MEM_FP32,
+    MEM_FP64,
 } register_type_t;
 
 /*
