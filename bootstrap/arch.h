@@ -36,6 +36,14 @@ typedef enum {
 } arch_cpu_t;
 
 /*
+ * Loadable format
+ */
+typedef enum {
+    ARCH_LD_ELF,
+    ARCH_LD_MACH_O,
+} arch_loader_t;
+
+/*
  * Relocation type
  */
 typedef enum {
