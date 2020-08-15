@@ -45,6 +45,61 @@
 #define OPCODE_RO           0x608
 #define OPCODE_ST_PREFIX    0x700
 
+#define OPERAND_REL8        0x101
+#define OPERAND_REL16       0x102
+#define OPERAND_REL32       0x104
+#define OPERAND_REL64       0x108
+#define OPERAND_PTR16_16    0x202
+#define OPERAND_PTR16_32    0x204
+#define OPERAND_PTR16_64    0x208
+#define OPERAND_R8          0x301
+#define OPERAND_R16         0x302
+#define OPERAND_R32         0x304
+#define OPERAND_R64         0x308
+#define OPERAND_IMM8        0x401
+#define OPERAND_IMM16       0x402
+#define OPERAND_IMM32       0x404
+#define OPERAND_IMM64       0x408
+#define OPERAND_RM8         0x501
+#define OPERAND_RM16        0x502
+#define OPERAND_RM32        0x504
+#define OPERAND_RM64        0x508
+#define OPERAND_M           0x600
+#define OPERAND_M8          0x601
+#define OPERAND_M16         0x602
+#define OPERAND_M32         0x604
+#define OPERAND_M64         0x608
+#define OPERAND_M128        0x610
+#define OPERAND_M16_16      0x702
+#define OPERAND_M16_32      0x704
+#define OPERAND_M16_64      0x708
+#define OPERAND_M16A16      0x802
+#define OPERAND_M16A32      0x804
+#define OPERAND_M16A64      0x808
+#define OPERAND_M32A32      0x814
+#define OPERAND_MOFFS8      0x901
+#define OPERAND_MOFFS16     0x902
+#define OPERAND_MOFFS32     0x904
+#define OPERAND_MOFFS64     0x908
+#define OPERAND_SREG        0xa00
+#define OPERAND_M32FP       0xb04
+#define OPERAND_M64FP       0xb08
+#define OPERAND_M80FP       0xb0a
+#define OPERAND_M16INT      0xc02
+#define OPERAND_M32INT      0xc04
+#define OPERAND_M64INT      0xc08
+#define OPERAND_ST(i)       (0xd00 + (i))
+#define OPERAND_MM          0xe00
+#define OPERAND_MM_M32      0xe04
+#define OPERAND_MM_M64      0xe08
+#define OPERAND_XMM         0xf00
+#define OPERAND_XMM_M32     0xf04
+#define OPERAND_XMM_M64     0xf08
+#define OPERAND_XMM_M128    0xf10
+
+
+
+
 /*
  * Opcode
  */
@@ -125,9 +180,58 @@ _parse_opcode(const char *token)
     return -1;
 }
 
+/* 
+ * Parse an operand
+ */
 int
 _parse_operand(const char *token)
 {
+    if ( 0 == strcasecmp("rel8", token) ) {
+        /* rel8 */
+        return OPERAND_REL8;
+    } else if ( 0 == strcasecmp("rel16", token) ) {
+        /* rel16 */
+        return OPERAND_REL16;
+    } else if ( 0 == strcasecmp("rel32", token) ) {
+        /* rel32 */
+        return OPERAND_REL32;
+    } else if ( 0 == strcasecmp("rel64", token) ) {
+        /* rel64 */
+        return OPERAND_REL64;
+    } else if ( 0 == strcasecmp("ptr16:16", token) ) {
+        /* ptr16:16 */
+        return OPERAND_PTR16_16;
+    } else if ( 0 == strcasecmp("ptr16:32", token) ) {
+        /* ptr16:32 */
+        return OPERAND_PTR16_32;
+    } else if ( 0 == strcasecmp("ptr16:64", token) ) {
+        /* ptr16:64 */
+        return OPERAND_PTR16_64;
+    } else if ( 0 == strcasecmp("r8", token) ) {
+        /* r8 */
+        return OPERAND_R8;
+    } else if ( 0 == strcasecmp("r16", token) ) {
+        /* r16 */
+        return OPERAND_R16;
+    } else if ( 0 == strcasecmp("r32", token) ) {
+        /* r32 */
+        return OPERAND_R32;
+    } else if ( 0 == strcasecmp("r64", token) ) {
+        /* r64 */
+        return OPERAND_R64;
+    } else if ( 0 == strcasecmp("r/m8", token) ) {
+        /* r/m8 */
+        return OPERAND_RM8;
+    } else if ( 0 == strcasecmp("r/m16", token) ) {
+        /* r/m16 */
+        return OPERAND_RM16;
+    } else if ( 0 == strcasecmp("r/m32", token) ) {
+        /* r/m32 */
+        return OPERAND_RM32;
+    } else if ( 0 == strcasecmp("r/m64", token) ) {
+        /* r/m64 */
+        return OPERAND_RM64;
+    }
     return -1;
 }
 
