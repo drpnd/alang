@@ -45,6 +45,16 @@
 #define OPCODE_RO           0x608
 #define OPCODE_ST_PREFIX    0x700
 
+/*
+ * Encode type
+ */
+enum encode {
+    ENCODE_RM,
+    ENCODE_MR,
+    ENCODE_OI,
+    ENCODE_MI,
+};
+
 #define OPERAND_REL8        0x101
 #define OPERAND_REL16       0x102
 #define OPERAND_REL32       0x104
@@ -263,16 +273,16 @@ _parse_operand(const char *token)
     } else if ( 0 == strcasecmp("r/m64", token) ) {
         /* r/m64 */
         return OPERAND_RM64;
-    else if ( 0 == strcasecmp("imm8", token) ) {
+    } else if ( 0 == strcasecmp("imm8", token) ) {
         /* imm8 */
         return OPERAND_IMM8;
-    else if ( 0 == strcasecmp("imm16", token) ) {
+    } else if ( 0 == strcasecmp("imm16", token) ) {
         /* imm16 */
         return OPERAND_IMM16;
-    else if ( 0 == strcasecmp("imm32", token) ) {
+    } else if ( 0 == strcasecmp("imm32", token) ) {
         /* imm32 */
         return OPERAND_IMM32;
-    else if ( 0 == strcasecmp("imm64", token) ) {
+    } else if ( 0 == strcasecmp("imm64", token) ) {
         /* imm64 */
         return OPERAND_IMM64;
     }
