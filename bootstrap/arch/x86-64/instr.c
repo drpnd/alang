@@ -110,6 +110,38 @@ struct opcode {
 };
 
 /*
+ * Encode: RM
+ */
+struct encode_rm {
+    int r;
+    int rm;
+};
+
+/*
+ * Encode: MR
+ */
+struct encode_mr {
+    int rm;
+    int r;
+};
+
+/*
+ * Encode: OI
+ */
+struct encode_oi {
+    int r;
+    int imm;
+};
+
+/*
+ * Encode: MI
+ */
+struct encode_mi {
+    int rm;
+    int imm;
+};
+
+/*
  * Rule tuple
  */
 struct rule {
@@ -231,7 +263,20 @@ _parse_operand(const char *token)
     } else if ( 0 == strcasecmp("r/m64", token) ) {
         /* r/m64 */
         return OPERAND_RM64;
+    else if ( 0 == strcasecmp("imm8", token) ) {
+        /* imm8 */
+        return OPERAND_IMM8;
+    else if ( 0 == strcasecmp("imm16", token) ) {
+        /* imm16 */
+        return OPERAND_IMM16;
+    else if ( 0 == strcasecmp("imm32", token) ) {
+        /* imm32 */
+        return OPERAND_IMM32;
+    else if ( 0 == strcasecmp("imm64", token) ) {
+        /* imm64 */
+        return OPERAND_IMM64;
     }
+
     return -1;
 }
 
