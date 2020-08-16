@@ -49,7 +49,7 @@
 /*
  * Encode type
  */
-enum encode {
+enum encode_type {
     ENCODE_M,
     ENCODE_RM,
     ENCODE_MR,
@@ -110,7 +110,7 @@ enum encode {
 #define OPERAND_XMM_M64     0xf08
 #define OPERAND_XMM_M128    0xf10
 
-
+#define OPCODE_MAX_SIZE     16
 
 
 /*
@@ -119,7 +119,14 @@ enum encode {
 struct opcode {
     size_t size;
     int rexw;
-    int opcode[8];
+    int opcode[OPCODE_MAX_SIZE];
+};
+
+/*
+ * Encode: M
+ */
+struct encode_m {
+    int m;
 };
 
 /*
@@ -152,6 +159,20 @@ struct encode_oi {
 struct encode_mi {
     int rm;
     int imm;
+};
+
+/*
+ * Encode
+ */
+struct encode {
+    enum encode_type type;
+    union {
+        struct encode_m m;
+        struct encode_rm rm;
+        struct encode_mr mr;
+        struct encode_oi oi;
+        struct encode_mi mi;
+    } u;
 };
 
 /*
@@ -265,6 +286,7 @@ _parse_opcode(const char *opcode)
     char *savedptr;
     char *s;
     int c;
+    struct opcode op;
 
     /* Copy the opcode */
     s = strdup(opcode);
@@ -273,19 +295,37 @@ _parse_opcode(const char *opcode)
     }
 
     tok = strtok_r(s, " ", &savedptr);
+    op.rexw = 0;
+    op.size = 0;
     while ( NULL != tok ) {
         c = _parse_opcode_chunk(tok);
-        printf("%d\n", c);
+        if ( c < 0 ) {
+            return -1;
+        } else if ( OPCODE_REXW == c ) {
+            op.rexw = c;
+        } else {
+            if ( op.size >= OPCODE_MAX_SIZE ) {
+                /* Exceed the maximum opcode size */
+                return -1;
+            }
+            op.opcode[op.size] = c;
+            op.size++;
+        }
         tok = strtok_r(NULL, " ", &savedptr);
+    }
+
+    int i;
+    for ( i = 0; i < op.size; i++ ) {
+        printf("\top: %x\n", op.opcode[i]);
     }
 
     return 0;
 }
 
 /*
- * Parse encode type
+ * _parse_encode_type -- parse the encode type of an token
  */
-int
+static int
 _parse_encode_type(const char *token)
 {
     if ( 0 == strcasecmp("M", token) ) {
@@ -306,10 +346,10 @@ _parse_encode_type(const char *token)
 }
 
 /* 
- * Parse an operand
+ * _parse_operand_chunk -- parse an operand chunk
  */
-int
-_parse_operand(const char *token)
+static int
+_parse_operand_chunk(const char *token)
 {
     if ( 0 == strcasecmp("rel8", token) ) {
         /* rel8 */
