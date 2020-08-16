@@ -28,6 +28,7 @@
 #include <string.h>
 
 int x86_64_test(uint8_t *);
+int instr_parse_file(const char *);
 
 /*
  * Main routine for the linker test
@@ -49,6 +50,7 @@ main(int argc, const char *const argv[])
     }
     printf("\n");
 
+    instr_parse_file("bootstrap/arch/x86-64/call.i");
 
     return 0;
 }

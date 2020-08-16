@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
 
 #define OPCODE_REXW         0x101
 #define OPCODE_DIGIT_PREFIX 0x200
@@ -312,19 +313,78 @@ _parse_operand(const char *token)
     return -1;
 }
 
+/* 
+ * Trim leading and trailing whitespaces
+ */
+static char *
+_trim(char *s)
+{
+    char *ns;
+    char *rs;
+
+    rs = s;
+    ns = s;
+
+    /* Remove leading whitespaces */
+    while ( *s ) {
+        if ( isspace(*s) ) {
+            s++;
+        } else {
+            break;
+        }
+    }
+
+    /* Copy */
+    while ( *s ) {
+        *ns = *s;
+        ns++;
+        s++;
+    }
+
+    /* Remove trailing whitespaces */
+    ns--;
+    while ( isspace(*ns) ) {
+        *ns = '\0';
+        ns--;
+    }
+
+    return rs;
+}
+
 /*
  * Parse an instruction definition file
  */
 int
-instr_parse_file(FILE *fp)
+instr_parse_file(const char *fname)
 {
+    FILE *fp;
     char buf[1024];
-    while ( feof(fp) ) {
+    char *tok;
+    char *savedptr;
+
+    fp = fopen(fname, "r");
+    if ( NULL == fp ) {
+        return -1;
+    }
+
+    while ( !feof(fp) ) {
         if ( NULL == fgets(buf, sizeof(buf), fp) ) {
-            continue;
+            if ( !feof(fp) ) {
+                /* Error */
+                fclose(fp);
+                return -1;
+            }
+            break;
         }
         /* Parse this line */
+        tok = strtok_r(buf, "|", &savedptr);
+        while ( NULL != tok ) {
+            printf("Token: %s\n", _trim(tok));
+            tok = strtok_r(NULL, "|", &savedptr);
+        }
     }
+
+    fclose(fp);
 
     return 0;
 }

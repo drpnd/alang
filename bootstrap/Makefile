@@ -24,7 +24,7 @@ minica: y.tab.o lex.yy.o syntax.o compile.o arch/x86-64/x86-64.o arch/x86-64/ins
 minica_test_ld: tests/minica_test_ld.o ld/mach-o.o ld/elf.o
 	$(CC) -g -o $@ $^
 
-minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o
+minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o arch/x86-64/instr.o
 	$(CC) -g -o $@ $^
 
 clean:
