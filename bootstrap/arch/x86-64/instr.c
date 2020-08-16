@@ -50,10 +50,12 @@
  * Encode type
  */
 enum encode {
+    ENCODE_M,
     ENCODE_RM,
     ENCODE_MR,
     ENCODE_OI,
     ENCODE_MI,
+    ENCODE_D,
 };
 
 #define OPERAND_REL8        0x101
@@ -160,12 +162,36 @@ struct rule {
 };
 
 /*
- * Parse an opcode field
+ * _ishexdigit -- check if the hexdecimal ascii character
  */
-int
-_parse_opcode(const char *token)
+static int
+_ishexdigit(int c)
+{
+    if ( '0' <= c && c <= '9' ) {
+        return 1;
+    } else if ( 'a' <= c && c <= 'f' ) {
+        return 1;
+    } else if ( 'A' <= c && c <= 'F' ) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/*
+ * _parse_opcode_chunk -- parse an opcode chunk
+ */
+static int
+_parse_opcode_chunk(const char *token)
 {
     int ret;
+
+    /* Hexdecimal */
+    if ( 2 == strlen(token) ) {
+        if ( _ishexdigit(token[0]) && _ishexdigit(token[1]) ) {
+            return strtol(token, NULL, 16);
+        }
+    }
 
     if ( 0 == strcasecmp("W", token) ) {
         /* REX.W */
@@ -176,7 +202,10 @@ _parse_opcode(const char *token)
             ret = OPCODE_REGISTER;
         } else if ( '0' <= *token && *token <= '7' ) {
             ret = OPCODE_DIGIT_PREFIX + (*token - '0');
+        } else {
+            return -1;
         }
+        token++;
         if ( '\0' != *token ) {
             return -1;
         }
@@ -227,12 +256,41 @@ _parse_opcode(const char *token)
 }
 
 /*
+ * _parse_opcode -- parse an opcode field
+ */
+static int
+_parse_opcode(const char *opcode)
+{
+    char *tok;
+    char *savedptr;
+    char *s;
+    int c;
+
+    /* Copy the opcode */
+    s = strdup(opcode);
+    if ( NULL == s ) {
+        return -1;
+    }
+
+    tok = strtok_r(s, " ", &savedptr);
+    while ( NULL != tok ) {
+        c = _parse_opcode_chunk(tok);
+        printf("%d\n", c);
+        tok = strtok_r(NULL, " ", &savedptr);
+    }
+
+    return 0;
+}
+
+/*
  * Parse encode type
  */
 int
 _parse_encode_type(const char *token)
 {
-    if ( 0 == strcasecmp("RM", token) ) {
+    if ( 0 == strcasecmp("M", token) ) {
+        return ENCODE_M;
+    } else if ( 0 == strcasecmp("RM", token) ) {
         return ENCODE_RM;
     } else if ( 0 == strcasecmp("MR", token) ) {
         return ENCODE_MR;
@@ -240,6 +298,8 @@ _parse_encode_type(const char *token)
         return ENCODE_OI;
     } else if ( 0 == strcasecmp("MI", token) ) {
         return ENCODE_MI;
+    } else if ( 0 == strcasecmp("D", token) ) {
+        return ENCODE_D;
     }
 
     return -1;
@@ -308,6 +368,15 @@ _parse_operand(const char *token)
     } else if ( 0 == strcasecmp("imm64", token) ) {
         /* imm64 */
         return OPERAND_IMM64;
+    } else if ( 0 == strcasecmp("m16:16", token) ) {
+        /* m16:16 */
+        return OPERAND_M16_16;
+    } else if ( 0 == strcasecmp("m16:32", token) ) {
+        /* m16:32 */
+        return OPERAND_M16_32;
+    } else if ( 0 == strcasecmp("m16:64", token) ) {
+        /* m16:64 */
+        return OPERAND_M16_64;
     }
 
     return -1;
@@ -361,6 +430,9 @@ instr_parse_file(const char *fname)
     char buf[1024];
     char *tok;
     char *savedptr;
+    char *cols[3];
+    int i;
+    int n;
 
     fp = fopen(fname, "r");
     if ( NULL == fp ) {
@@ -377,10 +449,30 @@ instr_parse_file(const char *fname)
             break;
         }
         /* Parse this line */
+        _trim(buf);
+        if ( 0 == strncmp("//", buf, 2) ) {
+            /* Comment */
+            continue;
+        }
+        n = 0;
         tok = strtok_r(buf, "|", &savedptr);
         while ( NULL != tok ) {
-            printf("Token: %s\n", _trim(tok));
+            if ( n < 3 ) {
+                cols[n] = _trim(tok);
+                n++;
+            }
             tok = strtok_r(NULL, "|", &savedptr);
+        }
+        if ( 3 != n ) {
+            /* Invalid line */
+            fprintf(stderr, "Invalid instruction rule\n");
+            continue;
+        }
+        int enc = _parse_encode_type(cols[1]);
+        printf("Encode Type: %x\n", enc);
+        _parse_opcode(cols[0]);
+        for ( i = 0; i < n; i++ ) {
+            printf("\tToken %d: %s\n", i, cols[i]);
         }
     }
 
