@@ -158,6 +158,9 @@ struct rule {
     struct opcode op;
 };
 
+/*
+ * Parse an opcode field
+ */
 int
 _parse_opcode(const char *token)
 {
@@ -217,6 +220,25 @@ _parse_opcode(const char *token)
         } else {
             return -1;
         }
+    }
+
+    return -1;
+}
+
+/*
+ * Parse encode type
+ */
+int
+_parse_encode_type(const char *token)
+{
+    if ( 0 == strcasecmp("RM", token) ) {
+        return ENCODE_RM;
+    } else if ( 0 == strcasecmp("MR", token) ) {
+        return ENCODE_MR;
+    } else if ( 0 == strcasecmp("OI", token) ) {
+        return ENCODE_OI;
+    } else if ( 0 == strcasecmp("MI", token) ) {
+        return ENCODE_MI;
     }
 
     return -1;
