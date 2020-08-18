@@ -421,6 +421,18 @@ _parse_operand_chunk(const char *token)
     } else if ( 0 == strcasecmp("m16:64", token) ) {
         /* m16:64 */
         return OPERAND_M16_64;
+    } else if ( 0 == strcasecmp("al", token) ) {
+        /* al */
+        return OPERAND_AL;
+    } else if ( 0 == strcasecmp("ax", token) ) {
+        /* ax */
+        return OPERAND_AX;
+    } else if ( 0 == strcasecmp("eax", token) ) {
+        /* eax */
+        return OPERAND_EAX;
+    } else if ( 0 == strcasecmp("rax", token) ) {
+        /* rax */
+        return OPERAND_RAX;
     }
 
     return -1;
