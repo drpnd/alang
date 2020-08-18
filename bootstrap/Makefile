@@ -6,6 +6,9 @@
 #      Hirochika Asai  <asai@jar.jp>
 #
 
+BASEDIR=$(shell pwd)
+CFLAGS=-g -Wall -DBASEDIR=\"$(BASEDIR)\"
+
 all:
 	$(MAKE) minica minica_test_ld minica_test_asm
 
@@ -19,13 +22,13 @@ syntax.o: syntax.c syntax.h
 compile.o: compile.c compile.h
 
 minica: y.tab.o lex.yy.o syntax.o compile.o arch/x86-64/x86-64.o arch/x86-64/instr.o ld/mach-o.o
-	$(CC) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 minica_test_ld: tests/minica_test_ld.o ld/mach-o.o ld/elf.o
-	$(CC) -g -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o arch/x86-64/instr.o
-	$(CC) -g -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
 	rm -f *.o minica y.y.tab.c y.tab.h lex.yy.c
