@@ -538,6 +538,25 @@ instr_parse_file(const char *fname)
 }
 
 /*
+ * Load all instructions
+ */
+int
+x86_64_load_instr(void)
+{
+    static const char *mnemonics[] = { "add", "call", "mov" };
+    int i;
+    char fname[128];
+
+    for ( i = 0; i < sizeof(mnemonics) / sizeof(mnemonics[0]); i++ ) {
+        snprintf(fname, sizeof(fname), "bootstrap/arch/x86-64/%s.i", mnemonics[i]);
+        printf("* %s\n", mnemonics[i]);
+        instr_parse_file("bootstrap/arch/x86-64/call.i");
+    }
+    return 0;
+}
+
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4
