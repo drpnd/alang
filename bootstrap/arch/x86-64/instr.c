@@ -109,6 +109,10 @@ enum encode_type {
 #define OPERAND_XMM_M32     0xf04
 #define OPERAND_XMM_M64     0xf08
 #define OPERAND_XMM_M128    0xf10
+#define OPERAND_AL          0x1001
+#define OPERAND_AX          0x1002
+#define OPERAND_EAX         0x1004
+#define OPERAND_RAX         0x1008
 
 #define OPCODE_MAX_SIZE     16
 
