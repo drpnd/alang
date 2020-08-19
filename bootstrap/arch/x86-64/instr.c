@@ -122,7 +122,6 @@ enum encode_type {
  */
 struct opcode {
     size_t size;
-    int rexw;
     int opcode[OPCODE_MAX_SIZE];
 };
 
@@ -185,6 +184,45 @@ struct encode {
 struct rule {
     struct opcode op;
 };
+
+/*
+ * Trim leading and trailing whitespaces
+ */
+static char *
+_trim(char *s)
+{
+    char *ns;
+    char *rs;
+
+    rs = s;
+    ns = s;
+
+    /* Remove leading whitespaces */
+    while ( *s ) {
+        if ( isspace(*s) ) {
+            s++;
+        } else {
+            break;
+        }
+    }
+
+    /* Copy */
+    while ( *s ) {
+        *ns = *s;
+        ns++;
+        s++;
+    }
+    *ns = 0;
+
+    /* Remove trailing whitespaces */
+    ns--;
+    while ( isspace(*ns) ) {
+        *ns = '\0';
+        ns--;
+    }
+
+    return rs;
+}
 
 /*
  * _ishexdigit -- check if the hexdecimal ascii character
@@ -299,14 +337,11 @@ _parse_opcode(const char *opcode)
     }
 
     tok = strtok_r(s, " ", &savedptr);
-    op.rexw = 0;
     op.size = 0;
     while ( NULL != tok ) {
         c = _parse_opcode_chunk(tok);
         if ( c < 0 ) {
             return -1;
-        } else if ( OPCODE_REXW == c ) {
-            op.rexw = c;
         } else {
             if ( op.size >= OPCODE_MAX_SIZE ) {
                 /* Exceed the maximum opcode size */
@@ -438,42 +473,54 @@ _parse_operand_chunk(const char *token)
     return -1;
 }
 
-/* 
- * Trim leading and trailing whitespaces
+/*
+ * _parse_operand
  */
-static char *
-_trim(char *s)
+int
+_parse_operand(int enc, const char *operands)
 {
-    char *ns;
-    char *rs;
+    char *s;
+    char *tok;
+    char *savedptr;
+    int arr[3];
+    int operand;
+    int n;
 
-    rs = s;
-    ns = s;
+    /* Duplicate the operand string */
+    s = strdup(operands);
+    if ( NULL == s ) {
+        return -1;
+    }
 
-    /* Remove leading whitespaces */
-    while ( *s ) {
-        if ( isspace(*s) ) {
-            s++;
-        } else {
-            break;
+    n = 0;
+    tok = strtok_r(s, ",", &savedptr);
+    while ( NULL != tok ) {
+        if ( n < 3 ) {
+            operand = _parse_operand_chunk(_trim(tok));
+            if ( operand < 0 ) {
+                return -1;
+            }
+            arr[n] = operand;
+            n++;
         }
+        tok = strtok_r(NULL, ",", &savedptr);
     }
 
-    /* Copy */
-    while ( *s ) {
-        *ns = *s;
-        ns++;
-        s++;
+    int i;
+    for ( i = 0; i < n; i++ ) {
+        printf("\toperand: %x\n", arr[i]);
     }
 
-    /* Remove trailing whitespaces */
-    ns--;
-    while ( isspace(*ns) ) {
-        *ns = '\0';
-        ns--;
+    switch ( enc ) {
+    case ENCODE_RM:
+    case ENCODE_MR:
+    case ENCODE_OI:
+    case ENCODE_MI:
+        break;
+    default:
+        return -1;
     }
-
-    return rs;
+    return 0;
 }
 
 /*
@@ -530,6 +577,8 @@ instr_parse_file(const char *fname)
         for ( i = 0; i < n; i++ ) {
             printf("\tToken %d: %s\n", i, cols[i]);
         }
+        _parse_operand(enc, cols[2]);
+
     }
 
     fclose(fp);
