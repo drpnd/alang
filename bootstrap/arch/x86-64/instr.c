@@ -543,7 +543,7 @@ instr_parse_file(const char *fname)
 int
 x86_64_load_instr(void)
 {
-    static const char *mnemonics[] = { "add", "call", "mov" };
+    static const char *mnemonics[] = { "adc", "add", "call", "mov" };
     int i;
     char fname[128];
 
@@ -552,6 +552,7 @@ x86_64_load_instr(void)
         printf("* %s\n", mnemonics[i]);
         instr_parse_file(fname);
     }
+
     return 0;
 }
 
