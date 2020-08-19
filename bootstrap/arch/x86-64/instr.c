@@ -182,6 +182,8 @@ struct encode {
  * Rule tuple
  */
 struct rule {
+    char *mnemonic;
+    struct encode encode;
     struct opcode op;
 };
 
