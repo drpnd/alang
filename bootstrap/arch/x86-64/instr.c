@@ -597,7 +597,7 @@ x86_64_load_instr(void)
     char fname[128];
 
     for ( i = 0; i < sizeof(mnemonics) / sizeof(mnemonics[0]); i++ ) {
-        snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/%s.i", mnemonics[i]);
+        snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/%s.idef", mnemonics[i]);
         printf("* %s\n", mnemonics[i]);
         instr_parse_file(fname);
     }
