@@ -27,6 +27,10 @@
 #include <string.h>
 #include <ctype.h>
 
+#ifndef BASEDIR
+#define BASEDIR ""
+#endif
+
 #define OPCODE_REXW         0x101
 #define OPCODE_DIGIT_PREFIX 0x200
 #define OPCODE_REGISTER     0x300
@@ -186,6 +190,10 @@ struct rule {
     struct encode encode;
     struct opcode op;
 };
+
+/*
+ * Rules
+ */
 
 /*
  * Trim leading and trailing whitespaces
