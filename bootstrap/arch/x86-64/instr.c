@@ -186,14 +186,26 @@ struct encode {
  * Rule tuple
  */
 struct rule {
-    char *mnemonic;
     struct encode encode;
     struct opcode op;
+    struct rule *next;
+};
+
+/*
+ * Rules for a mnemonic
+ */
+struct mnemonic {
+    char *mnemonic;
+    struct rule *rules;
+    struct mnemonic *next;
 };
 
 /*
  * Rules
  */
+struct x86_64_instr_ruleset {
+    struct mnemonic *mnemonics;
+};
 
 /*
  * Trim leading and trailing whitespaces
