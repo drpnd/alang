@@ -590,6 +590,7 @@ _instr_parse_file(const char *m, const char *fname)
     char *cols[3];
     int i;
     int n;
+    int enc;
 
     mnemonic = malloc(sizeof(struct mnemonic));
     if ( NULL == mnemonic ) {
@@ -643,12 +644,16 @@ _instr_parse_file(const char *m, const char *fname)
             fprintf(stderr, "Invalid instruction rule\n");
             continue;
         }
-        int enc = _parse_encode_type(cols[1]);
+
+        /* Parse tje encode type */
+        enc = _parse_encode_type(cols[1]);
         printf("Encode Type: %x\n", enc);
+        /* Parse the opcode */
         _parse_opcode(cols[0]);
         for ( i = 0; i < n; i++ ) {
             printf("\tToken %d: %s\n", i, cols[i]);
         }
+        /* Parse the operand */
         _parse_operand(enc, cols[2]);
 
     }
