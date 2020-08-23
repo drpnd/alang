@@ -264,6 +264,36 @@ _ishexdigit(int c)
 }
 
 /*
+ * _free_rule
+ */
+static void
+_free_rule(struct rule *rule)
+{
+    free(rule);
+}
+
+/*
+ * _free_mnemonic
+ */
+static void
+_free_mnemonic(struct mnemonic *mnemonic)
+{
+    struct rule *rule;
+    struct rule *next;
+
+    if ( mnemonic->mnemonic ) {
+        free(mnemonic->mnemonic);
+    }
+    rule = mnemonic->rules;
+    while ( NULL != rule ) {
+        next = rule->next;
+        _free_rule(rule);
+        rule = next;
+    }
+    free(mnemonic);
+}
+
+/*
  * _parse_opcode_chunk -- parse an opcode chunk
  */
 static int
@@ -580,7 +610,7 @@ _instr_parse_file(const char *m, const char *fname)
             if ( !feof(fp) ) {
                 /* Error */
                 fclose(fp);
-                free(mnemonic);
+                _free_mnemonic(mnemonic);
                 return NULL;
             }
             break;
@@ -595,7 +625,7 @@ _instr_parse_file(const char *m, const char *fname)
         rule = malloc(sizeof(rule));
         if ( NULL == rule ) {
             fclose(fp);
-            free(mnemonic);
+            _free_mnemonic(mnemonic);
             return NULL;
         }
 
