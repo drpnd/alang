@@ -614,12 +614,24 @@ instr_parse_file(const char *fname)
 int
 x86_64_load_instr(void)
 {
-    static const char *mnemonics[] = { "adc", "add", "call", "mov" };
+    struct x86_64_instr_ruleset ruleset;
+    struct mnemonic *mnemonic;
+    static const char *mnemonics[] = {"adc", "add", "call", "mov"};
     int i;
     char fname[128];
 
+    ruleset.mnemonics = NULL;
+
     for ( i = 0; i < sizeof(mnemonics) / sizeof(mnemonics[0]); i++ ) {
-        snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/%s.idef", mnemonics[i]);
+        mnemonic = malloc(sizeof(struct mnemonic));
+        if ( NULL == mnemonic ) {
+            return -1;
+        }
+        mnemonic->mnemonic = strdup(mnemonics[i]);
+        mnemonic->rules = NULL;
+        mnemonic->next = NULL;
+        snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/%s.idef",
+                 mnemonics[i]);
         printf("* %s\n", mnemonics[i]);
         instr_parse_file(fname);
     }
