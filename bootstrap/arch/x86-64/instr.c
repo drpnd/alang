@@ -548,9 +548,11 @@ _parse_operand(int enc, const char *operands)
 /*
  * Parse an instruction definition file
  */
-int
-instr_parse_file(const char *fname)
+static struct mnemonic *
+_instr_parse_file(const char *m, const char *fname)
 {
+    struct mnemonic *mnemonic;
+    struct rule *rule;
     FILE *fp;
     char buf[1024];
     char *tok;
@@ -559,9 +561,18 @@ instr_parse_file(const char *fname)
     int i;
     int n;
 
+    mnemonic = malloc(sizeof(struct mnemonic));
+    if ( NULL == mnemonic ) {
+        return NULL;
+    }
+    mnemonic->mnemonic = strdup(m);
+    mnemonic->rules = NULL;
+    mnemonic->next = NULL;
+
     fp = fopen(fname, "r");
     if ( NULL == fp ) {
-        return -1;
+        free(mnemonic);
+        return NULL;
     }
 
     while ( !feof(fp) ) {
@@ -569,7 +580,8 @@ instr_parse_file(const char *fname)
             if ( !feof(fp) ) {
                 /* Error */
                 fclose(fp);
-                return -1;
+                free(mnemonic);
+                return NULL;
             }
             break;
         }
@@ -579,6 +591,14 @@ instr_parse_file(const char *fname)
             /* Comment */
             continue;
         }
+        /* New rule */
+        rule = malloc(sizeof(rule));
+        if ( NULL == rule ) {
+            fclose(fp);
+            free(mnemonic);
+            return NULL;
+        }
+
         n = 0;
         tok = strtok_r(buf, "|", &savedptr);
         while ( NULL != tok ) {
@@ -605,7 +625,7 @@ instr_parse_file(const char *fname)
 
     fclose(fp);
 
-    return 0;
+    return mnemonic;
 }
 
 /*
@@ -623,17 +643,10 @@ x86_64_load_instr(void)
     ruleset.mnemonics = NULL;
 
     for ( i = 0; i < sizeof(mnemonics) / sizeof(mnemonics[0]); i++ ) {
-        mnemonic = malloc(sizeof(struct mnemonic));
-        if ( NULL == mnemonic ) {
-            return -1;
-        }
-        mnemonic->mnemonic = strdup(mnemonics[i]);
-        mnemonic->rules = NULL;
-        mnemonic->next = NULL;
         snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/%s.idef",
                  mnemonics[i]);
         printf("* %s\n", mnemonics[i]);
-        instr_parse_file(fname);
+        mnemonic = _instr_parse_file(mnemonics[i], fname);
     }
 
     return 0;
