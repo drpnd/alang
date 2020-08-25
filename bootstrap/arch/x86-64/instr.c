@@ -682,6 +682,11 @@ x86_64_load_instr(void)
                  mnemonics[i]);
         printf("* %s\n", mnemonics[i]);
         mnemonic = _instr_parse_file(mnemonics[i], fname);
+        if ( NULL == mnemonic ) {
+            return -1;
+        }
+        mnemonic->next = ruleset.mnemonics;
+        ruleset.mnemonics = mnemonic;
     }
 
     return 0;
