@@ -565,9 +565,24 @@ _parse_operand(int enc, const char *operands)
 
     switch ( enc ) {
     case ENCODE_RM:
+        if ( n != 2 ) {
+            return -1;
+        }
+        break;
     case ENCODE_MR:
+        if ( n != 2 ) {
+            return -1;
+        }
+        break;
     case ENCODE_OI:
+        if ( n != 2 ) {
+            return -1;
+        }
+        break;
     case ENCODE_MI:
+        if ( n != 2 ) {
+            return -1;
+        }
         break;
     default:
         return -1;
