@@ -529,7 +529,7 @@ _parse_operand_chunk(const char *token)
  * _parse_operand
  */
 int
-_parse_operand(int enc, const char *operands)
+_parse_operand(struct encode *encode, int enc, const char *operands)
 {
     char *s;
     char *tok;
@@ -568,21 +568,29 @@ _parse_operand(int enc, const char *operands)
         if ( n != 2 ) {
             return -1;
         }
+        encode->u.rm.r = arr[0];
+        encode->u.rm.rm = arr[1];
         break;
     case ENCODE_MR:
         if ( n != 2 ) {
             return -1;
         }
+        encode->u.mr.rm = arr[0];
+        encode->u.mr.r = arr[1];
         break;
     case ENCODE_OI:
         if ( n != 2 ) {
             return -1;
         }
+        encode->u.oi.r = arr[0];
+        encode->u.oi.imm = arr[1];
         break;
     case ENCODE_MI:
         if ( n != 2 ) {
             return -1;
         }
+        encode->u.mi.rm = arr[0];
+        encode->u.mi.imm = arr[1];
         break;
     default:
         return -1;
@@ -669,7 +677,7 @@ _instr_parse_file(const char *m, const char *fname)
             printf("\tToken %d: %s\n", i, cols[i]);
         }
         /* Parse the operand */
-        _parse_operand(enc, cols[2]);
+        _parse_operand(&rule->encode, enc, cols[2]);
 
     }
 
