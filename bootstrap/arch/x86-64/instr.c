@@ -169,6 +169,13 @@ struct encode_mi {
 };
 
 /*
+ * Encode: D
+ */
+struct encode_d {
+    int ptr;
+};
+
+/*
  * Encode
  */
 struct encode {
@@ -179,6 +186,7 @@ struct encode {
         struct encode_mr mr;
         struct encode_oi oi;
         struct encode_mi mi;
+        struct encode_d d;
     } u;
 };
 
@@ -591,6 +599,12 @@ _parse_operand(struct encode *encode, int enc, const char *operands)
         }
         encode->u.mi.rm = arr[0];
         encode->u.mi.imm = arr[1];
+        break;
+    case ENCODE_D:
+        if ( n != 1 ) {
+            return -1;
+        }
+        encode->u.d.ptr = arr[0];
         break;
     default:
         return -1;
