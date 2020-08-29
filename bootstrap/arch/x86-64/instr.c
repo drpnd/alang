@@ -566,11 +566,6 @@ _parse_operand(struct encode *encode, int enc, const char *operands)
         tok = strtok_r(NULL, ",", &savedptr);
     }
 
-    int i;
-    for ( i = 0; i < n; i++ ) {
-        printf("\toperand: %x\n", arr[i]);
-    }
-
     switch ( enc ) {
     case ENCODE_RM:
         if ( n != 2 ) {
