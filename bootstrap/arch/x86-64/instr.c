@@ -712,7 +712,6 @@ x86_64_load_instr(void)
     for ( i = 0; i < sizeof(mnemonics) / sizeof(mnemonics[0]); i++ ) {
         snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/%s.idef",
                  mnemonics[i]);
-        printf("* %s\n", mnemonics[i]);
         mnemonic = _instr_parse_file(mnemonics[i], fname);
         if ( NULL == mnemonic ) {
             return -1;
@@ -721,9 +720,14 @@ x86_64_load_instr(void)
         ruleset.mnemonics = mnemonic;
     }
 
+    mnemonic = ruleset.mnemonics;
+    while ( NULL != mnemonic ) {
+        printf("* %s\n", mnemonic->mnemonic);
+        mnemonic = mnemonic->next;
+    }
+
     return 0;
 }
-
 
 /*
  * Local variables:
