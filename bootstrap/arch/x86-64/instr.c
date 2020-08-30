@@ -590,6 +590,12 @@ _parse_operand(struct encode *encode, int enc, const char *operands)
         encode->u.mi.rm = arr[0];
         encode->u.mi.imm = arr[1];
         break;
+    case ENCODE_M:
+        if ( n != 1 ) {
+            return -1;
+        }
+        encode->u.m.m = arr[0];
+        break;
     case ENCODE_D:
         if ( n != 1 ) {
             return -1;
