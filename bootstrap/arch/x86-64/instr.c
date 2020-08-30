@@ -382,13 +382,12 @@ _parse_opcode_chunk(const char *token)
  * _parse_opcode -- parse an opcode field
  */
 static int
-_parse_opcode(const char *opcode)
+_parse_opcode(struct opcode *op, const char *opcode)
 {
     char *tok;
     char *savedptr;
     char *s;
     int c;
-    struct opcode op;
 
     /* Copy the opcode */
     s = strdup(opcode);
@@ -397,25 +396,20 @@ _parse_opcode(const char *opcode)
     }
 
     tok = strtok_r(s, " ", &savedptr);
-    op.size = 0;
+    op->size = 0;
     while ( NULL != tok ) {
         c = _parse_opcode_chunk(tok);
         if ( c < 0 ) {
             return -1;
         } else {
-            if ( op.size >= OPCODE_MAX_SIZE ) {
+            if ( op->size >= OPCODE_MAX_SIZE ) {
                 /* Exceed the maximum opcode size */
                 return -1;
             }
-            op.opcode[op.size] = c;
-            op.size++;
+            op->opcode[op->size] = c;
+            op->size++;
         }
         tok = strtok_r(NULL, " ", &savedptr);
-    }
-
-    int i;
-    for ( i = 0; i < op.size; i++ ) {
-        printf("\top: %x\n", op.opcode[i]);
     }
 
     return 0;
@@ -566,6 +560,7 @@ _parse_operand(struct encode *encode, int enc, const char *operands)
         tok = strtok_r(NULL, ",", &savedptr);
     }
 
+    encode->type = enc;
     switch ( enc ) {
     case ENCODE_RM:
         if ( n != 2 ) {
@@ -604,6 +599,7 @@ _parse_operand(struct encode *encode, int enc, const char *operands)
     default:
         return -1;
     }
+
     return 0;
 }
 
@@ -620,20 +616,25 @@ _instr_parse_file(const char *m, const char *fname)
     char *tok;
     char *savedptr;
     char *cols[3];
-    int i;
     int n;
     int enc;
+    int ret;
 
     mnemonic = malloc(sizeof(struct mnemonic));
     if ( NULL == mnemonic ) {
         return NULL;
     }
     mnemonic->mnemonic = strdup(m);
+    if ( NULL == mnemonic ) {
+        free(mnemonic);
+        return NULL;
+    }
     mnemonic->rules = NULL;
     mnemonic->next = NULL;
 
     fp = fopen(fname, "r");
     if ( NULL == fp ) {
+        free(mnemonic->mnemonic);
         free(mnemonic);
         return NULL;
     }
@@ -655,12 +656,14 @@ _instr_parse_file(const char *m, const char *fname)
             continue;
         }
         /* New rule */
-        rule = malloc(sizeof(rule));
+        rule = malloc(sizeof(struct rule));
         if ( NULL == rule ) {
             fclose(fp);
             _free_mnemonic(mnemonic);
             return NULL;
         }
+        rule->op.size = 0;
+        rule->next = NULL;
 
         n = 0;
         tok = strtok_r(buf, "|", &savedptr);
@@ -674,20 +677,31 @@ _instr_parse_file(const char *m, const char *fname)
         if ( 3 != n ) {
             /* Invalid line */
             fprintf(stderr, "Invalid instruction rule\n");
+            free(rule);
             continue;
         }
 
         /* Parse tje encode type */
         enc = _parse_encode_type(cols[1]);
-        printf("Encode Type: %x\n", enc);
+        if ( enc < 0 ) {
+            free(rule);
+            continue;
+        }
         /* Parse the opcode */
-        _parse_opcode(cols[0]);
-        for ( i = 0; i < n; i++ ) {
-            printf("\tToken %d: %s\n", i, cols[i]);
+        ret = _parse_opcode(&rule->op, cols[0]);
+        if ( 0 != ret ) {
+            free(rule);
+            continue;
         }
         /* Parse the operand */
-        _parse_operand(&rule->encode, enc, cols[2]);
+        ret = _parse_operand(&rule->encode, enc, cols[2]);
+        if ( 0 != ret ) {
+            free(rule);
+            continue;
+        }
 
+        rule->next = mnemonic->rules;
+        mnemonic->rules = rule;
     }
 
     fclose(fp);
@@ -723,6 +737,16 @@ x86_64_load_instr(void)
     mnemonic = ruleset.mnemonics;
     while ( NULL != mnemonic ) {
         printf("* %s\n", mnemonic->mnemonic);
+        struct rule *rule;
+        int i;
+        rule = mnemonic->rules;
+        while ( NULL != rule ) {
+            printf("Encode: %x\n", rule->encode.type);
+            for ( i = 0; i < rule->op.size; i++ ) {
+                printf("\top: %x\n", rule->op.opcode[i]);
+            }
+            rule = rule->next;
+        }
         mnemonic = mnemonic->next;
     }
 
