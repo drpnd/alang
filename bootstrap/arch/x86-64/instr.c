@@ -716,6 +716,36 @@ _instr_parse_file(const char *m, const char *fname)
 }
 
 /*
+ * _search_rule -- search a matching rule
+ */
+static int
+_search_rule(struct mnemonic *mnemonic)
+{
+    return -1;
+}
+
+/*
+ * Search
+ */
+int
+x86_64_search(struct x86_64_instr_ruleset *ruleset, const char *mne)
+{
+    struct mnemonic *mnemonic;
+
+    mnemonic = ruleset->mnemonics;
+
+    while ( NULL != mnemonic ) {
+        if ( 0 == strcmp(mne, mnemonic->mnemonic) ) {
+            /* Found */
+            return _search_rule(mnemonic);
+        }
+        mnemonic = mnemonic->next;
+    }
+
+    return -1;
+}
+
+/*
  * Load all instructions
  */
 int
