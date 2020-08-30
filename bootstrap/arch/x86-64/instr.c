@@ -747,10 +747,32 @@ x86_64_load_instr(void)
         int i;
         rule = mnemonic->rules;
         while ( NULL != rule ) {
-            printf("Encode: %x\n", rule->encode.type);
-            for ( i = 0; i < rule->op.size; i++ ) {
-                printf("\top: %x\n", rule->op.opcode[i]);
+            printf("Encode: %x / ", rule->encode.type);
+            switch ( rule->encode.type ) {
+            case ENCODE_M:
+                printf("M %x", rule->encode.u.m.m);
+                break;
+            case ENCODE_RM:
+                printf("RM %x %x", rule->encode.u.rm.r, rule->encode.u.rm.rm);
+                break;
+            case ENCODE_MR:
+                printf("MR %x %x", rule->encode.u.mr.rm, rule->encode.u.mr.r);
+                break;
+            case ENCODE_OI:
+                printf("OI %x %x", rule->encode.u.oi.r, rule->encode.u.oi.imm);
+                break;
+            case ENCODE_MI:
+                printf("MI %x %x", rule->encode.u.mi.rm, rule->encode.u.mi.imm);
+                break;
+            case ENCODE_D:
+                printf("D %x", rule->encode.u.d.ptr);
+                break;
             }
+            printf(" /");
+            for ( i = 0; i < rule->op.size; i++ ) {
+                printf(" %x", rule->op.opcode[i]);
+            }
+            printf("\n");
             rule = rule->next;
         }
         mnemonic = mnemonic->next;
