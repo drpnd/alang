@@ -730,7 +730,7 @@ x86_64_load_instr(void)
     ruleset.mnemonics = NULL;
 
     for ( i = 0; i < sizeof(mnemonics) / sizeof(mnemonics[0]); i++ ) {
-        snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/%s.idef",
+        snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/idefs/%s.idef",
                  mnemonics[i]);
         mnemonic = _instr_parse_file(mnemonics[i], fname);
         if ( NULL == mnemonic ) {
