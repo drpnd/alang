@@ -721,6 +721,13 @@ _instr_parse_file(const char *m, const char *fname)
 static int
 _search_rule(struct mnemonic *mnemonic)
 {
+    struct rule *rule;
+
+    rule = mnemonic->rules;
+    while ( NULL != rule ) {
+        rule = rule->next;
+    }
+
     return -1;
 }
 
