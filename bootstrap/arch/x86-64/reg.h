@@ -198,7 +198,7 @@ typedef enum {
     REG_YMM15 = REG_ENCODE(7, 1, 0, 0, 256),
 } x86_64_reg_t;
 
-#endif /* _ARCH_H */
+#endif /* _ARCH_X86_64_REG_H */
 
 /*
  * Local variables:
