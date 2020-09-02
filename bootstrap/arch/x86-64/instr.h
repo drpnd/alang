@@ -24,15 +24,47 @@
 #ifndef _ARCH_X86_64_INSTR_H
 #define _ARCH_X86_64_INSTR_H
 
+#include <stdint.h>
 #include "reg.h"
+
+/*
+ * Operand type
+ */
+typedef enum {
+    X86_64_OPERAND_REG,
+    X86_64_OPERAND_MEM,
+    X86_64_OPERAND_IMM,
+} x86_64_operand_type_t;
+
+/*
+ * Memory operand
+ */
+typedef struct {
+    int base;
+    int sindex;
+    int scale;
+    int32_t disp;
+} x86_64_operand_mem_t;
+
+/*
+ * Operand
+ */
+typedef struct {
+    x86_64_operand_type_t type;
+    union {
+        int reg;
+        x86_64_operand_mem_t mem;
+        uint32_t imm;
+    } u;
+} x86_64_operand_t;
 
 #endif /* _ARCH_X86_64_INSTR_H */
 
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */
+    /*
+     * Local variables:
+     * tab-width: 4
+     * c-basic-offset: 4
+     * End:
+     * vim600: sw=4 ts=4 fdm=marker
+     * vim<600: sw=4 ts=4
+     */

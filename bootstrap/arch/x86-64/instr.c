@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <ctype.h>
+#include "instr.h"
 
 #ifndef BASEDIR
 #define BASEDIR ""
@@ -49,18 +50,6 @@
 #define OPCODE_RD           0x604
 #define OPCODE_RO           0x608
 #define OPCODE_ST_PREFIX    0x700
-
-/*
- * Encode type
- */
-enum encode_type {
-    ENCODE_M,
-    ENCODE_RM,
-    ENCODE_MR,
-    ENCODE_OI,
-    ENCODE_MI,
-    ENCODE_D,
-};
 
 #define OPERAND_REL8        0x101
 #define OPERAND_REL16       0x102
@@ -120,6 +109,33 @@ enum encode_type {
 
 #define OPCODE_MAX_SIZE     16
 
+/*
+ * Encode type
+ */
+enum encode_type {
+    ENCODE_M,
+    ENCODE_RM,
+    ENCODE_MR,
+    ENCODE_OI,
+    ENCODE_MI,
+    ENCODE_D,
+};
+static __inline__ int
+_operand_num_by_encode_type(enum encode_type enc)
+{
+    switch ( enc ) {
+    case ENCODE_M:
+    case ENCODE_D:
+        return 1;
+    case ENCODE_RM:
+    case ENCODE_MR:
+    case ENCODE_OI:
+    case ENCODE_MI:
+        return 2;
+    }
+
+    return -1;
+}
 
 /*
  * Opcode
@@ -716,15 +732,57 @@ _instr_parse_file(const char *m, const char *fname)
 }
 
 /*
+ * _search_encode_m
+ */
+static int
+_search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
+{
+    /* Assertion */
+    if ( rule->encode.type != ENCODE_M ) {
+        return -1;
+    }
+
+    /* Check the number of operands */
+    if ( n != 1 ) {
+        return -1;
+    }
+
+    /* Check the operand type */
+    if ( ops[0].type != X86_64_OPERAND_MEM ) {
+        return -1;
+    }
+    ops[0].u.mem.base;
+
+    switch ( rule->encode.u.m.m ) {
+    case OPERAND_M16_16:
+        break;
+    case OPERAND_M16_32:
+        break;
+    case OPERAND_M16_64:
+        break;
+    default:
+        return -1;
+    }
+    // rule->encode.u.m.m;
+    // ops[0];
+
+    return -1;
+}
+
+/*
  * _search_rule -- search a matching rule
  */
 static int
-_search_rule(struct mnemonic *mnemonic)
+_search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops)
 {
     struct rule *rule;
 
     rule = mnemonic->rules;
     while ( NULL != rule ) {
+        /* Check the operand size first */
+        if ( n != _operand_num_by_encode_type(rule->encode.type) ) {
+            continue;
+        }
         rule = rule->next;
     }
 
@@ -732,10 +790,12 @@ _search_rule(struct mnemonic *mnemonic)
 }
 
 /*
- * Search
+ * x86_64_search -- find a rule corresponding to the set of the mnemonic and
+ * operands.
  */
 int
-x86_64_search(struct x86_64_instr_ruleset *ruleset, const char *mne)
+x86_64_search(struct x86_64_instr_ruleset *ruleset, const char *mne, int n,
+              x86_64_operand_t *ops)
 {
     struct mnemonic *mnemonic;
 
@@ -744,7 +804,7 @@ x86_64_search(struct x86_64_instr_ruleset *ruleset, const char *mne)
     while ( NULL != mnemonic ) {
         if ( 0 == strcmp(mne, mnemonic->mnemonic) ) {
             /* Found */
-            return _search_rule(mnemonic);
+            return _search_rule(mnemonic, n, ops);
         }
         mnemonic = mnemonic->next;
     }
@@ -753,7 +813,7 @@ x86_64_search(struct x86_64_instr_ruleset *ruleset, const char *mne)
 }
 
 /*
- * Load all instructions
+ * x86_64_load_instr -- load all instructions
  */
 int
 x86_64_load_instr(void)
@@ -777,11 +837,10 @@ x86_64_load_instr(void)
         ruleset.mnemonics = mnemonic;
     }
 
+    struct rule *rule;
     mnemonic = ruleset.mnemonics;
     while ( NULL != mnemonic ) {
         printf("* %s\n", mnemonic->mnemonic);
-        struct rule *rule;
-        int i;
         rule = mnemonic->rules;
         while ( NULL != rule ) {
             printf("Encode: %x / ", rule->encode.type);
