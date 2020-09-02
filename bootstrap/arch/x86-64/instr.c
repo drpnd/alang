@@ -763,10 +763,8 @@ _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
     default:
         return -1;
     }
-    // rule->encode.u.m.m;
-    // ops[0];
 
-    return -1;
+    return 0;
 }
 
 /*
