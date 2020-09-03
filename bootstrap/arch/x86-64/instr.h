@@ -34,7 +34,6 @@ typedef enum {
     X86_64_OPERAND_REG,
     X86_64_OPERAND_MEM,
     X86_64_OPERAND_IMM,
-    X86_64_OPERAND_INDIRECT,
 } x86_64_operand_type_t;
 
 /*
