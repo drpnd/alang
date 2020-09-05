@@ -1,0 +1,12 @@
+// JMP
+Eb cb       | D     | rel8
+EB cw       | D     | rel16
+E9 cw       | D     | rel32
+FF /4       | M     | r/m16
+FF /4       | M     | r/m32
+FF /4       | M     | r/m64
+EA cd       | D     | ptr16:16
+EA cp       | D     | ptr16:32
+FF /5       | D     | m16:16
+FF /5       | D     | m16:32
+W FF /5     | D     | m16:64
