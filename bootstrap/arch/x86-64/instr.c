@@ -703,7 +703,7 @@ _instr_parse_file(const char *m, const char *fname)
             continue;
         }
 
-        /* Parse tje encode type */
+        /* Parse the encode type */
         enc = _parse_encode_type(cols[1]);
         if ( enc < 0 ) {
             free(rule);
