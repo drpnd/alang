@@ -42,24 +42,19 @@
 #define REPZ            REP
 
 /* Group 2 */
-#define OVERRIDE_CS     0x2e
-#define OVERRIDE_SS     0x36
-#define OVERRIDE_DS     0x3e
-#define OVERRIDE_ES     0x26
-#define OVERRIDE_FS     0x64
-#define OVERRIDE_GS     0x65
-#define BRANCH_NOT_TAKEN    0x2e /* only with jcc */
-#define BRANCH_TAKEN    0x3e    /* only with jcc */
+#define OVERRIDE_CS         0x2e
+#define OVERRIDE_SS         0x36
+#define OVERRIDE_DS         0x3e
+#define OVERRIDE_ES         0x26
+#define OVERRIDE_FS         0x64
+#define OVERRIDE_GS         0x65
+#define BRANCH_NOT_TAKEN    0x2e    /* only with jcc */
+#define BRANCH_TAKEN        0x3e    /* only with jcc */
 
 /* Group 3 */
 #define OVERRIDE_OPERAND_SIZE   0x66
 /* Group 4 */
 #define OVERRIDE_ADDR_SIZE  0x67
-
-typedef struct {
-    int l;
-    uint8_t a[32];
-} instr_t;
 
 typedef enum {
     OPERAND_REG,
