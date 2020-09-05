@@ -752,6 +752,7 @@ _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
         return -1;
     }
     ops[0].u.mem.base;
+    printf("XXXXX\n");
 
     switch ( rule->encode.u.m.m ) {
     case OPERAND_M16_16:
@@ -781,6 +782,7 @@ _search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops)
         if ( n != _operand_num_by_encode_type(rule->encode.type) ) {
             continue;
         }
+        _search_encode_m(rule, n, ops);
         rule = rule->next;
     }
 
@@ -835,6 +837,7 @@ x86_64_load_instr(void)
         ruleset.mnemonics = mnemonic;
     }
 
+    /* Output */
     struct rule *rule;
     mnemonic = ruleset.mnemonics;
     while ( NULL != mnemonic ) {
@@ -871,6 +874,15 @@ x86_64_load_instr(void)
         }
         mnemonic = mnemonic->next;
     }
+
+    /* Search */
+    x86_64_operand_t ops[1];
+    ops[0].type = X86_64_OPERAND_MEM;
+    ops[0].u.mem.base = 0;
+    ops[0].u.mem.sindex = 0;
+    ops[0].u.mem.scale = 1;
+    ops[0].u.mem.disp = 0;
+    x86_64_search(&ruleset, "call", 1, ops);
 
     return 0;
 }
