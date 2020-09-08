@@ -278,7 +278,7 @@ _encode_modrm_sib(uint8_t *code, int *rex, int mod, x86_64_reg_t reg,
 }
 
 /*
- * RR
+ * _encode_rm_reg -- RR
  */
 static int
 _encode_rm_reg(uint8_t *code, int *rex, x86_64_operand_t op1,
@@ -309,7 +309,7 @@ _encode_rm_reg(uint8_t *code, int *rex, x86_64_operand_t op1,
 }
 
 /*
- * Encode memory
+ * _encode_rm_mem -- Encode memory
  */
 static int
 _encode_rm_mem(uint8_t *code, int *rex, x86_64_operand_t op1,
@@ -401,7 +401,7 @@ _encode_rm_mem(uint8_t *code, int *rex, x86_64_operand_t op1,
 }
 
 /*
- * RM
+ * _encode_rm -- RM
  */
 static int
 _encode_rm(uint8_t *code, int *rex, x86_64_operand_t op1,
@@ -426,7 +426,7 @@ _encode_rm(uint8_t *code, int *rex, x86_64_operand_t op1,
 }
 
 /*
- * MR
+ * _encode_mr -- MR
  */
 static int
 _encode_mr(uint8_t *code, int *rex, x86_64_operand_t op1,
@@ -436,7 +436,7 @@ _encode_mr(uint8_t *code, int *rex, x86_64_operand_t op1,
 }
 
 /*
- * MI
+ * _encode_mi -- MI
  */
 static int
 _encode_mi(uint8_t *code, int *rex, x86_64_operand_t op1,
@@ -470,44 +470,10 @@ _encode_mi(uint8_t *code, int *rex, x86_64_operand_t op1,
     return ret + size;
 }
 
-static int
-_mov(uint8_t *code, x86_64_operand_t op1, x86_64_operand_t op2, int size)
-{
-    int rex;
-    int ret;
-    uint8_t op[32];
-    int len;
 
-    if ( op1.type == X86_64_OPERAND_REG ) {
-        if ( REG_TYPE(op1.u.reg) == REG_SEGMENT ) {
-            /* Segment register */
-            if ( size == 16 ) {
-                rex = 0;
-            } else if ( size == 64 ) {
-                rex = REX_W;
-            } else {
-                return -1;
-            }
-            ret = _encode_rm(op, &rex, op1, op2);
-            if ( ret < 0 ) {
-                return -1;
-            }
-            len = 0;
-            if ( rex ) {
-                code[len++] = rex;
-            }
-            code[len++] = 0x8e;
-            memcpy(code + len, op, ret);
-            len += ret;
-
-            return len;
-        }
-    }
-
-    return -1;
-}
-
-
+/*
+ * Temporary function for testing
+ */
 int
 x86_64_test(uint8_t *code)
 {
