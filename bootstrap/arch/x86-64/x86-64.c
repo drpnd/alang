@@ -154,7 +154,7 @@ _encode_ct(uint8_t *code, uint8_t *c)
 }
 
 /*
- * ib,iw,id,io
+ * ib,iw,id,io (1,2,4,8-byte immediate value)
  */
 static int
 _encode_ib(uint8_t *code, uint8_t i)
