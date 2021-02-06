@@ -117,6 +117,7 @@ _append_buffer_char(char c)
 %}
 %x string
 %x comment
+%x blockcomment
 %option yylineno
 %%
     /* Arithmetic operations */
@@ -221,9 +222,14 @@ _append_buffer_char(char c)
     BEGIN 0;
     return TOK_LIT_STR;
 }
-    /* Comment */
+    /* Line comment */
 \/\/ { BEGIN comment; }
 <comment>[^\n]*\n {
+    BEGIN 0;
+}
+    /* Block comment */
+\/\* { BEGIN blockcomment; }
+<blockcomment>.*\*\/ {
     BEGIN 0;
 }
 
