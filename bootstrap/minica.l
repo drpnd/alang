@@ -29,6 +29,9 @@
 #define YY_USER_ACTION yylloc.first_line = yylloc.last_line = yylineno;
 
 #define STRING_CHUNK 4096
+/*
+ * String
+ */
 struct string {
     size_t len;
     size_t size;
@@ -43,6 +46,10 @@ yywrap(void)
 }
 
 static struct string buffer;
+
+/*
+ * Clear string buffer
+ */
 static void
 _clear_buffer(void)
 {
@@ -55,6 +62,10 @@ _clear_buffer(void)
         buffer.size = STRING_CHUNK;
     }
 }
+
+/*
+ * Append string to the buffer
+ */
 static void
 _append_buffer_str(const char *s)
 {
@@ -78,6 +89,10 @@ _append_buffer_str(const char *s)
     memcpy(buffer.buf + buffer.len, s, len);
     buffer.len += len;
 }
+
+/*
+ * Append a character to the buffer
+ */
 static void
 _append_buffer_char(char c)
 {
