@@ -775,6 +775,7 @@ static int
 _search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops)
 {
     struct rule *rule;
+    int ret;
 
     rule = mnemonic->rules;
     while ( NULL != rule ) {
@@ -782,7 +783,7 @@ _search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops)
         if ( n != _operand_num_by_encode_type(rule->encode.type) ) {
             continue;
         }
-        _search_encode_m(rule, n, ops);
+        ret = _search_encode_m(rule, n, ops);
         rule = rule->next;
     }
 
@@ -877,12 +878,14 @@ x86_64_load_instr(void)
 
     /* Search */
     x86_64_operand_t ops[1];
+    int ret;
     ops[0].type = X86_64_OPERAND_MEM;
     ops[0].u.mem.base = 0;
     ops[0].u.mem.sindex = 0;
     ops[0].u.mem.scale = 1;
     ops[0].u.mem.disp = 0;
-    x86_64_search(&ruleset, "call", 1, ops);
+    ret = x86_64_search(&ruleset, "call", 1, ops);
+    printf("Search: %d\n", ret);
 
     return 0;
 }
