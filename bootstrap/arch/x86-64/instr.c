@@ -288,6 +288,25 @@ _ishexdigit(int c)
 }
 
 /*
+ * _check_size
+ */
+static int
+_check_size(int64_t val)
+{
+    if ( 0 == val ) {
+        return 0;
+    } else if ( val >= -0x80 && val < 0x80 ) {
+        return 1;
+    } else if ( val >= -0x8000 && val < 0x8000 ) {
+        return 2;
+    } else if ( val >= -0x80000000 && val < 0x80000000 ) {
+        return 4;
+    } else {
+        return 8;
+    }
+}
+
+/*
  * _free_rule
  */
 static void
@@ -751,7 +770,22 @@ _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
     if ( ops[0].type != X86_64_OPERAND_MEM ) {
         return -1;
     }
-    ops[0].u.mem.base;
+    /* Check the operand size */
+    if ( ops[0].u.mem.base < 0 || ops[0].u.mem.base > 7 ) {
+        return -1;
+    }
+    switch ( ops[0].u.mem.sindex ) {
+    case 1:
+        break;
+    case 2:
+        break;
+    case 4:
+        break;
+    case 8:
+        break;
+    default:
+        return -1;
+    }
     printf("XXXXX\n");
 
     switch ( rule->encode.u.m.m ) {
