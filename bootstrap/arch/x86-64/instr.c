@@ -915,7 +915,7 @@ x86_64_load_instr(void)
     int ret;
     ops[0].type = X86_64_OPERAND_MEM;
     ops[0].u.mem.base = 0;
-    ops[0].u.mem.sindex = 0;
+    ops[0].u.mem.sindex = 1;
     ops[0].u.mem.scale = 1;
     ops[0].u.mem.disp = 0;
     ret = x86_64_search(&ruleset, "call", 1, ops);
