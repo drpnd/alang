@@ -1,3 +1,3 @@
 // ADCX -- Unsigned Integer Addition of Two  Operands with Carry Flag
-66 0F 38 F6 /r      | RM    | r32,r/m32
-66 W 0F 38 F6 /r    | RM    | r64,r/m64
+66 0F 38 F6 /r      | RM    | r32,r/m32     | V     | V     | ADX
+66 W 0F 38 F6 /r    | RM    | r64,r/m64     | V     | N     | ADX

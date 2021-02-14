@@ -59,6 +59,7 @@
 #define OPERAND_PTR16_32    0x204
 #define OPERAND_PTR16_64    0x208
 #define OPERAND_R8          0x301
+#define OPERAND_R8X         0x301
 #define OPERAND_R16         0x302
 #define OPERAND_R32         0x304
 #define OPERAND_R64         0x308
@@ -67,6 +68,7 @@
 #define OPERAND_IMM32       0x404
 #define OPERAND_IMM64       0x408
 #define OPERAND_RM8         0x501
+#define OPERAND_RM8X        0x501
 #define OPERAND_RM16        0x502
 #define OPERAND_RM32        0x504
 #define OPERAND_RM64        0x508
@@ -503,6 +505,9 @@ _parse_operand_chunk(const char *token)
     } else if ( 0 == strcasecmp("r8", token) ) {
         /* r8 */
         return OPERAND_R8;
+    } else if ( 0 == strcasecmp("r8*", token) ) {
+        /* r8* */
+        return OPERAND_R8X;
     } else if ( 0 == strcasecmp("r16", token) ) {
         /* r16 */
         return OPERAND_R16;
@@ -515,6 +520,9 @@ _parse_operand_chunk(const char *token)
     } else if ( 0 == strcasecmp("r/m8", token) ) {
         /* r/m8 */
         return OPERAND_RM8;
+    } else if ( 0 == strcasecmp("r/m8*", token) ) {
+        /* r/m8* */
+        return OPERAND_RM8X;
     } else if ( 0 == strcasecmp("r/m16", token) ) {
         /* r/m16 */
         return OPERAND_RM16;
@@ -756,6 +764,8 @@ _instr_parse_file(const char *m, const char *fname)
 static int
 _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
 {
+    int scale;
+
     /* Assertion */
     if ( rule->encode.type != ENCODE_M ) {
         return -1;
@@ -776,12 +786,16 @@ _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
     }
     switch ( ops[0].u.mem.scale ) {
     case 1:
+        scale = 0;
         break;
     case 2:
+        scale = 1;
         break;
     case 4:
+        scale = 2;
         break;
     case 8:
+        scale = 3;
         break;
     default:
         /* Invalid scale */
