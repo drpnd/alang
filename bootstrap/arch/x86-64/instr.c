@@ -774,7 +774,7 @@ _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
     if ( ops[0].u.mem.base < 0 || ops[0].u.mem.base > 7 ) {
         return -1;
     }
-    switch ( ops[0].u.mem.sindex ) {
+    switch ( ops[0].u.mem.scale ) {
     case 1:
         break;
     case 2:
@@ -784,16 +784,19 @@ _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
     case 8:
         break;
     default:
+        /* Invalid scale */
         return -1;
     }
-    printf("XXXXX\n");
 
     switch ( rule->encode.u.m.m ) {
     case OPERAND_M16_16:
+        printf("m16_16 Scale: %d\n", ops[0].u.mem.scale);
         break;
     case OPERAND_M16_32:
+        printf("m16_32 Scale: %d\n", ops[0].u.mem.scale);
         break;
     case OPERAND_M16_64:
+        printf("m16_64 Scale: %d\n", ops[0].u.mem.scale);
         break;
     default:
         return -1;
@@ -915,7 +918,7 @@ x86_64_load_instr(void)
     int ret;
     ops[0].type = X86_64_OPERAND_MEM;
     ops[0].u.mem.base = 0;
-    ops[0].u.mem.sindex = 1;
+    ops[0].u.mem.sindex = 0;
     ops[0].u.mem.scale = 1;
     ops[0].u.mem.disp = 0;
     ret = x86_64_search(&ruleset, "call", 1, ops);
