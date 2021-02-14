@@ -1,11 +1,11 @@
 // CALL
-E8 cw       | M     | rel16
-E8 cd       | M     | rel32
-FF /2       | M     | r/m16
-FF /2       | M     | r/m32
-FF /2       | M     | r/m64
-9A cd       | D     | ptr16:16
-9A cp       | D     | ptr16:32
-FF /3       | M     | m16:16
-FF /3       | M     | m16:32
-W FF /3     | M     | m16:64
+E8 cw       | M     | rel16     | N.S.  | V
+E8 cd       | M     | rel32     | V     | V
+FF /2       | M     | r/m16     | N     | V
+FF /2       | M     | r/m32     | N     | V
+FF /2       | M     | r/m64     | V     | N
+9A cd       | D     | ptr16:16  | Inv   | V
+9A cp       | D     | ptr16:32  | Inv   | V
+FF /3       | M     | m16:16    | V     | V
+FF /3       | M     | m16:32    | V     | V
+W FF /3     | M     | m16:64    | V     | N

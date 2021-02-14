@@ -664,7 +664,7 @@ _instr_parse_file(const char *m, const char *fname)
     char buf[1024];
     char *tok;
     char *savedptr;
-    char *cols[3];
+    char *cols[5];
     int n;
     int enc;
     int ret;
@@ -717,13 +717,13 @@ _instr_parse_file(const char *m, const char *fname)
         n = 0;
         tok = strtok_r(buf, "|", &savedptr);
         while ( NULL != tok ) {
-            if ( n < 3 ) {
+            if ( n < 5 ) {
                 cols[n] = _trim(tok);
                 n++;
             }
             tok = strtok_r(NULL, "|", &savedptr);
         }
-        if ( 3 != n ) {
+        if ( 5 != n ) {
             /* Invalid line */
             fprintf(stderr, "Invalid instruction rule\n");
             free(rule);

@@ -1,20 +1,23 @@
 // XOR
-34 ib       | I     | al,imm8
-35 iw       | I     | ax,imm16
-35 id       | I     | eax,imm32
-W 35 id     | I     | rax,imm32
-80 /6 ib    | MI    | r/m8,imm8
-81 /6 iw    | MI    | r/m16,imm16
-81 /6 id    | MI    | r/m32,imm32
-W 81 /6 id  | MI    | r/m64,imm32
-83 /6 ib    | MI    | r/m16,imm8
-83 /6 ib    | MI    | r/m32,imm8
-W 83 /6 ib  | MI    | r/m64,imm8
-30 /r       | MR    | r/m8,r8
-31 /r       | MR    | r/m16,r16
-31 /r       | MR    | r/m32,r32
-W 31 /r     | MR    | r/m64,r64
-32 /r       | RM    | r8,r/m8
-33 /r       | RM    | r16,r/m16
-33 /r       | RM    | r32,r/m32
-W 33 /r     | RM    | r64,r/m64
+34 ib           | I     | al,imm8       | V     | V
+35 iw           | I     | ax,imm16      | V     | V
+35 id           | I     | eax,imm32     | V     | V
+W 35 id         | I     | rax,imm32     | V     | N
+80 /6 ib        | MI    | r/m8,imm8     | V     | V
+REX 80 /6 ib    | MI    | r/m8*,imm8    | V     | N
+81 /6 iw        | MI    | r/m16,imm16   | V     | V
+81 /6 id        | MI    | r/m32,imm32   | V     | V
+W 81 /6 id      | MI    | r/m64,imm32   | V     | N
+83 /6 ib        | MI    | r/m16,imm8    | V     | V
+83 /6 ib        | MI    | r/m32,imm8    | V     | V
+W 83 /6 ib      | MI    | r/m64,imm8    | V     | N
+30 /r           | MR    | r/m8,r8       | V     | V
+REX 30 /r       | MR    | r/m8*,r8*     | V     | N
+31 /r           | MR    | r/m16,r16     | V     | V
+31 /r           | MR    | r/m32,r32     | V     | V
+W 31 /r         | MR    | r/m64,r64     | V     | N
+32 /r           | RM    | r8,r/m8       | V     | V
+REX 32 /r       | RM    | r8*,r/m8*     | V     | N
+33 /r           | RM    | r16,r/m16     | V     | V
+33 /r           | RM    | r32,r/m32     | V     | V
+W 33 /r         | RM    | r64,r/m64     | V     | N

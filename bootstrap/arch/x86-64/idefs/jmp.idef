@@ -1,12 +1,12 @@
 // JMP
-Eb cb       | D     | rel8
-EB cw       | D     | rel16
-E9 cw       | D     | rel32
-FF /4       | M     | r/m16
-FF /4       | M     | r/m32
-FF /4       | M     | r/m64
-EA cd       | D     | ptr16:16
-EA cp       | D     | ptr16:32
-FF /5       | D     | m16:16
-FF /5       | D     | m16:32
-W FF /5     | D     | m16:64
+Eb cb       | D     | rel8      | V     | V
+EB cw       | D     | rel16     | N.S.  | V
+E9 cw       | D     | rel32     | V     | V
+FF /4       | M     | r/m16     | N.S.  | V
+FF /4       | M     | r/m32     | N.S.  | V
+FF /4       | M     | r/m64     | V     | N
+EA cd       | D     | ptr16:16  | Inv   | V
+EA cp       | D     | ptr16:32  | Inv   | V
+FF /5       | D     | m16:16    | V     | V
+FF /5       | D     | m16:32    | V     | V
+W FF /5     | D     | m16:64    | V     | N

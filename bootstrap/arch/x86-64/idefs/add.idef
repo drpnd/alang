@@ -1,20 +1,23 @@
 // ADD
-04 ib       | I     | al,imm8
-05 iw       | I     | ax,imm16
-05 id       | I     | eax,imm32
-W 05 id     | I     | rax,imm32
-80 /0 ib    | MI    | r/m8,imm8
-81 /0 iw    | MI    | r/m16,imm16
-81 /0 id    | MI    | r/m32,imm32
-W 81 /0 id  | MI    | r/m64,imm32
-83 /0 ib    | MI    | r/m16,imm8
-83 /0 ib    | MI    | r/m32,imm8
-W 83 /9 ib  | MI    | r/m64,imm8
-00 /r       | MR    | r/m8,r8
-01 /r       | MR    | r/m16,r16
-01 /r       | MR    | r/m32,r32
-W 01 /r     | MR    | r/m64,r64
-02 /r       | RM    | r8,r/m8
-03 /r       | RM    | r16,r/m16
-03 /r       | RM    | r32,r/m32
-W 03 /r     | RM    | r64,r/m64
+04 ib           | I     | al,imm8       | V     | V
+05 iw           | I     | ax,imm16      | V     | V
+05 id           | I     | eax,imm32     | V     | V
+W 05 id         | I     | rax,imm32     | V     | N
+80 /0 ib        | MI    | r/m8,imm8     | V     | V
+REX 80 /0 ib    | MI    | r/m8*,imm8    | V     | N
+81 /0 iw        | MI    | r/m16,imm16   | V     | V
+81 /0 id        | MI    | r/m32,imm32   | V     | V
+W 81 /0 id      | MI    | r/m64,imm32   | V     | N
+83 /0 ib        | MI    | r/m16,imm8    | V     | V
+83 /0 ib        | MI    | r/m32,imm8    | V     | V
+W 83 /9 ib      | MI    | r/m64,imm8    | V     | N
+00 /r           | MR    | r/m8,r8       | V     | V
+REX 00 /r       | MR    | r/m8*,r8*     | V     | N
+01 /r           | MR    | r/m16,r16     | V     | V
+01 /r           | MR    | r/m32,r32     | V     | V
+W 01 /r         | MR    | r/m64,r64     | V     | N
+02 /r           | RM    | r8,r/m8       | V     | V
+REX 02 /r       | RM    | r8*,r/m8*     | V     | N
+03 /r           | RM    | r16,r/m16     | V     | V
+03 /r           | RM    | r32,r/m32     | V     | V
+W 03 /r         | RM    | r64,r/m64     | V     | N
