@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2020 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020-2021 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,6 +31,7 @@
 #ifndef BASEDIR
 #define BASEDIR ""
 #endif
+#define INSTR_FILE_FORMAT   "/arch/x86-64/idefs/%s.idef"
 
 #define OPCODE_REXW         0x101
 #define OPCODE_DIGIT_PREFIX 0x200
@@ -872,15 +873,16 @@ x86_64_load_instr(void)
 {
     struct x86_64_instr_ruleset ruleset;
     struct mnemonic *mnemonic;
-    static const char *mnemonics[] = {"adc", "add", "call", "jmp", "mov"};
+    static const char *mnemonics[]
+        = {"adc", "add", "call", "jmp", "mov", "xor"};
     int i;
     char fname[128];
 
     ruleset.mnemonics = NULL;
 
+    /* Load the instruction datasheet */
     for ( i = 0; i < sizeof(mnemonics) / sizeof(mnemonics[0]); i++ ) {
-        snprintf(fname, sizeof(fname), BASEDIR "/arch/x86-64/idefs/%s.idef",
-                 mnemonics[i]);
+        snprintf(fname, sizeof(fname), BASEDIR INSTR_FILE_FORMAT, mnemonics[i]);
         mnemonic = _instr_parse_file(mnemonics[i], fname);
         if ( NULL == mnemonic ) {
             return -1;
@@ -889,7 +891,7 @@ x86_64_load_instr(void)
         ruleset.mnemonics = mnemonic;
     }
 
-    /* Output */
+    /* Output the loaded instructions */
     struct rule *rule;
     mnemonic = ruleset.mnemonics;
     while ( NULL != mnemonic ) {
@@ -927,7 +929,7 @@ x86_64_load_instr(void)
         mnemonic = mnemonic->next;
     }
 
-    /* Search */
+    /* Try to search */
     x86_64_operand_t ops[1];
     int ret;
     ops[0].type = X86_64_OPERAND_MEM;
