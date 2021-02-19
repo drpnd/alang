@@ -874,7 +874,7 @@ x86_64_load_instr(void)
     struct x86_64_instr_ruleset ruleset;
     struct mnemonic *mnemonic;
     static const char *mnemonics[]
-        = {"adc", "add", "call", "jmp", "mov", "xor"};
+        = {"adc", "adcx", "add", "call", "jmp", "mov", "xor"};
     int i;
     char fname[128];
 
