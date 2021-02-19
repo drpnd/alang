@@ -824,7 +824,8 @@ _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
  * _search_rule -- search a matching rule
  */
 static int
-_search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops)
+_search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops,
+             struct rule **found)
 {
     struct rule *rule;
     int ret;
@@ -836,6 +837,10 @@ _search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops)
             continue;
         }
         ret = _search_encode_m(rule, n, ops);
+        if ( 0 == ret ) {
+            *found = rule;
+            return 0;
+        }
         rule = rule->next;
     }
 
@@ -848,7 +853,7 @@ _search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops)
  */
 int
 x86_64_search(struct x86_64_instr_ruleset *ruleset, const char *mne, int n,
-              x86_64_operand_t *ops)
+              x86_64_operand_t *ops, struct rule **found)
 {
     struct mnemonic *mnemonic;
 
@@ -857,7 +862,7 @@ x86_64_search(struct x86_64_instr_ruleset *ruleset, const char *mne, int n,
     while ( NULL != mnemonic ) {
         if ( 0 == strcmp(mne, mnemonic->mnemonic) ) {
             /* Found */
-            return _search_rule(mnemonic, n, ops);
+            return _search_rule(mnemonic, n, ops, found);
         }
         mnemonic = mnemonic->next;
     }
@@ -931,14 +936,15 @@ x86_64_load_instr(void)
 
     /* Try to search */
     x86_64_operand_t ops[1];
+    struct rule *found;
     int ret;
     ops[0].type = X86_64_OPERAND_MEM;
     ops[0].u.mem.base = 0;
     ops[0].u.mem.sindex = 0;
     ops[0].u.mem.scale = 1;
     ops[0].u.mem.disp = 0;
-    ret = x86_64_search(&ruleset, "call", 1, ops);
-    printf("Search: %d\n", ret);
+    ret = x86_64_search(&ruleset, "call", 1, ops, &found);
+    printf("Search: %d %p\n", ret, found);
 
     return 0;
 }
