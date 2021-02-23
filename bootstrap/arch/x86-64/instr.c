@@ -786,6 +786,19 @@ _is_operand_reg(x86_64_operand_t *op)
 }
 
 /*
+ * _is_operand_reg_mem
+ */
+static int
+_is_operand_reg_mem(x86_64_operand_t *op)
+{
+    if ( op->type == X86_64_OPERAND_REG || op->type == X86_64_OPERAND_MEM ) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/*
  * _search_encode_m
  */
 static int
