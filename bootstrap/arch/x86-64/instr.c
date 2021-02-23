@@ -760,6 +760,32 @@ _instr_parse_file(const char *m, const char *fname)
 }
 
 /*
+ * _is_operand_mem
+ */
+static int
+_is_operand_mem(x86_64_operand_t *op)
+{
+    if ( op->type == X86_64_OPERAND_MEM ) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/*
+ * _is_operand_reg
+ */
+static int
+_is_operand_reg(x86_64_operand_t *op)
+{
+    if ( op->type == X86_64_OPERAND_REG ) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/*
  * _search_encode_m
  */
 static int
@@ -833,6 +859,14 @@ _search_encode_rm(struct rule *rule, int n, x86_64_operand_t *ops)
 
     /* Check the number of operands */
     if ( n != 2 ) {
+        return -1;
+    }
+    /* Check the operand type */
+    if ( ops[0].type != X86_64_OPERAND_REG ) {
+        return -1;
+    }
+    if ( ops[1].type != X86_64_OPERAND_REG
+         && ops[1].type != X86_64_OPERAND_MEM ) {
         return -1;
     }
 
