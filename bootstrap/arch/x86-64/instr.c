@@ -799,6 +799,27 @@ _is_operand_reg_mem(x86_64_operand_t *op)
 }
 
 /*
+ * _operand_imm
+ */
+static int
+_operand_imm(x86_64_operand_t *op)
+{
+    if ( op->type != X86_64_OPERAND_IMM ) {
+        return -1;
+    }
+
+    if ( op->u.imm == 0 ) {
+        return 0;
+    } else if ( op->u.imm >= -0x80 && op->u.imm < 0x80 ) {
+        return 1;
+    } else if ( op->u.imm >= -0x8000 && op->u.imm < 0x8000 ) {
+        return 2;
+    } else {
+        return 4;
+    }
+}
+
+/*
  * _search_encode_m
  */
 static int
