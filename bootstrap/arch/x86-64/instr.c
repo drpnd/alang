@@ -903,7 +903,7 @@ _search_encode_rm(struct rule *rule, int n, x86_64_operand_t *ops)
         return -1;
     }
 
-    return -1;
+    return 0;
 }
 
 /*
@@ -929,7 +929,7 @@ _search_encode_mr(struct rule *rule, int n, x86_64_operand_t *ops)
         return -1;
     }
 
-    return -1;
+    return 0;
 }
 
 /*
