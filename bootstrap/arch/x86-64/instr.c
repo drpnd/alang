@@ -896,11 +896,36 @@ _search_encode_rm(struct rule *rule, int n, x86_64_operand_t *ops)
         return -1;
     }
     /* Check the operand type */
-    if ( ops[0].type != X86_64_OPERAND_REG ) {
+    if ( !_is_operand_reg(&ops[0]) ) {
         return -1;
     }
-    if ( ops[1].type != X86_64_OPERAND_REG
-         && ops[1].type != X86_64_OPERAND_MEM ) {
+    if ( !_is_operand_reg_mem(&ops[1]) ) {
+        return -1;
+    }
+
+    return -1;
+}
+
+/*
+ * _search_encode_mr
+ */
+static int
+_search_encode_mr(struct rule *rule, int n, x86_64_operand_t *ops)
+{
+    /* Assertion */
+    if ( rule->encode.type != ENCODE_RM ) {
+        return -1;
+    }
+
+    /* Check the number of operands */
+    if ( n != 2 ) {
+        return -1;
+    }
+    /* Check the operand type */
+    if ( !_is_operand_reg_mem(&ops[0]) ) {
+        return -1;
+    }
+    if ( !_is_operand_reg(&ops[1]) ) {
         return -1;
     }
 
