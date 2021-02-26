@@ -934,6 +934,32 @@ _search_encode_mr(struct rule *rule, int n, x86_64_operand_t *ops)
 }
 
 /*
+ * _search_encode_mi
+ */
+static int
+_search_encode_mi(struct rule *rule, int n, x86_64_operand_t *ops)
+{
+    /* Assertion */
+    if ( rule->encode.type != ENCODE_MI ) {
+        return -1;
+    }
+
+    /* Check the number of operands */
+    if ( n != 2 ) {
+        return -1;
+    }
+    /* Check the operand type */
+    if ( !_is_operand_reg_mem(&ops[0]) ) {
+        return -1;
+    }
+    if ( _operand_imm(&ops[1]) < 0 ) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
  * _search_rule -- search a matching rule
  */
 static int
