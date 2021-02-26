@@ -27,6 +27,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "instr.h"
+#include "reg.h"
 
 #ifndef BASEDIR
 #define BASEDIR ""
@@ -1053,7 +1054,7 @@ x86_64_load_instr(void)
     }
 
     /* Try to search */
-    x86_64_operand_t ops[1];
+    x86_64_operand_t ops[2];
     struct rule *found;
     int ret;
     ops[0].type = X86_64_OPERAND_MEM;
@@ -1062,7 +1063,14 @@ x86_64_load_instr(void)
     ops[0].u.mem.scale = 1;
     ops[0].u.mem.disp = 0;
     ret = x86_64_search(&ruleset, "call", 1, ops, &found);
-    printf("Search: %d %p\n", ret, found);
+    printf("Search (call): %d %p\n", ret, found);
+
+    ops[0].type = X86_64_OPERAND_REG;
+    ops[0].u.reg = REG_RAX;
+    ops[1].type = X86_64_OPERAND_REG;
+    ops[1].u.reg = REG_RAX;
+    ret = x86_64_search(&ruleset, "xor", 2, ops, &found);
+    printf("Search (xor): %d %p\n", ret, found);
 
     return 0;
 }
