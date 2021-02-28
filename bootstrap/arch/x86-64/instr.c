@@ -960,6 +960,25 @@ _search_encode_mi(struct rule *rule, int n, x86_64_operand_t *ops)
 }
 
 /*
+ * _search_encode_d
+ */
+static int
+_search_encode_d(struct rule *rule, int n, x86_64_operand_t *ops)
+{
+    /* Assertion */
+    if ( rule->encode.type != ENCODE_MI ) {
+        return -1;
+    }
+
+    /* Check the number of operands */
+    if ( n != 1 ) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
  * _search_rule -- search a matching rule
  */
 static int
@@ -981,6 +1000,16 @@ _search_rule(struct mnemonic *mnemonic, int n, x86_64_operand_t *ops,
             return 0;
         }
         ret = _search_encode_rm(rule, n, ops);
+        if ( 0 == ret ) {
+            *found = rule;
+            return 0;
+        }
+        ret = _search_encode_mr(rule, n, ops);
+        if ( 0 == ret ) {
+            *found = rule;
+            return 0;
+        }
+        ret = _search_encode_mi(rule, n, ops);
         if ( 0 == ret ) {
             *found = rule;
             return 0;
