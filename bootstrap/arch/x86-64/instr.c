@@ -140,6 +140,26 @@ _operand_num_by_encode_type(enum encode_type enc)
 
     return -1;
 }
+static const char *
+_encode_type_str(enum encode_type enc)
+{
+    switch ( enc ) {
+    case ENCODE_M:
+        return "M";
+    case ENCODE_RM:
+        return "RM";
+    case ENCODE_MR:
+        return "MR";
+    case ENCODE_OI:
+        return "OI";
+    case ENCODE_MI:
+        return "MI";
+    case ENCODE_D:
+        return "D";
+    default:
+        return NULL;
+    }
+}
 
 /*
  * Opcode
@@ -1125,7 +1145,8 @@ x86_64_load_instr(void)
     ops[1].type = X86_64_OPERAND_REG;
     ops[1].u.reg = REG_RAX;
     ret = x86_64_search(&ruleset, "xor", 2, ops, &found);
-    printf("Search (xor): %d %p\n", ret, found);
+    printf("Search (xor): %d %p %s\n", ret, found,
+           _encode_type_str(found->encode.type));
 
     return 0;
 }
