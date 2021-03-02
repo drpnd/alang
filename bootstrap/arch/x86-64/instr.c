@@ -124,6 +124,11 @@ enum encode_type {
     ENCODE_MI,
     ENCODE_D,
 };
+
+/*
+ * _operand_num_by_encode_type -- get the number of operands for the specified
+ * encode type
+ */
 static __inline__ int
 _operand_num_by_encode_type(enum encode_type enc)
 {
@@ -140,6 +145,10 @@ _operand_num_by_encode_type(enum encode_type enc)
 
     return -1;
 }
+
+/*
+ * _encode_type_str -- get string corresponding to the specified encode type
+ */
 static const char *
 _encode_type_str(enum encode_type enc)
 {
