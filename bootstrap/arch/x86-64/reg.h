@@ -32,7 +32,7 @@
 #define REG_REX(r)      (((r) >> 3) & 0x1)
 #define REG_REX0(r)     (((r) >> 4) & 0x1)
 #define REG_NE(r)       (((r) >> 5) & 0x1)
-#define REG_TYPE(r)      (((r) >> 8) & 0xff)
+#define REG_TYPE(r)     (((r) >> 8) & 0xff)
 #define REG_SIZE(r)     (((r) >> 16) & 0xffff)
 
 #define REG_ENCODE(code, rex, rex0, ne, size)                           \
