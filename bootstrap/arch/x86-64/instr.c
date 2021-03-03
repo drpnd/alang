@@ -265,6 +265,13 @@ struct x86_64_instr_ruleset {
 };
 
 /*
+ * Architecture-specific data structure
+ */
+struct x86_64_asm {
+    struct x86_64_instr_ruleset ruleset;
+};
+
+/*
  * Trim leading and trailing whitespaces
  */
 static char *
@@ -1077,7 +1084,7 @@ x86_64_search(struct x86_64_instr_ruleset *ruleset, const char *mne, int n,
  * x86_64_load_instr -- load all instructions
  */
 int
-x86_64_load_instr(void)
+x86_64_load_instr(struct x86_64_asm *arch)
 {
     struct x86_64_instr_ruleset ruleset;
     struct mnemonic *mnemonic;
@@ -1157,6 +1164,33 @@ x86_64_load_instr(void)
     printf("Search (xor): %d %p %s\n", ret, found,
            _encode_type_str(found->encode.type));
 
+    return 0;
+}
+
+/*
+ * x86_64_initialize
+ */
+struct x86_64_asm *
+x86_64_initialize(struct x86_64_asm *arch)
+{
+    if ( NULL == arch ) {
+        /* Allocate a new instance */
+        arch = malloc(sizeof(struct x86_64_asm));
+        if ( NULL == arch ) {
+            return NULL;
+        }
+    }
+    (void)memset(arch, 0, sizeof(struct x86_64_asm));
+
+    return arch;
+}
+
+/*
+ * x86_64_asm
+ */
+int
+x86_64_asm(struct x86_64_instr_ruleset *ruleset)
+{
     return 0;
 }
 
