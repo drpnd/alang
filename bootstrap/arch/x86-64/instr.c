@@ -1173,14 +1173,28 @@ x86_64_load_instr(struct x86_64_asm *arch)
 struct x86_64_asm *
 x86_64_initialize(struct x86_64_asm *arch)
 {
+    int ret;
+    int allocated;
+
+    allocated = 0;
     if ( NULL == arch ) {
         /* Allocate a new instance */
         arch = malloc(sizeof(struct x86_64_asm));
         if ( NULL == arch ) {
             return NULL;
         }
+        allocated = 1;
     }
     (void)memset(arch, 0, sizeof(struct x86_64_asm));
+
+    /* Load instructions */
+    ret = x86_64_load_instr(arch);
+    if ( 0 != ret ) {
+        if ( allocated ) {
+            free(arch);
+        }
+        return NULL;
+    }
 
     return arch;
 }
