@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2020 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020-2021 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -477,6 +477,14 @@ _encode_mi(uint8_t *code, int *rex, x86_64_operand_t op1,
 int
 x86_64_test(uint8_t *code)
 {
+    struct x86_64_asm *arch;
+
+    /* Initialize the x86_64 assembler */
+    arch = x86_64_initialize(NULL);
+    if ( NULL == arch ) {
+        return -1;
+    }
+
     int rex;
     int ret;
     x86_64_operand_t op1 = { .type = X86_64_OPERAND_REG, .u.reg = REG_RAX };
