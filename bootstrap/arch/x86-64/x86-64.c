@@ -478,15 +478,16 @@ int
 x86_64_test(uint8_t *code)
 {
     struct x86_64_asm *arch;
+    int ret;
 
     /* Initialize the x86_64 assembler */
     arch = x86_64_initialize(NULL);
     if ( NULL == arch ) {
         return -1;
     }
+    ret = x86_64_load_instr(arch);
 
     int rex;
-    int ret;
     x86_64_operand_t op1 = { .type = X86_64_OPERAND_REG, .u.reg = REG_RAX };
     x86_64_operand_t op2 = { .type = X86_64_OPERAND_REG, .u.reg = REG_RDI };
 

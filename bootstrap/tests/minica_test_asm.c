@@ -50,8 +50,6 @@ main(int argc, const char *const argv[])
     }
     printf("\n");
 
-    x86_64_load_instr(NULL);
-
     return 0;
 }
 
