@@ -488,7 +488,7 @@ x86_64_test(uint8_t *code)
     /* Load the instruction set */
     ret = x86_64_load_instr(arch);
 
-    /* %rax,%rdi */
+    /* mov %rdi,%rax */
     int rex;
     x86_64_operand_t op1 = { .type = X86_64_OPERAND_REG, .u.reg = REG_RAX };
     x86_64_operand_t op2 = { .type = X86_64_OPERAND_REG, .u.reg = REG_RDI };
