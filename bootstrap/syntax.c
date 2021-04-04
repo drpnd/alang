@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019,2021 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -643,6 +643,15 @@ import_new(char *id)
     }
 
     return import;
+}
+
+/*
+ * include_new -- allocate a new include statement
+ */
+void *
+include_new(char *s)
+{
+    return NULL;
 }
 
 /*

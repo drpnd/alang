@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019,2021 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -335,6 +335,7 @@ extern "C" {
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
     int import_vec_add(import_vec_t *, import_t *);
     import_t * import_new(char *);
+    void * include_new(char *);
     int package_define(code_file_t *, const char *);
     int code_file_init(code_file_t *);
 

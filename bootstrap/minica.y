@@ -50,6 +50,7 @@ code_file_t code;
     void *stmt;
     void *stmts;
     void *import;
+    void *include;
 }
 
 %token <intval>         TOK_LIT_INT
@@ -64,6 +65,7 @@ code_file_t code;
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 %type <import> import
+%type <include> include
 %type <idval> identifier
 %type <var> variable
 %type <val> value
@@ -92,6 +94,9 @@ block:          package
         |       import
                 {
                     import_vec_add(&code.imports, $1);
+                }
+        |       include
+                {
                 }
         |       coroutine
                 {
@@ -125,6 +130,11 @@ package:        TOK_PACKAGE identifier
 import:         TOK_IMPORT identifier
                 {
                     $$ = import_new($2);
+                }
+                ;
+include:        TOK_INCLUDE TOK_LIT_STR
+                {
+                    $$ = include_new($2);
                 }
                 ;
 coroutine:      TOK_COROUTINE identifier funcargs funcargs
