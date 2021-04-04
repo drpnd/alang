@@ -24,6 +24,7 @@
 #ifndef _SYNTAX_H
 #define _SYNTAX_H
 
+#include <stdio.h>
 #include <unistd.h>
 
 #define VECTOR_INIT_SIZE    32
@@ -287,6 +288,20 @@ typedef struct {
     size_t size;
     import_t **vec;
 } import_vec_t;
+
+/*
+ * File stack
+ */
+typedef struct _file_Stack file_stack_t;
+struct _file_stack {
+    char *fname;
+    FILE *fp;
+    off_t first_line;
+    off_t first_column;
+    off_t last_line;
+    off_t last_column;
+    file_stack_t *next;
+};
 
 /*
  * Code file
