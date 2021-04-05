@@ -157,6 +157,7 @@ _append_buffer_char(char c)
 "include"   return TOK_INCLUDE;
 "fn"        return TOK_FN;
 "coroutine" return TOK_COROUTINE;
+"struct"    return TOK_STRUCT;
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {
     char *val;
