@@ -100,6 +100,12 @@ All the data are carried a packet.
     suite ::=
             "{" statement* "}"
 
+    member ::=
+            type identifier
+
+    member_list ::=
+            member ( "," member )*
+
     structdef ::=
             "struct" struct_name "{" member_list "}"
 
