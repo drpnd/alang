@@ -159,6 +159,7 @@ _append_buffer_char(char c)
 "coroutine" return TOK_COROUTINE;
 "struct"    return TOK_STRUCT;
 "union"     return TOK_UNION;
+"enum"      return TOK_ENUM;
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {
     char *val;
