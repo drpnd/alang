@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019-2020 Hirochika Asai
+# Copyright (c) 2019-2021 Hirochika Asai
 # All rights reserved.
 #
 # Authors:
@@ -10,7 +10,7 @@ BASEDIR=$(shell pwd)
 CFLAGS=-g -Wall -DBASEDIR=\"$(BASEDIR)\"
 
 all:
-	$(MAKE) minica minica_test_ld minica_test_asm
+	$(MAKE) minica minica_test_ld minica_test_asm minica_test_parser
 
 y.tab.c: minica.y
 	$(YACC) -d $^
@@ -28,6 +28,9 @@ minica_test_ld: tests/minica_test_ld.o ld/mach-o.o ld/elf.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o arch/x86-64/instr.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:

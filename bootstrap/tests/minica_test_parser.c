@@ -21,19 +21,58 @@
  * SOFTWARE.
  */
 
-#include "../arch.h"
+#include "syntax.h"
+#include "compile.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
 /*
+ * Print usage and exit
+ */
+static void
+_usage(const char *prog)
+{
+    fprintf(stderr, "Usage: %s <file>\n", prog);
+    exit(EXIT_FAILURE);
+}
+
+/*
  * Main routine for the parser test
  */
 int
-main(int argc, const char *const argv[])
+_main(int argc, const char *const argv[])
 {
-    return 0;
+    code_file_t code;
+    extern int yyparse(void);
+    extern FILE *yyin;
+
+    /* Initialize */
+    code_file_init(&code);
+
+    if ( argc < 2 ) {
+        yyin = stdin;
+        /* stdio is not supported. */
+        _usage(argv[0]);
+    } else {
+        /* Open the specified file */
+        yyin = fopen(argv[1], "r");
+        if ( NULL == yyin ) {
+            perror("fopen");
+            exit(EXIT_FAILURE);
+        }
+    }
+    /* Parse the input file */
+    if ( yyparse() ) {
+        fprintf(stderr, "Parse error!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Compile */
+    compile(&code);
+
+    return EXIT_SUCCESS;
 }
 
 /*
