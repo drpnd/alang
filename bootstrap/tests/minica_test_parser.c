@@ -28,7 +28,7 @@
 #include <string.h>
 
 /*
- * Main routine for the linker test
+ * Main routine for the parser test
  */
 int
 main(int argc, const char *const argv[])
