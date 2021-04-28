@@ -10,7 +10,7 @@ BASEDIR=$(shell pwd)
 CFLAGS=-g -Wall -DBASEDIR=\"$(BASEDIR)\"
 
 all:
-	$(MAKE) minica minica_test_ld minica_test_asm minica_test_parser
+	$(MAKE) minica_test_ld minica_test_asm minica_test_parser
 
 y.tab.c: minica.y
 	$(YACC) -d $^

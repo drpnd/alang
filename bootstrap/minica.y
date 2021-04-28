@@ -323,16 +323,6 @@ literal:        TOK_LIT_INT
 %%
 
 /*
- * Print usage and exit
- */
-void
-usage(const char *prog)
-{
-    fprintf(stderr, "Usage: %s <file>\n", prog);
-    exit(EXIT_FAILURE);
-}
-
-/*
  * Error handler
  */
 int
@@ -347,10 +337,10 @@ yyerror(char const *str)
 }
 
 /*
- * Main routine
+ * Parse
  */
 int
-main(int argc, const char *const argv[])
+minica_parse(FILE *fp)
 {
     extern int yyparse(void);
     extern FILE *yyin;
@@ -358,18 +348,9 @@ main(int argc, const char *const argv[])
     /* Initialize */
     code_file_init(&code);
 
-    if ( argc < 2 ) {
-        yyin = stdin;
-        /* stdio is not supported. */
-        usage(argv[0]);
-    } else {
-        /* Open the specified file */
-        yyin = fopen(argv[1], "r");
-        if ( NULL == yyin ) {
-            perror("fopen");
-            exit(EXIT_FAILURE);
-        }
-    }
+    /* Set the file pointer */
+    yyin = fp;
+
     /* Parse the input file */
     if ( yyparse() ) {
         fprintf(stderr, "Parse error!\n");
@@ -378,8 +359,6 @@ main(int argc, const char *const argv[])
 
     /* Compile */
     compile(&code);
-
-    return EXIT_SUCCESS;
 }
 
 /*

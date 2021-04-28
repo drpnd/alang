@@ -31,46 +31,36 @@
 /*
  * Print usage and exit
  */
-static void
-_usage(const char *prog)
+void
+usage(const char *prog)
 {
     fprintf(stderr, "Usage: %s <file>\n", prog);
     exit(EXIT_FAILURE);
 }
 
+int minica_parse(FILE *);
+
 /*
  * Main routine for the parser test
  */
 int
-_main(int argc, const char *const argv[])
+main(int argc, const char *const argv[])
 {
-    code_file_t code;
-    extern int yyparse(void);
-    extern FILE *yyin;
-
-    /* Initialize */
-    code_file_init(&code);
+    FILE *fp;
 
     if ( argc < 2 ) {
-        yyin = stdin;
+        fp = stdin;
         /* stdio is not supported. */
-        _usage(argv[0]);
+        usage(argv[0]);
     } else {
         /* Open the specified file */
-        yyin = fopen(argv[1], "r");
-        if ( NULL == yyin ) {
+        fp = fopen(argv[1], "r");
+        if ( NULL == fp ) {
             perror("fopen");
             exit(EXIT_FAILURE);
         }
     }
-    /* Parse the input file */
-    if ( yyparse() ) {
-        fprintf(stderr, "Parse error!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Compile */
-    compile(&code);
+    minica_parse(fp);
 
     return EXIT_SUCCESS;
 }
