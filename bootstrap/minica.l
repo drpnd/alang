@@ -153,6 +153,7 @@ _append_buffer_char(char c)
 "string"    return TOK_TYPE_STRING;
     /* Reserved keywords */
 "package"   return TOK_PACKAGE;
+"mod"       return TOK_MOD;
 "import"    return TOK_IMPORT;
 "include"   return TOK_INCLUDE;
 "fn"        return TOK_FN;
