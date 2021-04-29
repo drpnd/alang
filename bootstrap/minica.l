@@ -68,7 +68,7 @@ _update_locations(YYLTYPE *loc, char *s)
 }
 
 /*
- * Clear string buffer
+ * _clear_buffer -- clear string buffer
  */
 static void
 _clear_buffer(void)
@@ -84,7 +84,7 @@ _clear_buffer(void)
 }
 
 /*
- * Append string to the buffer
+ * _append_buffer_str -- append string to the buffer
  */
 static void
 _append_buffer_str(const char *s)
@@ -111,7 +111,7 @@ _append_buffer_str(const char *s)
 }
 
 /*
- * Append a character to the buffer
+ * _append_buffer_char -- append a character to the buffer
  */
 static void
 _append_buffer_char(char c)
@@ -190,23 +190,26 @@ _append_buffer_char(char c)
     yylval.idval = val;
     return TOK_ID;
 }
-    /* Numerical numbers */
+    /* Decimal numbers */
 [1-9][0-9]* {
     int val;
     sscanf(yytext, "%d", &val);
     yylval.intval = val;
     return TOK_LIT_INT;
 }
+    /* Hexadecimal numbers */
 0x[0-9a-fA-F]+ {
     int val;
     yylval.intval = strtol(yytext + 2, NULL, 16);
     return TOK_LIT_INT;
 }
+    /* Octal numbers */
 0[0-7]* {
     int val;
     yylval.intval = strtol(yytext, NULL, 8);
     return TOK_LIT_INT;
 }
+    /* Floating point */
 [0-9]+\.[0-9]+ {
     float val;
     sscanf(yytext, "%f", &val);
@@ -214,6 +217,7 @@ _append_buffer_char(char c)
     return TOK_LIT_FLOAT;
 
 }
+    /* Floating point (<1.0) */
 \.[0-9]+ {
     float val;
     sscanf(yytext, "%f", &val);
@@ -221,6 +225,7 @@ _append_buffer_char(char c)
     return TOK_LIT_FLOAT;
 
 }
+    /* Floating point (d.0) */
 [0-9]+\. {
     float val;
     sscanf(yytext, "%f", &val);
