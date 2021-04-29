@@ -679,6 +679,7 @@ code_file_init(code_file_t *code)
 {
     code->package = NULL;
 
+    /* Initialize functions */
     code->funcs.n = 0;
     code->funcs.size = VECTOR_INIT_SIZE;
     code->funcs.vec = malloc(VECTOR_INIT_SIZE * sizeof(func_t *));
@@ -686,6 +687,7 @@ code_file_init(code_file_t *code)
         return -1;
     }
 
+    /* Initialize coroutines */
     code->coroutines.n = 0;
     code->coroutines.size = VECTOR_INIT_SIZE;
     code->coroutines.vec = malloc(VECTOR_INIT_SIZE * sizeof(coroutine_t *));
@@ -694,6 +696,7 @@ code_file_init(code_file_t *code)
         return -1;
     }
 
+    /* Initialize imports */
     code->imports.n = 0;
     code->imports.size = VECTOR_INIT_SIZE;
     code->imports.vec = malloc(VECTOR_INIT_SIZE * sizeof(import_t *));
