@@ -267,7 +267,7 @@ declaration:    identifier type
 identifier:     TOK_ID
                 {
                     $$ = $1;
-                    printf("xxx %d %d\n", yylloc.first_line, yylloc.first_column);
+                    //printf("xxx %d %d\n", yylloc.first_line, yylloc.first_column);
                 }
                 ;
 type:           primitive

@@ -27,19 +27,7 @@
 #include <string.h>
 #include "y.tab.h"
 
-#define YY_USER_ACTION                              \
-    {                                               \
-        yylloc.first_line = yylloc.last_line;       \
-        yylloc.first_column = yylloc.last_column;   \
-        for ( int i = 0; yytext[i] != '\0'; i++ ) { \
-            if ( yytext[i] == '\n' ) {              \
-                yylloc.last_line++;                 \
-                yylloc.last_column = 0;             \
-            } else {                                \
-                yylloc.last_column++;               \
-            }                                       \
-        }                                           \
-    }
+#define YY_USER_ACTION _update_locations(&yylloc, yytext);
 
 #define STRING_CHUNK 4096
 /*
@@ -59,6 +47,25 @@ yywrap(void)
 }
 
 static struct string buffer;
+
+/*
+ * _update_locations -- update yylloc
+ */
+static void
+_update_locations(YYLTYPE *loc, char *s)
+{
+    int i;
+    loc->first_line = loc->last_line;
+    loc->first_column = loc->last_column;
+    for ( i = 0; s[i] != '\0'; i++ ) {
+        if ( s[i] == '\n' ) {
+            loc->last_line++;
+            loc->last_column = 0;
+        } else {
+            loc->last_column++;
+        }
+    }
+}
 
 /*
  * Clear string buffer
