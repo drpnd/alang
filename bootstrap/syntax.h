@@ -218,6 +218,15 @@ struct _expr {
 };
 
 /*
+ * Expression list
+ */
+typedef struct {
+    size_t n;
+    size_t size;
+    expr_t **exprs;
+} expr_vec_t;
+
+/*
  * Statement type
  */
 typedef enum {

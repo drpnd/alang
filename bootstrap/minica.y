@@ -51,6 +51,7 @@ code_file_t *code;
     void *stmts;
     void *import;
     void *include;
+    void *exprs;
 }
 
 %token <intval>         TOK_LIT_INT
@@ -69,7 +70,7 @@ code_file_t *code;
 %type <include> include
 %type <idval> identifier
 %type <var> variable
-%type <val> value
+%type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
 %type <type> primitive type
@@ -80,6 +81,7 @@ code_file_t *code;
 %type <stmts> statements
 %type <void> package
 %type <lit> literal
+%type <exprs> exprs
 
 %locations
 
@@ -232,12 +234,22 @@ m_expr:         m_expr TOK_MUL primary
                     $$ = $1;
                 }
                 ;
-primary:        value
+primary:        atom
                 {
                     $$ = expr_new_val($1);
                 }
+        |
+                atom TOK_LPAREN exprs TOK_RPAREN
+                {
+                    $$ = NULL;
+                }
+        |
+                atom TOK_LBRACKET expression TOK_RBRACKET
+                {
+                    $$ = NULL;
+                }
                 ;
-value:          literal
+atom:           literal
                 {
                     $$ = val_new_literal($1);
                 }
@@ -258,7 +270,7 @@ variable:       declaration
                 {
                     $$ = var_new_id($2, 1);
                 }
-        ;
+                ;
 declaration:    identifier type
                 {
                     $$ = decl_new($1, $2);
@@ -319,6 +331,20 @@ literal:        TOK_LIT_INT
         |       TOK_LIT_STR
                 {
                     $$ = literal_new_string($1);
+                }
+                ;
+exprs:          expression
+                {
+                    $$ = NULL;
+                }
+        |
+                expression TOK_COMMA exprs
+                {
+                    $$ = NULL;
+                }
+        |
+                {
+                    $$ = NULL;
                 }
                 ;
 %%
