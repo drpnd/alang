@@ -30,7 +30,7 @@
 
 int yylex();
 int yyerror(char const *);
-code_file_t code;
+code_file_t *code;
 %}
 
 %union {
@@ -94,18 +94,18 @@ blocks:         block
 block:          package
         |       import
                 {
-                    import_vec_add(&code.imports, $1);
+                    import_vec_add(&code->imports, $1);
                 }
         |       include
                 {
                 }
         |       coroutine
                 {
-                    coroutine_vec_add(&code.coroutines, $1);
+                    coroutine_vec_add(&code->coroutines, $1);
                 }
         |       function
                 {
-                    func_vec_add(&code.funcs, $1);
+                    func_vec_add(&code->funcs, $1);
                 }
                 ;
 statements:     statement
@@ -120,7 +120,7 @@ statements:     statement
 package:        TOK_PACKAGE identifier
                 {
                     int ret;
-                    ret = package_define(&code, $2);
+                    ret = package_define(code, $2);
                     if ( 0 != ret ) {
                         /* Already defined */
                         yyerror("Another package is already specified in this "
@@ -337,16 +337,20 @@ yyerror(char const *str)
 }
 
 /*
- * Parse
+ * minica_parse -- parse the specified file
  */
-int
+code_file_t *
 minica_parse(FILE *fp)
 {
     extern int yyparse(void);
     extern FILE *yyin;
 
     /* Initialize */
-    code_file_init(&code);
+    code = malloc(sizeof(code_file_t));
+    if ( NULL == code ) {
+        return NULL;
+    }
+    code_file_init(code);
 
     /* Set the file pointer */
     yyin = fp;
@@ -358,7 +362,9 @@ minica_parse(FILE *fp)
     }
 
     /* Compile */
-    compile(&code);
+    compile(code);
+
+    return code;
 }
 
 /*

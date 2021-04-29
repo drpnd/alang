@@ -29,7 +29,7 @@
 #include <string.h>
 
 /*
- * Print usage and exit
+ * usage -- print usage and exit
  */
 void
 usage(const char *prog)
@@ -38,7 +38,7 @@ usage(const char *prog)
     exit(EXIT_FAILURE);
 }
 
-int minica_parse(FILE *);
+code_file_t * minica_parse(FILE *);
 
 /*
  * Main routine for the parser test
@@ -47,6 +47,7 @@ int
 main(int argc, const char *const argv[])
 {
     FILE *fp;
+    code_file_t *code;
 
     if ( argc < 2 ) {
         fp = stdin;
@@ -60,7 +61,8 @@ main(int argc, const char *const argv[])
             exit(EXIT_FAILURE);
         }
     }
-    minica_parse(fp);
+    /* Parse the specified file */
+    code = minica_parse(fp);
 
     return EXIT_SUCCESS;
 }
