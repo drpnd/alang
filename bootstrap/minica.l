@@ -26,7 +26,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include "y.tab.h"
-#define YY_USER_ACTION yylloc.first_line = yylloc.last_line = yylineno;
+
+#define YY_USER_ACTION                              \
+    {                                               \
+        yylloc.first_line = yylloc.last_line;       \
+        yylloc.first_column = yylloc.last_column;   \
+        for ( int i = 0; yytext[i] != '\0'; i++ ) { \
+            if ( yytext[i] == '\n' ) {              \
+                yylloc.last_line++;                 \
+                yylloc.last_column = 0;             \
+            } else {                                \
+                yylloc.last_column++;               \
+            }                                       \
+        }                                           \
+    }
 
 #define STRING_CHUNK 4096
 /*
@@ -118,7 +131,6 @@ _append_buffer_char(char c)
 %x string
 %x comment
 %x blockcomment
-%option yylineno
 %%
     /* Arithmetic operations */
 "+"         return TOK_ADD;

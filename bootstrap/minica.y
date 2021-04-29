@@ -267,6 +267,7 @@ declaration:    identifier type
 identifier:     TOK_ID
                 {
                     $$ = $1;
+                    printf("xxx %d %d\n", yylloc.first_line, yylloc.first_column);
                 }
                 ;
 type:           primitive
@@ -346,7 +347,7 @@ minica_parse(FILE *fp)
     extern FILE *yyin;
     int ret;
 
-    /* Initialize */
+    /* Initialize the code file (output) */
     code = malloc(sizeof(code_file_t));
     if ( NULL == code ) {
         return NULL;
