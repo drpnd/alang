@@ -686,10 +686,20 @@ code_file_init(code_file_t *code)
         return -1;
     }
 
+    code->coroutines.n = 0;
+    code->coroutines.size = VECTOR_INIT_SIZE;
+    code->coroutines.vec = malloc(VECTOR_INIT_SIZE * sizeof(coroutine_t *));
+    if ( NULL == code->coroutines.vec ) {
+        free(code->funcs.vec);
+        return -1;
+    }
+
     code->imports.n = 0;
     code->imports.size = VECTOR_INIT_SIZE;
     code->imports.vec = malloc(VECTOR_INIT_SIZE * sizeof(import_t *));
     if ( NULL == code->imports.vec ) {
+        free(code->funcs.vec);
+        free(code->coroutines.vec);
         return -1;
     }
 

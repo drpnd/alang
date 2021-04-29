@@ -344,13 +344,18 @@ minica_parse(FILE *fp)
 {
     extern int yyparse(void);
     extern FILE *yyin;
+    int ret;
 
     /* Initialize */
     code = malloc(sizeof(code_file_t));
     if ( NULL == code ) {
         return NULL;
     }
-    code_file_init(code);
+    ret = code_file_init(code);
+    if ( ret < 0 ) {
+        free(code);
+        return NULL;
+    }
 
     /* Set the file pointer */
     yyin = fp;

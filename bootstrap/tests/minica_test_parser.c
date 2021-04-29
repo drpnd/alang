@@ -63,6 +63,9 @@ main(int argc, const char *const argv[])
     }
     /* Parse the specified file */
     code = minica_parse(fp);
+    if ( NULL == code ) {
+        exit(EXIT_FAILURE);
+    }
 
     return EXIT_SUCCESS;
 }
