@@ -550,6 +550,31 @@ stmt_prepend(stmt_t *stmt, stmt_list_t *block)
 }
 
 /*
+ * expr_vec_add -- add an expression to the expression vector
+ */
+int
+expr_vec_add(expr_vec_t *vec, expr_t *expr)
+{
+    expr_t **nvec;
+    size_t resized;
+
+    if ( vec->n >= vec->size ) {
+        /* Resize */
+        resized = vec->size + VECTOR_DELTA;
+        nvec = realloc(vec->vec, resized * sizeof(expr_t *));
+        if ( NULL == nvec ) {
+            return -1;
+        }
+        vec->vec = nvec;
+        vec->size = resized;
+    }
+    vec->vec[vec->n] = expr;
+    vec->n++;
+
+    return 0;
+}
+
+/*
  * func_vec_add -- add a function to the function vector
  */
 int

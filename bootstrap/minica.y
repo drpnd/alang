@@ -340,7 +340,8 @@ exprs:          expression
         |
                 expression TOK_COMMA exprs
                 {
-                    $$ = NULL;
+                    expr_vec_add($3, $1);
+                    $$ = $3;
                 }
         |
                 {

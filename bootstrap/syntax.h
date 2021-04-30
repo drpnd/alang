@@ -223,7 +223,7 @@ struct _expr {
 typedef struct {
     size_t n;
     size_t size;
-    expr_t **exprs;
+    expr_t **vec;
 } expr_vec_t;
 
 /*
@@ -355,6 +355,7 @@ extern "C" {
     expr_t * expr_new_val(val_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
+    int expr_vec_add(expr_vec_t *, expr_t *);
     int func_vec_add(func_vec_t *, func_t *);
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
     int import_vec_add(import_vec_t *, import_t *);
