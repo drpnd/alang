@@ -391,6 +391,7 @@ expr_op_new_infix(expr_t *e0, expr_t *e1, op_type_t type)
     }
     op = op_new_infix(e0, e1, type);
     if ( NULL == op ) {
+        free(e);
         return NULL;
     }
     e->type = EXPR_OP;
@@ -415,6 +416,7 @@ expr_op_new_prefix(expr_t *e0, op_type_t type)
     }
     op = op_new_prefix(e0, type);
     if ( NULL == op ) {
+        free(e);
         return NULL;
     }
     e->type = EXPR_OP;
