@@ -335,13 +335,12 @@ literal:        TOK_LIT_INT
                 ;
 exprs:          expression
                 {
-                    $$ = NULL;
+                    $$ = $1;
                 }
         |
                 expression TOK_COMMA exprs
                 {
-                    expr_vec_add($3, $1);
-                    $$ = $3;
+                    $$ = expr_prepend($1, $3);
                 }
         |
                 {

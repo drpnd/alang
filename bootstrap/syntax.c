@@ -321,8 +321,19 @@ expr_new_val(val_t *val)
     }
     e->type = EXPR_VAL;
     e->u.val = val;
+    e->next = NULL;
 
     return e;
+}
+
+/*
+ * expr_prepend -- prepend an expression to the list
+ */
+expr_t *
+expr_prepend(expr_t *expr, expr_t *exprs)
+{
+    expr->next = exprs;
+    return expr;
 }
 
 /*
@@ -384,6 +395,7 @@ expr_op_new_infix(expr_t *e0, expr_t *e1, op_type_t type)
     }
     e->type = EXPR_OP;
     e->u.op = op;
+    e->next = NULL;
 
     return e;
 }
@@ -407,6 +419,7 @@ expr_op_new_prefix(expr_t *e0, op_type_t type)
     }
     e->type = EXPR_OP;
     e->u.op = op;
+    e->next = NULL;
 
     return e;
 }
@@ -547,31 +560,6 @@ stmt_prepend(stmt_t *stmt, stmt_list_t *block)
     block->head = stmt;
 
     return block;
-}
-
-/*
- * expr_vec_add -- add an expression to the expression vector
- */
-int
-expr_vec_add(expr_vec_t *vec, expr_t *expr)
-{
-    expr_t **nvec;
-    size_t resized;
-
-    if ( vec->n >= vec->size ) {
-        /* Resize */
-        resized = vec->size + VECTOR_DELTA;
-        nvec = realloc(vec->vec, resized * sizeof(expr_t *));
-        if ( NULL == nvec ) {
-            return -1;
-        }
-        vec->vec = nvec;
-        vec->size = resized;
-    }
-    vec->vec[vec->n] = expr;
-    vec->n++;
-
-    return 0;
 }
 
 /*
