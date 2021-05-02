@@ -34,7 +34,6 @@ code_file_t *code;
 %}
 
 %union {
-    float floatval;
     char *numval;
     char *idval;
     char *strval;
@@ -54,7 +53,7 @@ code_file_t *code;
     void *exprs;
 }
 
-%token <floatval>       TOK_LIT_FLOAT
+%token <numval>         TOK_LIT_FLOAT
 %token <numval>         TOK_LIT_HEXINT TOK_LIT_DECINT TOK_LIT_OCTINT
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR

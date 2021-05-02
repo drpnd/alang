@@ -222,25 +222,34 @@ _append_buffer_char(char c)
 }
     /* Floating point */
 [0-9]+\.[0-9]+ {
-    float val;
-    sscanf(yytext, "%f", &val);
-    yylval.floatval = val;
+    char *val;
+    val = strdup(yytext);
+    if ( NULL == val ) {
+        return *yytext;
+    }
+    yylval.numval = val;
     return TOK_LIT_FLOAT;
 
 }
     /* Floating point (<1.0) */
 \.[0-9]+ {
-    float val;
-    sscanf(yytext, "%f", &val);
-    yylval.floatval = val;
+    char *val;
+    val = strdup(yytext);
+    if ( NULL == val ) {
+        return *yytext;
+    }
+    yylval.numval = val;
     return TOK_LIT_FLOAT;
 
 }
     /* Floating point (d.0) */
 [0-9]+\. {
-    float val;
-    sscanf(yytext, "%f", &val);
-    yylval.floatval = val;
+    char *val;
+    val = strdup(yytext);
+    if ( NULL == val ) {
+        return *yytext;
+    }
+    yylval.numval = val;
     return TOK_LIT_FLOAT;
 }
     /* String format */

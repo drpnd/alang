@@ -55,7 +55,7 @@ literal_new_int(const char *v, int type)
  * literal_new_float -- allocate a float literal
  */
 literal_t *
-literal_new_float(float v)
+literal_new_float(const char *v)
 {
     literal_t *lit;
 
@@ -64,7 +64,11 @@ literal_new_float(float v)
         return NULL;
     }
     lit->type = LIT_FLOAT;
-    lit->u.f = v;
+    lit->u.n = strdup(v);
+    if ( NULL == lit->u.n ) {
+        free(lit);
+        return NULL;
+    }
 
     return lit;
 }
