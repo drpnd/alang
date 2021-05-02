@@ -58,6 +58,7 @@ code_file_t *code;
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
+%token TOK_LAND TOK_LOR
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
 %token TOK_LCHEVRON TOK_RCHEVRON
 %token TOK_EQ TOK_COMMA TOK_ATMARK
@@ -74,6 +75,7 @@ code_file_t *code;
 %type <decl> declaration
 %type <arg> arg args funcargs
 %type <type> primitive type
+%type <expr> or_test and_test not_test comparison
 %type <expr> primary expression a_expr m_expr u_expr
 %type <func> function
 %type <coroutine> coroutine
@@ -204,6 +206,34 @@ stmt_expr:      expression
                 }
                 ;
 expression:     a_expr
+                {
+                    $$ = $1;
+                }
+                ;
+or_test:        or_test TOK_LOR and_test
+                {
+                    $$ = NULL;
+                }
+        |       and_test
+                {
+                    $$ = $1;
+                }
+                ;
+and_test:       and_test TOK_LAND not_test
+                {
+                    $$ = NULL;
+                }
+        |       not_test
+                {
+                    $$ = $1;
+                }
+                ;
+not_test:       comparison
+                {
+                    $$ = $1;
+                }
+                ;
+comparison:     a_expr
                 {
                     $$ = $1;
                 }

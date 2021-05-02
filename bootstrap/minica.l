@@ -150,6 +150,9 @@ _append_buffer_char(char c)
 "&"         return TOK_BIT_AND;
 "<<"        return TOK_BIT_LSHIFT;
 ">>"        return TOK_BIT_RSHIFT;
+    /* Logical operations */
+"||"        return TOK_LOR;
+"&&"        return TOK_LAND;
     /* Parentheses, brackets, etc... */
 "("         return TOK_LPAREN;
 ")"         return TOK_RPAREN;
