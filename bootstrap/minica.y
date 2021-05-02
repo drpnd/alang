@@ -34,8 +34,8 @@ code_file_t *code;
 %}
 
 %union {
-    int intval;
     float floatval;
+    char *numval;
     char *idval;
     char *strval;
     void *type;
@@ -54,8 +54,8 @@ code_file_t *code;
     void *exprs;
 }
 
-%token <intval>         TOK_LIT_INT
 %token <floatval>       TOK_LIT_FLOAT
+%token <numval>         TOK_LIT_HEXINT TOK_LIT_DECINT TOK_LIT_OCTINT
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
@@ -320,9 +320,19 @@ primitive:      TOK_TYPE_I8
                     $$ = type_new_primitive(TYPE_PRIMITIVE_STRING);
                 }
                 ;
-literal:        TOK_LIT_INT
+literal:        TOK_LIT_HEXINT
                 {
-                    $$ = literal_new_int($1);
+                    $$ = literal_new_int($1, LIT_HEXINT);
+                }
+        |
+                TOK_LIT_DECINT
+                {
+                    $$ = literal_new_int($1, LIT_DECINT);
+                }
+        |
+                TOK_LIT_OCTINT
+                {
+                    $$ = literal_new_int($1, LIT_OCTINT);
                 }
         |       TOK_LIT_FLOAT
                 {

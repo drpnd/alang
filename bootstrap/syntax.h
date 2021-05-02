@@ -42,6 +42,9 @@ typedef struct _stmt_list stmt_list_t;
  */
 typedef enum {
     LIT_INT,
+    LIT_HEXINT,
+    LIT_DECINT,
+    LIT_OCTINT,
     LIT_FLOAT,
     LIT_STRING,
 } literal_type_t;
@@ -54,6 +57,7 @@ typedef struct {
     union {
         int i;
         float f;
+        char *n;
         char *s;
     } u;
 } literal_t;
@@ -323,7 +327,7 @@ typedef struct {
 extern "C" {
 #endif
 
-    literal_t * literal_new_int(int);
+    literal_t * literal_new_int(const char *, int);
     literal_t * literal_new_float(float);
     literal_t * literal_new_string(const char *);
     type_t * type_new_primitive(type_type_t);

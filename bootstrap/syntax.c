@@ -33,7 +33,7 @@ var_stack_t *stack;
  * literal_new_int -- allocate an integer literal
  */
 literal_t *
-literal_new_int(int v)
+literal_new_int(const char *v, int type)
 {
     literal_t *lit;
 
@@ -41,8 +41,12 @@ literal_new_int(int v)
     if ( NULL == lit ) {
         return NULL;
     }
-    lit->type = LIT_INT;
-    lit->u.i = v;
+    lit->type = type;
+    lit->u.n = strdup(v);
+    if ( NULL == lit->u.n ) {
+        free(lit);
+        return NULL;
+    }
 
     return lit;
 }

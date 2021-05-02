@@ -192,22 +192,33 @@ _append_buffer_char(char c)
 }
     /* Decimal numbers */
 [1-9][0-9]* {
-    int val;
-    sscanf(yytext, "%d", &val);
-    yylval.intval = val;
-    return TOK_LIT_INT;
+    char *val;
+    val = strdup(yytext);
+    if ( NULL == val ) {
+        return *yytext;
+    }
+    yylval.numval = val;
+    return TOK_LIT_DECINT;
 }
     /* Hexadecimal numbers */
 0x[0-9a-fA-F]+ {
-    int val;
-    yylval.intval = strtol(yytext + 2, NULL, 16);
-    return TOK_LIT_INT;
+    char *val;
+    val = strdup(yytext + 2);
+    if ( NULL == val ) {
+        return *yytext;
+    }
+    yylval.numval = val;
+    return TOK_LIT_HEXINT;
 }
     /* Octal numbers */
 0[0-7]* {
-    int val;
-    yylval.intval = strtol(yytext, NULL, 8);
-    return TOK_LIT_INT;
+    char *val;
+    val = strdup(yytext + 1);
+    if ( NULL == val ) {
+        return *yytext;
+    }
+    yylval.numval = val;
+    return TOK_LIT_OCTINT;
 }
     /* Floating point */
 [0-9]+\.[0-9]+ {
