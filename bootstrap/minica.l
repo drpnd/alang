@@ -144,6 +144,7 @@ _append_buffer_char(char c)
 "-"         return TOK_SUB;
 "*"         return TOK_MUL;
 "/"         return TOK_DIV;
+"%"         return TOK_MOD;
     /* Bitwise operations */
 "|"         return TOK_BIT_OR;
 "&"         return TOK_BIT_AND;
@@ -158,6 +159,9 @@ _append_buffer_char(char c)
 "]"         return TOK_RBRACKET;
 ","         return TOK_COMMA;
 "@"         return TOK_ATMARK;
+"<"         return TOK_LCHEVRON;
+">"         return TOK_RCHEVRON;
+"="         return TOK_EQ;
     /* Definition */
 ":="        return TOK_DEF;
     /* Control sequences */

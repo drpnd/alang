@@ -59,7 +59,8 @@ code_file_t *code;
 %token <strval>         TOK_LIT_STR
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
-%token TOK_COMMA TOK_ATMARK
+%token TOK_LCHEVRON TOK_RCHEVRON
+%token TOK_EQ TOK_COMMA TOK_ATMARK
 %token TOK_PACKAGE TOK_MOD TOK_IMPORT TOK_INCLUDE TOK_FN TOK_COROUTINE
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
@@ -73,7 +74,7 @@ code_file_t *code;
 %type <decl> declaration
 %type <arg> arg args funcargs
 %type <type> primitive type
-%type <expr> primary expression a_expr m_expr
+%type <expr> primary expression a_expr m_expr u_expr
 %type <func> function
 %type <coroutine> coroutine
 %type <stmt> statement stmt_decl stmt_assign stmt_expr
@@ -220,15 +221,35 @@ a_expr:         a_expr TOK_ADD m_expr
                     $$ = $1;
                 }
                 ;
-m_expr:         m_expr TOK_MUL primary
+m_expr:         m_expr TOK_MUL u_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_MUL);
                 }
-        |       m_expr TOK_DIV primary
+        |       m_expr TOK_DIV u_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_DIV);
                 }
-        |       primary
+        |
+                m_expr TOK_MOD u_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_MOD);
+                }
+        |       u_expr
+                {
+                    $$ = $1;
+                }
+                ;
+u_expr:         TOK_SUB u_expr
+                {
+                    $$ = expr_op_new_prefix($2, OP_SUB);
+                }
+        |
+                TOK_ADD u_expr
+                {
+                    $$ = expr_op_new_prefix($2, OP_ADD);
+                }
+        |
+                primary
                 {
                     $$ = $1;
                 }
