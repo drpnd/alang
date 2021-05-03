@@ -64,7 +64,7 @@ code_file_t *code;
 %token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
 %token TOK_EQ TOK_COMMA TOK_ATMARK
 %token TOK_PACKAGE TOK_MOD TOK_IMPORT TOK_INCLUDE TOK_FN TOK_COROUTINE
-%token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
+%token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_STRUCT TOK_UNION TOK_ENUM
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
@@ -239,46 +239,58 @@ not_test:       TOK_NOT not_test
                     $$ = $1;
                 }
                 ;
-comparison:     or_expr
+comparison:     comparison TOK_EQ_EQ or_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_EQ);
+                }
+        |       comparison TOK_NEQ or_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_NEQ);
+                }
+        |       comparison TOK_LCHEVRON or_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_LT);
+                }
+        |       comparison TOK_RCHEVRON or_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_GT);
+                }
+        |       comparison TOK_LEQ or_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_LEQ);
+                }
+        |       comparison TOK_GEQ or_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_GEQ);
+                }
+        |       or_expr
                 {
                     $$ = $1;
                 }
                 ;
-or_expr:        or_expr TOK_EQ_EQ xor_expr
+or_expr:        or_expr TOK_BIT_OR xor_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_EQ);
-                }
-        |       or_expr TOK_NEQ xor_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_NEQ);
-                }
-        |       or_expr TOK_LCHEVRON xor_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_LT);
-                }
-        |       or_expr TOK_RCHEVRON xor_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_GT);
-                }
-        |       or_expr TOK_LEQ xor_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_LEQ);
-                }
-        |       or_expr TOK_GEQ xor_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_GEQ);
+                    $$ = expr_op_new_infix($1, $3, OP_OR);
                 }
         |       xor_expr
                 {
                     $$ = $1;
                 }
                 ;
-xor_expr:       and_expr
+xor_expr:       xor_expr TOK_BIT_XOR and_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_XOR);
+                }
+        |       and_expr
                 {
                     $$ = $1;
                 }
                 ;
-and_expr:       shift_expr
+and_expr:       and_expr TOK_BIT_AND shift_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_AND);
+                }
+        |       shift_expr
                 {
                     $$ = $1;
                 }

@@ -148,6 +148,7 @@ _append_buffer_char(char c)
     /* Bitwise operations */
 "|"         return TOK_BIT_OR;
 "&"         return TOK_BIT_AND;
+"^"         return TOK_BIT_XOR;
 "<<"        return TOK_BIT_LSHIFT;
 ">>"        return TOK_BIT_RSHIFT;
     /* Logical operations */
