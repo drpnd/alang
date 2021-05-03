@@ -166,6 +166,11 @@ _append_buffer_char(char c)
 "<"         return TOK_LCHEVRON;
 ">"         return TOK_RCHEVRON;
 "="         return TOK_EQ;
+    /* Comparison */
+"=="        return TOK_EQ_EQ;
+"!="        return TOK_NEQ;
+"<="        return TOK_LEQ;
+">="        return TOK_GEQ;
     /* Definition */
 ":="        return TOK_DEF;
     /* Control sequences */

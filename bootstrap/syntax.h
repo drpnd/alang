@@ -183,6 +183,14 @@ typedef enum {
     OP_NOT,
     OP_AND,
     OP_OR,
+    OP_LSHIFT,
+    OP_RSHIFT,
+    OP_CMP_EQ,
+    OP_CMP_NEQ,
+    OP_CMP_GT,
+    OP_CMP_LT,
+    OP_CMP_GEQ,
+    OP_CMP_LEQ,
 } op_type_t;
 
 /*

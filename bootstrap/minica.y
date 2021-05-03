@@ -61,6 +61,7 @@ code_file_t *code;
 %token TOK_LAND TOK_LOR TOK_NOT
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
 %token TOK_LCHEVRON TOK_RCHEVRON
+%token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
 %token TOK_EQ TOK_COMMA TOK_ATMARK
 %token TOK_PACKAGE TOK_MOD TOK_IMPORT TOK_INCLUDE TOK_FN TOK_COROUTINE
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_LSHIFT TOK_BIT_RSHIFT
@@ -76,6 +77,7 @@ code_file_t *code;
 %type <arg> arg args funcargs
 %type <type> primitive type
 %type <expr> or_test and_test not_test comparison
+%type <expr> or_expr xor_expr and_expr shift_expr
 %type <expr> primary expression a_expr m_expr u_expr
 %type <func> function
 %type <coroutine> coroutine
@@ -237,7 +239,59 @@ not_test:       TOK_NOT not_test
                     $$ = $1;
                 }
                 ;
-comparison:     a_expr
+comparison:     or_expr
+                {
+                    $$ = $1;
+                }
+                ;
+or_expr:        or_expr TOK_EQ_EQ xor_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_EQ);
+                }
+        |       or_expr TOK_NEQ xor_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_NEQ);
+                }
+        |       or_expr TOK_LCHEVRON xor_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_LT);
+                }
+        |       or_expr TOK_RCHEVRON xor_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_GT);
+                }
+        |       or_expr TOK_LEQ xor_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_LEQ);
+                }
+        |       or_expr TOK_GEQ xor_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_GEQ);
+                }
+        |       xor_expr
+                {
+                    $$ = $1;
+                }
+                ;
+xor_expr:       and_expr
+                {
+                    $$ = $1;
+                }
+                ;
+and_expr:       shift_expr
+                {
+                    $$ = $1;
+                }
+                ;
+shift_expr:     shift_expr TOK_BIT_LSHIFT a_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_LSHIFT);
+                }
+        |       shift_expr TOK_BIT_RSHIFT a_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_RSHIFT);
+                }
+        |       a_expr
                 {
                     $$ = $1;
                 }
