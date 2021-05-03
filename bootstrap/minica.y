@@ -34,6 +34,8 @@ code_file_t *code;
 %}
 
 %union {
+    void *file;
+    void *blocks;
     char *numval;
     char *idval;
     char *strval;
@@ -57,17 +59,19 @@ code_file_t *code;
 %token <numval>         TOK_LIT_HEXINT TOK_LIT_DECINT TOK_LIT_OCTINT
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR
-%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
+%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_DEF
 %token TOK_LAND TOK_LOR TOK_NOT
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
 %token TOK_LCHEVRON TOK_RCHEVRON
 %token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
 %token TOK_EQ TOK_COMMA TOK_ATMARK
-%token TOK_PACKAGE TOK_MOD TOK_IMPORT TOK_INCLUDE TOK_FN TOK_COROUTINE
+%token TOK_PACKAGE TOK_MODULE TOK_IMPORT TOK_INCLUDE TOK_FN TOK_COROUTINE
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_STRUCT TOK_UNION TOK_ENUM
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
+
+%type <blocks> module
 %type <import> import
 %type <include> include
 %type <idval> identifier
@@ -83,17 +87,35 @@ code_file_t *code;
 %type <coroutine> coroutine
 %type <stmt> statement stmt_decl stmt_assign stmt_expr
 %type <stmts> statements
-%type <void> package
 %type <lit> literal
 %type <exprs> exprs
 
 %locations
 
+%start file
+
 %%
 
-/* Syntax and parser */
+/* Syntax and parser implementation below */
 file:           blocks
                 ;
+
+/* Top directives */
+directives:     directive
+                ;
+directive:      coroutine
+                {
+                    coroutine_vec_add(&code->coroutines, $1);
+                }
+        |       function
+                {
+                    func_vec_add(&code->funcs, $1);
+                }
+        |       module
+                {
+                }
+                ;
+
 blocks:         block
         |       block blocks
                 ;
@@ -154,6 +176,11 @@ function:       TOK_FN identifier funcargs funcargs
                 TOK_LBRACE statements TOK_RBRACE
                 {
                     $$ = func_new($2, $3, $4, $6);
+                }
+                ;
+module:         TOK_MODULE identifier TOK_LBRACE blocks TOK_RBRACE
+                {
+                    $$ = NULL;
                 }
                 ;
 funcargs:       TOK_LPAREN args TOK_RPAREN
