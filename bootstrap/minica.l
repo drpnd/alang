@@ -153,6 +153,7 @@ _append_buffer_char(char c)
     /* Logical operations */
 "||"        return TOK_LOR;
 "&&"        return TOK_LAND;
+"!"         return TOK_NOT;
     /* Parentheses, brackets, etc... */
 "("         return TOK_LPAREN;
 ")"         return TOK_RPAREN;

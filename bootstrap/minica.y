@@ -58,7 +58,7 @@ code_file_t *code;
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_DEF
-%token TOK_LAND TOK_LOR
+%token TOK_LAND TOK_LOR TOK_NOT
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
 %token TOK_LCHEVRON TOK_RCHEVRON
 %token TOK_EQ TOK_COMMA TOK_ATMARK
@@ -205,14 +205,14 @@ stmt_expr:      expression
                     $$ = stmt_new_expr($1);
                 }
                 ;
-expression:     a_expr
+expression:     or_test
                 {
                     $$ = $1;
                 }
                 ;
 or_test:        or_test TOK_LOR and_test
                 {
-                    $$ = NULL;
+                    $$ = expr_op_new_infix($1, $3, OP_OR);
                 }
         |       and_test
                 {
@@ -221,14 +221,18 @@ or_test:        or_test TOK_LOR and_test
                 ;
 and_test:       and_test TOK_LAND not_test
                 {
-                    $$ = NULL;
+                    $$ = expr_op_new_infix($1, $3, OP_AND);
                 }
         |       not_test
                 {
                     $$ = $1;
                 }
                 ;
-not_test:       comparison
+not_test:       TOK_NOT not_test
+                {
+                    $$ = expr_op_new_prefix($2, OP_NOT);
+                }
+        |       comparison
                 {
                     $$ = $1;
                 }
