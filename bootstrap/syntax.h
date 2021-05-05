@@ -36,6 +36,7 @@
 typedef struct _expr expr_t;
 typedef struct _stmt stmt_t;
 typedef struct _stmt_list stmt_list_t;
+typedef struct _module module_t;
 
 /*
  * Literal types
@@ -303,6 +304,25 @@ typedef struct {
     size_t size;
     import_t **vec;
 } import_vec_t;
+
+/*
+ * Modules
+ */
+typedef struct {
+    size_t n;
+    size_t size;
+    module_t **vec;
+} module_vec_t;
+
+/*
+ * Module
+ */
+struct _module {
+    char *id;
+    func_vec_t funcs;
+    coroutine_vec_t coroutines;
+    module_vec_t modules;
+};
 
 /*
  * File stack
