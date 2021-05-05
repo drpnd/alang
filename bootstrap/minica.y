@@ -525,10 +525,13 @@ yyerror(yyscan_t scanner, const char *str)
  * minica_parse -- parse the specified file
  */
 code_file_t *
-minica_parse(FILE *fp, yyscan_t scanner)
+minica_parse(FILE *fp)
 {
-    //extern FILE *yyin;
     int ret;
+    yyscan_t scanner;
+
+    /* Initialize the scanner */
+    yylex_init(&scanner);
 
     /* Initialize the code file (output) */
     code = malloc(sizeof(code_file_t));
@@ -542,7 +545,6 @@ minica_parse(FILE *fp, yyscan_t scanner)
     }
 
     /* Set the file pointer */
-    //yyin = fp;
     yyset_in(fp, scanner);
 
     /* Parse the input file */
@@ -550,6 +552,9 @@ minica_parse(FILE *fp, yyscan_t scanner)
         fprintf(stderr, "Parse error!\n");
         exit(EXIT_FAILURE);
     }
+
+    /* Destroy the scanner */
+    yylex_destroy(&scanner);
 
     /* Compile */
     compile(code);

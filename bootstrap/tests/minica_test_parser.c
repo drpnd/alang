@@ -39,7 +39,7 @@ usage(const char *prog)
     exit(EXIT_FAILURE);
 }
 
-code_file_t * minica_parse(FILE *, yyscan_t);
+code_file_t * minica_parse(FILE *);
 
 /*
  * Main routine for the parser test
@@ -49,10 +49,6 @@ main(int argc, const char *const argv[])
 {
     FILE *fp;
     code_file_t *code;
-    yyscan_t scanner;
-
-    /* Initialize the scanner */
-    yylex_init(&scanner);
 
     if ( argc < 2 ) {
         fp = stdin;
@@ -68,8 +64,7 @@ main(int argc, const char *const argv[])
     }
 
     /* Parse the specified file */
-    code = minica_parse(fp, scanner);
-    yylex_destroy(&scanner);
+    code = minica_parse(fp);
     if ( NULL == code ) {
         exit(EXIT_FAILURE);
     }
