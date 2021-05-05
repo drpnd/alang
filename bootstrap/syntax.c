@@ -623,6 +623,31 @@ coroutine_vec_add(coroutine_vec_t *vec, coroutine_t *cr)
 }
 
 /*
+ * module_vec_add -- add a module block to the module vector
+ */
+int
+module_vec_add(module_vec_t *vec, module_t *module)
+{
+    module_t **nvec;
+    size_t resized;
+
+    if ( vec->n >= vec->size ) {
+        /* Resize */
+        resized = vec->size + VECTOR_DELTA;
+        nvec = realloc(vec->vec, resized * sizeof(module_t *));
+        if ( NULL == nvec ) {
+            return -1;
+        }
+        vec->vec = nvec;
+        vec->size = resized;
+    }
+    vec->vec[vec->n] = module;
+    vec->n++;
+
+    return 0;
+}
+
+/*
  * import_vec_add -- add an import statement to the import vector
  */
 int

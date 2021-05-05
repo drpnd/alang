@@ -12,12 +12,14 @@ CFLAGS=-g -Wall -DBASEDIR=\"$(BASEDIR)\"
 all:
 	$(MAKE) minica_test_ld minica_test_asm minica_test_parser
 
+minica.y: lex.yy.c
 y.tab.c: minica.y
 	$(YACC) -d $^
 y.tab.h: minica.y
 	$(YACC) -d $^
-lex.yy.c: minica.l y.tab.h
-	$(LEX) $^
+lex.yy.c: minica.l
+	$(LEX) --reentrant --header-file=lex.yy.h $^
+lex.yy.o: lex.yy.c lex.yy.h
 syntax.o: syntax.c syntax.h
 compile.o: compile.c compile.h
 
@@ -34,5 +36,5 @@ minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
-	rm -f *.o minica y.y.tab.c y.tab.h lex.yy.c
+	rm -f minica_test_ld minica_test_asm minica_test_parser *.o minica y.y.tab.c y.tab.h lex.yy.c lex.yy.h
 

@@ -27,10 +27,13 @@
 #include <stdlib.h>
 #include "syntax.h"
 #include "compile.h"
+#include "lex.yy.h"
 
-int yylex();
-int yyerror(char const *);
 code_file_t *code;
+//int yylex(YYSTYPE *yylvalp, YYLTYPE *yyllocp, yyscan_t scanner);
+//void yyerror(YYLTYPE *, yyscan_t, const char *);
+void yyerror(yyscan_t, const char*);
+
 %}
 
 %union {
@@ -92,6 +95,9 @@ code_file_t *code;
 
 %locations
 
+%lex-param { void *scanner }
+%parse-param { void *scanner }
+
 %start file
 
 %%
@@ -151,8 +157,8 @@ package:        TOK_PACKAGE identifier
                     ret = package_define(code, $2);
                     if ( 0 != ret ) {
                         /* Already defined */
-                        yyerror("Another package is already specified in this "
-                                "file.");
+                        //yyerror("Another package is already specified in this "
+                        //        "file.");
                     }
                 }
                 ;
@@ -507,8 +513,21 @@ exprs:          expression
 %%
 
 /*
- * Error handler
+ * yyerror -- error handler
  */
+void
+yyerror(yyscan_t scanner, const char *str)
+{
+    fprintf(stderr, "Parser error near\n");
+}
+/*void
+yyerror(YYLTYPE *yyllocp, yyscan_t scanner, const char *msg)
+{
+    fprintf(stderr, "Parse error near [%d:%d]: %s\n",
+            yyllocp->first_line, yyllocp->first_column, msg);
+}
+*/
+/*
 int
 yyerror(char const *str)
 {
@@ -519,15 +538,15 @@ yyerror(char const *str)
 
     return 0;
 }
+*/
 
 /*
  * minica_parse -- parse the specified file
  */
 code_file_t *
-minica_parse(FILE *fp)
+minica_parse(FILE *fp, yyscan_t scanner)
 {
-    extern int yyparse(void);
-    extern FILE *yyin;
+    //extern FILE *yyin;
     int ret;
 
     /* Initialize the code file (output) */
@@ -542,10 +561,11 @@ minica_parse(FILE *fp)
     }
 
     /* Set the file pointer */
-    yyin = fp;
+    //yyin = fp;
+    yyset_in(fp, scanner);
 
     /* Parse the input file */
-    if ( yyparse() ) {
+    if ( yyparse(scanner) ) {
         fprintf(stderr, "Parse error!\n");
         exit(EXIT_FAILURE);
     }

@@ -21,6 +21,8 @@
  * SOFTWARE.
  */
 
+%option reentrant
+
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,9 +41,9 @@ struct string {
     char *buf;
 };
 
-void yyerror(char *);
+//void yyerror(YYLTYPE *, yyscan_t, const char *);
 int
-yywrap(void)
+yywrap(yyscan_t scanner)
 {
     return 1;
 }
@@ -77,7 +79,7 @@ _clear_buffer(void)
     if ( NULL == buffer.buf ) {
         buffer.buf = malloc(STRING_CHUNK);
         if ( NULL == buffer.buf ) {
-            yyerror("Memory error");
+            //yyerror("Memory error");
         }
         buffer.size = STRING_CHUNK;
     }
@@ -101,7 +103,7 @@ _append_buffer_str(const char *s)
     if ( nsize != buffer.size ) {
         ptr = realloc(buffer.buf, nsize);
         if ( NULL == ptr ) {
-            yyerror("Memory error");
+            //yyerror("Memory error");
         }
         buffer.buf = ptr;
         buffer.size = nsize;
@@ -125,7 +127,7 @@ _append_buffer_char(char c)
         nsize += STRING_CHUNK;
         ptr = realloc(buffer.buf, nsize);
         if ( NULL == ptr ) {
-            yyerror("Memory error");
+            //yyerror("Memory error");
         }
         buffer.buf = ptr;
         buffer.size = nsize;
