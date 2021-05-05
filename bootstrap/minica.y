@@ -157,8 +157,8 @@ package:        TOK_PACKAGE identifier
                     ret = package_define(code, $2);
                     if ( 0 != ret ) {
                         /* Already defined */
-                        //yyerror("Another package is already specified in this "
-                        //        "file.");
+                        yyerror(scanner, "Another package is already specified "
+                                "in this file.");
                     }
                 }
                 ;
@@ -520,25 +520,6 @@ yyerror(yyscan_t scanner, const char *str)
 {
     fprintf(stderr, "Parser error near\n");
 }
-/*void
-yyerror(YYLTYPE *yyllocp, yyscan_t scanner, const char *msg)
-{
-    fprintf(stderr, "Parse error near [%d:%d]: %s\n",
-            yyllocp->first_line, yyllocp->first_column, msg);
-}
-*/
-/*
-int
-yyerror(char const *str)
-{
-    extern char *yytext;
-
-    fprintf(stderr, "Parser error near %s (Line: %d)\n", yytext,
-            yylloc.first_line);
-
-    return 0;
-}
-*/
 
 /*
  * minica_parse -- parse the specified file
