@@ -118,7 +118,6 @@ _append_buffer_str(const char *s)
 static void
 _append_buffer_char(char c)
 {
-    size_t len;
     size_t nsize;
     char *ptr;
 

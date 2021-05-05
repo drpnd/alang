@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include "lex.yy.h"
 
 /*
  * usage -- print usage and exit

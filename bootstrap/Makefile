@@ -12,7 +12,7 @@ CFLAGS=-g -Wall -DBASEDIR=\"$(BASEDIR)\"
 all:
 	$(MAKE) minica_test_ld minica_test_asm minica_test_parser
 
-minica.y: lex.yy.c
+minica.l: y.tab.h
 y.tab.c: minica.y
 	$(YACC) -d $^
 y.tab.h: minica.y
@@ -20,6 +20,7 @@ y.tab.h: minica.y
 lex.yy.c: minica.l
 	$(LEX) --reentrant --header-file=lex.yy.h $^
 lex.yy.o: lex.yy.c lex.yy.h
+y.tab.o: lex.yy.c
 syntax.o: syntax.c syntax.h
 compile.o: compile.c compile.h
 
