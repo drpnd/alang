@@ -158,6 +158,13 @@ typedef struct {
     FILE *fout;
 } compiler_t;
 
+/*
+ * Compiler context
+ */
+typedef struct {
+    void *scanner;
+} context_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
