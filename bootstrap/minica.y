@@ -109,6 +109,8 @@ directives:     directive
                 ;
 directive:      coroutine
                 {
+                    context_t *context;
+                    context = yyget_extra(scanner);
                     coroutine_vec_add(&code->coroutines, $1);
                 }
         |       function
@@ -184,7 +186,15 @@ function:       TOK_FN identifier funcargs funcargs
                 ;
 module:         TOK_MODULE identifier TOK_LBRACE blocks TOK_RBRACE
                 {
-                    $$ = module_new($2);
+                    context_t *context;
+                    module_t *module;
+                    module_t *cur;
+                    module = module_new($2);
+                    context = yyget_extra(scanner);
+                    cur = context->cur;
+                    context->cur = module;
+                    module->parent = cur;
+                    $$ = module;
                 }
                 ;
 funcargs:       TOK_LPAREN args TOK_RPAREN
