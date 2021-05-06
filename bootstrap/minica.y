@@ -528,6 +528,7 @@ minica_parse(FILE *fp)
     int ret;
     yyscan_t scanner;
     context_t *context;
+    module_t *module;
 
     /* Allocate space for context */
     context = malloc(sizeof(context_t));
@@ -535,6 +536,13 @@ minica_parse(FILE *fp)
         return NULL;
     }
     memset(context, 0, sizeof(context_t));
+
+    /* New module */
+    module = module_new("");
+    if ( NULL == module ) {
+        free(context);
+        return NULL;
+    }
 
     /* Initialize the code file (output) */
     code = malloc(sizeof(code_file_t));
