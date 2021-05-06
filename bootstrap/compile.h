@@ -174,6 +174,7 @@ struct string {
 typedef struct {
     void *scanner;
     struct string buffer;
+    module_t *cur;
 } context_t;
 
 #ifdef __cplusplus
