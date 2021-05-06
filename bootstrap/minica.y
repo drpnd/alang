@@ -30,8 +30,6 @@
 #include "lex.yy.h"
 
 code_file_t *code;
-//int yylex(YYSTYPE *yylvalp, YYLTYPE *yyllocp, yyscan_t scanner);
-//void yyerror(YYLTYPE *, yyscan_t, const char *);
 void yyerror(yyscan_t, const char*);
 
 %}
