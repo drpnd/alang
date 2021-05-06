@@ -485,6 +485,44 @@ coroutine_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
 }
 
 /*
+ * module_new -- allocate a module
+ */
+module_t *
+module_new(const char *id)
+{
+    module_t *m;
+
+    m = malloc(sizeof(module_t));
+    if ( NULL == m ) {
+        return NULL;
+    }
+    m->id = strdup(id);
+    if ( NULL == m->id ) {
+        free(m);
+        return NULL;
+    }
+
+    /* Initialize functions */
+    m->funcs.n = 0;
+    m->funcs.size = VECTOR_INIT_SIZE;
+    m->funcs.vec = malloc(VECTOR_INIT_SIZE * sizeof(func_t *));
+    if ( NULL == m->funcs.vec ) {
+        return -1;
+    }
+
+    /* Initialize coroutines */
+    m->coroutines.n = 0;
+    m->coroutines.size = VECTOR_INIT_SIZE;
+    m->coroutines.vec = malloc(VECTOR_INIT_SIZE * sizeof(coroutine_t *));
+    if ( NULL == m->coroutines.vec ) {
+        free(m->funcs.vec);
+        return -1;
+    }
+
+    return m;
+}
+
+/*
  * stmt_new_decl -- allocate a declaration statement
  */
 stmt_t *

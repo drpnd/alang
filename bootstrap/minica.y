@@ -186,7 +186,7 @@ function:       TOK_FN identifier funcargs funcargs
                 ;
 module:         TOK_MODULE identifier TOK_LBRACE blocks TOK_RBRACE
                 {
-                    $$ = NULL;
+                    $$ = module_new($2);
                 }
                 ;
 funcargs:       TOK_LPAREN args TOK_RPAREN

@@ -89,7 +89,7 @@ _clear_buffer(void)
  * _append_buffer_str -- append string to the buffer
  */
 static void
-_append_buffer_str(const char *s)
+_append_buffer_str(yyscan_t scanner, const char *s)
 {
     size_t len;
     size_t nsize;
@@ -116,7 +116,7 @@ _append_buffer_str(const char *s)
  * _append_buffer_char -- append a character to the buffer
  */
 static void
-_append_buffer_char(char c)
+_append_buffer_char(yyscan_t scanner, char c)
 {
     size_t nsize;
     char *ptr;
@@ -270,16 +270,16 @@ _append_buffer_char(char c)
     /* String format */
 \" { BEGIN string; _clear_buffer(); }
 <string>[^\\"\n]* {
-    _append_buffer_str(yytext);
+    _append_buffer_str(yyscanner, yytext);
 }
 <string>\\[0-7][0-7]?[0-7]? {
-    _append_buffer_char(strtol(yytext + 1, 0, 8));
+    _append_buffer_char(yyscanner, strtol(yytext + 1, 0, 8));
 }
 <string>\\x[0-9a-fA-F][0-9a-fA-F]? {
-    _append_buffer_char(strtol(yytext + 2, 0, 16));
+    _append_buffer_char(yyscanner, strtol(yytext + 2, 0, 16));
 }
 <string>\\[\\"] {
-    _append_buffer_char(yytext[1]);
+    _append_buffer_char(yyscanner, yytext[1]);
 }
 <string>\" {
     yylval.strval = strdup(buffer.buf);
@@ -295,6 +295,11 @@ _append_buffer_char(char c)
 \/\* { BEGIN blockcomment; }
 <blockcomment>.*\*\/ {
     BEGIN 0;
+}
+
+    /* EOF */
+<<EOF>> {
+    yyterminate();
 }
 
 %%
