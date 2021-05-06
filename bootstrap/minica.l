@@ -27,21 +27,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "compile.h"
 #include "y.tab.h"
 
 #define YY_USER_ACTION _update_locations(&yylloc, yytext);
 
-#define STRING_CHUNK 4096
-/*
- * String
- */
-struct string {
-    size_t len;
-    size_t size;
-    char *buf;
-};
-
-//void yyerror(YYLTYPE *, yyscan_t, const char *);
 int
 yywrap(yyscan_t scanner)
 {
@@ -73,7 +63,7 @@ _update_locations(YYLTYPE *loc, char *s)
  * _clear_buffer -- clear string buffer
  */
 static void
-_clear_buffer(void)
+_clear_buffer(yyscan_t scanner)
 {
     buffer.len = 0;
     if ( NULL == buffer.buf ) {
@@ -268,7 +258,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     return TOK_LIT_FLOAT;
 }
     /* String format */
-\" { BEGIN string; _clear_buffer(); }
+\" { BEGIN string; _clear_buffer(yyscanner); }
 <string>[^\\"\n]* {
     _append_buffer_str(yyscanner, yytext);
 }

@@ -158,11 +158,22 @@ typedef struct {
     FILE *fout;
 } compiler_t;
 
+#define STRING_CHUNK 4096
+/*
+ * String
+ */
+struct string {
+    size_t len;
+    size_t size;
+    char *buf;
+};
+
 /*
  * Compiler context
  */
 typedef struct {
     void *scanner;
+    struct string buffer;
 } context_t;
 
 #ifdef __cplusplus
