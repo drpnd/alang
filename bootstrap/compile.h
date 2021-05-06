@@ -172,7 +172,6 @@ struct string {
  * Compiler context
  */
 typedef struct {
-    void *scanner;
     struct string buffer;
     module_t *cur;
 } context_t;
