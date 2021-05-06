@@ -22,6 +22,7 @@
  */
 
 %option reentrant
+%option extra-type="void *"
 
 %{
 #include <stdio.h>
@@ -32,13 +33,13 @@
 
 #define YY_USER_ACTION _update_locations(&yylloc, yytext);
 
+void * yyget_extra(yyscan_t);
+
 int
 yywrap(yyscan_t scanner)
 {
     return 1;
 }
-
-static struct string buffer;
 
 /*
  * _update_locations -- update yylloc
@@ -65,13 +66,17 @@ _update_locations(YYLTYPE *loc, char *s)
 static void
 _clear_buffer(yyscan_t scanner)
 {
-    buffer.len = 0;
-    if ( NULL == buffer.buf ) {
-        buffer.buf = malloc(STRING_CHUNK);
-        if ( NULL == buffer.buf ) {
+    context_t *context;
+
+    context = yyget_extra(scanner);
+
+    context->buffer.len = 0;
+    if ( NULL == context->buffer.buf ) {
+        context->buffer.buf = malloc(STRING_CHUNK);
+        if ( NULL == context->buffer.buf ) {
             //yyerror("Memory error");
         }
-        buffer.size = STRING_CHUNK;
+        context->buffer.size = STRING_CHUNK;
     }
 }
 
@@ -84,22 +89,25 @@ _append_buffer_str(yyscan_t scanner, const char *s)
     size_t len;
     size_t nsize;
     char *ptr;
+    context_t *context;
+
+    context = yyget_extra(scanner);
 
     len = strlen(s);
-    nsize = buffer.size;
-    while ( buffer.len + len > nsize ) {
+    nsize = context->buffer.size;
+    while ( context->buffer.len + len > nsize ) {
         nsize += STRING_CHUNK;
     }
-    if ( nsize != buffer.size ) {
-        ptr = realloc(buffer.buf, nsize);
+    if ( nsize != context->buffer.size ) {
+        ptr = realloc(context->buffer.buf, nsize);
         if ( NULL == ptr ) {
             //yyerror("Memory error");
         }
-        buffer.buf = ptr;
-        buffer.size = nsize;
+        context->buffer.buf = ptr;
+        context->buffer.size = nsize;
     }
-    memcpy(buffer.buf + buffer.len, s, len);
-    buffer.len += len;
+    memcpy(context->buffer.buf + context->buffer.len, s, len);
+    context->buffer.len += len;
 }
 
 /*
@@ -110,19 +118,22 @@ _append_buffer_char(yyscan_t scanner, char c)
 {
     size_t nsize;
     char *ptr;
+    context_t *context;
 
-    if ( buffer.len + 1 > buffer.size ) {
-        nsize = buffer.size + STRING_CHUNK;
+    context = yyget_extra(scanner);
+
+    if ( context->buffer.len + 1 > context->buffer.size ) {
+        nsize = context->buffer.size + STRING_CHUNK;
         nsize += STRING_CHUNK;
-        ptr = realloc(buffer.buf, nsize);
+        ptr = realloc(context->buffer.buf, nsize);
         if ( NULL == ptr ) {
             //yyerror("Memory error");
         }
-        buffer.buf = ptr;
-        buffer.size = nsize;
+        context->buffer.buf = ptr;
+        context->buffer.size = nsize;
     }
-    buffer.buf[buffer.len] = c;
-    buffer.len++;
+    context->buffer.buf[context->buffer.len] = c;
+    context->buffer.len++;
 }
 
 %}
@@ -272,7 +283,9 @@ _append_buffer_char(yyscan_t scanner, char c)
     _append_buffer_char(yyscanner, yytext[1]);
 }
 <string>\" {
-    yylval.strval = strdup(buffer.buf);
+    context_t *context;
+    context = yyget_extra(yyscanner);
+    yylval.strval = strdup(context->buffer.buf);
     BEGIN 0;
     return TOK_LIT_STR;
 }

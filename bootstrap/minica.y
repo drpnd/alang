@@ -527,20 +527,30 @@ minica_parse(FILE *fp)
 {
     int ret;
     yyscan_t scanner;
+    context_t *context;
 
-    /* Initialize the scanner */
-    yylex_init(&scanner);
+    /* Allocate space for context */
+    context = malloc(sizeof(context_t));
+    if ( NULL == context ) {
+        return NULL;
+    }
+    memset(context, 0, sizeof(context_t));
 
     /* Initialize the code file (output) */
     code = malloc(sizeof(code_file_t));
     if ( NULL == code ) {
+        free(context);
         return NULL;
     }
     ret = code_file_init(code);
     if ( ret < 0 ) {
+        free(context);
         free(code);
         return NULL;
     }
+
+    /* Initialize the scanner with the extra data context */
+    yylex_init_extra(context, &scanner);
 
     /* Set the file pointer */
     yyset_in(fp, scanner);
