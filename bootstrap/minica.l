@@ -33,6 +33,7 @@
 
 #define YY_USER_ACTION _update_locations(&yylloc, yytext);
 
+/* Declaration of yyget_extra for functions in this file */
 void * yyget_extra(yyscan_t);
 
 int
