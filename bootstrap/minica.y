@@ -543,6 +543,7 @@ minica_parse(FILE *fp)
         free(context);
         return NULL;
     }
+    context->cur = module;
 
     /* Initialize the code file (output) */
     code = malloc(sizeof(code_file_t));
