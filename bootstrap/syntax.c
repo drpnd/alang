@@ -525,6 +525,16 @@ module_new(const char *id)
 }
 
 /*
+ * module_delete -- delete the module
+ */
+void
+module_delete(module_t *module)
+{
+    free(module->id);
+    free(module);
+}
+
+/*
  * stmt_new_decl -- allocate a declaration statement
  */
 stmt_t *
