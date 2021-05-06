@@ -169,7 +169,7 @@ struct string {
 };
 
 /*
- * Compiler context
+ * Compiler context for lexer and parser
  */
 typedef struct {
     struct string buffer;
