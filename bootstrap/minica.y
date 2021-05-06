@@ -554,7 +554,7 @@ minica_parse(FILE *fp)
     }
 
     /* Destroy the scanner */
-    yylex_destroy(&scanner);
+    yylex_destroy(scanner);
 
     /* Compile */
     compile(code);
