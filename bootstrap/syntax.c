@@ -438,7 +438,7 @@ expr_op_new_prefix(expr_t *e0, op_type_t type)
  * func_new -- allocate a function
  */
 func_t *
-func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
+func_new(const char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
 {
     func_t *f;
 
@@ -464,7 +464,7 @@ func_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
  * coroutine_new -- allocate a coroutine
  */
 coroutine_t *
-coroutine_new(char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
+coroutine_new(const char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
 {
     coroutine_t *cr;
 
@@ -507,7 +507,8 @@ module_new(const char *id)
     m->funcs.size = VECTOR_INIT_SIZE;
     m->funcs.vec = malloc(VECTOR_INIT_SIZE * sizeof(func_t *));
     if ( NULL == m->funcs.vec ) {
-        return -1;
+        free(m);
+        return NULL;
     }
 
     /* Initialize coroutines */
@@ -516,7 +517,8 @@ module_new(const char *id)
     m->coroutines.vec = malloc(VECTOR_INIT_SIZE * sizeof(coroutine_t *));
     if ( NULL == m->coroutines.vec ) {
         free(m->funcs.vec);
-        return -1;
+        free(m);
+        return NULL;
     }
 
     return m;

@@ -369,9 +369,10 @@ extern "C" {
     decl_t * decl_new(const char *, type_t *);
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);
-    func_t * func_new(char *, arg_t *, arg_t *, stmt_list_t *);
-    coroutine_t * coroutine_new(char *, arg_t *, arg_t *, stmt_list_t *);
-    stmt_t * stmt_new_decl(decl_t *);
+    func_t * func_new(const char *, arg_t *, arg_t *, stmt_list_t *);
+    coroutine_t * coroutine_new(const char *, arg_t *, arg_t *, stmt_list_t *);
+    module_t *module_new(const char *);
+    stmt_t *stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_t *, expr_t *);
     stmt_t * stmt_new_expr(expr_t *);
     stmt_list_t * stmt_list_new(stmt_t *);
