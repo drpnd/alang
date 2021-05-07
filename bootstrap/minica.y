@@ -36,7 +36,9 @@ void yyerror(yyscan_t, const char*);
 
 %union {
     void *file;
-    void *blocks;
+    module_t *module;
+    void *oblock;
+    void *iblock;
     char *numval;
     char *idval;
     char *strval;
@@ -72,7 +74,9 @@ void yyerror(yyscan_t, const char*);
 %token TOK_STRUCT TOK_UNION TOK_ENUM
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 
-%type <blocks> module
+%type <module> module
+%type <iblock> inner_blocks inner_block
+%type <oblock> outer_blocks outer_block
 %type <import> import
 %type <include> include
 %type <idval> identifier
@@ -101,13 +105,17 @@ void yyerror(yyscan_t, const char*);
 %%
 
 /* Syntax and parser implementation below */
-file:           blocks
+file:           outer_blocks
                 ;
 
 /* Top directives */
 directives:     directive
                 ;
-directive:      coroutine
+directive:      import
+                {
+                    import_vec_add(&code->imports, $1);
+                }
+        |       coroutine
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
@@ -122,10 +130,37 @@ directive:      coroutine
                 }
                 ;
 
-blocks:         block
-        |       block blocks
+outer_blocks:   outer_block
+        |       outer_block outer_blocks
                 ;
-block:          package
+outer_block:    package
+                {
+                    $$ = NULL;
+                }
+        |       import
+                {
+                    import_vec_add(&code->imports, $1);
+                }
+        |       include
+                {
+                }
+        |       coroutine
+                {
+                    coroutine_vec_add(&code->coroutines, $1);
+                }
+        |       function
+                {
+                    func_vec_add(&code->funcs, $1);
+                }
+                ;
+
+inner_blocks:   inner_block
+        |       inner_block inner_blocks
+                ;
+inner_block:    package
+                {
+                    $$ = NULL;
+                }
         |       import
                 {
                     import_vec_add(&code->imports, $1);
@@ -172,6 +207,21 @@ include:        TOK_INCLUDE TOK_LIT_STR
                     $$ = include_new($2);
                 }
                 ;
+
+module:         TOK_MODULE identifier TOK_LBRACE outer_blocks TOK_RBRACE
+                {
+                    context_t *context;
+                    module_t *module;
+                    module_t *cur;
+                    module = module_new($2, $4);
+                    context = yyget_extra(scanner);
+                    cur = context->cur;
+                    context->cur = module;
+                    module->parent = cur;
+                    $$ = module;
+                }
+                ;
+
 coroutine:      TOK_COROUTINE identifier funcargs funcargs
                 TOK_LBRACE statements TOK_RBRACE
                 {
@@ -182,19 +232,6 @@ function:       TOK_FN identifier funcargs funcargs
                 TOK_LBRACE statements TOK_RBRACE
                 {
                     $$ = func_new($2, $3, $4, $6);
-                }
-                ;
-module:         TOK_MODULE identifier TOK_LBRACE blocks TOK_RBRACE
-                {
-                    context_t *context;
-                    module_t *module;
-                    module_t *cur;
-                    module = module_new($2);
-                    context = yyget_extra(scanner);
-                    cur = context->cur;
-                    context->cur = module;
-                    module->parent = cur;
-                    $$ = module;
                 }
                 ;
 funcargs:       TOK_LPAREN args TOK_RPAREN
@@ -548,7 +585,7 @@ minica_parse(FILE *fp)
     memset(context, 0, sizeof(context_t));
 
     /* New module */
-    module = module_new("");
+    module = module_new("", NULL);
     if ( NULL == module ) {
         free(context);
         return NULL;

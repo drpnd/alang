@@ -315,10 +315,28 @@ typedef struct {
 } module_vec_t;
 
 /*
+ * Inner block
+ */
+typedef struct {
+    stmt_list_t stmts;  /* statements */
+    var_stack_t vars;   /* variables */
+} inner_block_t;
+
+/*
+ * Outer block
+ */
+typedef struct {
+    func_vec_t funcs;
+    coroutine_vec_t coroutines;
+    module_vec_t modules;
+} outer_block_t;
+
+/*
  * Module
  */
 struct _module {
     char *id;
+    outer_block_t *block;
     func_vec_t funcs;
     coroutine_vec_t coroutines;
     module_vec_t modules;
@@ -372,7 +390,7 @@ extern "C" {
     arg_t * arg_prepend(arg_t *, arg_t *);
     func_t * func_new(const char *, arg_t *, arg_t *, stmt_list_t *);
     coroutine_t * coroutine_new(const char *, arg_t *, arg_t *, stmt_list_t *);
-    module_t * module_new(const char *);
+    module_t * module_new(const char *, outer_block_t *);
     void module_delete(module_t *);
     stmt_t *stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_t *, expr_t *);

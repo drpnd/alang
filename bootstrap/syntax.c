@@ -488,7 +488,7 @@ coroutine_new(const char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
  * module_new -- allocate a module
  */
 module_t *
-module_new(const char *id)
+module_new(const char *id, outer_block_t *block)
 {
     module_t *m;
 
@@ -501,6 +501,7 @@ module_new(const char *id)
         free(m);
         return NULL;
     }
+    m->block = block;
 
     /* Initialize functions */
     m->funcs.n = 0;
