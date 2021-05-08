@@ -112,32 +112,12 @@ file:           outer_blocks
                 }
                 ;
 
-/* Top directives */
-directives:     directive
-                ;
-directive:      import
-                {
-                    import_vec_add(&code->imports, $1);
-                }
-        |       coroutine
-                {
-                    context_t *context;
-                    context = yyget_extra(scanner);
-                    coroutine_vec_add(&code->coroutines, $1);
-                }
-        |       function
-                {
-                    func_vec_add(&code->funcs, $1);
-                }
-        |       module
-                {
-                }
-                ;
-
+/* Outer blocks */
 outer_blocks:   outer_block
         |       outer_block outer_blocks
                 ;
-outer_block:    package
+outer_block:    directive
+        |       package
                 {
                     $$ = NULL;
                 }
@@ -150,12 +130,16 @@ outer_block:    package
                 }
         |       coroutine
                 {
+                    context_t *context;
+                    context = yyget_extra(scanner);
                     coroutine_vec_add(&code->coroutines, $1);
                 }
         |       function
                 {
                     func_vec_add(&code->funcs, $1);
                 }
+                ;
+directive:      include
                 ;
 
 inner_blocks:   inner_block
