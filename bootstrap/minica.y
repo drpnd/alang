@@ -53,7 +53,7 @@ void yyerror(yyscan_t, const char*);
     void *func;
     void *stmt;
     void *stmts;
-    void *import;
+    use_t *use;
     void *include;
     void *exprs;
 }
@@ -68,7 +68,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_LCHEVRON TOK_RCHEVRON
 %token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
 %token TOK_EQ TOK_COMMA TOK_ATMARK
-%token TOK_PACKAGE TOK_MODULE TOK_IMPORT TOK_INCLUDE TOK_FN TOK_COROUTINE
+%token TOK_PACKAGE TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_STRUCT TOK_UNION TOK_ENUM
@@ -78,7 +78,6 @@ void yyerror(yyscan_t, const char*);
 %type <module> module
 %type <iblock> inner_blocks inner_block
 %type <oblock> outer_blocks outer_block
-%type <import> import
 %type <include> include
 %type <idval> identifier
 %type <var> variable
@@ -95,6 +94,7 @@ void yyerror(yyscan_t, const char*);
 %type <stmts> statements
 %type <lit> literal
 %type <exprs> exprs
+%type <use> use
 
 %locations
 
@@ -121,13 +121,6 @@ outer_block:    directive
                 {
                     $$ = NULL;
                 }
-        |       import
-                {
-                    import_vec_add(&code->imports, $1);
-                }
-        |       include
-                {
-                }
         |       coroutine
                 {
                     context_t *context;
@@ -140,6 +133,10 @@ outer_block:    directive
                 }
                 ;
 directive:      include
+        |       use
+                {
+                    //import_vec_add(&code->imports, $1);
+                }
                 ;
 
 inner_blocks:   inner_block
@@ -148,10 +145,6 @@ inner_blocks:   inner_block
 inner_block:    package
                 {
                     $$ = NULL;
-                }
-        |       import
-                {
-                    import_vec_add(&code->imports, $1);
                 }
         |       include
                 {
@@ -185,9 +178,9 @@ package:        TOK_PACKAGE identifier
                     }
                 }
                 ;
-import:         TOK_IMPORT identifier
+use:            TOK_USE identifier
                 {
-                    $$ = import_new($2);
+                    $$ = use_new($2);
                 }
                 ;
 include:        TOK_INCLUDE TOK_LIT_STR

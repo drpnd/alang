@@ -190,7 +190,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     /* Reserved keywords */
 "package"   return TOK_PACKAGE;
 "mod"       return TOK_MODULE;
-"import"    return TOK_IMPORT;
+"use"       return TOK_USE;
 "include"   return TOK_INCLUDE;
 "fn"        return TOK_FN;
 "coroutine" return TOK_COROUTINE;

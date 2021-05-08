@@ -699,49 +699,49 @@ module_vec_add(module_vec_t *vec, module_t *module)
 }
 
 /*
- * import_vec_add -- add an import statement to the import vector
+ * use_vec_add -- add a use statement to the use vector
  */
 int
-import_vec_add(import_vec_t *vec, import_t *import)
+use_vec_add(use_vec_t *vec, use_t *use)
 {
-    import_t **nvec;
+    use_t **nvec;
     size_t resized;
 
     if ( vec->n >= vec->size ) {
         /* Resize */
         resized = vec->size + VECTOR_DELTA;
-        nvec = realloc(vec->vec, resized * sizeof(import_t *));
+        nvec = realloc(vec->vec, resized * sizeof(use_t *));
         if ( NULL == nvec ) {
             return -1;
         }
         vec->vec = nvec;
         vec->size = resized;
     }
-    vec->vec[vec->n] = import;
+    vec->vec[vec->n] = use;
     vec->n++;
 
     return 0;
 }
 
 /*
- * import_new -- allocate a new import statement
+ * use_new -- allocate a new use statement
  */
-import_t *
-import_new(char *id)
+use_t *
+use_new(char *id)
 {
-    import_t *import;
+    use_t *use;
 
-    import = malloc(sizeof(import_t));
-    if ( NULL == import ) {
+    use = malloc(sizeof(use_t));
+    if ( NULL == use ) {
         return NULL;
     }
-    import->id = strdup(id);
-    if ( NULL == import->id ) {
-        free(import);
+    use->id = strdup(id);
+    if ( NULL == use->id ) {
+        free(use);
         return NULL;
     }
 
-    return import;
+    return use;
 }
 
 /*
@@ -792,16 +792,6 @@ code_file_init(code_file_t *code)
     code->coroutines.vec = malloc(VECTOR_INIT_SIZE * sizeof(coroutine_t *));
     if ( NULL == code->coroutines.vec ) {
         free(code->funcs.vec);
-        return -1;
-    }
-
-    /* Initialize imports */
-    code->imports.n = 0;
-    code->imports.size = VECTOR_INIT_SIZE;
-    code->imports.vec = malloc(VECTOR_INIT_SIZE * sizeof(import_t *));
-    if ( NULL == code->imports.vec ) {
-        free(code->funcs.vec);
-        free(code->coroutines.vec);
         return -1;
     }
 

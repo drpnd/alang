@@ -278,7 +278,7 @@ struct _stmt_list {
  */
 typedef struct {
     char *id;
-} import_t;
+} use_t;
 
 /*
  * Functions
@@ -299,13 +299,13 @@ typedef struct {
 } coroutine_vec_t;
 
 /*
- * Import statements
+ * Use directives
  */
 typedef struct {
     size_t n;
     size_t size;
-    import_t **vec;
-} import_vec_t;
+    use_t **vec;
+} use_vec_t;
 
 /*
  * Modules
@@ -326,14 +326,13 @@ struct _inner_block {
 };
 
 /*
- * Outer block
+ * Outer block type
  */
-struct _outer_block {
-    func_vec_t funcs;
-    coroutine_vec_t coroutines;
-    module_vec_t modules;
-    outer_block_t *next;
-};
+typedef enum {
+    OUTER_BLOCK_FUNC,
+    OUTER_BLOCK_COROUTINE,
+    OUTER_BLOCK_MODULE,
+} outer_block_type_t;
 
 /*
  * Module
@@ -345,6 +344,22 @@ struct _module {
     coroutine_vec_t coroutines;
     module_vec_t modules;
     module_t *parent;           /* Stack */
+};
+
+/*
+ * Outer block
+ */
+struct _outer_block {
+    func_vec_t funcs;
+    coroutine_vec_t coroutines;
+    module_vec_t modules;
+    outer_block_type_t type;
+    union {
+        func_t fn;
+        coroutine_t cr;
+        module_t md;
+    } u;
+    outer_block_t *next;
 };
 
 /*
@@ -368,7 +383,6 @@ typedef struct {
     char *package;
     func_vec_t funcs;
     coroutine_vec_t coroutines;
-    import_vec_t imports;
 } code_file_t;
 
 #define COMPILER_ERROR(err)    do {                             \
@@ -409,8 +423,8 @@ extern "C" {
     expr_t * expr_prepend(expr_t *, expr_t *);
     int func_vec_add(func_vec_t *, func_t *);
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
-    int import_vec_add(import_vec_t *, import_t *);
-    import_t * import_new(char *);
+    int use_vec_add(use_vec_t *, use_t *);
+    use_t * import_new(char *);
     void * include_new(char *);
     int package_define(code_file_t *, const char *);
     int code_file_init(code_file_t *);
