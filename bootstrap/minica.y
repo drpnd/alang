@@ -35,10 +35,10 @@ void yyerror(yyscan_t, const char*);
 %}
 
 %union {
-    void *file;
+    code_file_t *file;
     module_t *module;
-    void *oblock;
-    void *iblock;
+    outer_block_t *oblock;
+    inner_block_t *iblock;
     char *numval;
     char *idval;
     char *strval;
@@ -74,6 +74,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_STRUCT TOK_UNION TOK_ENUM
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 
+%type <file> file
 %type <module> module
 %type <iblock> inner_blocks inner_block
 %type <oblock> outer_blocks outer_block
@@ -106,6 +107,9 @@ void yyerror(yyscan_t, const char*);
 
 /* Syntax and parser implementation below */
 file:           outer_blocks
+                {
+                    $$ = NULL;
+                }
                 ;
 
 /* Top directives */

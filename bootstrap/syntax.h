@@ -37,6 +37,8 @@ typedef struct _expr expr_t;
 typedef struct _stmt stmt_t;
 typedef struct _stmt_list stmt_list_t;
 typedef struct _module module_t;
+typedef struct _outer_block outer_block_t;
+typedef struct _inner_block inner_block_t;
 
 /*
  * Literal types
@@ -317,19 +319,21 @@ typedef struct {
 /*
  * Inner block
  */
-typedef struct {
+struct _inner_block {
     stmt_list_t stmts;  /* statements */
     var_stack_t vars;   /* variables */
-} inner_block_t;
+    inner_block_t *next;
+};
 
 /*
  * Outer block
  */
-typedef struct {
+struct _outer_block {
     func_vec_t funcs;
     coroutine_vec_t coroutines;
     module_vec_t modules;
-} outer_block_t;
+    outer_block_t *next;
+};
 
 /*
  * Module
