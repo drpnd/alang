@@ -340,9 +340,6 @@ typedef enum {
 struct _module {
     char *id;
     outer_block_t *block;
-    func_vec_t funcs;
-    coroutine_vec_t coroutines;
-    module_vec_t modules;
     module_t *parent;           /* Stack */
 };
 

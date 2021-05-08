@@ -115,6 +115,14 @@ file:           outer_blocks
 /* Outer blocks */
 outer_blocks:   outer_block
         |       outer_block outer_blocks
+                {
+                    if ( NULL != $1 ) {
+                        $1->next = $2;
+                        $$ = $1;
+                    } else {
+                        $$ = $2;
+                    }
+                }
                 ;
 outer_block:    directive
         |       package

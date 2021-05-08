@@ -503,25 +503,6 @@ module_new(const char *id, outer_block_t *block)
     }
     m->block = block;
 
-    /* Initialize functions */
-    m->funcs.n = 0;
-    m->funcs.size = VECTOR_INIT_SIZE;
-    m->funcs.vec = malloc(VECTOR_INIT_SIZE * sizeof(func_t *));
-    if ( NULL == m->funcs.vec ) {
-        free(m);
-        return NULL;
-    }
-
-    /* Initialize coroutines */
-    m->coroutines.n = 0;
-    m->coroutines.size = VECTOR_INIT_SIZE;
-    m->coroutines.vec = malloc(VECTOR_INIT_SIZE * sizeof(coroutine_t *));
-    if ( NULL == m->coroutines.vec ) {
-        free(m->funcs.vec);
-        free(m);
-        return NULL;
-    }
-
     return m;
 }
 
