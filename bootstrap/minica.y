@@ -127,12 +127,20 @@ outer_blocks:   outer_block
 outer_block:    directive
         |       coroutine
                 {
+                    outer_block_t *block;
+                    block = outer_block_new(OUTER_BLOCK_COROUTINE);
+                    memcpy(&block->u.cr, $1, sizeof(coroutine_t));
+                    $$ = block;
                     context_t *context;
                     context = yyget_extra(scanner);
                     coroutine_vec_add(&code->coroutines, $1);
                 }
         |       function
                 {
+                    outer_block_t *block;
+                    block = outer_block_new(OUTER_BLOCK_FUNC);
+                    memcpy(&block->u.fn, $1, sizeof(func_t));
+                    $$ = block;
                     func_vec_add(&code->funcs, $1);
                 }
                 ;

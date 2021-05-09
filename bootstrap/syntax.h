@@ -347,9 +347,6 @@ struct _module {
  * Outer block
  */
 struct _outer_block {
-    func_vec_t funcs;
-    coroutine_vec_t coroutines;
-    module_vec_t modules;
     outer_block_type_t type;
     union {
         func_t fn;
@@ -407,6 +404,7 @@ extern "C" {
     coroutine_t * coroutine_new(const char *, arg_t *, arg_t *, stmt_list_t *);
     module_t * module_new(const char *, outer_block_t *);
     void module_delete(module_t *);
+    outer_block_t * outer_block_new(outer_block_type_t);
     stmt_t *stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_t *, expr_t *);
     stmt_t * stmt_new_expr(expr_t *);

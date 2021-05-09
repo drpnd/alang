@@ -517,6 +517,24 @@ module_delete(module_t *module)
 }
 
 /*
+ * outer_block_new -- allocate an outer block with the specified type
+ */
+outer_block_t *
+outer_block_new(outer_block_type_t type)
+{
+    outer_block_t *block;
+
+    block = malloc(sizeof(outer_block_t));
+    if ( NULL == block ) {
+        return NULL;
+    }
+    block->type = type;
+    block->next = NULL;
+
+    return block;
+}
+
+/*
  * stmt_new_decl -- allocate a declaration statement
  */
 stmt_t *
