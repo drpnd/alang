@@ -129,7 +129,7 @@ outer_block:    directive
                 {
                     outer_block_t *block;
                     block = outer_block_new(OUTER_BLOCK_COROUTINE);
-                    memcpy(&block->u.cr, $1, sizeof(coroutine_t));
+                    block->u.cr = $1;
                     $$ = block;
                     context_t *context;
                     context = yyget_extra(scanner);
@@ -139,7 +139,7 @@ outer_block:    directive
                 {
                     outer_block_t *block;
                     block = outer_block_new(OUTER_BLOCK_FUNC);
-                    memcpy(&block->u.fn, $1, sizeof(func_t));
+                    block->u.fn = $1;
                     $$ = block;
                     func_vec_add(&code->funcs, $1);
                 }

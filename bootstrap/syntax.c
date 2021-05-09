@@ -535,6 +535,15 @@ outer_block_new(outer_block_type_t type)
 }
 
 /*
+ * outer_block_delete -- delete the outer block
+ */
+void
+outer_block_delete(outer_block_t *block)
+{
+    free(block);
+}
+
+/*
  * stmt_new_decl -- allocate a declaration statement
  */
 stmt_t *
