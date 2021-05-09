@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019-2020 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019-2021 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -169,10 +169,20 @@ struct string {
 };
 
 /*
+ * Context for parser
+ */
+typedef struct {
+    char *package;
+    module_t *module_cur;
+} context_parser_t;
+
+/*
  * Compiler context for lexer and parser
  */
 typedef struct {
+    /* Lexer string buffer */
     struct string buffer;
+    /* Parser' */
     module_t *cur;
 } context_t;
 

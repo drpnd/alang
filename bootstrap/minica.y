@@ -125,10 +125,6 @@ outer_blocks:   outer_block
                 }
                 ;
 outer_block:    directive
-        |       package
-                {
-                    $$ = NULL;
-                }
         |       coroutine
                 {
                     context_t *context;
@@ -140,7 +136,12 @@ outer_block:    directive
                     func_vec_add(&code->funcs, $1);
                 }
                 ;
-directive:      include
+directive:      package
+                {
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                }
+        |       include
         |       use
                 {
                     //import_vec_add(&code->imports, $1);
