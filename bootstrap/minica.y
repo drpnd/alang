@@ -151,11 +151,6 @@ directive:      package
                 }
         |       include
         |       use
-                {
-                    context_t *context;
-                    context = yyget_extra(scanner);
-                    compile_use_extern(context, $1->id);
-                }
                 ;
 
 inner_blocks:   inner_block
@@ -199,6 +194,9 @@ package:        TOK_PACKAGE identifier
                 ;
 use:            TOK_USE identifier
                 {
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                    compile_use_extern(context, $2);
                     $$ = use_new($2);
                 }
                 ;
