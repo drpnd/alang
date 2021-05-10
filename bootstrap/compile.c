@@ -297,6 +297,15 @@ compile(code_file_t *code)
 }
 
 /*
+　* compile_use_extern -- use an external package
+　*/
+int
+compile_use_extern(context_t *context, const char *id)
+{
+    return 0;
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4

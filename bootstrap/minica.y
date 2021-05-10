@@ -152,7 +152,9 @@ directive:      package
         |       include
         |       use
                 {
-                    //import_vec_add(&code->imports, $1);
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                    compile_use_extern(context, $1->id);
                 }
                 ;
 

@@ -169,6 +169,12 @@ struct string {
 };
 
 /*
+ * Symbols
+ */
+typedef struct {
+} context_symbol_table_t;
+
+/*
  * Context for parser
  */
 typedef struct {
@@ -191,6 +197,7 @@ extern "C" {
 #endif
 
     int compile(code_file_t *);
+    int compile_use_extern(context_t *, const char *);
 
 #ifdef __cplusplus
 }
