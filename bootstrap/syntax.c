@@ -735,7 +735,7 @@ use_vec_add(use_vec_t *vec, use_t *use)
  * use_new -- allocate a new use statement
  */
 use_t *
-use_new(char *id)
+use_new(const char *id)
 {
     use_t *use;
 

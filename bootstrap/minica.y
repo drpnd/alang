@@ -620,7 +620,7 @@ minica_parse(FILE *fp)
     yylex_destroy(scanner);
 
     /* Compile */
-    compile(code);
+    //compile(code);
 
     return code;
 }
