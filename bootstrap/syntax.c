@@ -762,7 +762,7 @@ include_new(char *s)
 }
 
 /*
- * Define package
+ * package_define -- define package
  */
 int
 package_define(code_file_t *code, const char *package)
