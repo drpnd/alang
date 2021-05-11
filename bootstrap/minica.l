@@ -35,6 +35,7 @@
 
 /* Declaration of yyget_extra for functions in this file */
 void * yyget_extra(yyscan_t);
+void yyerror(yyscan_t, const char *);
 
 int
 yywrap(yyscan_t scanner)
@@ -75,7 +76,7 @@ _clear_buffer(yyscan_t scanner)
     if ( NULL == context->buffer.buf ) {
         context->buffer.buf = malloc(STRING_CHUNK);
         if ( NULL == context->buffer.buf ) {
-            //yyerror("Memory error");
+            yyerror(scanner, "Memory error");
         }
         context->buffer.size = STRING_CHUNK;
     }
@@ -102,7 +103,7 @@ _append_buffer_str(yyscan_t scanner, const char *s)
     if ( nsize != context->buffer.size ) {
         ptr = realloc(context->buffer.buf, nsize);
         if ( NULL == ptr ) {
-            //yyerror("Memory error");
+            yyerror(scanner, "Memory error");
         }
         context->buffer.buf = ptr;
         context->buffer.size = nsize;
@@ -128,7 +129,7 @@ _append_buffer_char(yyscan_t scanner, char c)
         nsize += STRING_CHUNK;
         ptr = realloc(context->buffer.buf, nsize);
         if ( NULL == ptr ) {
-            //yyerror("Memory error");
+            yyerror(scanner, "Memory error");
         }
         context->buffer.buf = ptr;
         context->buffer.size = nsize;
