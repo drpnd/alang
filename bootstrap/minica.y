@@ -160,9 +160,6 @@ inner_block:    package
                 {
                     $$ = NULL;
                 }
-        |       include
-                {
-                }
         |       coroutine
                 {
                     coroutine_vec_add(&code->coroutines, $1);
