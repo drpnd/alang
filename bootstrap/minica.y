@@ -265,7 +265,6 @@ statements:     statement
                 }
                 ;
 
-
 statement:      stmt_decl
                 {
                     $$ = $1;
