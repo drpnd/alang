@@ -143,6 +143,13 @@ outer_block:    directive
                     $$ = block;
                     func_vec_add(&code->funcs, $1);
                 }
+        |       module
+                {
+                    outer_block_t *block;
+                    block = outer_block_new(OUTER_BLOCK_MODULE);
+                    block->u.md = $1;
+                    $$ = block;
+                }
                 ;
 directive:      package
                 {
@@ -209,6 +216,9 @@ module:         TOK_MODULE identifier TOK_LBRACE outer_blocks TOK_RBRACE
                     module_t *module;
                     module_t *cur;
                     module = module_new($2, $4);
+                    if ( NULL == module ) {
+                        yyerror(scanner, "Cannot initialize a new module.");
+                    }
                     context = yyget_extra(scanner);
                     cur = context->cur;
                     context->cur = module;

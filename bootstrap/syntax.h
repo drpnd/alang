@@ -321,7 +321,6 @@ typedef struct {
  */
 struct _inner_block {
     stmt_list_t *stmts;  /* statements */
-    var_stack_t *vars;   /* variables */
     inner_block_t *next;
 };
 
