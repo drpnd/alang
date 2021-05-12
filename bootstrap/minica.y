@@ -76,7 +76,7 @@ void yyerror(yyscan_t, const char*);
 
 %type <file> file
 %type <module> module
-%type <iblock> inner_blocks inner_block
+%type <iblock> inner_block
 %type <oblock> outer_blocks outer_block
 %type <include> include
 %type <idval> identifier
@@ -239,17 +239,6 @@ arg:            declaration
                 }
                 ;
 
-inner_blocks:   inner_block
-        |       inner_block inner_blocks
-                {
-                    if ( NULL != $1 ) {
-                        $1->next = $2;
-                        $$ = $1;
-                    } else {
-                        $$ = $2;
-                    }
-                }
-                ;
 inner_block:    statements
                 {
                     $$ = inner_block_new($1);
@@ -293,6 +282,7 @@ stmt_expr:      expression
                     $$ = stmt_new_expr($1);
                 }
                 ;
+
 expression:     or_test
                 {
                     $$ = $1;
@@ -455,6 +445,22 @@ primary:        atom
                     $$ = NULL;
                 }
                 ;
+
+exprs:          expression
+                {
+                    $$ = $1;
+                }
+        |
+                expression TOK_COMMA exprs
+                {
+                    $$ = expr_prepend($1, $3);
+                }
+        |
+                {
+                    $$ = NULL;
+                }
+                ;
+
 atom:           literal
                 {
                     $$ = val_new_literal($1);
@@ -555,20 +561,7 @@ literal:        TOK_LIT_HEXINT
                     $$ = literal_new_string($1);
                 }
                 ;
-exprs:          expression
-                {
-                    $$ = $1;
-                }
-        |
-                expression TOK_COMMA exprs
-                {
-                    $$ = expr_prepend($1, $3);
-                }
-        |
-                {
-                    $$ = NULL;
-                }
-                ;
+
 %%
 
 /*
