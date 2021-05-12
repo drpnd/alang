@@ -456,19 +456,21 @@ atom:           literal
                 ;
 variable:       declaration
                 {
-                    $$ = var_new_decl($1);
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                    $$ = var_new_decl(&context->vars, $1);
                 }
         |       identifier
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
-                    $$ = var_new_id(&context->stack, $1, 0);
+                    $$ = var_new_id(&context->vars, $1, 0);
                 }
         |       TOK_ATMARK identifier
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
-                    $$ = var_new_id(&context->stack, $2, 1);
+                    $$ = var_new_id(&context->vars, $2, 1);
                 }
                 ;
 declaration:    identifier type

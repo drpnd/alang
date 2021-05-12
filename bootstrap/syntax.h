@@ -320,8 +320,8 @@ typedef struct {
  * Inner block
  */
 struct _inner_block {
-    stmt_list_t stmts;  /* statements */
-    var_stack_t vars;   /* variables */
+    stmt_list_t *stmts;  /* statements */
+    var_stack_t *vars;   /* variables */
     inner_block_t *next;
 };
 
