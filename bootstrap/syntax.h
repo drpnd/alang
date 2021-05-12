@@ -393,8 +393,8 @@ extern "C" {
     literal_t * literal_new_string(const char *);
     type_t * type_new_primitive(type_type_t);
     type_t * type_new_id(const char *);
-    var_t * var_new_id(char *, int);
-    var_t * var_new_decl(decl_t *);
+    var_t * var_new_id(var_stack_t **, char *, int);
+    var_t * var_new_decl(var_stack_t **, decl_t *);
     val_t * val_new_literal(literal_t *);
     val_t * val_new_variable(var_t *);
     decl_t * decl_new(const char *, type_t *);

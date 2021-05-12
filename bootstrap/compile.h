@@ -189,6 +189,7 @@ typedef struct {
     /* Lexer string buffer */
     struct string buffer;
     /* Parser' */
+    var_stack_t *stack;
     module_t *cur;
 } context_t;
 

@@ -460,11 +460,15 @@ variable:       declaration
                 }
         |       identifier
                 {
-                    $$ = var_new_id($1, 0);
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                    $$ = var_new_id(&context->stack, $1, 0);
                 }
         |       TOK_ATMARK identifier
                 {
-                    $$ = var_new_id($2, 1);
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                    $$ = var_new_id(&context->stack, $2, 1);
                 }
                 ;
 declaration:    identifier type

@@ -26,9 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Global variable */
-var_stack_t *stack;
-
 /*
  * literal_new_int -- allocate an integer literal
  */
@@ -99,13 +96,13 @@ literal_new_string(const char *v)
  * var_new_id -- allocate an ID variable
  */
 var_t *
-var_new_id(char *id, int ptr)
+var_new_id(var_stack_t **stack, char *id, int ptr)
 {
     var_t *v;
     var_stack_t *s;
 
     /* Check the stack */
-    s = stack;
+    s = *stack;
     while ( NULL != s ) {
         if ( 0 == strcmp(s->id, id) ) {
             /* Found */
@@ -139,8 +136,8 @@ var_new_id(char *id, int ptr)
         return NULL;
     }
     s->var = v;
-    s->next = stack;
-    stack = s;
+    s->next = *stack;
+    *stack = s;
 
     return v;
 }
@@ -149,13 +146,13 @@ var_new_id(char *id, int ptr)
  * var_new_decl -- allocate a declaration variable
  */
 var_t *
-var_new_decl(decl_t *decl)
+var_new_decl(var_stack_t **stack, decl_t *decl)
 {
     var_t *v;
     var_stack_t *s;
 
     /* Check the stack */
-    s = stack;
+    s = *stack;
     while ( NULL != s ) {
         if ( 0 == strcmp(s->id, decl->id) ) {
             /* Already defined */
@@ -184,8 +181,8 @@ var_new_decl(decl_t *decl)
         return NULL;
     }
     s->var = v;
-    s->next = stack;
-    stack = s;
+    s->next = *stack;
+    *stack = s;
 
     return v;
 }
@@ -455,7 +452,7 @@ func_new(const char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
     f->rets = rets;
     f->block = block;
 
-    f->vars = stack;
+    f->vars = NULL;
 
     return f;
 }
