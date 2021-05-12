@@ -155,6 +155,14 @@ directive:      package
 
 inner_blocks:   inner_block
         |       inner_block inner_blocks
+                {
+                    if ( NULL != $1 ) {
+                        $1->next = $2;
+                        $$ = $1;
+                    } else {
+                        $$ = $2;
+                    }
+                }
                 ;
 inner_block:    package
                 {
