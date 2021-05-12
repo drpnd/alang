@@ -152,6 +152,7 @@ outer_block:    directive
                 }
                 ;
 
+/* Directives */
 directive:      package
                 {
                     context_t *context;
@@ -186,6 +187,7 @@ use:            TOK_USE identifier
                 }
                 ;
 
+/* Module */
 module:         TOK_MODULE identifier TOK_LBRACE outer_blocks TOK_RBRACE
                 {
                     context_t *context;
@@ -203,6 +205,7 @@ module:         TOK_MODULE identifier TOK_LBRACE outer_blocks TOK_RBRACE
                 }
                 ;
 
+/* Coroutine & function */
 coroutine:      TOK_COROUTINE identifier funcargs funcargs
                 TOK_LBRACE inner_block TOK_RBRACE
                 {
@@ -239,6 +242,7 @@ arg:            declaration
                 }
                 ;
 
+/* Inner block */
 inner_block:    statements
                 {
                     $$ = inner_block_new($1);
@@ -254,6 +258,7 @@ statements:     statement
                 }
                 ;
 
+/* Statements */
 statement:      stmt_decl
                 {
                     $$ = $1;
@@ -283,6 +288,7 @@ stmt_expr:      expression
                 }
                 ;
 
+/* Expressions */
 expression:     or_test
                 {
                     $$ = $1;
