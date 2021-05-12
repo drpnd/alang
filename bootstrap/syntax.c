@@ -541,6 +541,24 @@ outer_block_delete(outer_block_t *block)
 }
 
 /*
+ * inner_block_new -- allocate an inner block with the specified statements
+ */
+inner_block_t *
+inner_block_new(stmt_list_t *stmts)
+{
+    inner_block_t *block;
+
+    block = malloc(sizeof(inner_block_t));
+    if ( NULL == block ) {
+        return NULL;
+    }
+    block->stmts = stmts;
+    block->next = NULL;
+
+    return block;
+}
+
+/*
  * stmt_new_decl -- allocate a declaration statement
  */
 stmt_t *

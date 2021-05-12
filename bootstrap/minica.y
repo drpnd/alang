@@ -164,17 +164,9 @@ inner_blocks:   inner_block
                     }
                 }
                 ;
-inner_block:    package
+inner_block:    statements
                 {
-                    $$ = NULL;
-                }
-        |       coroutine
-                {
-                    coroutine_vec_add(&code->coroutines, $1);
-                }
-        |       function
-                {
-                    func_vec_add(&code->funcs, $1);
+                    $$ = inner_block_new($1);
                 }
                 ;
 statements:     statement

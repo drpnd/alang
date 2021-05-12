@@ -405,6 +405,7 @@ extern "C" {
     module_t * module_new(const char *, outer_block_t *);
     void module_delete(module_t *);
     outer_block_t * outer_block_new(outer_block_type_t);
+    inner_block_t * inner_block_new(stmt_list_t *);
     stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_t *, expr_t *);
     stmt_t * stmt_new_expr(expr_t *);
