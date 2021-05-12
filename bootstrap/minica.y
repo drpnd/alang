@@ -151,6 +151,7 @@ outer_block:    directive
                     $$ = block;
                 }
                 ;
+
 directive:      package
                 {
                     context_t *context;
@@ -160,31 +161,6 @@ directive:      package
         |       use
                 ;
 
-inner_blocks:   inner_block
-        |       inner_block inner_blocks
-                {
-                    if ( NULL != $1 ) {
-                        $1->next = $2;
-                        $$ = $1;
-                    } else {
-                        $$ = $2;
-                    }
-                }
-                ;
-inner_block:    statements
-                {
-                    $$ = inner_block_new($1);
-                }
-                ;
-statements:     statement
-                {
-                    $$ = stmt_list_new($1);
-                }
-        |       statement statements
-                {
-                    $$ = stmt_prepend($1, $2);
-                }
-                ;
 package:        TOK_PACKAGE identifier
                 {
                     int ret;
@@ -196,17 +172,17 @@ package:        TOK_PACKAGE identifier
                     }
                 }
                 ;
+include:        TOK_INCLUDE TOK_LIT_STR
+                {
+                    $$ = include_new($2);
+                }
+                ;
 use:            TOK_USE identifier
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
                     compile_use_extern(context, $2);
                     $$ = use_new($2);
-                }
-                ;
-include:        TOK_INCLUDE TOK_LIT_STR
-                {
-                    $$ = include_new($2);
                 }
                 ;
 
@@ -228,13 +204,13 @@ module:         TOK_MODULE identifier TOK_LBRACE outer_blocks TOK_RBRACE
                 ;
 
 coroutine:      TOK_COROUTINE identifier funcargs funcargs
-                TOK_LBRACE statements TOK_RBRACE
+                TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = coroutine_new($2, $3, $4, $6);
                 }
                 ;
 function:       TOK_FN identifier funcargs funcargs
-                TOK_LBRACE statements TOK_RBRACE
+                TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = func_new($2, $3, $4, $6);
                 }
@@ -262,6 +238,34 @@ arg:            declaration
                     $$ = arg_new($1);
                 }
                 ;
+
+inner_blocks:   inner_block
+        |       inner_block inner_blocks
+                {
+                    if ( NULL != $1 ) {
+                        $1->next = $2;
+                        $$ = $1;
+                    } else {
+                        $$ = $2;
+                    }
+                }
+                ;
+inner_block:    statements
+                {
+                    $$ = inner_block_new($1);
+                }
+                ;
+statements:     statement
+                {
+                    $$ = stmt_list_new($1);
+                }
+        |       statement statements
+                {
+                    $$ = stmt_prepend($1, $2);
+                }
+                ;
+
+
 statement:      stmt_decl
                 {
                     $$ = $1;

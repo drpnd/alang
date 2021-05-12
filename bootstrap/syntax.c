@@ -435,7 +435,7 @@ expr_op_new_prefix(expr_t *e0, op_type_t type)
  * func_new -- allocate a function
  */
 func_t *
-func_new(const char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
+func_new(const char *id, arg_t *args, arg_t *rets, inner_block_t *block)
 {
     func_t *f;
 
@@ -461,7 +461,7 @@ func_new(const char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
  * coroutine_new -- allocate a coroutine
  */
 coroutine_t *
-coroutine_new(const char *id, arg_t *args, arg_t *rets, stmt_list_t *block)
+coroutine_new(const char *id, arg_t *args, arg_t *rets, inner_block_t *block)
 {
     coroutine_t *cr;
 
