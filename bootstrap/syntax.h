@@ -376,6 +376,8 @@ typedef struct {
     char *package;
     func_vec_t funcs;
     coroutine_vec_t coroutines;
+
+    outer_block_t *blocks;
 } code_file_t;
 
 #define COMPILER_ERROR(err)    do {                             \
@@ -424,6 +426,7 @@ extern "C" {
     use_t * import_new(char *);
     void * include_new(char *);
     int package_define(code_file_t *, const char *);
+    code_file_t * code_file_new(outer_block_t *);
     int code_file_init(code_file_t *);
 
 #ifdef __cplusplus

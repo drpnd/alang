@@ -794,6 +794,22 @@ package_define(code_file_t *code, const char *package)
 }
 
 /*
+ * code_file_new -- allocate a new code file
+ */
+code_file_t *
+code_file_new(outer_block_t *block)
+{
+    code_file_t *code;
+
+    code = malloc(sizeof(code_file_t));
+    if ( NULL == code ) {
+        return NULL;
+    }
+
+    return code;
+}
+
+/*
  * code_file_init -- initialie code file
  */
 int

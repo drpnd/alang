@@ -108,7 +108,7 @@ void yyerror(yyscan_t, const char*);
 /* Syntax and parser implementation below */
 file:           outer_blocks
                 {
-                    $$ = NULL;
+                    $$ = code_file_new($1);
                 }
                 ;
 
@@ -125,6 +125,9 @@ outer_blocks:   outer_block
                 }
                 ;
 outer_block:    directive
+                {
+                    $$ = NULL;
+                }
         |       coroutine
                 {
                     outer_block_t *block;
@@ -297,6 +300,9 @@ expression:     or_test
 or_test:        or_test TOK_LOR and_test
                 {
                     $$ = expr_op_new_infix($1, $3, OP_OR);
+                    if ( NULL == $$ ) {
+                        yyerror(scanner, "Parse error: or");
+                    }
                 }
         |       and_test
                 {
@@ -576,7 +582,7 @@ literal:        TOK_LIT_HEXINT
 void
 yyerror(yyscan_t scanner, const char *str)
 {
-    fprintf(stderr, "Parser error near\n");
+    fprintf(stderr, "Parser error near %s\n", str);
 }
 
 /*
