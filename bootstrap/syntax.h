@@ -87,6 +87,18 @@ typedef struct {
 } type_t;
 
 /*
+ * Type definition
+ */
+typedef struct {
+} type_def_t;
+
+/*
+ * Type table
+ */
+typedef struct {
+} type_def_table_t;
+
+/*
  * Declarations
  */
 typedef struct {

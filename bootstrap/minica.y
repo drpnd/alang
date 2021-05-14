@@ -42,20 +42,20 @@ void yyerror(yyscan_t, const char*);
     char *numval;
     char *idval;
     char *strval;
-    void *type;
+    type_t *type;
     void *decl;
     void *expr;
     void *lit;
     void *var;
     void *val;
-    void *arg;
-    void *coroutine;
-    void *func;
-    void *stmt;
-    void *stmts;
+    arg_t *arg;
+    coroutine_t *coroutine;
+    func_t *func;
+    stmt_t *stmt;
+    stmt_list_t *stmts;
     use_t *use;
     void *include;
-    void *exprs;
+    expr_t *exprs;
 }
 
 %token <numval>         TOK_LIT_FLOAT
@@ -71,7 +71,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_PACKAGE TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
-%token TOK_STRUCT TOK_UNION TOK_ENUM
+%token TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
 
 %type <file> file
@@ -163,6 +163,9 @@ directive:      package
                 }
         |       include
         |       use
+        |       struct_def
+        |       union_def
+        |       typedef
                 ;
 
 package:        TOK_PACKAGE identifier
@@ -187,6 +190,25 @@ use:            TOK_USE identifier
                     context = yyget_extra(scanner);
                     compile_use_extern(context, $2);
                     $$ = use_new($2);
+                }
+                ;
+typedef:        TOK_TYPEDEF TOK_STRUCT identifier
+                {
+                }
+        |       TOK_TYPEDEF TOK_UNION identifier
+                {
+                }
+                ;
+struct_def:     TOK_STRUCT identifier TOK_LBRACE TOK_RBRACE
+                {
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                }
+                ;
+union_def:      TOK_UNION identifier TOK_LBRACE TOK_RBRACE
+                {
+                    context_t *context;
+                    context = yyget_extra(scanner);
                 }
                 ;
 
