@@ -538,6 +538,14 @@ type:           primitive
                 {
                     $$ = $1;
                 }
+        |       TOK_STRUCT identifier
+                {
+                    $$ = NULL;
+                }
+        |       TOK_UNION identifier
+                {
+                    $$ = NULL;
+                }
         |       identifier
                 {
                     $$ = type_new_id($1);
