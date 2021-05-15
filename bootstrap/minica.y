@@ -537,11 +537,11 @@ type:           primitive
                 }
         |       TOK_STRUCT identifier
                 {
-                    $$ = NULL;
+                    $$ = type_new_struct($2);
                 }
         |       TOK_UNION identifier
                 {
-                    $$ = NULL;
+                    $$ = type_new_union($2);
                 }
         |       identifier
                 {
