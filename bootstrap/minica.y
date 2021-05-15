@@ -84,7 +84,7 @@ void yyerror(yyscan_t, const char*);
 %type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
-%type <type> primitive type
+%type <type> primitive_type type
 %type <expr> or_test and_test not_test comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
 %type <expr> primary expression a_expr m_expr u_expr
@@ -531,7 +531,7 @@ identifier:     TOK_ID
                     //printf("xxx %d %d\n", yylloc.first_line, yylloc.first_column);
                 }
                 ;
-type:           primitive
+type:           primitive_type
                 {
                     $$ = $1;
                 }
@@ -548,7 +548,7 @@ type:           primitive
                     $$ = type_new_id($1);
                 }
                 ;
-primitive:      TOK_TYPE_I8
+primitive_type: TOK_TYPE_I8
                 {
                     $$ = type_new_primitive(TYPE_PRIMITIVE_I8);
                 }
