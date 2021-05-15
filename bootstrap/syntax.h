@@ -73,6 +73,8 @@ typedef enum {
     TYPE_PRIMITIVE_FP32,
     TYPE_PRIMITIVE_FP64,
     TYPE_PRIMITIVE_STRING,
+    TYPE_STRUCT,
+    TYPE_UNION,
     TYPE_ID,
 } type_type_t;
 
@@ -405,6 +407,8 @@ extern "C" {
     literal_t * literal_new_float(const char *);
     literal_t * literal_new_string(const char *);
     type_t * type_new_primitive(type_type_t);
+    type_t * type_new_struct(const char *);
+    type_t * type_new_union(const char *);
     type_t * type_new_id(const char *);
     var_t * var_new_id(var_stack_t **, char *, int);
     var_t * var_new_decl(var_stack_t **, decl_t *);
@@ -438,6 +442,7 @@ extern "C" {
     use_t * import_new(char *);
     void * include_new(char *);
     int package_define(code_file_t *, const char *);
+    int typedef_define(type_t *, type_t *);
     code_file_t * code_file_new(outer_block_t *);
     int code_file_init(code_file_t *);
 

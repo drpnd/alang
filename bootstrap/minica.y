@@ -192,10 +192,7 @@ use:            TOK_USE identifier
                     $$ = use_new($2);
                 }
                 ;
-typedef:        TOK_TYPEDEF TOK_STRUCT type
-                {
-                }
-        |       TOK_TYPEDEF TOK_UNION type
+typedef:        TOK_TYPEDEF type type
                 {
                 }
                 ;

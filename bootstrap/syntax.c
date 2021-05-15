@@ -241,6 +241,50 @@ type_new_primitive(type_type_t tt)
 }
 
 /*
+ * type_new_struct -- allocate a new struct type
+ */
+type_t *
+type_new_struct(const char *id)
+{
+    type_t *t;
+
+    t = malloc(sizeof(type_t));
+    if ( NULL == t ) {
+        return NULL;
+    }
+    t->type = TYPE_STRUCT;
+    t->u.id = strdup(id);
+    if ( NULL == t->u.id ) {
+        free(t);
+        return NULL;
+    }
+
+    return t;
+}
+
+/*
+ * type_new_union -- allocate a new union type
+ */
+type_t *
+type_new_union(const char *id)
+{
+    type_t *t;
+
+    t = malloc(sizeof(type_t));
+    if ( NULL == t ) {
+        return NULL;
+    }
+    t->type = TYPE_UNION;
+    t->u.id = strdup(id);
+    if ( NULL == t->u.id ) {
+        free(t);
+        return NULL;
+    }
+
+    return t;
+}
+
+/*
  * type_new_id -- allocate a type
  */
 type_t *
@@ -790,6 +834,15 @@ package_define(code_file_t *code, const char *package)
         return -1;
     }
 
+    return 0;
+}
+
+/*
+ * typedef_define -- define a type
+ */
+int
+typedef_define(type_t *type1, type_t *type2)
+{
     return 0;
 }
 
