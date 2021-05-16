@@ -221,7 +221,7 @@ enum_def:       TOK_ENUM identifier TOK_LBRACE enum_list TOK_RBRACE
                 ;
 enum_list:      enum_elem TOK_COMMA enum_list
                 {
-                    enum_elem_prepend($1, $3);
+                    $$ = enum_elem_prepend($1, $3);
                 }
         |       enum_elem
                 {
