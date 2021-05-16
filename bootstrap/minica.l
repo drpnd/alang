@@ -200,6 +200,7 @@ _append_buffer_char(yyscan_t scanner, char c)
 "struct"    return TOK_STRUCT;
 "union"     return TOK_UNION;
 "enum"      return TOK_ENUM;
+
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {
     char *val;
@@ -210,6 +211,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     yylval.idval = val;
     return TOK_ID;
 }
+
     /* Decimal numbers */
 [1-9][0-9]* {
     char *val;
@@ -240,6 +242,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     yylval.numval = val;
     return TOK_LIT_OCTINT;
 }
+
     /* Floating point */
 [0-9]+\.[0-9]+ {
     char *val;
@@ -249,7 +252,6 @@ _append_buffer_char(yyscan_t scanner, char c)
     }
     yylval.numval = val;
     return TOK_LIT_FLOAT;
-
 }
     /* Floating point (<1.0) */
 \.[0-9]+ {
@@ -260,7 +262,6 @@ _append_buffer_char(yyscan_t scanner, char c)
     }
     yylval.numval = val;
     return TOK_LIT_FLOAT;
-
 }
     /* Floating point (d.0) */
 [0-9]+\. {
@@ -272,6 +273,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     yylval.numval = val;
     return TOK_LIT_FLOAT;
 }
+
     /* String format */
 \" { BEGIN string; _clear_buffer(yyscanner); }
 <string>[^\\"\n]* {
@@ -293,11 +295,13 @@ _append_buffer_char(yyscan_t scanner, char c)
     BEGIN 0;
     return TOK_LIT_STR;
 }
+
     /* Line comment */
 \/\/ { BEGIN comment; }
 <comment>[^\n]*\n {
     BEGIN 0;
 }
+
     /* Block comment */
 \/\* { BEGIN blockcomment; }
 <blockcomment>.*\*\/ {
