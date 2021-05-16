@@ -20,6 +20,14 @@ All the data are carried a packet.
     y: i32*
     y = &x
 
+## Div/Mod operation
+
+    q = x / y
+    r = x % y
+
+    q, r = x / y
+    r, q = x % y
+
 
 ## BNF
 
