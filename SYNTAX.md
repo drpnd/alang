@@ -28,6 +28,9 @@ All the data are carried a packet.
     q, r = x / y
     r, q = x % y
 
+## List expression
+
+    a, b = x + y, x + z
 
 ## BNF
 
