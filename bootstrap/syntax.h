@@ -75,6 +75,7 @@ typedef enum {
     TYPE_PRIMITIVE_STRING,
     TYPE_STRUCT,
     TYPE_UNION,
+    TYPE_ENUM,
     TYPE_ID,
 } type_type_t;
 
@@ -409,6 +410,7 @@ extern "C" {
     type_t * type_new_primitive(type_type_t);
     type_t * type_new_struct(const char *);
     type_t * type_new_union(const char *);
+    type_t * type_new_enum(const char *);
     type_t * type_new_id(const char *);
     var_t * var_new_id(var_stack_t **, char *, int);
     var_t * var_new_decl(var_stack_t **, decl_t *);

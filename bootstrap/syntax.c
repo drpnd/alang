@@ -285,6 +285,28 @@ type_new_union(const char *id)
 }
 
 /*
+ * type_new_enum -- allocate a new enum type
+ */
+type_t *
+type_new_enum(const char *id)
+{
+    type_t *t;
+
+    t = malloc(sizeof(type_t));
+    if ( NULL == t ) {
+        return NULL;
+    }
+    t->type = TYPE_ENUM;
+    t->u.id = strdup(id);
+    if ( NULL == t->u.id ) {
+        free(t);
+        return NULL;
+    }
+
+    return t;
+}
+
+/*
  * type_new_id -- allocate a type
  */
 type_t *

@@ -54,7 +54,6 @@ void yyerror(yyscan_t, const char*);
     stmt_t *stmt;
     stmt_list_t *stmts;
     use_t *use;
-    void *include;
     expr_t *exprs;
 }
 
@@ -78,7 +77,6 @@ void yyerror(yyscan_t, const char*);
 %type <module> module
 %type <iblock> inner_block
 %type <oblock> outer_blocks outer_block
-%type <include> include
 %type <idval> identifier
 %type <var> variable
 %type <val> atom
@@ -165,6 +163,7 @@ directive:      package
         |       use
         |       struct_def
         |       union_def
+        |       enum_def
         |       typedef
                 ;
 
@@ -207,6 +206,12 @@ union_def:      TOK_UNION identifier TOK_LBRACE TOK_RBRACE
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
+                }
+                ;
+enum_def:       TOK_ENUM identifier TOK_LBRACE TOK_RBRACE
+                {
+                    context_t *context;
+                    context=  yyget_extra(scanner);
                 }
                 ;
 
@@ -543,6 +548,10 @@ type:           primitive_type
         |       TOK_UNION identifier
                 {
                     $$ = type_new_union($2);
+                }
+        |       TOK_ENUM identifier
+                {
+                    $$ = type_new_enum($2);
                 }
         |       identifier
                 {
