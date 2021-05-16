@@ -461,8 +461,7 @@ m_expr:         m_expr TOK_MUL u_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_DIV);
                 }
-        |
-                m_expr TOK_MOD u_expr
+        |       m_expr TOK_MOD u_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_MOD);
                 }
