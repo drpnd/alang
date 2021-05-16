@@ -619,7 +619,8 @@ literal:        TOK_LIT_HEXINT
 void
 yyerror(yyscan_t scanner, const char *str)
 {
-    fprintf(stderr, "Parser error near %s\n", str);
+    fprintf(stderr, "Parser error near %d:%d: %s\n", yylloc.first_line,
+            yylloc.first_column, str);
 }
 
 /*
