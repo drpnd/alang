@@ -203,6 +203,7 @@ compile_func(compiler_t *c, func_t *fn)
         return -1;
     }
 
+#if 0
     /* All statements in the block */
     s = fn->block->head;
     while ( NULL != s ) {
@@ -213,6 +214,7 @@ compile_func(compiler_t *c, func_t *fn)
         /* Next statement */
         s = s->next;
     }
+#endif
 
     return 0;
 }
@@ -238,6 +240,7 @@ compile_coroutine(compiler_t *c, coroutine_t *cr)
         return -1;
     }
 
+#if 0
     /* All statements in the block */
     s = cr->block->head;
     while ( NULL != s ) {
@@ -248,6 +251,7 @@ compile_coroutine(compiler_t *c, coroutine_t *cr)
         /* Next statement */
         s = s->next;
     }
+#endif
 
     return 0;
 }

@@ -23,6 +23,7 @@
 
 %option reentrant
 %option extra-type="void *"
+%option header-file="lex.yy.h"
 
 %{
 #include <stdio.h>
