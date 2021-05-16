@@ -44,9 +44,9 @@ void yyerror(yyscan_t, const char*);
     char *strval;
     type_t *type;
     void *decl;
-    void *expr;
+    expr_t *expr;
     void *lit;
-    void *var;
+    var_t *var;
     void *val;
     arg_t *arg;
     enum_elem_t *enum_elem;
@@ -55,7 +55,6 @@ void yyerror(yyscan_t, const char*);
     stmt_t *stmt;
     stmt_list_t *stmts;
     use_t *use;
-    expr_t *exprs;
 }
 
 %token <numval>         TOK_LIT_FLOAT
@@ -85,15 +84,15 @@ void yyerror(yyscan_t, const char*);
 %type <arg> arg args funcargs
 %type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
+%type <expr> exprs expression
 %type <expr> or_test and_test not_test comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
-%type <expr> primary expression a_expr m_expr u_expr
+%type <expr> primary a_expr m_expr u_expr
 %type <func> function
 %type <coroutine> coroutine
 %type <stmt> statement stmt_decl stmt_assign stmt_expr
 %type <stmts> statements
 %type <lit> literal
-%type <exprs> exprs
 %type <use> use
 
 %locations
@@ -530,7 +529,7 @@ variable_list:  variable_list TOK_COMMA variable
                         while ( NULL == *v ) {
                             v = &(*v)->next;
                         }
-                        v = $3;
+                        *v = $3;
                         $$ = $1;
                     }
                 }
