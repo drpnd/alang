@@ -121,13 +121,15 @@ typedef enum {
 /*
  * Variables
  */
-typedef struct {
+typedef struct _var var_t;
+struct _var {
     var_type_t type;
     union {
         char *id;
         decl_t *decl;
     } u;
-} var_t;
+    var_t *next;
+};
 
 /*
  * Variable sets
@@ -464,6 +466,8 @@ extern "C" {
     decl_t * decl_new(const char *, type_t *);
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);
+    enum_elem_t * enum_elem_new(const char *);
+    enum_elem_t * enum_elem_prepend(enum_elem_t *, enum_elem_t *);
     func_t * func_new(const char *, arg_t *, arg_t *, inner_block_t *);
     coroutine_t *
     coroutine_new(const char *, arg_t *, arg_t *, inner_block_t *);

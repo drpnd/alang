@@ -121,6 +121,7 @@ var_new_id(var_stack_t **stack, char *id, int ptr)
         free(v);
         return NULL;
     }
+    v->next = NULL;
 
     s = malloc(sizeof(var_stack_t));
     if ( NULL == s ) {
@@ -168,6 +169,7 @@ var_new_decl(var_stack_t **stack, decl_t *decl)
     }
     v->type = VAR_DECL;
     v->u.decl = decl;
+    v->next = NULL;
 
     s = malloc(sizeof(var_stack_t));
     if ( NULL == s ) {

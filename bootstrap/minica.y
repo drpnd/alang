@@ -79,7 +79,7 @@ void yyerror(yyscan_t, const char*);
 %type <iblock> inner_block
 %type <oblock> outer_blocks outer_block
 %type <idval> identifier
-%type <var> variable
+%type <var> variable_list variable
 %type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
@@ -324,7 +324,7 @@ stmt_decl:      declaration
                     $$ = stmt_new_decl($1);
                 }
                 ;
-stmt_assign:    variable TOK_DEF expression
+stmt_assign:    variable_list TOK_DEF expression
                 {
                     $$ = stmt_new_assign($1, $3);
                 }
@@ -515,9 +515,28 @@ atom:           literal
                 {
                     $$ = val_new_literal($1);
                 }
-        |       variable
+        |       variable_list
                 {
                     $$ = val_new_variable($1);
+                }
+                ;
+variable_list:  variable_list TOK_COMMA variable
+                {
+                    var_t **v;
+                    if ( NULL == $1 ) {
+                        $$ = $3;
+                    } else {
+                        v = &$1;
+                        while ( NULL == *v ) {
+                            v = &(*v)->next;
+                        }
+                        v = $3;
+                        $$ = $1;
+                    }
+                }
+        |       variable
+                {
+                    $$ = $1;
                 }
                 ;
 variable:       declaration
