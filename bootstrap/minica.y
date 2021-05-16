@@ -181,7 +181,8 @@ package:        TOK_PACKAGE identifier
                 ;
 include:        TOK_INCLUDE TOK_LIT_STR
                 {
-                    $$ = include_new($2);
+                    yyerror(scanner,
+                            "The include directive is not implemented.");
                 }
                 ;
 use:            TOK_USE identifier
