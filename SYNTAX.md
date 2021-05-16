@@ -12,12 +12,12 @@ All the data are carried a packet.
 
 ## Pointer
 
-    x: @i32
+    x: i32*
     y: i32
     y = @x
 
     x: i32
-    y: @i32
+    y: i32*
     y = &x
 
 
