@@ -395,6 +395,41 @@ typedef struct {
     outer_block_t *blocks;
 } code_file_t;
 
+#define STRING_CHUNK 4096
+/*
+ * String
+ */
+struct string {
+    size_t len;
+    size_t size;
+    char *buf;
+};
+
+/*
+ * Symbols
+ */
+typedef struct {
+} context_symbol_table_t;
+
+/*
+ * Context for parser
+ */
+typedef struct {
+    char *package;
+    module_t *module_cur;
+} context_parser_t;
+
+/*
+ * Compiler context for lexer and parser
+ */
+typedef struct {
+    /* Lexer string buffer */
+    struct string buffer;
+    /* Parser's context */
+    var_stack_t *vars;
+    module_t *cur;
+} context_t;
+
 #define COMPILER_ERROR(err)    do {                             \
         fprintf(stderr, "Fatal error on compiling the code\n"); \
         exit(err);                                              \
@@ -444,7 +479,7 @@ extern "C" {
     use_t * import_new(char *);
     void * include_new(char *);
     int package_define(code_file_t *, const char *);
-    int typedef_define(type_t *, type_t *);
+    int typedef_define(context_t *, type_t *, type_t *);
     code_file_t * code_file_new(outer_block_t *);
     int code_file_init(code_file_t *);
 

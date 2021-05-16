@@ -158,41 +158,6 @@ typedef struct {
     FILE *fout;
 } compiler_t;
 
-#define STRING_CHUNK 4096
-/*
- * String
- */
-struct string {
-    size_t len;
-    size_t size;
-    char *buf;
-};
-
-/*
- * Symbols
- */
-typedef struct {
-} context_symbol_table_t;
-
-/*
- * Context for parser
- */
-typedef struct {
-    char *package;
-    module_t *module_cur;
-} context_parser_t;
-
-/*
- * Compiler context for lexer and parser
- */
-typedef struct {
-    /* Lexer string buffer */
-    struct string buffer;
-    /* Parser's context */
-    var_stack_t *vars;
-    module_t *cur;
-} context_t;
-
 #ifdef __cplusplus
 extern "C" {
 #endif

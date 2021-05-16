@@ -194,7 +194,9 @@ use:            TOK_USE identifier
                 ;
 typedef:        TOK_TYPEDEF type type
                 {
-                    typedef_define($2, $3);
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                    typedef_define(context, $2, $3);
                 }
                 ;
 struct_def:     TOK_STRUCT identifier TOK_LBRACE TOK_RBRACE
