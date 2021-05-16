@@ -207,6 +207,7 @@ typedef enum {
     OP_MUL,
     OP_DIV,
     OP_MOD,
+    OP_DIVMOD,
     OP_NOT,
     OP_AND,
     OP_OR,

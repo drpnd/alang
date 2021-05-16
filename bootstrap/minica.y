@@ -62,7 +62,7 @@ void yyerror(yyscan_t, const char*);
 %token <numval>         TOK_LIT_HEXINT TOK_LIT_DECINT TOK_LIT_OCTINT
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR
-%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_DEF
+%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_DIVMOD TOK_DEF
 %token TOK_LAND TOK_LOR TOK_NOT
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
 %token TOK_LCHEVRON TOK_RCHEVRON
@@ -464,6 +464,10 @@ m_expr:         m_expr TOK_MUL u_expr
         |       m_expr TOK_MOD u_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_MOD);
+                }
+        |       m_expr TOK_DIVMOD u_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_DIVMOD);
                 }
         |       u_expr
                 {
