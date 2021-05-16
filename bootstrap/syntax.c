@@ -379,6 +379,38 @@ arg_prepend(arg_t *arg, arg_t *args)
 }
 
 /*
+ * enum_elem_new -- allocate a new enumerate element
+ */
+enum_elem_t *
+enum_elem_new(const char *id)
+{
+    enum_elem_t *elem;
+
+    elem = malloc(sizeof(enum_elem_t));
+    if ( NULL == elem ) {
+        return NULL;
+    }
+    elem->id = strdup(id);
+    if ( NULL == elem->id ) {
+        free(elem);
+        return NULL;
+    }
+    elem->next = NULL;
+
+    return elem;
+}
+
+/*
+ * enum_elem_prepend -- prepend an enumerate element to the list
+ */
+enum_elem_t *
+enum_elem_prepend(enum_elem_t *elem, enum_elem_t *list)
+{
+    elem->next = list;
+    return elem;
+}
+
+/*
  * expr_new_val -- allocate an expression with a value
  */
 expr_t *

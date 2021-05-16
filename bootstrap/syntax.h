@@ -168,6 +168,15 @@ struct _arg {
 };
 
 /*
+ * Enumerates
+ */
+typedef struct _enum_elem enum_elem_t;
+struct _enum_elem {
+    char *id;
+    enum_elem_t *next;
+};
+
+/*
  * Function
  */
 typedef struct {

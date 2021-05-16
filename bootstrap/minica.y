@@ -49,6 +49,7 @@ void yyerror(yyscan_t, const char*);
     void *var;
     void *val;
     arg_t *arg;
+    enum_elem_t *enum_elem;
     coroutine_t *coroutine;
     func_t *func;
     stmt_t *stmt;
@@ -82,6 +83,7 @@ void yyerror(yyscan_t, const char*);
 %type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
+%type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
 %type <expr> or_test and_test not_test comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
@@ -211,10 +213,24 @@ union_def:      TOK_UNION identifier TOK_LBRACE TOK_RBRACE
                     context = yyget_extra(scanner);
                 }
                 ;
-enum_def:       TOK_ENUM identifier TOK_LBRACE TOK_RBRACE
+enum_def:       TOK_ENUM identifier TOK_LBRACE enum_list TOK_RBRACE
                 {
                     context_t *context;
                     context=  yyget_extra(scanner);
+                }
+                ;
+enum_list:      enum_elem TOK_COMMA enum_list
+                {
+                    enum_elem_prepend($1, $3);
+                }
+        |       enum_elem
+                {
+                    $$ = $1;
+                }
+                ;
+enum_elem:      identifier
+                {
+                    $$ = enum_elem_new($1);
                 }
                 ;
 
