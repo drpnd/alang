@@ -474,13 +474,11 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_SUB);
                 }
-        |
-                TOK_ADD u_expr
+        |       TOK_ADD u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_ADD);
                 }
-        |
-                primary
+        |       primary
                 {
                     $$ = $1;
                 }
@@ -489,13 +487,11 @@ primary:        atom
                 {
                     $$ = expr_new_val($1);
                 }
-        |
-                atom TOK_LPAREN exprs TOK_RPAREN
+        |       atom TOK_LPAREN exprs TOK_RPAREN
                 {
                     $$ = NULL;
                 }
-        |
-                atom TOK_LBRACKET expression TOK_RBRACKET
+        |       atom TOK_LBRACKET expression TOK_RBRACKET
                 {
                     $$ = NULL;
                 }
@@ -505,14 +501,9 @@ exprs:          expression
                 {
                     $$ = $1;
                 }
-        |
-                expression TOK_COMMA exprs
+        |       expression TOK_COMMA exprs
                 {
                     $$ = expr_prepend($1, $3);
-                }
-        |
-                {
-                    $$ = NULL;
                 }
                 ;
 
