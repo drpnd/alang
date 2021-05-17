@@ -519,19 +519,9 @@ atom:           literal
                     $$ = val_new_variable($1);
                 }
                 ;
-variable_list:  variable_list TOK_COMMA variable
+variable_list:  variable TOK_COMMA variable_list
                 {
-                    var_t **v;
-                    if ( NULL == $1 ) {
-                        $$ = $3;
-                    } else {
-                        v = &$1;
-                        while ( NULL == *v ) {
-                            v = &(*v)->next;
-                        }
-                        *v = $3;
-                        $$ = $1;
-                    }
+                    $1->next = $3;
                 }
         |       variable
                 {
