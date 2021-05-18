@@ -269,6 +269,7 @@ typedef enum {
     STMT_DECL,
     STMT_ASSIGN,
     STMT_EXPR,
+    STMT_BLOCK,
 } stmt_type_t;
 
 /*
@@ -288,6 +289,7 @@ struct _stmt {
         decl_t *decl;
         stmt_assign_t assign;
         expr_t *expr;
+        inner_block_t *block;
     } u;
     stmt_t *next;
 };
@@ -478,6 +480,7 @@ extern "C" {
     stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_t *, expr_t *);
     stmt_t * stmt_new_expr(expr_t *);
+    stmt_t * stmt_new_block(inner_block_t *);
     stmt_list_t * stmt_list_new(stmt_t *);
     stmt_list_t * stmt_prepend(stmt_t *, stmt_list_t *);
     op_t * op_new_infix(expr_t *, expr_t *, op_type_t);

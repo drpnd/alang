@@ -317,6 +317,10 @@ statement:      stmt_decl
                 {
                     $$ = $1;
                 }
+        |       TOK_LBRACE inner_block TOK_RBRACE
+                {
+                    $$ = stmt_new_block($2);
+                }
                 ;
 stmt_decl:      declaration
                 {
