@@ -201,6 +201,8 @@ _append_buffer_char(yyscan_t scanner, char c)
 "struct"    return TOK_STRUCT;
 "union"     return TOK_UNION;
 "enum"      return TOK_ENUM;
+"if"        return TOK_IF;
+"else"      return TOK_ELSE;
 
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {
