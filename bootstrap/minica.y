@@ -47,7 +47,7 @@ void yyerror(yyscan_t, const char*);
     expr_t *expr;
     void *lit;
     var_t *var;
-    void *val;
+    val_t *val;
     arg_t *arg;
     enum_elem_t *enum_elem;
     coroutine_t *coroutine;
@@ -72,7 +72,8 @@ void yyerror(yyscan_t, const char*);
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
-%token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING
+%token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING TOK_TYPE_BOOL
+%token TOK_NIL TOK_TRUE TOK_FALSE
 
 %type <file> file
 %type <module> module
@@ -80,7 +81,7 @@ void yyerror(yyscan_t, const char*);
 %type <oblock> outer_blocks outer_block
 %type <idval> identifier
 %type <var> variable_list variable
-%type <val> atom
+%type <val> atom boolean
 %type <decl> declaration
 %type <arg> arg args funcargs
 %type <enum_elem> enum_list enum_elem
@@ -541,9 +542,22 @@ atom:           literal
                 {
                     $$ = val_new_literal($1);
                 }
+        |       boolean
+                {
+                    $$ = $1;
+                }
         |       variable_list
                 {
                     $$ = val_new_variable($1);
+                }
+                ;
+boolean:        TOK_TRUE
+                {
+                    $$ = val_new_bool(BOOL_TRUE);
+                }
+        |       TOK_FALSE
+                {
+                    $$ = val_new_bool(BOOL_FALSE);
                 }
                 ;
 variable_list:  variable TOK_COMMA variable_list
@@ -633,6 +647,10 @@ primitive_type: TOK_TYPE_I8
         |       TOK_TYPE_STRING
                 {
                     $$ = type_new_primitive(TYPE_PRIMITIVE_STRING);
+                }
+        |       TOK_TYPE_BOOL
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_BOOL);
                 }
                 ;
 literal:        TOK_LIT_HEXINT

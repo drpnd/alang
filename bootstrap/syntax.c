@@ -208,6 +208,24 @@ val_new_literal(literal_t *lit)
 }
 
 /*
+ * val_new_bool -- allocate a boolean value
+ */
+val_t *
+val_new_bool(bool_t val)
+{
+    val_t *v;
+
+    v = malloc(sizeof(val_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAL_BOOL;
+    v->u.boolean = val;
+
+    return v;
+}
+
+/*
  * val_new_variable -- allocate a literal value
  */
 val_t *

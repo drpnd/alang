@@ -63,6 +63,14 @@ typedef struct {
 } literal_t;
 
 /*
+ * Boolean
+ */
+typedef enum {
+    BOOL_FALSE,
+    BOOL_TRUE,
+} bool_t;
+
+/*
  * Type type
  */
 typedef enum {
@@ -73,6 +81,7 @@ typedef enum {
     TYPE_PRIMITIVE_FP32,
     TYPE_PRIMITIVE_FP64,
     TYPE_PRIMITIVE_STRING,
+    TYPE_PRIMITIVE_BOOL,
     TYPE_STRUCT,
     TYPE_UNION,
     TYPE_ENUM,
@@ -146,6 +155,7 @@ struct _var_stack {
  */
 typedef enum {
     VAL_LITERAL,
+    VAL_BOOL,
     VAL_VAR,
 } val_type_t;
 
@@ -156,6 +166,7 @@ typedef struct {
     val_type_t type;
     union {
         literal_t *lit;
+        bool_t boolean;
         var_t *var;
     } u;
 } val_t;
@@ -475,6 +486,7 @@ extern "C" {
     var_t * var_new_id(var_stack_t **, char *, int);
     var_t * var_new_decl(var_stack_t **, decl_t *);
     val_t * val_new_literal(literal_t *);
+    val_t * val_new_bool(bool_t);
     val_t * val_new_variable(var_t *);
     decl_t * decl_new(const char *, type_t *);
     arg_t * arg_new(decl_t *);

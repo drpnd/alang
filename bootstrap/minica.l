@@ -190,6 +190,7 @@ _append_buffer_char(yyscan_t scanner, char c)
 "fp32"      return TOK_TYPE_FP32;
 "fp64"      return TOK_TYPE_FP64;
 "string"    return TOK_TYPE_STRING;
+"bool"      return TOK_TYPE_BOOL;
     /* Reserved keywords */
 "package"   return TOK_PACKAGE;
 "mod"       return TOK_MODULE;
@@ -203,6 +204,9 @@ _append_buffer_char(yyscan_t scanner, char c)
 "enum"      return TOK_ENUM;
 "if"        return TOK_IF;
 "else"      return TOK_ELSE;
+"nil"       return TOK_NIL;
+"true"      return TOK_TRUE;
+"false"     return TOK_FALSE;
 
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {
