@@ -268,6 +268,7 @@ struct _expr {
 typedef enum {
     STMT_DECL,
     STMT_ASSIGN,
+    STMT_IF,
     STMT_EXPR,
     STMT_BLOCK,
 } stmt_type_t;
@@ -281,6 +282,15 @@ typedef struct {
 } stmt_assign_t;
 
 /*
+ * If statement
+ */
+typedef struct {
+    expr_t *cond;
+    inner_block_t *bif;
+    inner_block_t *belse;
+} stmt_if_t;
+
+/*
  * Statement
  */
 struct _stmt {
@@ -288,6 +298,7 @@ struct _stmt {
     union {
         decl_t *decl;
         stmt_assign_t assign;
+        stmt_if_t ifstmt;
         expr_t *expr;
         inner_block_t *block;
     } u;
@@ -479,6 +490,7 @@ extern "C" {
     inner_block_t * inner_block_new(stmt_list_t *);
     stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_t *, expr_t *);
+    stmt_t * stmt_new_if(expr_t *, inner_block_t *, inner_block_t *);
     stmt_t * stmt_new_expr(expr_t *);
     stmt_t * stmt_new_block(inner_block_t *);
     stmt_list_t * stmt_list_new(stmt_t *);
