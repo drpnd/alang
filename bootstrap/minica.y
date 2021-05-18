@@ -546,6 +546,10 @@ atom:           literal
                 {
                     $$ = $1;
                 }
+        |       TOK_NIL
+                {
+                    $$ = val_new_nil();
+                }
         |       variable_list
                 {
                     $$ = val_new_variable($1);

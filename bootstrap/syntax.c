@@ -226,6 +226,23 @@ val_new_bool(bool_t val)
 }
 
 /*
+ * val_new_nil -- allocate a nil value
+ */
+val_t *
+val_new_nil(void)
+{
+    val_t *v;
+
+    v = malloc(sizeof(val_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAL_NIL;
+
+    return v;
+}
+
+/*
  * val_new_variable -- allocate a literal value
  */
 val_t *

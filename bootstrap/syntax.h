@@ -156,6 +156,7 @@ struct _var_stack {
 typedef enum {
     VAL_LITERAL,
     VAL_BOOL,
+    VAL_NIL,
     VAL_VAR,
 } val_type_t;
 
@@ -487,6 +488,7 @@ extern "C" {
     var_t * var_new_decl(var_stack_t **, decl_t *);
     val_t * val_new_literal(literal_t *);
     val_t * val_new_bool(bool_t);
+    val_t * val_new_nil(void);
     val_t * val_new_variable(var_t *);
     decl_t * decl_new(const char *, type_t *);
     arg_t * arg_new(decl_t *);
