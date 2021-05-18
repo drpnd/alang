@@ -81,7 +81,7 @@ void yyerror(yyscan_t, const char*);
 %type <oblock> outer_blocks outer_block
 %type <idval> identifier
 %type <var> variable_list variable
-%type <val> atom boolean
+%type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
 %type <enum_elem> enum_list enum_elem
@@ -542,9 +542,13 @@ atom:           literal
                 {
                     $$ = val_new_literal($1);
                 }
-        |       boolean
+        |       TOK_TRUE
                 {
-                    $$ = $1;
+                    $$ = val_new_bool(BOOL_TRUE);
+                }
+        |       TOK_FALSE
+                {
+                    $$ = val_new_bool(BOOL_FALSE);
                 }
         |       TOK_NIL
                 {
@@ -553,15 +557,6 @@ atom:           literal
         |       variable_list
                 {
                     $$ = val_new_variable($1);
-                }
-                ;
-boolean:        TOK_TRUE
-                {
-                    $$ = val_new_bool(BOOL_TRUE);
-                }
-        |       TOK_FALSE
-                {
-                    $$ = val_new_bool(BOOL_FALSE);
                 }
                 ;
 variable_list:  variable TOK_COMMA variable_list
