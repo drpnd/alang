@@ -38,6 +38,9 @@
 void * yyget_extra(yyscan_t);
 void yyerror(yyscan_t, const char *);
 
+/*
+ * yywrap
+ */
 int
 yywrap(yyscan_t scanner)
 {
