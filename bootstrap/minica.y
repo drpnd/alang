@@ -145,7 +145,6 @@ outer_block:    directive
                     block = outer_block_new(OUTER_BLOCK_FUNC);
                     block->u.fn = $1;
                     $$ = block;
-                    func_vec_add(&code->funcs, $1);
                 }
         |       module
                 {
