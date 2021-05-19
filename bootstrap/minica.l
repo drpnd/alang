@@ -192,7 +192,6 @@ _append_buffer_char(yyscan_t scanner, char c)
 "string"    return TOK_TYPE_STRING;
 "bool"      return TOK_TYPE_BOOL;
     /* Reserved keywords */
-"package"   return TOK_PACKAGE;
 "mod"       return TOK_MODULE;
 "use"       return TOK_USE;
 "include"   return TOK_INCLUDE;

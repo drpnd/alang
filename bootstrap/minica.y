@@ -68,7 +68,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_IF TOK_ELSE
 %token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
 %token TOK_EQ TOK_COMMA TOK_ATMARK
-%token TOK_PACKAGE TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE
+%token TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
@@ -157,12 +157,7 @@ outer_block:    directive
                 ;
 
 /* Directives */
-directive:      package
-                {
-                    context_t *context;
-                    context = yyget_extra(scanner);
-                }
-        |       include
+directive:      include
         |       use
         |       struct_def
         |       union_def
@@ -170,17 +165,6 @@ directive:      package
         |       typedef
                 ;
 
-package:        TOK_PACKAGE identifier
-                {
-                    int ret;
-                    ret = package_define(code, $2);
-                    if ( 0 != ret ) {
-                        /* Already defined */
-                        yyerror(scanner, "Another package is already specified "
-                                "in this file.");
-                    }
-                }
-                ;
 include:        TOK_INCLUDE TOK_LIT_STR
                 {
                     yyerror(scanner,

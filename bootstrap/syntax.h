@@ -425,7 +425,6 @@ struct _file_stack {
  * Code file
  */
 typedef struct {
-    char *package;
     func_vec_t funcs;
     coroutine_vec_t coroutines;
 
@@ -452,7 +451,6 @@ typedef struct {
  * Context for parser
  */
 typedef struct {
-    char *package;
     module_t *module_cur;
 } context_parser_t;
 
@@ -521,7 +519,6 @@ extern "C" {
     use_t * use_new(const char *);
     use_t * import_new(char *);
     void * include_new(char *);
-    int package_define(code_file_t *, const char *);
     int typedef_define(context_t *, type_t *, type_t *);
     code_file_t * code_file_new(outer_block_t *);
     int code_file_init(code_file_t *);
