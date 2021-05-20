@@ -360,6 +360,27 @@ typedef struct {
 } use_vec_t;
 
 /*
+ * Directive type
+ */
+typedef enum {
+    DIRECTIVE_USE,
+    DIRECTIVE_STRUCT,
+    DIRECTIVE_UNION,
+    DIRECTIVE_ENUM,
+    DIRECTIVE_TYPEDEF,
+} directive_type_t;
+
+/*
+ * Directive
+ */
+typedef struct {
+    directive_type_t type;
+    union {
+        use_t *use;
+    } u;
+} directive_t;
+
+/*
  * Modules
  */
 typedef struct {
@@ -383,6 +404,7 @@ typedef enum {
     OUTER_BLOCK_FUNC,
     OUTER_BLOCK_COROUTINE,
     OUTER_BLOCK_MODULE,
+    OUTER_BLOCK_DIRECTIVE,
 } outer_block_type_t;
 
 /*
@@ -403,6 +425,7 @@ struct _outer_block {
         func_t *fn;
         coroutine_t *cr;
         module_t *md;
+        directive_t *dr;
     } u;
     outer_block_t *next;
 };

@@ -43,7 +43,7 @@ void yyerror(yyscan_t, const char*);
     char *idval;
     char *strval;
     type_t *type;
-    void *decl;
+    decl_t *decl;
     expr_t *expr;
     void *lit;
     var_t *var;
