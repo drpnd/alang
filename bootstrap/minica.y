@@ -44,12 +44,12 @@ void yyerror(yyscan_t, const char*);
     char *strval;
     type_t *type;
     decl_t *decl;
+    decl_list_t *decl_list;
     expr_t *expr;
     void *lit;
     var_t *var;
     val_t *val;
     arg_t *arg;
-    void *decl_list;
     enum_elem_t *enum_elem;
     coroutine_t *coroutine;
     func_t *func;
@@ -201,11 +201,14 @@ union_def:      TOK_UNION identifier TOK_LBRACE decl_list TOK_RBRACE
                 ;
 decl_list:      declaration TOK_COMMA decl_list
                 {
-                    $$ = NULL;
+                    decl_list_t *e;
+                    e = decl_list_new($1);
+                    e->next = $3;
+                    $$ = e;
                 }
         |       declaration
                 {
-                    $$ = NULL;
+                    $$ = decl_list_new($1);
                 }
                 ;
 enum_def:       TOK_ENUM identifier TOK_LBRACE enum_list TOK_RBRACE

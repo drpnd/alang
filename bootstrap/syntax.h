@@ -119,6 +119,15 @@ typedef struct {
 } decl_t;
 
 /*
+ * Declaration list
+ */
+typedef struct _decl_list decl_list_t;
+struct _decl_list {
+    decl_t *ent;
+    decl_list_t *next;
+};
+
+/*
  * Variable type
  */
 typedef enum {
@@ -512,6 +521,7 @@ extern "C" {
     val_t * val_new_nil(void);
     val_t * val_new_variable(var_t *);
     decl_t * decl_new(const char *, type_t *);
+    decl_list_t * decl_list_new(decl_t *);
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);
     enum_elem_t * enum_elem_new(const char *);

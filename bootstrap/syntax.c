@@ -388,6 +388,24 @@ decl_new(const char *id, type_t *type)
 }
 
 /*
+ * decl_list_new -- alloate a declaration entry
+ */
+decl_list_t *
+decl_list_new(decl_t *dcl)
+{
+    decl_list_t *ent;
+
+    ent = malloc(sizeof(decl_list_t));
+    if ( NULL == ent ) {
+        return NULL;
+    }
+    ent->ent = dcl;
+    ent->next = NULL;
+
+    return ent;
+}
+
+/*
  * arg_new -- allocate an argument
  */
 arg_t *
