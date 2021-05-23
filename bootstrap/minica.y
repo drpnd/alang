@@ -56,7 +56,6 @@ void yyerror(yyscan_t, const char*);
     func_t *func;
     stmt_t *stmt;
     stmt_list_t *stmts;
-    use_t *use;
 }
 
 %token <numval>         TOK_LIT_FLOAT
@@ -86,7 +85,7 @@ void yyerror(yyscan_t, const char*);
 %type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
-%type <directive> struct_def union_def
+%type <directive> struct_def union_def use
 %type <decl_list> decl_list
 %type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
@@ -99,7 +98,6 @@ void yyerror(yyscan_t, const char*);
 %type <stmt> statement stmt_decl stmt_assign stmt_if stmt_expr
 %type <stmts> statements
 %type <lit> literal
-%type <use> use
 
 %locations
 
@@ -179,7 +177,7 @@ use:            TOK_USE identifier
                     context_t *context;
                     context = yyget_extra(scanner);
                     compile_use_extern(context, $2);
-                    $$ = use_new($2);
+                    $$ = directive_use_new($2);
                 }
                 ;
 typedef:        TOK_TYPEDEF type type

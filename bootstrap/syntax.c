@@ -480,6 +480,28 @@ directive_union_new(const char *id, decl_list_t *list)
 }
 
 /*
+ * directive_use_new -- allocate a new use statement
+ */
+directive_t *
+directive_use_new(const char *id)
+{
+    directive_t *dir;
+
+    dir = malloc(sizeof(directive_t));
+    if ( NULL == dir ) {
+        return NULL;
+    }
+    dir->type = DIRECTIVE_USE;
+    dir->u.use.id = strdup(id);
+    if ( NULL == dir->u.use.id ) {
+        free(dir);
+        return NULL;
+    }
+
+    return dir;
+}
+
+/*
  * enum_elem_new -- allocate a new enumerate element
  */
 enum_elem_t *
@@ -958,27 +980,6 @@ module_vec_add(module_vec_t *vec, module_t *module)
     vec->n++;
 
     return 0;
-}
-
-/*
- * use_new -- allocate a new use statement
- */
-use_t *
-use_new(const char *id)
-{
-    use_t *use;
-
-    use = malloc(sizeof(use_t));
-    if ( NULL == use ) {
-        return NULL;
-    }
-    use->id = strdup(id);
-    if ( NULL == use->id ) {
-        free(use);
-        return NULL;
-    }
-
-    return use;
 }
 
 /*

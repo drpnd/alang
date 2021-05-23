@@ -400,7 +400,7 @@ typedef enum {
 typedef struct {
     directive_type_t type;
     union {
-        use_t *use;
+        use_t use;
         struct_t st;
         union_t un;
         enum_t en;
@@ -544,6 +544,7 @@ extern "C" {
     arg_t * arg_prepend(arg_t *, arg_t *);
     directive_t * directive_struct_new(const char *, decl_list_t *);
     directive_t * directive_union_new(const char *, decl_list_t *);
+    directive_t * directive_use_new(const char *);
     enum_elem_t * enum_elem_new(const char *);
     enum_elem_t * enum_elem_prepend(enum_elem_t *, enum_elem_t *);
     func_t * func_new(const char *, arg_t *, arg_t *, inner_block_t *);
@@ -568,7 +569,6 @@ extern "C" {
     expr_t * expr_prepend(expr_t *, expr_t *);
     int func_vec_add(func_vec_t *, func_t *);
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
-    use_t * use_new(const char *);
     void * include_new(char *);
     int typedef_define(context_t *, type_t *, type_t *);
     code_file_t * code_file_new(outer_block_t *);
