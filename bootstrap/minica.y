@@ -43,6 +43,7 @@ void yyerror(yyscan_t, const char*);
     char *idval;
     char *strval;
     type_t *type;
+    directive_t *directive;
     decl_t *decl;
     decl_list_t *decl_list;
     expr_t *expr;
@@ -85,6 +86,7 @@ void yyerror(yyscan_t, const char*);
 %type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
+%type <directive> struct_def union_def
 %type <decl_list> decl_list
 %type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
@@ -187,16 +189,18 @@ typedef:        TOK_TYPEDEF type type
                     typedef_define(context, $2, $3);
                 }
                 ;
-struct_def:     TOK_STRUCT identifier TOK_LBRACE TOK_RBRACE
+struct_def:     TOK_STRUCT identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
+                    $$ = directive_struct_new($2, $4);
                 }
                 ;
 union_def:      TOK_UNION identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
+                    $$ = directive_union_new($2, $4);
                 }
                 ;
 decl_list:      declaration TOK_COMMA decl_list

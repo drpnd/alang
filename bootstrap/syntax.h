@@ -551,6 +551,8 @@ extern "C" {
     decl_list_t * decl_list_new(decl_t *);
     arg_t * arg_new(decl_t *);
     arg_t * arg_prepend(arg_t *, arg_t *);
+    directive_t * directive_struct_new(const char *, decl_list_t *);
+    directive_t * directive_union_new(const char *, decl_list_t *);
     enum_elem_t * enum_elem_new(const char *);
     enum_elem_t * enum_elem_prepend(enum_elem_t *, enum_elem_t *);
     func_t * func_new(const char *, arg_t *, arg_t *, inner_block_t *);
