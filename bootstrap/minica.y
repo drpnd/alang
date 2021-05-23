@@ -85,7 +85,7 @@ void yyerror(yyscan_t, const char*);
 %type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
-%type <directive> struct_def union_def use
+%type <directive> directive struct_def union_def enum_def use typedef
 %type <decl_list> decl_list
 %type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
@@ -129,7 +129,10 @@ outer_blocks:   outer_block
                 ;
 outer_block:    directive
                 {
-                    $$ = NULL;
+                    outer_block_t *block;
+                    block = outer_block_new(OUTER_BLOCK_DIRECTIVE);
+                    block->u.dr = $1;
+                    $$ = block;
                 }
         |       coroutine
                 {
@@ -159,6 +162,9 @@ outer_block:    directive
 
 /* Directives */
 directive:      include
+                {
+                    $$ = NULL;
+                }
         |       use
         |       struct_def
         |       union_def
