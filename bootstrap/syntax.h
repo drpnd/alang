@@ -191,6 +191,22 @@ struct _arg {
 };
 
 /*
+ * Struct data structure
+ */
+typedef struct {
+    char *id;
+    decl_list_t *list;
+} struct_t;
+
+/*
+ * Union data structure
+ */
+typedef struct {
+    char *id;
+    decl_list_t *list;
+} union_t;
+
+/*
  * Enumerates
  */
 typedef struct _enum_elem enum_elem_t;
@@ -198,6 +214,14 @@ struct _enum_elem {
     char *id;
     enum_elem_t *next;
 };
+
+/*
+ * Enumerate
+ */
+typedef struct {
+    char *id;
+    enum_elem_t *list;
+} enum_t;
 
 /*
  * Function
