@@ -105,6 +105,7 @@ void yyerror(yyscan_t, const char*);
 %left TOK_LAND TOK_LOR
 %left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
+%right TOK_DEF
 %nonassoc TOK_NOT
 
 %locations
@@ -225,6 +226,10 @@ decl_list:      declaration TOK_COMMA decl_list
                     e = decl_list_new($1);
                     e->next = $3;
                     $$ = e;
+                }
+        |       declaration TOK_SEMICOLON
+                {
+                    $$ = decl_list_new($1);
                 }
         |       declaration
                 {
