@@ -410,6 +410,9 @@ typedef struct {
     directive_type_t type;
     union {
         use_t *use;
+        struct_t st;
+        union_t un;
+        enum_t en;
     } u;
 } directive_t;
 

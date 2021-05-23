@@ -434,6 +434,52 @@ arg_prepend(arg_t *arg, arg_t *args)
 }
 
 /*
+ * directive_struct_new -- allocate a struct data structure
+ */
+directive_t *
+directive_struct_new(const char *id, decl_list_t *list)
+{
+    directive_t *dir;
+
+    dir = malloc(sizeof(directive_t));
+    if ( NULL == dir ) {
+        return NULL;
+    }
+    dir->type = DIRECTIVE_STRUCT;
+    dir->u.st.id = strdup(id);
+    if ( NULL == dir->u.st.id ) {
+        free(dir);
+        return NULL;
+    }
+    dir->u.st.list = list;
+
+    return dir;
+}
+
+/*
+ * directive_union_new -- allocate a union data structure
+ */
+directive_t *
+directive_union_new(const char *id, decl_list_t *list)
+{
+    directive_t *dir;
+
+    dir = malloc(sizeof(directive_t));
+    if ( NULL == dir ) {
+        return NULL;
+    }
+    dir->type = DIRECTIVE_UNION;
+    dir->u.un.id = strdup(id);
+    if ( NULL == dir->u.st.id ) {
+        free(dir);
+        return NULL;
+    }
+    dir->u.un.list = list;
+
+    return dir;
+}
+
+/*
  * enum_elem_new -- allocate a new enumerate element
  */
 enum_elem_t *
