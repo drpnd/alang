@@ -176,6 +176,7 @@ _append_buffer_char(yyscan_t scanner, char c)
 "<"         return TOK_LCHEVRON;
 ">"         return TOK_RCHEVRON;
 "="         return TOK_EQ;
+";"         return TOK_SEMICOLON;
     /* Comparison */
 "=="        return TOK_EQ_EQ;
 "!="        return TOK_NEQ;

@@ -75,6 +75,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING TOK_TYPE_BOOL
 %token TOK_NIL TOK_TRUE TOK_FALSE
+%token TOK_SEMICOLON
 
 %type <file> file
 %type <module> module
@@ -312,6 +313,10 @@ inner_block:    statements
                 }
                 ;
 statements:     statement
+                {
+                    $$ = stmt_list_new($1);
+                }
+        |       statement TOK_SEMICOLON
                 {
                     $$ = stmt_list_new($1);
                 }
