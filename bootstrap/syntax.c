@@ -470,11 +470,34 @@ directive_union_new(const char *id, decl_list_t *list)
     }
     dir->type = DIRECTIVE_UNION;
     dir->u.un.id = strdup(id);
-    if ( NULL == dir->u.st.id ) {
+    if ( NULL == dir->u.un.id ) {
         free(dir);
         return NULL;
     }
     dir->u.un.list = list;
+
+    return dir;
+}
+
+/*
+ * directive_enum_new -- allocate an enum data structure
+ */
+directive_t *
+directive_enum_new(const char *id, enum_elem_t *list)
+{
+    directive_t *dir;
+
+    dir = malloc(sizeof(directive_t));
+    if ( NULL == dir ) {
+        return NULL;
+    }
+    dir->type = DIRECTIVE_ENUM;
+    dir->u.en.id = strdup(id);
+    if ( NULL == dir->u.en.id ) {
+        free(dir);
+        return NULL;
+    }
+    dir->u.en.list = list;
 
     return dir;
 }

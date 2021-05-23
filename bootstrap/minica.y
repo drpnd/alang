@@ -221,8 +221,7 @@ decl_list:      declaration TOK_COMMA decl_list
                 ;
 enum_def:       TOK_ENUM identifier TOK_LBRACE enum_list TOK_RBRACE
                 {
-                    context_t *context;
-                    context=  yyget_extra(scanner);
+                    $$ = directive_enum_new($2, $4);
                 }
                 ;
 enum_list:      enum_elem TOK_COMMA enum_list
