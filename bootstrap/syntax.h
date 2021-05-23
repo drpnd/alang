@@ -384,15 +384,6 @@ typedef struct {
 } coroutine_vec_t;
 
 /*
- * Use directives
- */
-typedef struct {
-    size_t n;
-    size_t size;
-    use_t **vec;
-} use_vec_t;
-
-/*
  * Directive type
  */
 typedef enum {
@@ -577,7 +568,6 @@ extern "C" {
     expr_t * expr_prepend(expr_t *, expr_t *);
     int func_vec_add(func_vec_t *, func_t *);
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
-    int use_vec_add(use_vec_t *, use_t *);
     use_t * use_new(const char *);
     use_t * import_new(char *);
     void * include_new(char *);

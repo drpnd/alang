@@ -961,31 +961,6 @@ module_vec_add(module_vec_t *vec, module_t *module)
 }
 
 /*
- * use_vec_add -- add a use statement to the use vector
- */
-int
-use_vec_add(use_vec_t *vec, use_t *use)
-{
-    use_t **nvec;
-    size_t resized;
-
-    if ( vec->n >= vec->size ) {
-        /* Resize */
-        resized = vec->size + VECTOR_DELTA;
-        nvec = realloc(vec->vec, resized * sizeof(use_t *));
-        if ( NULL == nvec ) {
-            return -1;
-        }
-        vec->vec = nvec;
-        vec->size = resized;
-    }
-    vec->vec[vec->n] = use;
-    vec->n++;
-
-    return 0;
-}
-
-/*
  * use_new -- allocate a new use statement
  */
 use_t *
