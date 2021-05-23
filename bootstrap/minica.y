@@ -363,6 +363,7 @@ else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = NULL;
                 }
+                ;
 stmt_expr:      expression
                 {
                     $$ = stmt_new_expr($1);
