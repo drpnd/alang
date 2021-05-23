@@ -569,7 +569,6 @@ extern "C" {
     int func_vec_add(func_vec_t *, func_t *);
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
     use_t * use_new(const char *);
-    use_t * import_new(char *);
     void * include_new(char *);
     int typedef_define(context_t *, type_t *, type_t *);
     code_file_t * code_file_new(outer_block_t *);
