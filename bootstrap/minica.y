@@ -191,6 +191,7 @@ typedef:        TOK_TYPEDEF type type
                     context_t *context;
                     context = yyget_extra(scanner);
                     typedef_define(context, $2, $3);
+                    $$ = directive_typedef_new($2, $3);
                 }
                 ;
 struct_def:     TOK_STRUCT identifier TOK_LBRACE decl_list TOK_RBRACE

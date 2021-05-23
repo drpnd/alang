@@ -224,6 +224,14 @@ typedef struct {
 } enum_t;
 
 /*
+ * Typedef
+ */
+typedef struct {
+    type_t *src;
+    type_t *dst;
+} typedef_t;
+
+/*
  * Function
  */
 typedef struct {
@@ -359,7 +367,7 @@ struct _stmt_list {
 };
 
 /*
- * Import
+ * Use
  */
 typedef struct {
     char *id;
@@ -404,6 +412,7 @@ typedef struct {
         struct_t st;
         union_t un;
         enum_t en;
+        typedef_t td;
     } u;
 } directive_t;
 
@@ -545,6 +554,7 @@ extern "C" {
     directive_t * directive_struct_new(const char *, decl_list_t *);
     directive_t * directive_union_new(const char *, decl_list_t *);
     directive_t * directive_enum_new(const char *, enum_elem_t *);
+    directive_t * directive_typedef_new(type_t *, type_t *);
     directive_t * directive_use_new(const char *);
     enum_elem_t * enum_elem_new(const char *);
     enum_elem_t * enum_elem_prepend(enum_elem_t *, enum_elem_t *);

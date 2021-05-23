@@ -503,6 +503,25 @@ directive_enum_new(const char *id, enum_elem_t *list)
 }
 
 /*
+ * directive_typedef_new -- allocate a new use statement
+ */
+directive_t *
+directive_typedef_new(type_t *src, type_t *dst)
+{
+    directive_t *dir;
+
+    dir = malloc(sizeof(directive_t));
+    if ( NULL == dir ) {
+        return NULL;
+    }
+    dir->type = DIRECTIVE_TYPEDEF;
+    dir->u.td.src = src;
+    dir->u.td.dst = dst;
+
+    return dir;
+}
+
+/*
  * directive_use_new -- allocate a new use statement
  */
 directive_t *
