@@ -677,13 +677,11 @@ literal:        TOK_LIT_HEXINT
                 {
                     $$ = literal_new_int($1, LIT_HEXINT);
                 }
-        |
-                TOK_LIT_DECINT
+        |       TOK_LIT_DECINT
                 {
                     $$ = literal_new_int($1, LIT_DECINT);
                 }
-        |
-                TOK_LIT_OCTINT
+        |       TOK_LIT_OCTINT
                 {
                     $$ = literal_new_int($1, LIT_OCTINT);
                 }
