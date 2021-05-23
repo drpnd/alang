@@ -99,6 +99,12 @@ void yyerror(yyscan_t, const char*);
 %type <stmts> statements
 %type <lit> literal
 
+%left TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_DIVMOD
+%left TOK_BIT_LSHIFT TOK_BIT_RSHIFT
+%left TOK_LAND TOK_LOR
+%left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
+%left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
+
 %locations
 
 %lex-param { void *scanner }
@@ -373,7 +379,7 @@ expression:     or_test
                     $$ = $2;
                 }
                 ;
-or_test:        or_test TOK_LOR and_test
+or_test:        or_test TOK_LOR or_test
                 {
                     $$ = expr_op_new_infix($1, $3, OP_OR);
                     if ( NULL == $$ ) {
@@ -385,7 +391,7 @@ or_test:        or_test TOK_LOR and_test
                     $$ = $1;
                 }
                 ;
-and_test:       and_test TOK_LAND not_test
+and_test:       and_test TOK_LAND and_test
                 {
                     $$ = expr_op_new_infix($1, $3, OP_AND);
                 }
@@ -403,27 +409,27 @@ not_test:       TOK_NOT not_test
                     $$ = $1;
                 }
                 ;
-comparison:     comparison TOK_EQ_EQ or_expr
+comparison:     or_expr TOK_EQ_EQ or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_EQ);
                 }
-        |       comparison TOK_NEQ or_expr
+        |       or_expr TOK_NEQ or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_NEQ);
                 }
-        |       comparison TOK_LCHEVRON or_expr
+        |       or_expr TOK_LCHEVRON or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_LT);
                 }
-        |       comparison TOK_RCHEVRON or_expr
+        |       or_expr TOK_RCHEVRON or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_GT);
                 }
-        |       comparison TOK_LEQ or_expr
+        |       or_expr TOK_LEQ or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_LEQ);
                 }
-        |       comparison TOK_GEQ or_expr
+        |       or_expr TOK_GEQ or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_GEQ);
                 }
@@ -432,7 +438,7 @@ comparison:     comparison TOK_EQ_EQ or_expr
                     $$ = $1;
                 }
                 ;
-or_expr:        or_expr TOK_BIT_OR xor_expr
+or_expr:        or_expr TOK_BIT_OR or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_OR);
                 }
@@ -441,7 +447,7 @@ or_expr:        or_expr TOK_BIT_OR xor_expr
                     $$ = $1;
                 }
                 ;
-xor_expr:       xor_expr TOK_BIT_XOR and_expr
+xor_expr:       xor_expr TOK_BIT_XOR xor_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_XOR);
                 }
@@ -450,7 +456,7 @@ xor_expr:       xor_expr TOK_BIT_XOR and_expr
                     $$ = $1;
                 }
                 ;
-and_expr:       and_expr TOK_BIT_AND shift_expr
+and_expr:       and_expr TOK_BIT_AND and_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_AND);
                 }
@@ -459,11 +465,11 @@ and_expr:       and_expr TOK_BIT_AND shift_expr
                     $$ = $1;
                 }
                 ;
-shift_expr:     shift_expr TOK_BIT_LSHIFT a_expr
+shift_expr:     shift_expr TOK_BIT_LSHIFT shift_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_LSHIFT);
                 }
-        |       shift_expr TOK_BIT_RSHIFT a_expr
+        |       shift_expr TOK_BIT_RSHIFT shift_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_RSHIFT);
                 }
@@ -472,11 +478,11 @@ shift_expr:     shift_expr TOK_BIT_LSHIFT a_expr
                     $$ = $1;
                 }
                 ;
-a_expr:         a_expr TOK_ADD m_expr
+a_expr:         a_expr TOK_ADD a_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_ADD);
                 }
-        |       a_expr TOK_SUB m_expr
+        |       a_expr TOK_SUB a_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_SUB);
                 }
@@ -485,19 +491,19 @@ a_expr:         a_expr TOK_ADD m_expr
                     $$ = $1;
                 }
                 ;
-m_expr:         m_expr TOK_MUL u_expr
+m_expr:         m_expr TOK_MUL m_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_MUL);
                 }
-        |       m_expr TOK_DIV u_expr
+        |       m_expr TOK_DIV m_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_DIV);
                 }
-        |       m_expr TOK_MOD u_expr
+        |       m_expr TOK_MOD m_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_MOD);
                 }
-        |       m_expr TOK_DIVMOD u_expr
+        |       m_expr TOK_DIVMOD m_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_DIVMOD);
                 }
