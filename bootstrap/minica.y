@@ -104,6 +104,7 @@ void yyerror(yyscan_t, const char*);
 %left TOK_LAND TOK_LOR
 %left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
+%nonassoc TOK_NOT
 
 %locations
 
@@ -123,6 +124,9 @@ file:           outer_blocks
 
 /* Outer blocks */
 outer_blocks:   outer_block
+                {
+                    $$ = $1;
+                }
         |       outer_block outer_blocks
                 {
                     if ( NULL != $1 ) {
