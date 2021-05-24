@@ -553,10 +553,12 @@ primary:        atom
                 }
         |       atom TOK_LPAREN exprs TOK_RPAREN
                 {
+                    /* FIXME: Function call */
                     $$ = NULL;
                 }
         |       atom TOK_LBRACKET expression TOK_RBRACKET
                 {
+                    /* FIXME: Array reference */
                     $$ = NULL;
                 }
                 ;
