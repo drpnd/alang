@@ -47,6 +47,7 @@ void yyerror(yyscan_t, const char*);
     directive_t *directive;
     decl_t *decl;
     decl_list_t *decl_list;
+    expr_list_t *exprs;
     expr_t *expr;
     void *lit;
     var_t *var;
@@ -96,7 +97,8 @@ void yyerror(yyscan_t, const char*);
 %type <decl_list> decl_list
 %type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
-%type <expr> exprs expression
+%type <exprs> exprs
+%type <expr> expression
 %type <expr> or_test and_test not_test comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
 %type <expr> primary a_expr m_expr u_expr
@@ -561,11 +563,13 @@ primary:        atom
 
 exprs:          expression
                 {
-                    $$ = $1;
+                    expr_list_t *list;
+                    list = expr_list_new();
+                    $$ = expr_list_append(list, $1);
                 }
-        |       expression TOK_COMMA exprs
+        |       exprs TOK_COMMA expression
                 {
-                    $$ = expr_prepend($1, $3);
+                    $$ = expr_list_append($1, $3);
                 }
                 ;
 

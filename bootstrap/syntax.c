@@ -638,13 +638,38 @@ expr_new_val(val_t *val)
 }
 
 /*
- * expr_prepend -- prepend an expression to the list
+ * expr_list_new -- allocate an expression list
  */
-expr_t *
-expr_prepend(expr_t *expr, expr_t *exprs)
+expr_list_t *
+expr_list_new(void)
 {
-    expr->next = exprs;
-    return expr;
+    expr_list_t *list;
+
+    list = malloc(sizeof(expr_list_t));
+    if ( NULL == list ) {
+        return NULL;
+    }
+    list->head = NULL;
+    list->tail = NULL;
+
+    return list;
+}
+
+/*
+ * expr_list_append -- append an expression to the list
+ */
+expr_list_t *
+expr_list_append(expr_list_t *exprs, expr_t *expr)
+{
+    if ( NULL == exprs->head ) {
+        exprs->head = expr;
+        exprs->tail = expr;
+    } else {
+        exprs->tail->next = expr;
+        exprs->tail = expr;
+    }
+
+    return exprs;
 }
 
 /*

@@ -333,6 +333,14 @@ struct _expr {
 };
 
 /*
+ * Expression list
+ */
+typedef struct {
+    expr_t *head;
+    expr_t *tail;
+} expr_list_t;
+
+/*
  * Statement type
  */
 typedef enum {
@@ -600,13 +608,14 @@ extern "C" {
     stmt_t * stmt_new_expr(expr_t *);
     stmt_t * stmt_new_block(inner_block_t *);
     stmt_list_t * stmt_list_new(stmt_t *);
-    stmt_list_t * stmt_list_prepend(stmt_list_t *, stmt_t *);
+    stmt_list_t * stmt_list_append(stmt_list_t *, stmt_t *);
     op_t * op_new_infix(expr_t *, expr_t *, op_type_t);
     op_t * op_new_prefix(expr_t *, op_type_t);
     expr_t * expr_new_val(val_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
-    expr_t * expr_prepend(expr_t *, expr_t *);
+    expr_list_t * expr_list_new(void);
+    expr_list_t * expr_list_append(expr_list_t *, expr_t *);
     int func_vec_add(func_vec_t *, func_t *);
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
     void * include_new(char *);
