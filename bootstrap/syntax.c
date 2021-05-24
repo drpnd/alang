@@ -442,13 +442,38 @@ arg_new(decl_t *dcl)
 }
 
 /*
- * arg_prepend -- prepend an argument to the list
+ * arg_list_new -- allocate an argument list
  */
-arg_t *
-arg_prepend(arg_t *arg, arg_t *args)
+arg_list_t *
+arg_list_new(void)
 {
-    arg->next = args;
-    return arg;
+    arg_list_t *list;
+
+    list = malloc(sizeof(arg_list_t));
+    if ( NULL == list ) {
+        return NULL;
+    }
+    list->head = NULL;
+    list->tail = NULL;
+
+    return list;
+}
+
+/*
+ * arg_list_append -- append an argument to the list
+ */
+arg_list_t *
+arg_list_append(arg_list_t *list, arg_t *arg)
+{
+    if ( NULL == list->head ) {
+        list->head = arg;
+        list->tail = arg;
+    } else {
+        list->tail->next = arg;
+        list->tail = arg;
+    }
+
+    return list;
 }
 
 /*
@@ -716,7 +741,8 @@ expr_op_new_prefix(expr_t *e0, op_type_t type)
  * func_new -- allocate a function
  */
 func_t *
-func_new(const char *id, arg_t *args, arg_t *rets, inner_block_t *block)
+func_new(const char *id, arg_list_t *args, arg_list_t *rets,
+         inner_block_t *block)
 {
     func_t *f;
 
@@ -742,7 +768,8 @@ func_new(const char *id, arg_t *args, arg_t *rets, inner_block_t *block)
  * coroutine_new -- allocate a coroutine
  */
 coroutine_t *
-coroutine_new(const char *id, arg_t *args, arg_t *rets, inner_block_t *block)
+coroutine_new(const char *id, arg_list_t *args, arg_list_t *rets,
+              inner_block_t *block)
 {
     coroutine_t *cr;
 

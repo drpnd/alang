@@ -52,6 +52,7 @@ void yyerror(yyscan_t, const char*);
     var_t *var;
     var_list_t *varlist;
     val_t *val;
+    arg_list_t *args;
     arg_t *arg;
     enum_elem_t *enum_elem;
     coroutine_t *coroutine;
@@ -89,7 +90,8 @@ void yyerror(yyscan_t, const char*);
 %type <varlist> variable_list
 %type <val> atom
 %type <decl> declaration
-%type <arg> arg args funcargs
+%type <args> args funcargs
+%type <arg> arg
 %type <directive> directive struct_def union_def enum_def use typedef
 %type <decl_list> decl_list
 %type <enum_elem> enum_list enum_elem
@@ -295,15 +297,17 @@ funcargs:       TOK_LPAREN args TOK_RPAREN
                 ;
 args:           arg
                 {
-                    $$ = $1;
+                    arg_list_t *list;
+                    list = arg_list_new();
+                    $$ = arg_list_append(list, $1);
                 }
-        |       arg TOK_COMMA args
+        |       args TOK_COMMA arg
                 {
-                    $$ = arg_prepend($1, $3);
+                    $$ = arg_list_append($1, $3);
                 }
         |
                 {
-                    $$ = NULL;
+                    $$ = arg_list_new();
                 }
                 ;
 arg:            declaration

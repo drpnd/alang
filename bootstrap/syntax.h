@@ -200,6 +200,14 @@ struct _arg {
 };
 
 /*
+ * Argument list
+ */
+typedef struct {
+    arg_t *head;
+    arg_t *tail;
+} arg_list_t;
+
+/*
  * Struct data structure
  */
 typedef struct {
@@ -245,8 +253,8 @@ typedef struct {
  */
 typedef struct {
     char *id;
-    arg_t *args;
-    arg_t *rets;
+    arg_list_t *args;
+    arg_list_t *rets;
     inner_block_t *block;
     /* Variables */
     var_stack_t *vars;
@@ -257,8 +265,8 @@ typedef struct {
  */
 typedef struct {
     char *id;
-    arg_t *args;
-    arg_t *rets;
+    arg_list_t *args;
+    arg_list_t *rets;
     inner_block_t *block;
 } coroutine_t;
 
@@ -568,7 +576,8 @@ extern "C" {
     decl_t * decl_new(const char *, type_t *);
     decl_list_t * decl_list_new(decl_t *);
     arg_t * arg_new(decl_t *);
-    arg_t * arg_prepend(arg_t *, arg_t *);
+    arg_list_t * arg_list_new(void);
+    arg_list_t * arg_list_append(arg_list_t *, arg_t *);
     directive_t * directive_struct_new(const char *, decl_list_t *);
     directive_t * directive_union_new(const char *, decl_list_t *);
     directive_t * directive_enum_new(const char *, enum_elem_t *);
@@ -576,9 +585,10 @@ extern "C" {
     directive_t * directive_use_new(const char *);
     enum_elem_t * enum_elem_new(const char *);
     enum_elem_t * enum_elem_prepend(enum_elem_t *, enum_elem_t *);
-    func_t * func_new(const char *, arg_t *, arg_t *, inner_block_t *);
+    func_t *
+    func_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
     coroutine_t *
-    coroutine_new(const char *, arg_t *, arg_t *, inner_block_t *);
+    coroutine_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
     module_t * module_new(const char *, outer_block_t *);
     void module_delete(module_t *);
     outer_block_entry_t * outer_block_entry_new(outer_block_entry_type_t);
