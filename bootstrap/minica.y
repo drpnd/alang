@@ -49,6 +49,7 @@ void yyerror(yyscan_t, const char*);
     expr_t *expr;
     void *lit;
     var_t *var;
+    var_list_t *varlist;
     val_t *val;
     arg_t *arg;
     enum_elem_t *enum_elem;
@@ -82,7 +83,8 @@ void yyerror(yyscan_t, const char*);
 %type <iblock> inner_block else_block
 %type <oblock> outer_blocks outer_block
 %type <idval> identifier
-%type <var> variable_list variable
+%type <var> variable
+%type <varlist> variable_list
 %type <val> atom
 %type <decl> declaration
 %type <arg> arg args funcargs
@@ -582,16 +584,19 @@ atom:           literal
                 }
         |       variable_list
                 {
-                    $$ = val_new_variable($1);
+                    $$ = val_new_variables($1);
                 }
                 ;
-variable_list:  variable TOK_COMMA variable_list
+variable_list:  variable_list TOK_COMMA variable
                 {
-                    $1->next = $3;
+                    $$->tail->next = $3;
+                    $$->tail = $3;
+                    $3->next = NULL;
+                    $$ = $1;
                 }
         |       variable
                 {
-                    $$ = $1;
+                    $$ = var_list_new($1);
                 }
                 ;
 variable:       declaration

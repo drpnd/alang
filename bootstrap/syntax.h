@@ -150,6 +150,14 @@ struct _var {
 };
 
 /*
+ * Variable list
+ */
+typedef struct {
+    var_t *head;
+    var_t *tail;
+} var_list_t;
+
+/*
  * Variable sets
  */
 typedef struct _var_stack var_stack_t;
@@ -177,7 +185,7 @@ typedef struct {
     union {
         literal_t *lit;
         bool_t boolean;
-        var_t *var;
+        var_list_t *vars;
     } u;
 } val_t;
 
@@ -330,7 +338,7 @@ typedef enum {
  * Assign statement
  */
 typedef struct {
-    var_t *var;
+    var_list_t *vars;
     expr_t *e;
 } stmt_assign_t;
 
@@ -543,10 +551,11 @@ extern "C" {
     type_t * type_new_id(const char *);
     var_t * var_new_id(var_stack_t **, char *, int);
     var_t * var_new_decl(var_stack_t **, decl_t *);
+    var_list_t * var_list_new(var_t *);
     val_t * val_new_literal(literal_t *);
     val_t * val_new_bool(bool_t);
     val_t * val_new_nil(void);
-    val_t * val_new_variable(var_t *);
+    val_t * val_new_variables(var_list_t *);
     decl_t * decl_new(const char *, type_t *);
     decl_list_t * decl_list_new(decl_t *);
     arg_t * arg_new(decl_t *);
@@ -566,7 +575,7 @@ extern "C" {
     outer_block_t * outer_block_new(outer_block_type_t);
     inner_block_t * inner_block_new(stmt_list_t *);
     stmt_t * stmt_new_decl(decl_t *);
-    stmt_t * stmt_new_assign(var_t *, expr_t *);
+    stmt_t * stmt_new_assign(var_list_t *, expr_t *);
     stmt_t * stmt_new_if(expr_t *, inner_block_t *, inner_block_t *);
     stmt_t * stmt_new_expr(expr_t *);
     stmt_t * stmt_new_block(inner_block_t *);

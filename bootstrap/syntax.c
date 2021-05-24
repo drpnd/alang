@@ -190,6 +190,24 @@ var_new_decl(var_stack_t **stack, decl_t *decl)
 }
 
 /*
+ * var_list_new -- allocate a new variable list
+ */
+var_list_t *
+var_list_new(var_t *var)
+{
+    var_list_t *list;
+
+    list = malloc(sizeof(var_list_t));
+    if ( NULL == list ) {
+        return NULL;
+    }
+    list->head = var;
+    list->tail = var;
+
+    return list;
+}
+
+/*
  * val_new_literal -- allocate a literal value
  */
 val_t *
@@ -243,10 +261,10 @@ val_new_nil(void)
 }
 
 /*
- * val_new_variable -- allocate a literal value
+ * val_new_variables -- allocate a literal value
  */
 val_t *
-val_new_variable(var_t *var)
+val_new_variables(var_list_t *vars)
 {
     val_t *v;
 
@@ -255,7 +273,7 @@ val_new_variable(var_t *var)
         return NULL;
     }
     v->type = VAL_VAR;
-    v->u.var = var;
+    v->u.vars = vars;
 
     return v;
 }
@@ -844,7 +862,7 @@ stmt_new_decl(decl_t *decl)
  * stmt_new_assign -- allocate an assign statement
  */
 stmt_t *
-stmt_new_assign(var_t *var, expr_t *e)
+stmt_new_assign(var_list_t *vars, expr_t *e)
 {
     stmt_t *stmt;
 
@@ -853,7 +871,7 @@ stmt_new_assign(var_t *var, expr_t *e)
         return NULL;
     }
     stmt->type = STMT_ASSIGN;
-    stmt->u.assign.var = var;
+    stmt->u.assign.vars = vars;
     stmt->u.assign.e = e;
     stmt->next = NULL;
 
