@@ -398,10 +398,6 @@ expression:     or_test
                 {
                     $$ = $1;
                 }
-        |       TOK_LPAREN expression TOK_RPAREN
-                {
-                    $$ = $2;
-                }
                 ;
 or_test:        or_test TOK_LOR or_test
                 {
