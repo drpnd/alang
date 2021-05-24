@@ -795,14 +795,15 @@ module_delete(module_t *module)
 }
 
 /*
- * outer_block_new -- allocate an outer block with the specified type
+ * outer_block_entry_new -- allocate an outer block entry with the specified
+ * type
  */
-outer_block_t *
-outer_block_new(outer_block_type_t type)
+outer_block_entry_t *
+outer_block_entry_new(outer_block_entry_type_t type)
 {
-    outer_block_t *block;
+    outer_block_entry_t *block;
 
-    block = malloc(sizeof(outer_block_t));
+    block = malloc(sizeof(outer_block_entry_t));
     if ( NULL == block ) {
         return NULL;
     }
@@ -813,12 +814,30 @@ outer_block_new(outer_block_type_t type)
 }
 
 /*
- * outer_block_delete -- delete the outer block
+ * outer_block_entry_delete -- delete the outer block entry
  */
 void
-outer_block_delete(outer_block_t *block)
+outer_block_entry_delete(outer_block_entry_t *block)
 {
     free(block);
+}
+
+/*
+ * outer_block_new -- allocate an outer block with the specified entry
+ */
+outer_block_t *
+outer_block_new(outer_block_entry_t *ent)
+{
+    outer_block_t *block;
+
+    block = malloc(sizeof(outer_block_t));
+    if ( NULL == block ) {
+        return NULL;
+    }
+    block->head = ent;
+    block->tail = ent;
+
+    return block;
 }
 
 /*

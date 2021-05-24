@@ -38,6 +38,7 @@ typedef struct _stmt stmt_t;
 typedef struct _stmt_list stmt_list_t;
 typedef struct _module module_t;
 typedef struct _outer_block outer_block_t;
+typedef struct _outer_block_entry outer_block_entry_t;
 typedef struct _inner_block inner_block_t;
 
 /*
@@ -442,14 +443,14 @@ struct _inner_block {
 };
 
 /*
- * Outer block type
+ * Outer block entry type
  */
 typedef enum {
     OUTER_BLOCK_FUNC,
     OUTER_BLOCK_COROUTINE,
     OUTER_BLOCK_MODULE,
     OUTER_BLOCK_DIRECTIVE,
-} outer_block_type_t;
+} outer_block_entry_type_t;
 
 /*
  * Module
@@ -461,17 +462,25 @@ struct _module {
 };
 
 /*
- * Outer block
+ * Outer block entry
  */
-struct _outer_block {
-    outer_block_type_t type;
+struct _outer_block_entry {
+    outer_block_entry_type_t type;
     union {
         func_t *fn;
         coroutine_t *cr;
         module_t *md;
         directive_t *dr;
     } u;
-    outer_block_t *next;
+    outer_block_entry_t *next;
+};
+
+/*
+ * Outer block
+ */
+struct _outer_block {
+    outer_block_entry_t *head;
+    outer_block_entry_t *tail;
 };
 
 /*
@@ -572,7 +581,8 @@ extern "C" {
     coroutine_new(const char *, arg_t *, arg_t *, inner_block_t *);
     module_t * module_new(const char *, outer_block_t *);
     void module_delete(module_t *);
-    outer_block_t * outer_block_new(outer_block_type_t);
+    outer_block_entry_t * outer_block_entry_new(outer_block_entry_type_t);
+    outer_block_t * outer_block_new(outer_block_entry_t *);
     inner_block_t * inner_block_new(stmt_list_t *);
     stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_list_t *, expr_t *);

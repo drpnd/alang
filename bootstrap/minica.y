@@ -38,6 +38,7 @@ void yyerror(yyscan_t, const char*);
     code_file_t *file;
     module_t *module;
     outer_block_t *oblock;
+    outer_block_entry_t *obent;
     inner_block_t *iblock;
     char *numval;
     char *idval;
@@ -81,7 +82,8 @@ void yyerror(yyscan_t, const char*);
 %type <file> file
 %type <module> module
 %type <iblock> inner_block else_block
-%type <oblock> outer_blocks outer_block
+%type <oblock> outer_block
+%type <obent> outer_entry
 %type <idval> identifier
 %type <var> variable
 %type <varlist> variable_list
@@ -120,38 +122,35 @@ void yyerror(yyscan_t, const char*);
 %%
 
 /* Syntax and parser implementation below */
-file:           outer_blocks
+file:           outer_block
                 {
                     $$ = code_file_new($1);
                 }
                 ;
 
 /* Outer blocks */
-outer_blocks:   outer_block
+outer_block:    outer_entry
                 {
+                    $$ = outer_block_new($1);
+                }
+        |       outer_block outer_entry
+                {
+                    $1->tail->next = $2;
+                    $1->tail = $2;
                     $$ = $1;
                 }
-        |       outer_block outer_blocks
-                {
-                    if ( NULL != $1 ) {
-                        $1->next = $2;
-                        $$ = $1;
-                    } else {
-                        $$ = $2;
-                    }
-                }
                 ;
-outer_block:    directive
+outer_entry:    directive
                 {
-                    outer_block_t *block;
-                    block = outer_block_new(OUTER_BLOCK_DIRECTIVE);
+                    outer_block_entry_t *block;
+                    block = outer_block_entry_new(OUTER_BLOCK_DIRECTIVE);
                     block->u.dr = $1;
                     $$ = block;
                 }
         |       coroutine
                 {
-                    outer_block_t *block;
-                    block = outer_block_new(OUTER_BLOCK_COROUTINE);
+                    outer_block_entry_t *block;
+                    block = outer_block_entry_new(OUTER_BLOCK_COROUTINE);
                     block->u.cr = $1;
                     $$ = block;
                     context_t *context;
@@ -160,15 +159,15 @@ outer_block:    directive
                 }
         |       function
                 {
-                    outer_block_t *block;
-                    block = outer_block_new(OUTER_BLOCK_FUNC);
+                    outer_block_entry_t *block;
+                    block = outer_block_entry_new(OUTER_BLOCK_FUNC);
                     block->u.fn = $1;
                     $$ = block;
                 }
         |       module
                 {
-                    outer_block_t *block;
-                    block = outer_block_new(OUTER_BLOCK_MODULE);
+                    outer_block_entry_t *block;
+                    block = outer_block_entry_new(OUTER_BLOCK_MODULE);
                     block->u.md = $1;
                     $$ = block;
                 }
@@ -259,7 +258,7 @@ enum_elem:      identifier
                 ;
 
 /* Module */
-module:         TOK_MODULE identifier TOK_LBRACE outer_blocks TOK_RBRACE
+module:         TOK_MODULE identifier TOK_LBRACE outer_block TOK_RBRACE
                 {
                     context_t *context;
                     module_t *module;
