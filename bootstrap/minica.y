@@ -380,8 +380,7 @@ else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = $3;
                 }
-        |
-                {
+        |       {
                     $$ = NULL;
                 }
                 ;
