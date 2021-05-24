@@ -115,8 +115,7 @@ void yyerror(yyscan_t, const char*);
 %left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
 %right TOK_DEF
-%nonassoc TOK_NOT
-%nonassoc UPLUS UMINUS
+%left UNOP
 
 %locations
 
@@ -532,11 +531,11 @@ m_expr:         m_expr TOK_MUL m_expr
                     $$ = $1;
                 }
                 ;
-u_expr:         TOK_SUB u_expr %prec UMINUS
+u_expr:         TOK_SUB u_expr %prec UNOP
                 {
                     $$ = expr_op_new_prefix($2, OP_SUB);
                 }
-        |       TOK_ADD u_expr %prec UPLUS
+        |       TOK_ADD u_expr %prec UNOP
                 {
                     $$ = expr_op_new_prefix($2, OP_ADD);
                 }
