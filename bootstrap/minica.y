@@ -589,10 +589,6 @@ atom:           literal
                 {
                     $$ = val_new_nil();
                 }
-        |       variable_list
-                {
-                    $$ = val_new_variables($1);
-                }
                 ;
 variable_list:  variable_list TOK_COMMA variable
                 {
