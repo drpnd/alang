@@ -1002,13 +1002,18 @@ stmt_list_new(stmt_t *stmt)
 }
 
 /*
- * stmt_prepend -- prepend a statement to the list
+ * stmt_list_append -- append a statement to the list
  */
 stmt_list_t *
-stmt_prepend(stmt_t *stmt, stmt_list_t *block)
+stmt_list_append(stmt_list_t *block, stmt_t *stmt)
 {
-    stmt->next = block->head;
-    block->head = stmt;
+    if ( NULL == block->head ) {
+        block->head = stmt;
+        block->tail = stmt;
+    } else {
+        block->tail->next = stmt;
+        block->tail = stmt;
+    }
 
     return block;
 }

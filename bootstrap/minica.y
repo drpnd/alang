@@ -330,9 +330,9 @@ statements:     statement
                 {
                     $$ = stmt_list_new($1);
                 }
-        |       statement statements
+        |       statements statement
                 {
-                    $$ = stmt_prepend($1, $2);
+                    $$ = stmt_list_append($1, $2);
                 }
                 ;
 
