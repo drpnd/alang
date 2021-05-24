@@ -115,6 +115,7 @@ void yyerror(yyscan_t, const char*);
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
 %right TOK_DEF
 %nonassoc TOK_NOT
+%nonassoc UPLUS UMINUS
 
 %locations
 
@@ -534,11 +535,11 @@ m_expr:         m_expr TOK_MUL m_expr
                     $$ = $1;
                 }
                 ;
-u_expr:         TOK_SUB u_expr
+u_expr:         TOK_SUB u_expr %prec UMINUS
                 {
                     $$ = expr_op_new_prefix($2, OP_SUB);
                 }
-        |       TOK_ADD u_expr
+        |       TOK_ADD u_expr %prec UPLUS
                 {
                     $$ = expr_op_new_prefix($2, OP_ADD);
                 }
@@ -558,7 +559,7 @@ primary:        atom
                 }
         |       atom TOK_LBRACKET expression TOK_RBRACKET
                 {
-                    /* FIXME: Array reference */
+                    /* FIXME: Array reference (shift/reduce conflict) */
                     $$ = NULL;
                 }
                 ;
