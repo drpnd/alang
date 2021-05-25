@@ -115,7 +115,8 @@ void yyerror(yyscan_t, const char*);
 %left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
 %right TOK_DEF
-%left UNOP
+%nonassoc TOK_NOT
+%nonassoc UNOP
 
 %locations
 
