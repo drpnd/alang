@@ -493,7 +493,7 @@ shift_expr:     shift_expr TOK_BIT_LSHIFT shift_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_RSHIFT);
                 }
-        |       a_expr
+        |       a_expr %prec UNOP
                 {
                     $$ = $1;
                 }
@@ -532,11 +532,11 @@ m_expr:         m_expr TOK_MUL m_expr
                     $$ = $1;
                 }
                 ;
-u_expr:         TOK_SUB u_expr %prec UNOP
+u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_SUB);
                 }
-        |       TOK_ADD u_expr %prec UNOP
+        |       TOK_ADD u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_ADD);
                 }
