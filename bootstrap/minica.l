@@ -209,6 +209,7 @@ _append_buffer_char(yyscan_t scanner, char c)
 "enum"      return TOK_ENUM;
 "if"        return TOK_IF;
 "else"      return TOK_ELSE;
+"while"     return TOK_WHILE;
 "nil"       return TOK_NIL;
 "true"      return TOK_TRUE;
 "false"     return TOK_FALSE;
