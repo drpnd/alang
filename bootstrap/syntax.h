@@ -347,6 +347,7 @@ typedef enum {
     STMT_DECL,
     STMT_ASSIGN,
     STMT_IF,
+    STMT_WHILE,
     STMT_EXPR,
     STMT_BLOCK,
 } stmt_type_t;
@@ -369,6 +370,14 @@ typedef struct {
 } stmt_if_t;
 
 /*
+ * While statement
+ */
+typedef struct {
+    expr_t *cond;
+    inner_block_t *block;
+} stmt_while_t;
+
+/*
  * Statement
  */
 struct _stmt {
@@ -377,6 +386,7 @@ struct _stmt {
         decl_t *decl;
         stmt_assign_t assign;
         stmt_if_t ifstmt;
+        stmt_while_t whilestmt;
         expr_t *expr;
         inner_block_t *block;
     } u;
