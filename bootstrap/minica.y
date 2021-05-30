@@ -105,7 +105,7 @@ void yyerror(yyscan_t, const char*);
 %type <expr> primary a_expr m_expr u_expr
 %type <func> function
 %type <coroutine> coroutine
-%type <stmt> statement stmt_decl stmt_assign stmt_if stmt_expr
+%type <stmt> statement stmt_decl stmt_assign stmt_if stmt_while stmt_expr
 %type <stmts> statements
 %type <lit> literal
 
@@ -353,6 +353,10 @@ statement:      stmt_decl
                 {
                     $$ = $1;
                 }
+        |       stmt_while
+                {
+                    $$ = $1;
+                }
         |       stmt_expr
                 {
                     $$ = $1;
@@ -385,6 +389,12 @@ else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
         |
                 {
                     $$ = NULL;
+                }
+                ;
+stmt_while:     TOK_WHILE TOK_LPAREN expression TOK_RPAREN TOK_LBRACE
+                inner_block TOK_RBRACE
+                {
+                    $$ = stmt_new_while($3, $6);
                 }
                 ;
 stmt_expr:      expression

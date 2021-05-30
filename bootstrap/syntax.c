@@ -970,6 +970,27 @@ stmt_new_if(expr_t *cond, inner_block_t *bif, inner_block_t *belse)
     return stmt;
 }
 
+
+/*
+ * stmt_new_while
+ */
+stmt_t *
+stmt_new_while(expr_t *cond, inner_block_t *block)
+{
+    stmt_t *stmt;
+
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_WHILE;
+    stmt->u.whilestmt.cond = cond;
+    stmt->u.whilestmt.block = block;
+    stmt->next = NULL;
+
+    return stmt;
+}
+
 /*
  * stmt_new_expr -- allocate an expression statement
  */

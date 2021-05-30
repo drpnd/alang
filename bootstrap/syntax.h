@@ -615,6 +615,7 @@ extern "C" {
     stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_list_t *, expr_t *);
     stmt_t * stmt_new_if(expr_t *, inner_block_t *, inner_block_t *);
+    stmt_t * stmt_new_while(expr_t *, inner_block_t *);
     stmt_t * stmt_new_expr(expr_t *);
     stmt_t * stmt_new_block(inner_block_t *);
     stmt_list_t * stmt_list_new(stmt_t *);
