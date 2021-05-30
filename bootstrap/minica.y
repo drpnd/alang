@@ -376,10 +376,9 @@ stmt_assign:    variable_list TOK_DEF expression
                     $$ = stmt_new_assign($1, $3);
                 }
                 ;
-stmt_if:        TOK_IF TOK_LPAREN expression TOK_RPAREN TOK_LBRACE inner_block
-                TOK_RBRACE else_block
+stmt_if:        TOK_IF expression TOK_LBRACE inner_block TOK_RBRACE else_block
                 {
-                    $$ = stmt_new_if($3, $6, $8);
+                    $$ = stmt_new_if($2, $4, $6);
                 }
                 ;
 else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
@@ -391,10 +390,9 @@ else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
                     $$ = NULL;
                 }
                 ;
-stmt_while:     TOK_WHILE TOK_LPAREN expression TOK_RPAREN TOK_LBRACE
-                inner_block TOK_RBRACE
+stmt_while:     TOK_WHILE expression TOK_LBRACE inner_block TOK_RBRACE
                 {
-                    $$ = stmt_new_while($3, $6);
+                    $$ = stmt_new_while($2, $4);
                 }
                 ;
 stmt_expr:      expression
