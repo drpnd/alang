@@ -385,6 +385,11 @@ else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = $3;
                 }
+        |       TOK_ELSE TOK_IF expression TOK_LBRACE inner_block TOK_RBRACE
+                else_block
+                {
+                    $$ = stmt_new_if($3, $5, $7);
+                }
         |       %prec ELSENOP
                 {
                     $$ = NULL;
