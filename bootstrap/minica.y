@@ -116,7 +116,7 @@ void yyerror(yyscan_t, const char*);
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
 %right TOK_DEF
 %nonassoc TOK_NOT
-%nonassoc UNOP
+%nonassoc UNOP ELSENOP
 
 %locations
 
@@ -385,7 +385,7 @@ else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = $3;
                 }
-        |
+        |       %prec ELSENOP
                 {
                     $$ = NULL;
                 }
