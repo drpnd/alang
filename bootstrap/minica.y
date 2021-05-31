@@ -619,13 +619,7 @@ variable_list:  variable_list TOK_COMMA variable
                     $$ = var_list_new($1);
                 }
                 ;
-variable:       declaration
-                {
-                    context_t *context;
-                    context = yyget_extra(scanner);
-                    $$ = var_new_decl(&context->vars, $1);
-                }
-        |       identifier
+variable:       identifier
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
