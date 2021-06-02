@@ -486,19 +486,19 @@ comparison_eq:  comparison_eq TOK_EQ_EQ comparison_eq
                     $$ = $1;
                 }
                 ;
-comparison:     shift_expr TOK_LCHEVRON shift_expr
+comparison:     comparison TOK_LCHEVRON comparison
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_LT);
                 }
-        |       shift_expr TOK_RCHEVRON shift_expr
+        |       comparison TOK_RCHEVRON comparison
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_GT);
                 }
-        |       shift_expr TOK_LEQ shift_expr
+        |       comparison TOK_LEQ comparison
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_LEQ);
                 }
-        |       shift_expr TOK_GEQ shift_expr
+        |       comparison TOK_GEQ comparison
                 {
                     $$ = expr_op_new_infix($1, $3, OP_CMP_GEQ);
                 }
