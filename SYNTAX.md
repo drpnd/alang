@@ -32,6 +32,22 @@ All the data are carried a packet.
 
     a, b = x + y, x + z
 
+## Precedence of operators
+
+1. `*` `/` `%`
+1. `+` `-`
+1. `<<` `>>`
+1. `<` `<=` `>` `>=`
+1. `==` `!=`
+1. `&`
+1. `^`
+1. `|`
+1. `&&`
+1. `||`
+1. `:=`
+1. `,`
+
+
 ## BNF
 
     token ::=
