@@ -114,8 +114,9 @@ void yyerror(yyscan_t, const char*);
 %left TOK_LAND TOK_LOR
 %left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
+%left TOK_COMMA
 %right TOK_DEF
-%nonassoc TOK_NOT
+%nonassoc TOK_NOT TOK_ATMARK
 %nonassoc UNOP ELSENOP
 
 %locations
@@ -601,7 +602,7 @@ atom:           literal
                 {
                     $$ = val_new_nil();
                 }
-        |       variable_list
+        |       variable
                 {
                     $$ = val_new_variables($1);
                 }
