@@ -52,8 +52,8 @@ All the data are carried a packet.
 ## BNF
 
     token ::=
-            "nil" | "true" | "false" | "or" | "and" | "not"
-             | "fn" | "import" | "return" | "continue" | "break"
+            "nil" | "true" | "false"
+             | "fn" | "coroutine" | "return" | "continue" | "break"
              | "if" | "else" | "while" | "for"
              | "-" | "+" | "*" | "/" | "%" | "&" | "|" | "~" | "^"
              | "," | "." | "!" | "!=" | "@"
