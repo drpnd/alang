@@ -100,7 +100,7 @@ void yyerror(yyscan_t, const char*);
 %type <type> primitive_type type
 %type <exprs> exprs
 %type <expr> expression
-%type <expr> assign_expr or_test and_test not_test comparison
+%type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
 %type <expr> primary a_expr m_expr u_expr
 %type <func> function
@@ -437,46 +437,8 @@ and_test:       and_test TOK_LAND and_test
                 {
                     $$ = expr_op_new_infix($1, $3, OP_AND);
                     if ( NULL == $$ ) {
-                        yyerror(scanner, "Parse error: &&")
+                        yyerror(scanner, "Parse error: &&");
                     }
-                }
-        |       not_test
-                {
-                    $$ = $1;
-                }
-                ;
-not_test:       TOK_NOT not_test
-                {
-                    $$ = expr_op_new_prefix($2, OP_NOT);
-                }
-        |       comparison
-                {
-                    $$ = $1;
-                }
-                ;
-comparison:     or_expr TOK_EQ_EQ or_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_EQ);
-                }
-        |       or_expr TOK_NEQ or_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_NEQ);
-                }
-        |       or_expr TOK_LCHEVRON or_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_LT);
-                }
-        |       or_expr TOK_RCHEVRON or_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_GT);
-                }
-        |       or_expr TOK_LEQ or_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_LEQ);
-                }
-        |       or_expr TOK_GEQ or_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_GEQ);
                 }
         |       or_expr
                 {
@@ -504,6 +466,41 @@ xor_expr:       xor_expr TOK_BIT_XOR xor_expr
 and_expr:       and_expr TOK_BIT_AND and_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_AND);
+                }
+        |       comparison_eq
+                {
+                    $$ = $1;
+                }
+                ;
+
+comparison_eq:  comparison_eq TOK_EQ_EQ comparison_eq
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_EQ);
+                }
+        |       comparison_eq TOK_NEQ comparison_eq
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_NEQ);
+                }
+        |       comparison
+                {
+                    $$ = $1;
+                }
+                ;
+comparison:     shift_expr TOK_LCHEVRON shift_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_LT);
+                }
+        |       shift_expr TOK_RCHEVRON shift_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_GT);
+                }
+        |       shift_expr TOK_LEQ shift_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_LEQ);
+                }
+        |       shift_expr TOK_GEQ shift_expr
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_CMP_GEQ);
                 }
         |       shift_expr
                 {
@@ -564,6 +561,10 @@ u_expr:         TOK_SUB u_expr
         |       TOK_ADD u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_ADD);
+                }
+        |       TOK_NOT u_expr
+                {
+                    $$ = expr_op_new_prefix($2, OP_NOT);
                 }
         |       primary
                 {
