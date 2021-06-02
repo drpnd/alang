@@ -425,7 +425,7 @@ or_test:        or_test TOK_LOR or_test
                 {
                     $$ = expr_op_new_infix($1, $3, OP_OR);
                     if ( NULL == $$ ) {
-                        yyerror(scanner, "Parse error: or");
+                        yyerror(scanner, "Parse error: ||");
                     }
                 }
         |       and_test
@@ -436,6 +436,9 @@ or_test:        or_test TOK_LOR or_test
 and_test:       and_test TOK_LAND and_test
                 {
                     $$ = expr_op_new_infix($1, $3, OP_AND);
+                    if ( NULL == $$ ) {
+                        yyerror(scanner, "Parse error: &&")
+                    }
                 }
         |       not_test
                 {
