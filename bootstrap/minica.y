@@ -412,7 +412,7 @@ expression:     assign_expr
                     $$ = $1;
                 }
                 ;
-assign_expr:    or_test TOK_DEF or_test
+assign_expr:    primary TOK_DEF assign_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_ASSIGN);
                 }
