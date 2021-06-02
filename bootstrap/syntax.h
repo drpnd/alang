@@ -274,6 +274,7 @@ typedef struct {
  * Operations
  */
 typedef enum {
+    OP_ASSIGN,
     OP_ADD,
     OP_SUB,
     OP_MUL,

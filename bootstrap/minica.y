@@ -100,7 +100,7 @@ void yyerror(yyscan_t, const char*);
 %type <type> primitive_type type
 %type <exprs> exprs
 %type <expr> expression
-%type <expr> or_test and_test not_test comparison
+%type <expr> assign_expr or_test and_test not_test comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
 %type <expr> primary a_expr m_expr u_expr
 %type <func> function
@@ -407,7 +407,16 @@ stmt_expr:      expression
                 ;
 
 /* Expressions */
-expression:     or_test
+expression:     assign_expr
+                {
+                    $$ = $1;
+                }
+                ;
+assign_expr:    or_test TOK_DEF or_test
+                {
+                    $$ = expr_op_new_infix($1, $3, OP_ASSIGN);
+                }
+        |       or_test
                 {
                     $$ = $1;
                 }
