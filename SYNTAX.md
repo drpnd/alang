@@ -171,8 +171,11 @@ All the data are carried a packet.
     key_datum ::=
             expression ":" expression
 
-    variable ::=
+    declaration ::=
             identifier ":" [ type ]
+
+    variable ::=
+            identifier
 
     primary ::=
             atom ( "." identifier
