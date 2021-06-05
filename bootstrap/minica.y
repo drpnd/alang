@@ -637,13 +637,13 @@ variable:       identifier
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
-                    $$ = var_new_id(&context->vars, $1, 0);
+                    $$ = var_new_id(&context->vars, $1);
                 }
-        |       TOK_ATMARK identifier
+        |       TOK_ATMARK variable
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
-                    $$ = var_new_id(&context->vars, $2, 1);
+                    $$ = var_new_ptr(&context->vars, $2);
                 }
                 ;
 declaration:    identifier type

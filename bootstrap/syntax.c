@@ -96,7 +96,7 @@ literal_new_string(const char *v)
  * var_new_id -- allocate an ID variable
  */
 var_t *
-var_new_id(var_stack_t **stack, char *id, int ptr)
+var_new_id(var_stack_t **stack, char *id)
 {
     var_t *v;
     var_stack_t *s;
@@ -115,7 +115,7 @@ var_new_id(var_stack_t **stack, char *id, int ptr)
     if ( NULL == v ) {
         return NULL;
     }
-    v->type = ptr ? VAR_PTR : VAR_ID;
+    v->type = VAR_ID;
     v->u.id = strdup(id);
     if ( NULL == v->u.id ) {
         free(v);
@@ -139,6 +139,25 @@ var_new_id(var_stack_t **stack, char *id, int ptr)
     s->var = v;
     s->next = *stack;
     *stack = s;
+
+    return v;
+}
+
+/*
+ * var_new_ptr -- allocate a pointer reference variable
+ */
+var_t *
+var_new_ptr(var_stack_t **stack, var_t *var)
+{
+    var_t *v;
+
+    v = malloc(sizeof(var_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAR_PTR;
+    v->u.ptr = var;
+    v->next = NULL;
 
     return v;
 }
