@@ -577,8 +577,7 @@ primary:        atom
                 }
         |       atom TOK_LPAREN exprs TOK_RPAREN
                 {
-                    /* FIXME: Function call */
-                    $$ = NULL;
+                    $$ = var_new_call($1, $3);
                 }
         |       atom TOK_LBRACKET expression TOK_RBRACKET
                 {
@@ -656,6 +655,8 @@ identifier:     TOK_ID
                     $$ = $1;
                 }
                 ;
+
+/* Types */
 type:           primitive_type
                 {
                     $$ = $1;
@@ -710,6 +711,7 @@ primitive_type: TOK_TYPE_I8
                     $$ = type_new_primitive(TYPE_PRIMITIVE_BOOL);
                 }
                 ;
+
 literal:        TOK_LIT_HEXINT
                 {
                     $$ = literal_new_int($1, LIT_HEXINT);

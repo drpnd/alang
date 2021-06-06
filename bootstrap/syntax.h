@@ -33,7 +33,9 @@
 /*
  * Typedefs
  */
+typedef struct _var var_t;
 typedef struct _expr expr_t;
+typedef struct _expr_list expr_list_t;
 typedef struct _stmt stmt_t;
 typedef struct _stmt_list stmt_list_t;
 typedef struct _module module_t;
@@ -129,24 +131,33 @@ struct _decl_list {
 };
 
 /*
+ * Function call
+ */
+typedef struct {
+    var_t *var;
+    expr_list_t *exprs;
+} call_t;
+
+/*
  * Variable type
  */
 typedef enum {
     VAR_ID,
     VAR_PTR,
     VAR_DECL,
+    VAR_CALL,
 } var_type_t;
 
 /*
  * Variables
  */
-typedef struct _var var_t;
 struct _var {
     var_type_t type;
     union {
         char *id;
         var_t *ptr;
         decl_t *decl;
+        call_t call;
     } u;
     var_t *next;
 };
@@ -337,10 +348,10 @@ struct _expr {
 /*
  * Expression list
  */
-typedef struct {
+struct _expr_list {
     expr_t *head;
     expr_t *tail;
-} expr_list_t;
+};
 
 /*
  * Statement type
@@ -589,6 +600,7 @@ extern "C" {
     var_t * var_new_id(var_stack_t **, char *);
     var_t * var_new_ptr(var_stack_t **, var_t *);
     var_t * var_new_decl(var_stack_t **, decl_t *);
+    var_t * var_new_call(var_t *, expr_list_t *);
     var_list_t * var_list_new(var_t *);
     val_t * val_new_literal(literal_t *);
     val_t * val_new_bool(bool_t);

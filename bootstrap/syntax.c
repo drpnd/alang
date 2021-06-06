@@ -209,6 +209,26 @@ var_new_decl(var_stack_t **stack, decl_t *decl)
 }
 
 /*
+ * var_new_call -- allocate a call variable
+ */
+var_t *
+var_new_call(var_t *var, expr_list_t *exprs)
+{
+    var_t *v;
+
+    v = malloc(sizeof(var_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAR_CALL;
+    v->u.call.var = var;
+    v->u.call.exprs = exprs;
+    v->next = NULL;
+
+    return v;
+}
+
+/*
  * var_list_new -- allocate a new variable list
  */
 var_list_t *
