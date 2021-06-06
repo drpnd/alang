@@ -139,6 +139,14 @@ typedef struct {
 } call_t;
 
 /*
+ * Array reference
+ */
+typedef struct {
+    var_t *var;
+    expr_t *arg;
+} ref_t;
+
+/*
  * Variable type
  */
 typedef enum {
@@ -146,6 +154,7 @@ typedef enum {
     VAR_PTR,
     VAR_DECL,
     VAR_CALL,
+    VAR_REF,
 } var_type_t;
 
 /*
@@ -158,6 +167,7 @@ struct _var {
         var_t *ptr;
         decl_t *decl;
         call_t call;
+        ref_t ref;
     } u;
     var_t *next;
 };
@@ -601,6 +611,7 @@ extern "C" {
     var_t * var_new_ptr(var_stack_t **, var_t *);
     var_t * var_new_decl(var_stack_t **, decl_t *);
     var_t * var_new_call(var_t *, expr_list_t *);
+    var_t * var_new_ref(var_t *, expr_t *);
     var_list_t * var_list_new(var_t *);
     val_t * val_new_literal(literal_t *);
     val_t * val_new_bool(bool_t);

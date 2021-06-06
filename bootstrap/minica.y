@@ -581,8 +581,7 @@ primary:        atom
                 }
         |       atom TOK_LBRACKET expression TOK_RBRACKET
                 {
-                    /* FIXME: Array reference (shift/reduce conflict) */
-                    $$ = NULL;
+                    $$ = var_new_ref($1, $3);
                 }
                 ;
 

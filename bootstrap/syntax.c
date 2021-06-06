@@ -229,6 +229,26 @@ var_new_call(var_t *var, expr_list_t *exprs)
 }
 
 /*
+ * var_new_ref -- allocate a referencevariable
+ */
+var_t *
+var_new_ref(var_t *var, expr_t *expr)
+{
+    var_t *v;
+
+    v = malloc(sizeof(var_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAR_REF;
+    v->u.ref.var = var;
+    v->u.ref.arg = expr;
+    v->next = NULL;
+
+    return v;
+}
+
+/*
  * var_list_new -- allocate a new variable list
  */
 var_list_t *
