@@ -153,8 +153,6 @@ typedef enum {
     VAR_ID,
     VAR_PTR,
     VAR_DECL,
-    VAR_CALL,
-    VAR_REF,
 } var_type_t;
 
 /*
@@ -166,8 +164,6 @@ struct _var {
         char *id;
         var_t *ptr;
         decl_t *decl;
-        call_t call;
-        ref_t ref;
     } u;
     var_t *next;
 };
@@ -331,6 +327,8 @@ typedef enum {
 typedef enum {
     EXPR_VAL,
     EXPR_OP,
+    EXPR_CALL,
+    EXPR_REF,
 } expr_type_t;
 
 /*
@@ -351,6 +349,8 @@ struct _expr {
     union {
         val_t *val;
         op_t *op;
+        call_t *call;
+        ref_t *ref;
     } u;
     expr_t *next;
 };
@@ -610,8 +610,6 @@ extern "C" {
     var_t * var_new_id(var_stack_t **, char *);
     var_t * var_new_ptr(var_stack_t **, var_t *);
     var_t * var_new_decl(var_stack_t **, decl_t *);
-    var_t * var_new_call(var_t *, expr_list_t *);
-    var_t * var_new_ref(var_t *, expr_t *);
     var_list_t * var_list_new(var_t *);
     val_t * val_new_literal(literal_t *);
     val_t * val_new_bool(bool_t);
@@ -651,6 +649,8 @@ extern "C" {
     expr_t * expr_new_val(val_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
+    expr_t * expr_new_call(var_t *, expr_list_t *);
+    expr_t * expr_new_ref(var_t *, expr_t *);
     expr_list_t * expr_list_new(void);
     expr_list_t * expr_list_append(expr_list_t *, expr_t *);
     int func_vec_add(func_vec_t *, func_t *);

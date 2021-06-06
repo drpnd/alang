@@ -209,46 +209,6 @@ var_new_decl(var_stack_t **stack, decl_t *decl)
 }
 
 /*
- * var_new_call -- allocate a call variable
- */
-var_t *
-var_new_call(var_t *var, expr_list_t *exprs)
-{
-    var_t *v;
-
-    v = malloc(sizeof(var_t));
-    if ( NULL == v ) {
-        return NULL;
-    }
-    v->type = VAR_CALL;
-    v->u.call.var = var;
-    v->u.call.exprs = exprs;
-    v->next = NULL;
-
-    return v;
-}
-
-/*
- * var_new_ref -- allocate a referencevariable
- */
-var_t *
-var_new_ref(var_t *var, expr_t *expr)
-{
-    var_t *v;
-
-    v = malloc(sizeof(var_t));
-    if ( NULL == v ) {
-        return NULL;
-    }
-    v->type = VAR_REF;
-    v->u.ref.var = var;
-    v->u.ref.arg = expr;
-    v->next = NULL;
-
-    return v;
-}
-
-/*
  * var_list_new -- allocate a new variable list
  */
 var_list_t *
@@ -691,6 +651,56 @@ expr_new_val(val_t *val)
     }
     e->type = EXPR_VAL;
     e->u.val = val;
+    e->next = NULL;
+
+    return e;
+}
+
+/*
+ * expr_new_call -- allocate a call expression
+ */
+expr_t *
+expr_new_call(var_t *var, expr_list_t *exprs)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    e->u.call = malloc(sizeof(call_t));
+    if ( e->u.call ) {
+        free(e);
+        return NULL;
+    }
+    e->type = EXPR_CALL;
+    e->u.call->var = var;
+    e->u.call->exprs = exprs;
+    e->next = NULL;
+
+    return e;
+}
+
+/*
+ * expr_new_ref -- allocate a reference expression
+ */
+expr_t *
+expr_new_ref(var_t *var, expr_t *expr)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    e->u.ref = malloc(sizeof(ref_t));
+    if ( e->u.call ) {
+        free(e);
+        return NULL;
+    }
+    e->type = EXPR_REF;
+    e->u.ref->var = var;
+    e->u.ref->arg = expr;
     e->next = NULL;
 
     return e;

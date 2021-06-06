@@ -577,11 +577,11 @@ primary:        atom
                 }
         |       atom TOK_LPAREN exprs TOK_RPAREN
                 {
-                    $$ = var_new_call($1, $3);
+                    $$ = expr_new_call($1, $3);
                 }
         |       atom TOK_LBRACKET expression TOK_RBRACKET
                 {
-                    $$ = var_new_ref($1, $3);
+                    $$ = expr_new_ref($1, $3);
                 }
                 ;
 
