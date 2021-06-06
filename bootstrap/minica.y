@@ -389,7 +389,7 @@ else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
                 }
         |       TOK_ELSE stmt_if
                 {
-                    $$ = $2;
+                    $$ = inner_block_new(stmt_list_new($2));
                 }
         |       %prec ELSENOP
                 {
