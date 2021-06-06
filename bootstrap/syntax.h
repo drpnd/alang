@@ -195,8 +195,6 @@ struct _var_stack {
  */
 typedef enum {
     VAL_LITERAL,
-    VAL_BOOL,
-    VAL_NIL,
     VAL_VAR,
 } val_type_t;
 
@@ -207,7 +205,6 @@ typedef struct {
     val_type_t type;
     union {
         literal_t *lit;
-        bool_t boolean;
         var_list_t *vars;
     } u;
 } val_t;
