@@ -218,10 +218,18 @@ struct_def:     TOK_STRUCT identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
                     $$ = directive_struct_new($2, $4);
                 }
+        |       TOK_STRUCT TOK_LBRACE decl_list TOK_RBRACE
+                {
+                    $$ = directive_struct_new(NULL, $3);
+                }
                 ;
 union_def:      TOK_UNION identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
                     $$ = directive_union_new($2, $4);
+                }
+        |       TOK_UNION TOK_LBRACE decl_list TOK_RBRACE
+                {
+                    $$ = directive_union_new(NULL, $3);
                 }
                 ;
 decl_list:      decl_list declaration

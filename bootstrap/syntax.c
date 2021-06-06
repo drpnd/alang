@@ -526,10 +526,14 @@ directive_struct_new(const char *id, decl_list_t *list)
         return NULL;
     }
     dir->type = DIRECTIVE_STRUCT;
-    dir->u.st.id = strdup(id);
-    if ( NULL == dir->u.st.id ) {
-        free(dir);
-        return NULL;
+    if ( NULL != id ) {
+        dir->u.st.id = strdup(id);
+        if ( NULL == dir->u.st.id ) {
+            free(dir);
+            return NULL;
+        }
+    } else {
+        dir->u.st.id = NULL;
     }
     dir->u.st.list = list;
 
@@ -549,10 +553,14 @@ directive_union_new(const char *id, decl_list_t *list)
         return NULL;
     }
     dir->type = DIRECTIVE_UNION;
-    dir->u.un.id = strdup(id);
-    if ( NULL == dir->u.un.id ) {
-        free(dir);
-        return NULL;
+    if ( NULL != id ) {
+        dir->u.un.id = strdup(id);
+        if ( NULL == dir->u.un.id ) {
+            free(dir);
+            return NULL;
+        }
+    } else {
+        dir->u.un.id = NULL;
     }
     dir->u.un.list = list;
 
