@@ -420,6 +420,7 @@ decl_new(const char *id, type_t *type)
         return NULL;
     }
     dcl->type = type;
+    dcl->next = NULL;
 
     return dcl;
 }
@@ -430,16 +431,33 @@ decl_new(const char *id, type_t *type)
 decl_list_t *
 decl_list_new(decl_t *dcl)
 {
-    decl_list_t *ent;
+    decl_list_t *list;
 
-    ent = malloc(sizeof(decl_list_t));
-    if ( NULL == ent ) {
+    list = malloc(sizeof(decl_list_t));
+    if ( NULL == list ) {
         return NULL;
     }
-    ent->ent = dcl;
-    ent->next = NULL;
+    list->head = dcl;
+    list->tail = dcl;
 
-    return ent;
+    return list;
+}
+
+/*
+ * decl_list_append -- append an entry to a declaration list
+ */
+decl_list_t *
+decl_list_append(decl_list_t *list, decl_t *dcl)
+{
+    if ( NULL == list->head ) {
+        list->head = dcl;
+        list->tail = dcl;
+    } else {
+        list->tail->next = dcl;
+        list->tail = dcl;
+    }
+
+    return list;
 }
 
 /*

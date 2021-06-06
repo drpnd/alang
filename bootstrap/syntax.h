@@ -33,6 +33,7 @@
 /*
  * Typedefs
  */
+typedef struct _decl decl_t;
 typedef struct _var var_t;
 typedef struct _expr expr_t;
 typedef struct _expr_list expr_list_t;
@@ -119,19 +120,19 @@ typedef struct {
 /*
  * Declarations
  */
-typedef struct {
+struct _decl {
     char *id;
     type_t *type;
-} decl_t;
+    decl_t *next;
+};
 
 /*
  * Declaration list
  */
-typedef struct _decl_list decl_list_t;
-struct _decl_list {
-    decl_t *ent;
-    decl_list_t *next;
-};
+typedef struct {
+    decl_t *head;
+    decl_t *tail;
+} decl_list_t;
 
 /*
  * Function call
@@ -620,6 +621,7 @@ extern "C" {
     val_t * val_new_variables(var_list_t *);
     decl_t * decl_new(const char *, type_t *);
     decl_list_t * decl_list_new(decl_t *);
+    decl_list_t * decl_list_append(decl_list_t *, decl_t *);
     arg_t * arg_new(decl_t *);
     arg_list_t * arg_list_new(void);
     arg_list_t * arg_list_append(arg_list_t *, arg_t *);

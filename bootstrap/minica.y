@@ -224,12 +224,9 @@ union_def:      TOK_UNION identifier TOK_LBRACE decl_list TOK_RBRACE
                     $$ = directive_union_new($2, $4);
                 }
                 ;
-decl_list:      declaration decl_list
+decl_list:      decl_list declaration
                 {
-                    decl_list_t *e;
-                    e = decl_list_new($1);
-                    e->next = $2;
-                    $$ = e;
+                    $$ = decl_list_append($1, $2);
                 }
         |       declaration TOK_SEMICOLON
                 {
