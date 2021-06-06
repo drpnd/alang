@@ -216,15 +216,11 @@ typedef:        TOK_TYPEDEF type identifier
                 ;
 struct_def:     TOK_STRUCT identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
-                    context_t *context;
-                    context = yyget_extra(scanner);
                     $$ = directive_struct_new($2, $4);
                 }
                 ;
 union_def:      TOK_UNION identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
-                    context_t *context;
-                    context = yyget_extra(scanner);
                     $$ = directive_union_new($2, $4);
                 }
                 ;
