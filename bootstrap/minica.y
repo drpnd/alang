@@ -105,7 +105,7 @@ void yyerror(yyscan_t, const char*);
 %type <expr> primary a_expr m_expr u_expr
 %type <func> function
 %type <coroutine> coroutine
-%type <stmt> statement stmt_decl stmt_assign stmt_if stmt_while stmt_expr
+%type <stmt> statement stmt_decl stmt_if stmt_while stmt_expr
 %type <stmts> statements
 %type <lit> literal
 
@@ -347,10 +347,6 @@ statement:      stmt_decl
                 {
                     $$ = $1;
                 }
-        |       stmt_assign
-                {
-                    $$ = $1;
-                }
         |       stmt_if
                 {
                     $$ = $1;
@@ -371,11 +367,6 @@ statement:      stmt_decl
 stmt_decl:      declaration
                 {
                     $$ = stmt_new_decl($1);
-                }
-                ;
-stmt_assign:    variable_list TOK_DEF expression
-                {
-                    $$ = stmt_new_assign($1, $3);
                 }
                 ;
 stmt_if:        TOK_IF expression TOK_LBRACE inner_block TOK_RBRACE else_block
