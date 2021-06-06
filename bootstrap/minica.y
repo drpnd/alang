@@ -206,7 +206,7 @@ use:            TOK_USE identifier
                     $$ = directive_use_new($2);
                 }
                 ;
-typedef:        TOK_TYPEDEF type type
+typedef:        TOK_TYPEDEF type identifier
                 {
                     context_t *context;
                     context = yyget_extra(scanner);

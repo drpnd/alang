@@ -266,7 +266,7 @@ typedef struct {
  */
 typedef struct {
     type_t *src;
-    type_t *dst;
+    char *dst;
 } typedef_t;
 
 /*
@@ -626,7 +626,7 @@ extern "C" {
     directive_t * directive_struct_new(const char *, decl_list_t *);
     directive_t * directive_union_new(const char *, decl_list_t *);
     directive_t * directive_enum_new(const char *, enum_elem_t *);
-    directive_t * directive_typedef_new(type_t *, type_t *);
+    directive_t * directive_typedef_new(type_t *, const char *);
     directive_t * directive_use_new(const char *);
     enum_elem_t * enum_elem_new(const char *);
     enum_elem_t * enum_elem_prepend(enum_elem_t *, enum_elem_t *);
