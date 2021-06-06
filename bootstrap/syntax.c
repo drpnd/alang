@@ -1225,7 +1225,7 @@ include_new(char *s)
  * typedef_define -- define a type
  */
 int
-typedef_define(context_t *context, type_t *type1, type_t *type2)
+typedef_define(context_t *context, type_t *type1, const char *type2)
 {
     return 0;
 }
