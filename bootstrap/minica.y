@@ -575,11 +575,11 @@ primary:        atom
                 {
                     $$ = expr_new_val($1);
                 }
-        |       atom TOK_LPAREN exprs TOK_RPAREN
+        |       variable TOK_LPAREN exprs TOK_RPAREN
                 {
                     $$ = expr_new_call($1, $3);
                 }
-        |       atom TOK_LBRACKET expression TOK_RBRACKET
+        |       variable TOK_LBRACKET expression TOK_RBRACKET
                 {
                     $$ = expr_new_ref($1, $3);
                 }
