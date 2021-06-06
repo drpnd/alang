@@ -617,8 +617,6 @@ extern "C" {
     var_t * var_new_decl(var_stack_t **, decl_t *);
     var_list_t * var_list_new(var_t *);
     val_t * val_new_literal(literal_t *);
-    val_t * val_new_bool(bool_t);
-    val_t * val_new_nil(void);
     val_t * val_new_variables(var_list_t *);
     decl_t * decl_new(const char *, type_t *);
     decl_list_t * decl_list_new(decl_t *);
