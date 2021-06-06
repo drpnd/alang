@@ -202,7 +202,7 @@ use:            TOK_USE identifier
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
-                    compile_use_extern(context, $2);
+                    //compile_use_extern(context, $2);
                     $$ = directive_use_new($2);
                 }
                 ;
