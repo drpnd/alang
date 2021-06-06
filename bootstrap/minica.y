@@ -723,7 +723,7 @@ literal:        TOK_LIT_HEXINT
                 }
         |       TOK_NIL
                 {
-                    $$ = val_new_nil();
+                    $$ = literal_new_nil();
                 }
                 ;
 

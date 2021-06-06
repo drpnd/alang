@@ -111,6 +111,23 @@ literal_new_bool(bool_t bool)
 }
 
 /*
+ * literal_new_nil -- allocate a nil literal
+ */
+literal_t *
+literal_new_nil(void)
+{
+    literal_t *lit;
+
+    lit = malloc(sizeof(literal_t));
+    if ( NULL == lit ) {
+        return NULL;
+    }
+    lit->type = LIT_NIL;
+
+    return lit;
+}
+
+/*
  * var_new_id -- allocate an ID variable
  */
 var_t *
