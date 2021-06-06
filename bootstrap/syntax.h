@@ -52,7 +52,16 @@ typedef enum {
     LIT_OCTINT,
     LIT_FLOAT,
     LIT_STRING,
+    LIT_BOOL,
 } literal_type_t;
+
+/*
+ * Boolean
+ */
+typedef enum {
+    BOOL_FALSE,
+    BOOL_TRUE,
+} bool_t;
 
 /*
  * Literals
@@ -62,16 +71,9 @@ typedef struct {
     union {
         char *n;
         char *s;
+        bool_t b;
     } u;
 } literal_t;
-
-/*
- * Boolean
- */
-typedef enum {
-    BOOL_FALSE,
-    BOOL_TRUE,
-} bool_t;
 
 /*
  * Type type
@@ -602,6 +604,7 @@ extern "C" {
     literal_t * literal_new_int(const char *, int);
     literal_t * literal_new_float(const char *);
     literal_t * literal_new_string(const char *);
+    literal_t * literal_new_bool(bool_t);
     type_t * type_new_primitive(type_type_t);
     type_t * type_new_struct(const char *);
     type_t * type_new_union(const char *);

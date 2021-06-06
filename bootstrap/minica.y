@@ -715,11 +715,11 @@ literal:        TOK_LIT_HEXINT
                 }
         |       TOK_TRUE
                 {
-                    $$ = val_new_bool(BOOL_TRUE);
+                    $$ = literal_new_bool(BOOL_TRUE);
                 }
         |       TOK_FALSE
                 {
-                    $$ = val_new_bool(BOOL_FALSE);
+                    $$ = literal_new_bool(BOOL_FALSE);
                 }
         |       TOK_NIL
                 {

@@ -93,6 +93,24 @@ literal_new_string(const char *v)
 }
 
 /*
+ * literal_new_bool -- allocate a bool literal
+ */
+literal_t *
+literal_new_bool(bool_t bool)
+{
+    literal_t *lit;
+
+    lit = malloc(sizeof(literal_t));
+    if ( NULL == lit ) {
+        return NULL;
+    }
+    lit->type = LIT_BOOL;
+    lit->u.b = bool;
+
+    return lit;
+}
+
+/*
  * var_new_id -- allocate an ID variable
  */
 var_t *
