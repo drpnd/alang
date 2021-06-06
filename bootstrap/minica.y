@@ -601,18 +601,6 @@ atom:           literal
                 {
                     $$ = val_new_literal($1);
                 }
-        |       TOK_TRUE
-                {
-                    $$ = val_new_bool(BOOL_TRUE);
-                }
-        |       TOK_FALSE
-                {
-                    $$ = val_new_bool(BOOL_FALSE);
-                }
-        |       TOK_NIL
-                {
-                    $$ = val_new_nil();
-                }
         |       variable
                 {
                     $$ = val_new_variables($1);
@@ -724,6 +712,18 @@ literal:        TOK_LIT_HEXINT
         |       TOK_LIT_STR
                 {
                     $$ = literal_new_string($1);
+                }
+        |       TOK_TRUE
+                {
+                    $$ = val_new_bool(BOOL_TRUE);
+                }
+        |       TOK_FALSE
+                {
+                    $$ = val_new_bool(BOOL_FALSE);
+                }
+        |       TOK_NIL
+                {
+                    $$ = val_new_nil();
                 }
                 ;
 
