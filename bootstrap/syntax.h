@@ -343,6 +343,23 @@ typedef struct {
 } op_t;
 
 /*
+ * Case
+ */
+typedef struct _switch_case switch_case_t;
+struct _switch_case {
+    literal_t *value;
+    inner_block_t *block;
+    switch_case_t *next;
+};
+
+/*
+ * Switch expression
+ */
+typedef struct {
+    expr_t *cond;
+} expr_switch_t;
+
+/*
  * Expression
  */
 struct _expr {

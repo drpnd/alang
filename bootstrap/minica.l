@@ -178,6 +178,7 @@ _append_buffer_char(yyscan_t scanner, char c)
 "<"         return TOK_LCHEVRON;
 ">"         return TOK_RCHEVRON;
 "="         return TOK_EQ;
+":"         return TOK_COLON;
 ";"         return TOK_SEMICOLON;
     /* Comparison */
 "=="        return TOK_EQ_EQ;
@@ -210,6 +211,9 @@ _append_buffer_char(yyscan_t scanner, char c)
 "if"        return TOK_IF;
 "else"      return TOK_ELSE;
 "while"     return TOK_WHILE;
+"switch"    return TOK_SWITCH;
+"case"      return TOK_CASE;
+"default"   return TOK_DEFAULT;
 "nil"       return TOK_NIL;
 "true"      return TOK_TRUE;
 "false"     return TOK_FALSE;

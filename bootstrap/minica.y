@@ -71,7 +71,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_LAND TOK_LOR TOK_NOT
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
 %token TOK_LCHEVRON TOK_RCHEVRON
-%token TOK_IF TOK_ELSE TOK_WHILE
+%token TOK_IF TOK_ELSE TOK_WHILE TOK_SWITCH TOK_CASE TOK_DEFAULT
 %token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
 %token TOK_EQ TOK_COMMA TOK_ATMARK
 %token TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE
@@ -80,7 +80,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING TOK_TYPE_BOOL
 %token TOK_NIL TOK_TRUE TOK_FALSE
-%token TOK_SEMICOLON
+%token TOK_COLON TOK_SEMICOLON
 
 %type <file> file
 %type <module> module
@@ -99,7 +99,7 @@ void yyerror(yyscan_t, const char*);
 %type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
 %type <exprs> exprs
-%type <expr> expression
+%type <expr> expression control_expr switch_expr
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
 %type <expr> primary a_expr m_expr u_expr
@@ -399,9 +399,33 @@ stmt_expr:      expression
                 ;
 
 /* Expressions */
-expression:     assign_expr
+expression:     control_expr
                 {
                     $$ = $1;
+                }
+                ;
+control_expr:   switch_expr
+                {
+                    $$ = $1;
+                }
+        |       assign_expr
+                {
+                    $$ = $1;
+                }
+                ;
+switch_expr:    TOK_SWITCH expression TOK_LBRACE switch_cases TOK_RBRACE
+                {
+
+                }
+                ;
+switch_cases:   switch_cases switch_case
+                {
+
+                }
+                ;
+switch_case:    TOK_CASE literal
+                {
+
                 }
                 ;
 assign_expr:    primary TOK_DEF assign_expr
