@@ -49,7 +49,9 @@ void yyerror(yyscan_t, const char*);
     decl_list_t *decl_list;
     expr_list_t *exprs;
     expr_t *expr;
-    void *lit;
+    switch_case_t *swcase;
+    switch_block_t *swblock;
+    literal_t *lit;
     var_t *var;
     var_list_t *varlist;
     val_t *val;
@@ -103,6 +105,8 @@ void yyerror(yyscan_t, const char*);
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
 %type <expr> primary a_expr m_expr u_expr
+%type <swblock> switch_block
+%type <swcase> switch_case
 %type <func> function
 %type <coroutine> coroutine
 %type <stmt> statement stmt_decl stmt_if stmt_while stmt_expr
@@ -413,19 +417,24 @@ control_expr:   switch_expr
                     $$ = $1;
                 }
                 ;
-switch_expr:    TOK_SWITCH expression TOK_LBRACE switch_cases TOK_RBRACE
+switch_expr:    TOK_SWITCH expression TOK_LBRACE switch_block TOK_RBRACE
                 {
-
+                    $$ = expr_new_switch($2, $4);
                 }
                 ;
-switch_cases:   switch_cases switch_case
+switch_block:   switch_block switch_case
                 {
-
+                    switch_block_t *block;
+                    block = swtich_block_new();
+                    if ( NULL == block ) {
+                        yyerror(scanner, "Parse error: switch");
+                    }
+                    $$ = block;
                 }
                 ;
-switch_case:    TOK_CASE literal
+switch_case:    TOK_CASE literal TOK_COLON inner_block
                 {
-
+                    $$ = switch_case_new($2, $4);
                 }
                 ;
 assign_expr:    primary TOK_DEF assign_expr

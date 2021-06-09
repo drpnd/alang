@@ -737,6 +737,26 @@ expr_new_ref(var_t *var, expr_t *expr)
 }
 
 /*
+ * expr_new_switch -- allocate a switch expression
+ */
+expr_t *
+expr_new_switch(expr_t *cond, switch_block_t *block)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    e->type = EXPR_SWITCH;
+    e->u.sw.cond = cond;
+    e->u.sw.block = block;
+    e->next = NULL;
+
+    return e;
+}
+
+/*
  * expr_list_new -- allocate an expression list
  */
 expr_list_t *
@@ -1158,6 +1178,60 @@ stmt_list_append(stmt_list_t *block, stmt_t *stmt)
     } else {
         block->tail->next = stmt;
         block->tail = stmt;
+    }
+
+    return block;
+}
+
+/*
+ * switch_case_new -- allocate a new case block
+ */
+switch_case_t *
+switch_case_new(literal_t *lit, inner_block_t *block)
+{
+    switch_case_t *c;
+
+    c = malloc(sizeof(switch_case_t));
+    if ( NULL == c ) {
+        return NULL;
+    }
+    c->value = lit;
+    c->block = block;
+    c->next = NULL;
+
+    return c;
+}
+
+/*
+ * switch_block_new -- allocate a new switch block
+ */
+switch_block_t *
+switch_block_new(void)
+{
+    switch_block_t *block;
+
+    block = malloc(sizeof(switch_block_t));
+    if ( NULL == block ) {
+        return NULL;
+    }
+    block->head = NULL;
+    block->tail = NULL;
+
+    return block;
+}
+
+/*
+ * switch_block_append -- append a switch case block to the switch block
+ */
+switch_block_t *
+switch_block_append(switch_block_t *block, switch_case_t *c)
+{
+    if ( NULL == block->head ) {
+        block->head = c;
+        block->tail = c;
+    } else {
+        block->tail->next = c;
+        block->tail = c;
     }
 
     return block;

@@ -328,6 +328,7 @@ typedef enum {
 typedef enum {
     EXPR_VAL,
     EXPR_OP,
+    EXPR_SWITCH,
     EXPR_CALL,
     EXPR_REF,
 } expr_type_t;
@@ -353,11 +354,20 @@ struct _switch_case {
 };
 
 /*
+ * Switch block
+ */
+typedef struct {
+    switch_case_t *head;
+    switch_case_t *tail;
+} switch_block_t;
+
+/*
  * Switch expression
  */
 typedef struct {
     expr_t *cond;
-} expr_switch_t;
+    switch_block_t *block;
+} switch_t;
 
 /*
  * Expression
@@ -367,6 +377,7 @@ struct _expr {
     union {
         val_t *val;
         op_t *op;
+        switch_t sw;
         call_t *call;
         ref_t *ref;
     } u;
@@ -670,8 +681,12 @@ extern "C" {
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
     expr_t * expr_new_call(var_t *, expr_list_t *);
     expr_t * expr_new_ref(var_t *, expr_t *);
+    expr_t * expr_new_switch(expr_t *, switch_block_t *);
     expr_list_t * expr_list_new(void);
     expr_list_t * expr_list_append(expr_list_t *, expr_t *);
+    switch_case_t * switch_case_new(literal_t *, inner_block_t *);
+    switch_block_t * switch_block_new(void);
+    switch_block_t * switch_block_append(switch_block_t *, switch_case_t *);
     int func_vec_add(func_vec_t *, func_t *);
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
     void * include_new(char *);
