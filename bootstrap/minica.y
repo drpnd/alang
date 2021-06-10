@@ -424,12 +424,16 @@ switch_expr:    TOK_SWITCH expression TOK_LBRACE switch_block TOK_RBRACE
                 ;
 switch_block:   switch_block switch_case
                 {
+                    $$ = switch_block_append($1, $2);
+                }
+        |       switch_case
+                {
                     switch_block_t *block;
-                    block = swtich_block_new();
+                    block = switch_block_new();
                     if ( NULL == block ) {
                         yyerror(scanner, "Parse error: switch");
                     }
-                    $$ = block;
+                    $$ = switch_block_append(block, $1);
                 }
                 ;
 switch_case:    TOK_CASE literal TOK_COLON inner_block
