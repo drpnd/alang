@@ -436,6 +436,10 @@ switch_case:    TOK_CASE literal TOK_COLON inner_block
                 {
                     $$ = switch_case_new($2, $4);
                 }
+        |       TOK_DEFAULT TOK_COLON inner_block
+                {
+                    $$ = switch_case_new(NULL, $3);
+                }
                 ;
 assign_expr:    primary TOK_DEF assign_expr
                 {
