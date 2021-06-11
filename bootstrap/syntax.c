@@ -1313,15 +1313,6 @@ module_vec_add(module_vec_t *vec, module_t *module)
 }
 
 /*
- * include_new -- allocate a new include statement
- */
-void *
-include_new(char *s)
-{
-    return NULL;
-}
-
-/*
  * typedef_define -- define a type
  */
 int
