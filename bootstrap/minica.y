@@ -726,6 +726,7 @@ primitive_type: TOK_TYPE_I8
                 }
                 ;
 
+/* Literal values */
 literal:        TOK_LIT_HEXINT
                 {
                     $$ = literal_new_int($1, LIT_HEXINT);
