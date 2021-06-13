@@ -659,9 +659,9 @@ variable:       identifier
                     $$ = var_new_id(&context->vars, $1);
                 }
                 ;
-declaration:    identifier type
+declaration:    identifier TOK_COLON type
                 {
-                    $$ = decl_new($1, $2);
+                    $$ = decl_new($1, $3);
                 }
                 ;
 identifier:     TOK_ID
