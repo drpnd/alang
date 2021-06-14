@@ -636,7 +636,7 @@ atom:           literal
                 }
         |       variable
                 {
-                    $$ = val_new_variables($1);
+                    $$ = val_new_variables(var_list_new($1));
                 }
                 ;
 variable_list:  variable_list TOK_COMMA variable
