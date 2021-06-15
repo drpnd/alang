@@ -280,10 +280,10 @@ val_new_literal(literal_t *lit)
 }
 
 /*
- * val_new_variables -- allocate a literal value
+ * val_new_variable -- allocate a literal value
  */
 val_t *
-val_new_variables(var_list_t *vars)
+val_new_variable(var_t *var)
 {
     val_t *v;
 
@@ -292,7 +292,7 @@ val_new_variables(var_list_t *vars)
         return NULL;
     }
     v->type = VAL_VAR;
-    v->u.vars = vars;
+    v->u.var = var;
 
     return v;
 }

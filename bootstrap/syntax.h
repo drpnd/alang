@@ -205,7 +205,7 @@ typedef struct {
     val_type_t type;
     union {
         literal_t *lit;
-        var_list_t *vars;
+        var_t *var;
     } u;
 } val_t;
 
@@ -643,7 +643,7 @@ extern "C" {
     var_t * var_new_decl(var_stack_t **, decl_t *);
     var_list_t * var_list_new(var_t *);
     val_t * val_new_literal(literal_t *);
-    val_t * val_new_variables(var_list_t *);
+    val_t * val_new_variable(var_t *);
     decl_t * decl_new(const char *, type_t *);
     decl_list_t * decl_list_new(decl_t *);
     decl_list_t * decl_list_append(decl_list_t *, decl_t *);
