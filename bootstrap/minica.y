@@ -91,7 +91,6 @@ void yyerror(yyscan_t, const char*);
 %type <obent> outer_entry
 %type <idval> identifier
 %type <var> variable
-%type <varlist> variable_list
 %type <val> atom
 %type <decl> declaration
 %type <args> args funcargs
@@ -637,19 +636,6 @@ atom:           literal
         |       variable
                 {
                     $$ = val_new_variable($1);
-                }
-                ;
-variable_list:  variable_list TOK_COMMA variable
-                {
-                    /* Append */
-                    $$->tail->next = $3;
-                    $$->tail = $3;
-                    $3->next = NULL;
-                    $$ = $1;
-                }
-        |       variable
-                {
-                    $$ = var_list_new($1);
                 }
                 ;
 variable:       identifier
