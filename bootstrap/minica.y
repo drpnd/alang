@@ -480,6 +480,9 @@ and_test:       and_test TOK_LAND and_test
 or_expr:        or_expr TOK_BIT_OR or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_OR);
+                    if ( NULL == $$ ) {
+                        yyerror(scanner, "Parse error: ||");
+                    }
                 }
         |       xor_expr
                 {
@@ -489,6 +492,9 @@ or_expr:        or_expr TOK_BIT_OR or_expr
 xor_expr:       xor_expr TOK_BIT_XOR xor_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_XOR);
+                    if ( NULL == $$ ) {
+                        yyerror(scanner, "Parse error: ^");
+                    }
                 }
         |       and_expr
                 {
@@ -498,6 +504,9 @@ xor_expr:       xor_expr TOK_BIT_XOR xor_expr
 and_expr:       and_expr TOK_BIT_AND and_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_AND);
+                    if ( NULL == $$ ) {
+                        yyerror(scanner, "Parse error: &");
+                    }
                 }
         |       comparison_eq
                 {
