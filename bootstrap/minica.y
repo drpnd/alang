@@ -190,9 +190,19 @@ directive:      include
                 }
         |       use
         |       struct_def
+                    $$ = $1;
         |       union_def
+                {
+                    $$ = $1;
+                }
         |       enum_def
+                {
+                    $$ = $1;
+                }
         |       typedef
+                {
+                    $$ = $1;
+                }
                 ;
 
 include:        TOK_INCLUDE TOK_LIT_STR
