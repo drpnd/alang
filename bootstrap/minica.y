@@ -190,7 +190,9 @@ directive:      include
                 }
         |       use
         |       struct_def
+                {
                     $$ = $1;
+                }
         |       union_def
                 {
                     $$ = $1;
