@@ -189,6 +189,9 @@ directive:      include
                     $$ = NULL;
                 }
         |       use
+                {
+                    $$ = $1;
+                }
         |       struct_def
                 {
                     $$ = $1;
