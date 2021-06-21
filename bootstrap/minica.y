@@ -645,6 +645,9 @@ exprs:          expression
                 {
                     expr_list_t *list;
                     list = expr_list_new();
+                    if ( NULL == list ) {
+                        yyerror(scanner, "Memory error: expr_list_new()");
+                    }
                     $$ = expr_list_append(list, $1);
                 }
         |       exprs TOK_COMMA expression
