@@ -99,7 +99,7 @@ void yyerror(yyscan_t, const char*);
 %type <decl_list> decl_list
 %type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
-%type <exprs> exprs
+%type <exprs> expr_list
 %type <expr> expression control_expr switch_expr
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
@@ -631,7 +631,7 @@ primary:        atom
                 {
                     $$ = expr_new_val($1);
                 }
-        |       variable TOK_LPAREN exprs TOK_RPAREN
+        |       variable TOK_LPAREN expr_list TOK_RPAREN
                 {
                     $$ = expr_new_call($1, $3);
                 }
@@ -641,7 +641,7 @@ primary:        atom
                 }
                 ;
 
-exprs:          expression
+expr_list:      expression
                 {
                     expr_list_t *list;
                     list = expr_list_new();
@@ -650,7 +650,7 @@ exprs:          expression
                     }
                     $$ = expr_list_append(list, $1);
                 }
-        |       exprs TOK_COMMA expression
+        |       expr_list TOK_COMMA expression
                 {
                     $$ = expr_list_append($1, $3);
                 }
