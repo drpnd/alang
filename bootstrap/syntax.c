@@ -757,6 +757,27 @@ expr_new_switch(expr_t *cond, switch_block_t *block)
 }
 
 /*
+ * expr_new_if
+ */
+expr_t *
+expr_new_if(expr_t *cond, inner_block_t *bif, inner_block_t *belse)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    e->type = EXPR_IF;
+    e->u.ife.cond = cond;
+    e->u.ife.bif = bif;
+    e->u.ife.belse = belse;
+    e->next = NULL;
+
+    return e;
+}
+
+/*
  * expr_list_new -- allocate an expression list
  */
 expr_list_t *

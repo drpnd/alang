@@ -388,7 +388,7 @@ struct _expr {
         val_t *val;
         op_t *op;
         switch_t sw;
-        if_t ifelse;
+        if_t ife;
         call_t *call;
         ref_t *ref;
     } u;
@@ -693,6 +693,7 @@ extern "C" {
     expr_t * expr_new_call(var_t *, expr_list_t *);
     expr_t * expr_new_ref(var_t *, expr_t *);
     expr_t * expr_new_switch(expr_t *, switch_block_t *);
+    expr_t * expr_new_if(expr_t *, inner_block_t *, inner_block_t *);
     expr_list_t * expr_list_new(void);
     expr_list_t * expr_list_append(expr_list_t *, expr_t *);
     switch_case_t * switch_case_new(literal_t *, inner_block_t *);
