@@ -329,6 +329,7 @@ typedef enum {
     EXPR_VAL,
     EXPR_OP,
     EXPR_SWITCH,
+    EXPR_IF,
     EXPR_CALL,
     EXPR_REF,
 } expr_type_t;
@@ -370,6 +371,15 @@ typedef struct {
 } switch_t;
 
 /*
+ * If expression
+ */
+typedef struct {
+    expr_t *cond;
+    inner_block_t *bif;
+    inner_block_t *belse;
+} if_t;
+
+/*
  * Expression
  */
 struct _expr {
@@ -378,6 +388,7 @@ struct _expr {
         val_t *val;
         op_t *op;
         switch_t sw;
+        if_t ifelse;
         call_t *call;
         ref_t *ref;
     } u;
