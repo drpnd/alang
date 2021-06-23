@@ -100,7 +100,7 @@ void yyerror(yyscan_t, const char*);
 %type <enum_elem> enum_list enum_elem
 %type <type> primitive_type type
 %type <exprs> expr_list
-%type <expr> expression control_expr switch_expr
+%type <expr> expression control_expr switch_expr if_expr
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
 %type <expr> primary a_expr m_expr u_expr
@@ -108,7 +108,7 @@ void yyerror(yyscan_t, const char*);
 %type <swcase> switch_case
 %type <func> function
 %type <coroutine> coroutine
-%type <stmt> statement stmt_decl stmt_if stmt_while stmt_expr
+%type <stmt> statement stmt_decl stmt_while stmt_expr
 %type <stmts> statements
 %type <lit> literal
 
@@ -365,10 +365,6 @@ statement:      stmt_decl
                 {
                     $$ = $1;
                 }
-        |       stmt_if
-                {
-                    $$ = $1;
-                }
         |       stmt_while
                 {
                     $$ = $1;
@@ -385,24 +381,6 @@ statement:      stmt_decl
 stmt_decl:      declaration
                 {
                     $$ = stmt_new_decl($1);
-                }
-                ;
-stmt_if:        TOK_IF expression TOK_LBRACE inner_block TOK_RBRACE else_block
-                {
-                    $$ = stmt_new_if($2, $4, $6);
-                }
-                ;
-else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
-                {
-                    $$ = $3;
-                }
-        |       TOK_ELSE stmt_if
-                {
-                    $$ = inner_block_new(stmt_list_new($2));
-                }
-        |       %prec ELSENOP
-                {
-                    $$ = NULL;
                 }
                 ;
 stmt_while:     TOK_WHILE expression TOK_LBRACE inner_block TOK_RBRACE
@@ -422,13 +400,35 @@ expression:     control_expr
                     $$ = $1;
                 }
                 ;
-control_expr:   switch_expr
+control_expr:   if_expr
+                {
+                    $$ = $1;
+                }
+        |       switch_expr
                 {
                     $$ = $1;
                 }
         |       assign_expr
                 {
                     $$ = $1;
+                }
+                ;
+if_expr:        TOK_IF expression TOK_LBRACE inner_block TOK_RBRACE else_block
+                {
+                    $$ = expr_new_if($2, $4, $6);
+                }
+                ;
+else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
+                {
+                    $$ = $3;
+                }
+        |       TOK_ELSE if_expr
+                {
+                    $$ = inner_block_new(stmt_list_new($2));
+                }
+        |       %prec ELSENOP
+                {
+                    $$ = NULL;
                 }
                 ;
 switch_expr:    TOK_SWITCH expression TOK_LBRACE switch_block TOK_RBRACE
