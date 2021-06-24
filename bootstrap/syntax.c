@@ -1090,28 +1090,6 @@ stmt_new_assign(var_list_t *vars, expr_t *e)
 }
 
 /*
- * stmt_new_if
- */
-stmt_t *
-stmt_new_if(expr_t *cond, inner_block_t *bif, inner_block_t *belse)
-{
-    stmt_t *stmt;
-
-    stmt = malloc(sizeof(stmt_t));
-    if ( NULL == stmt ) {
-        return NULL;
-    }
-    stmt->type = STMT_IF;
-    stmt->u.ifstmt.cond = cond;
-    stmt->u.ifstmt.bif = bif;
-    stmt->u.ifstmt.belse = belse;
-    stmt->next = NULL;
-
-    return stmt;
-}
-
-
-/*
  * stmt_new_while
  */
 stmt_t *

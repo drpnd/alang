@@ -409,7 +409,6 @@ struct _expr_list {
 typedef enum {
     STMT_DECL,
     STMT_ASSIGN,
-    STMT_IF,
     STMT_WHILE,
     STMT_EXPR,
     STMT_BLOCK,
@@ -422,15 +421,6 @@ typedef struct {
     var_list_t *vars;
     expr_t *e;
 } stmt_assign_t;
-
-/*
- * If statement
- */
-typedef struct {
-    expr_t *cond;
-    inner_block_t *bif;
-    inner_block_t *belse;
-} stmt_if_t;
 
 /*
  * While statement
@@ -448,7 +438,6 @@ struct _stmt {
     union {
         decl_t *decl;
         stmt_assign_t assign;
-        stmt_if_t ifstmt;
         stmt_while_t whilestmt;
         expr_t *expr;
         inner_block_t *block;
@@ -679,7 +668,6 @@ extern "C" {
     inner_block_t * inner_block_new(stmt_list_t *);
     stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_assign(var_list_t *, expr_t *);
-    stmt_t * stmt_new_if(expr_t *, inner_block_t *, inner_block_t *);
     stmt_t * stmt_new_while(expr_t *, inner_block_t *);
     stmt_t * stmt_new_expr(expr_t *);
     stmt_t * stmt_new_block(inner_block_t *);
