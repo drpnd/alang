@@ -91,7 +91,6 @@ void yyerror(yyscan_t, const char*);
 %type <obent> outer_entry
 %type <idval> identifier
 %type <var> variable
-%type <val> atom
 %type <decl> declaration
 %type <args> args funcargs
 %type <arg> arg
@@ -103,7 +102,7 @@ void yyerror(yyscan_t, const char*);
 %type <expr> expression control_expr switch_expr if_expr
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
-%type <expr> primary a_expr m_expr u_expr
+%type <expr> primary a_expr m_expr u_expr atom
 %type <swblock> switch_block
 %type <swcase> switch_case
 %type <func> function
@@ -629,7 +628,7 @@ u_expr:         TOK_SUB u_expr
                 ;
 primary:        atom
                 {
-                    $$ = expr_new_val($1);
+                    $$ = $1;
                 }
         |       variable TOK_LPAREN expr_list TOK_RPAREN
                 {
@@ -658,11 +657,11 @@ expr_list:      expression
 
 atom:           literal
                 {
-                    $$ = val_new_literal($1);
+                    $$ = expr_new_val(val_new_literal($1));
                 }
         |       variable
                 {
-                    $$ = val_new_variable($1);
+                    $$ = expr_new_val(val_new_variable($1));
                 }
                 ;
 variable:       identifier
