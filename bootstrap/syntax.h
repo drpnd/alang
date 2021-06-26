@@ -640,7 +640,6 @@ extern "C" {
     type_t * type_new_id(const char *);
     var_t * var_new_id(var_stack_t **, char *);
     var_t * var_new_ptr(var_stack_t **, var_t *);
-    var_t * var_new_decl(var_stack_t **, decl_t *);
     var_list_t * var_list_new(var_t *);
     val_t * val_new_literal(literal_t *);
     val_t * val_new_variable(var_t *);

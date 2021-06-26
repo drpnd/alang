@@ -198,52 +198,6 @@ var_new_ptr(var_stack_t **stack, var_t *var)
 }
 
 /*
- * var_new_decl -- allocate a declaration variable
- */
-var_t *
-var_new_decl(var_stack_t **stack, decl_t *decl)
-{
-    var_t *v;
-    var_stack_t *s;
-
-    /* Check the stack */
-    s = *stack;
-    while ( NULL != s ) {
-        if ( 0 == strcmp(s->id, decl->id) ) {
-            /* Already defined */
-            fprintf(stderr, "Variable %s is already defined.\n", s->id);
-            return NULL;
-        }
-        s = s->next;
-    }
-
-    v = malloc(sizeof(var_t));
-    if ( NULL == v ) {
-        return NULL;
-    }
-    v->type = VAR_DECL;
-    v->u.decl = decl;
-    v->next = NULL;
-
-    s = malloc(sizeof(var_stack_t));
-    if ( NULL == s ) {
-        free(v);
-        return NULL;
-    }
-    s->id = strdup(decl->id);
-    if ( NULL == s->id ) {
-        free(v);
-        free(s);
-        return NULL;
-    }
-    s->var = v;
-    s->next = *stack;
-    *stack = s;
-
-    return v;
-}
-
-/*
  * var_list_new -- allocate a new variable list
  */
 var_list_t *
