@@ -102,7 +102,7 @@ void yyerror(yyscan_t, const char*);
 %type <expr> expression control_expr switch_expr if_expr
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
-%type <expr> primary a_expr m_expr u_expr atom
+%type <expr> primary a_expr m_expr u_expr atom call
 %type <swblock> switch_block
 %type <swcase> switch_case
 %type <func> function
@@ -621,18 +621,28 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_NOT);
                 }
+        |       call
+                {
+                    $$ = $1;
+                }
+                ;
+call:           variable TOK_LPAREN expr_list TOK_RPAREN
+                {
+                    $$ = expr_new_call($1, $3);
+                }
         |       primary
                 {
                     $$ = $1;
                 }
                 ;
+
 primary:        atom
                 {
                     $$ = $1;
                 }
-        |       variable TOK_LPAREN expr_list TOK_RPAREN
+        |       variable TOK_LBRACKET expression TOK_RBRACKET
                 {
-                    $$ = expr_new_call($1, $3);
+                    $$ = expr_new_ref($1, $3);
                 }
                 ;
 
@@ -658,10 +668,6 @@ atom:           literal
         |       variable
                 {
                     $$ = expr_new_val(val_new_variable($1));
-                }
-        |       variable TOK_LBRACKET expression TOK_RBRACKET
-                {
-                    $$ = expr_new_ref($1, $3);
                 }
                 ;
 variable:       identifier
