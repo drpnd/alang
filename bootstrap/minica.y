@@ -626,7 +626,7 @@ u_expr:         TOK_SUB u_expr
                     $$ = $1;
                 }
                 ;
-call:           variable TOK_LPAREN expr_list TOK_RPAREN
+call:           atom TOK_LPAREN expr_list TOK_RPAREN
                 {
                     $$ = expr_new_call($1, $3);
                 }
