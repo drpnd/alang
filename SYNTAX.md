@@ -114,7 +114,7 @@ All the data are carried a packet.
             "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64" | "u64"
 
     fp_type ::=
-            "fp64" | "fp80"
+            "fp32" | "fp64"
 
     struct_name ::=
             identifier
