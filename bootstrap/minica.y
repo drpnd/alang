@@ -458,7 +458,7 @@ switch_case:    TOK_CASE literal TOK_COLON inner_block
                     $$ = switch_case_new(NULL, $3);
                 }
                 ;
-assign_expr:    atom TOK_DEF assign_expr
+assign_expr:    primary TOK_DEF assign_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_ASSIGN);
                 }
@@ -621,15 +621,6 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_NOT);
                 }
-        |       call
-                {
-                    $$ = $1;
-                }
-                ;
-call:           atom TOK_LPAREN expr_list TOK_RPAREN
-                {
-                    $$ = expr_new_call($1, $3);
-                }
         |       primary
                 {
                     $$ = $1;
@@ -640,9 +631,19 @@ primary:        atom
                 {
                     $$ = $1;
                 }
-        |       variable TOK_LBRACKET expression TOK_RBRACKET
+        |       primary TOK_LBRACKET expression TOK_RBRACKET
                 {
                     $$ = expr_new_ref($1, $3);
+                }
+        |       call
+                {
+                    $$ = $1;
+                }
+                ;
+
+call:           atom TOK_LPAREN expr_list TOK_RPAREN
+                {
+                    $$ = expr_new_call($1, $3);
                 }
                 ;
 

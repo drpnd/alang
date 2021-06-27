@@ -217,12 +217,20 @@ All the data are carried a packet.
     or_test ::=
             and_test ( "or" and_test )*
 
+    assign_expr ::=
+            primary ":=" assign_expr
+            | or_test
+
+    control_expr ::=
+            if_expr
+            | switch_expr
+            | assign_expr
+
     expression ::=
-            or_test
+            control_expr
 
     statement ::=
             expression_stmt EOS
-             | assignment_stmt EOS
              | fndef
 
     input ::= 
