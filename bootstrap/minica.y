@@ -621,9 +621,19 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_NOT);
                 }
+        |       call
+                {
+                    $$ = $1;
+                }
         |       primary
                 {
                     $$ = $1;
+                }
+                ;
+
+call:           primary TOK_LPAREN expr_list TOK_RPAREN
+                {
+                    $$ = expr_new_call($1, $3);
                 }
                 ;
 
@@ -634,16 +644,6 @@ primary:        atom
         |       primary TOK_LBRACKET expression TOK_RBRACKET
                 {
                     $$ = expr_new_ref($1, $3);
-                }
-        |       call
-                {
-                    $$ = $1;
-                }
-                ;
-
-call:           atom TOK_LPAREN expr_list TOK_RPAREN
-                {
-                    $$ = expr_new_call($1, $3);
                 }
                 ;
 
