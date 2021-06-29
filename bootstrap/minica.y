@@ -399,6 +399,22 @@ expression:     control_expr
                     $$ = $1;
                 }
                 ;
+
+expr_list:      expression
+                {
+                    expr_list_t *list;
+                    list = expr_list_new();
+                    if ( NULL == list ) {
+                        yyerror(scanner, "Memory error: expr_list_new()");
+                    }
+                    $$ = expr_list_append(list, $1);
+                }
+        |       expr_list TOK_COMMA expression
+                {
+                    $$ = expr_list_append($1, $3);
+                }
+                ;
+
 control_expr:   if_expr
                 {
                     $$ = $1;
@@ -642,21 +658,6 @@ primary:        atom
         |       primary TOK_LBRACKET expression TOK_RBRACKET
                 {
                     $$ = expr_new_ref($1, $3);
-                }
-                ;
-
-expr_list:      expression
-                {
-                    expr_list_t *list;
-                    list = expr_list_new();
-                    if ( NULL == list ) {
-                        yyerror(scanner, "Memory error: expr_list_new()");
-                    }
-                    $$ = expr_list_append(list, $1);
-                }
-        |       expr_list TOK_COMMA expression
-                {
-                    $$ = expr_list_append($1, $3);
                 }
                 ;
 
