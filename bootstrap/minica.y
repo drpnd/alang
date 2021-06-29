@@ -394,12 +394,6 @@ stmt_expr:      expression
                 ;
 
 /* Expressions */
-expression:     control_expr
-                {
-                    $$ = $1;
-                }
-                ;
-
 expr_list:      expression
                 {
                     expr_list_t *list;
@@ -412,6 +406,12 @@ expr_list:      expression
         |       expr_list TOK_COMMA expression
                 {
                     $$ = expr_list_append($1, $3);
+                }
+                ;
+
+expression:     control_expr
+                {
+                    $$ = $1;
                 }
                 ;
 
