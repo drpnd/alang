@@ -630,13 +630,11 @@ u_expr:         TOK_SUB u_expr
                     $$ = $1;
                 }
                 ;
-
 call:           primary TOK_LPAREN expr_list TOK_RPAREN
                 {
                     $$ = expr_new_call($1, $3);
                 }
                 ;
-
 primary:        atom
                 {
                     $$ = $1;
