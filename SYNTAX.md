@@ -138,7 +138,7 @@ All the data are carried a packet.
             "struct" struct_name "{" member_list "}"
 
     retval ::=
-            [ variable ":" ] type
+            [ identifier ":" ] type
 
     fnname ::=
             identifier
@@ -173,9 +173,6 @@ All the data are carried a packet.
 
     declaration ::=
             identifer ":" type
-
-    variable ::=
-            identifier
 
     primary ::=
             atom ( "." identifier
