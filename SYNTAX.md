@@ -54,7 +54,7 @@ All the data are carried a packet.
     token ::=
             "nil" | "true" | "false"
              | "fn" | "coroutine" | "return" | "continue" | "break"
-             | "if" | "else" | "while" | "for"
+             | "if" | "else" | "while" | "for" | "switch" | "case"
              | "-" | "+" | "*" | "/" | "%" | "&" | "|" | "~" | "^"
              | "," | "." | "!" | "!=" | "@"
              | "<" | "<<" | "<=" | ">" | ">>" | ">=" | "=" | "==" | ":="
