@@ -172,7 +172,7 @@ All the data are carried a packet.
             expression ":" expression
 
     declaration ::=
-            identifier [ ":" type ]
+            identifer ":" type
 
     variable ::=
             identifier
