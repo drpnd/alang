@@ -76,7 +76,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_IF TOK_ELSE TOK_WHILE TOK_SWITCH TOK_CASE TOK_DEFAULT
 %token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
 %token TOK_EQ TOK_COMMA TOK_ATMARK
-%token TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE
+%token TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE TOK_RETURN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
@@ -107,7 +107,7 @@ void yyerror(yyscan_t, const char*);
 %type <swcase> switch_case
 %type <func> function
 %type <coroutine> coroutine
-%type <stmt> statement stmt_decl stmt_while stmt_expr
+%type <stmt> statement stmt_decl stmt_while stmt_expr stmt_return
 %type <stmts> statements
 %type <lit> literal
 
@@ -372,6 +372,10 @@ statement:      stmt_decl
                 {
                     $$ = $1;
                 }
+        |       stmt_return
+                {
+                    $$ = $1;
+                }
         |       TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = stmt_new_block($2);
@@ -390,6 +394,11 @@ stmt_while:     TOK_WHILE expression TOK_LBRACE inner_block TOK_RBRACE
 stmt_expr:      expression
                 {
                     $$ = stmt_new_expr($1);
+                }
+                ;
+stmt_return:    TOK_RETURN expression
+                {
+                    $$ = stmt_new_return($2);
                 }
                 ;
 

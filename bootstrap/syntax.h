@@ -412,6 +412,7 @@ typedef enum {
     STMT_WHILE,
     STMT_EXPR,
     STMT_BLOCK,
+    STMT_RETURN,
 } stmt_type_t;
 
 /*
@@ -441,6 +442,7 @@ struct _stmt {
         stmt_while_t whilestmt;
         expr_t *expr;
         inner_block_t *block;
+        expr_t *ret;
     } u;
     stmt_t *next;
 };
@@ -669,6 +671,7 @@ extern "C" {
     stmt_t * stmt_new_assign(var_list_t *, expr_t *);
     stmt_t * stmt_new_while(expr_t *, inner_block_t *);
     stmt_t * stmt_new_expr(expr_t *);
+    stmt_t * stmt_new_return(expr_t *);
     stmt_t * stmt_new_block(inner_block_t *);
     stmt_list_t * stmt_list_new(stmt_t *);
     stmt_list_t * stmt_list_append(stmt_list_t *, stmt_t *);

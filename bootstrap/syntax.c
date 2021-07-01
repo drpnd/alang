@@ -1083,6 +1083,25 @@ stmt_new_expr(expr_t *e)
 }
 
 /*
+ * stmt_new_return -- allocate a return statement
+ */
+stmt_t *
+stmt_new_return(expr_t *e)
+{
+    stmt_t *stmt;
+
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_RETURN;
+    stmt->u.ret = e;
+    stmt->next = NULL;
+
+    return stmt;
+}
+
+/*
  * stmt_new_block -- allocate a block
  */
 stmt_t *
