@@ -646,6 +646,14 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_NOT);
                 }
+        |       TOK_INC u_expr
+                {
+                    $$ = expr_op_new_prefix($2, OP_INC);
+                }
+        |       TOK_DEC u_expr
+                {
+                    $$ = expr_op_new_prefix($2, OP_DEC);
+                }
         |       call
                 {
                     $$ = $1;
@@ -848,7 +856,7 @@ minica_parse(FILE *fp)
 
     /* Parse the input file */
     if ( yyparse(scanner) ) {
-        fprintf(stderr, "Parse error!\n");
+        fprintf(stderr, "Parse error: yyparse()\n");
         exit(EXIT_FAILURE);
     }
 

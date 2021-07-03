@@ -179,7 +179,8 @@ All the data are carried a packet.
                   | "[" expression_list_with_comma "]"
                   | "(" expression_list_with_comma ")" )*
     u_expr ::=
-            primary | "-" u_expr | "+" u_expr | "~" u_expr
+            primary | "-" u_expr | "+" u_expr | "~" u_expr | "++" u_expr
+            | "--" u_expr | u_expr "++" | u_expr "--"
 
     m_expr ::=
             u_expr ( ( "*" | "/" | "%" ) u_expr )*
