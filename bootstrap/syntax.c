@@ -807,6 +807,26 @@ op_new_prefix(expr_t *e0, op_type_t type)
 }
 
 /*
+ * op_new_suffix -- allocate a suffixed operation
+ */
+op_t *
+op_new_suffix(expr_t *e0, op_type_t type)
+{
+    op_t *op;
+
+    op = malloc(sizeof(op_t));
+    if ( NULL == op ) {
+        return NULL;
+    }
+    op->fix = FIX_SUFFIX;
+    op->type = type;
+    op->e0 = e0;
+    op->e1 = NULL;
+
+    return op;
+}
+
+/*
  * expr_op_new_infix -- allocate an infix operation expression
  */
 expr_t *
@@ -845,6 +865,31 @@ expr_op_new_prefix(expr_t *e0, op_type_t type)
         return NULL;
     }
     op = op_new_prefix(e0, type);
+    if ( NULL == op ) {
+        free(e);
+        return NULL;
+    }
+    e->type = EXPR_OP;
+    e->u.op = op;
+    e->next = NULL;
+
+    return e;
+}
+
+/*
+ * expr_op_new_suffix -- allocate a suffixed operation expression
+ */
+expr_t *
+expr_op_new_suffix(expr_t *e0, op_type_t type)
+{
+    op_t *op;
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    op = op_new_suffix(e0, type);
     if ( NULL == op ) {
         free(e);
         return NULL;

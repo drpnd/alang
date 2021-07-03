@@ -322,6 +322,7 @@ typedef enum {
 typedef enum {
     FIX_INFIX,
     FIX_PREFIX,
+    FIX_SUFFIX,
 } fix_t;
 
 /*
@@ -679,9 +680,11 @@ extern "C" {
     stmt_list_t * stmt_list_append(stmt_list_t *, stmt_t *);
     op_t * op_new_infix(expr_t *, expr_t *, op_type_t);
     op_t * op_new_prefix(expr_t *, op_type_t);
+    op_t * op_new_suffix(expr_t *, op_type_t);
     expr_t * expr_new_val(val_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
+    expr_t * expr_op_new_suffix(expr_t *, op_type_t);
     expr_t * expr_new_call(var_t *, expr_list_t *);
     expr_t * expr_new_ref(var_t *, expr_t *);
     expr_t * expr_new_switch(expr_t *, switch_block_t *);
