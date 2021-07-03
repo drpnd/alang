@@ -669,7 +669,7 @@ expr_new_call(expr_t *callee, expr_list_t *exprs)
  * expr_new_ref -- allocate a reference expression
  */
 expr_t *
-expr_new_ref(var_t *var, expr_t *expr)
+expr_new_ref(expr_t *var, expr_t *expr)
 {
     expr_t *e;
 

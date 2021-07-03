@@ -146,7 +146,7 @@ typedef struct {
  * Array subscription
  */
 typedef struct {
-    var_t *var;
+    expr_t *var;
     expr_t *arg;
 } ref_t;
 
@@ -702,7 +702,7 @@ extern "C" {
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
     expr_t * expr_op_new_suffix(expr_t *, op_type_t);
     expr_t * expr_new_call(expr_t *, expr_list_t *);
-    expr_t * expr_new_ref(var_t *, expr_t *);
+    expr_t * expr_new_ref(expr_t *, expr_t *);
     expr_t * expr_new_switch(expr_t *, switch_block_t *);
     expr_t * expr_new_if(expr_t *, inner_block_t *, inner_block_t *);
     expr_list_t * expr_list_new(void);
