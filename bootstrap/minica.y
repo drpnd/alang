@@ -120,6 +120,7 @@ void yyerror(yyscan_t, const char*);
 %right TOK_DEF TOK_EQ
 %nonassoc TOK_INC TOK_DEC
 %nonassoc TOK_NOT TOK_ATMARK
+%nonassoc TOK_LPAREN
 %nonassoc UNOP ELSENOP
 
 %locations
@@ -684,6 +685,10 @@ p_expr:         p_expr TOK_INC
 primary:        atom
                 {
                     $$ = $1;
+                }
+        |       TOK_LPAREN expression TOK_RPAREN
+                {
+                    $$ = $2;
                 }
                 ;
 
