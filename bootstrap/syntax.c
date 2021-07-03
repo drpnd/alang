@@ -644,7 +644,7 @@ expr_new_val(val_t *val)
  * expr_new_call -- allocate a call expression
  */
 expr_t *
-expr_new_call(var_t *var, expr_list_t *exprs)
+expr_new_call(expr_t *callee, expr_list_t *exprs)
 {
     expr_t *e;
 
@@ -658,7 +658,7 @@ expr_new_call(var_t *var, expr_list_t *exprs)
         return NULL;
     }
     e->type = EXPR_CALL;
-    e->u.call->var = var;
+    e->u.call->callee = callee;
     e->u.call->exprs = exprs;
     e->next = NULL;
 

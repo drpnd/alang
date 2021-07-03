@@ -102,7 +102,7 @@ void yyerror(yyscan_t, const char*);
 %type <expr> expression control_expr switch_expr if_expr
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
-%type <expr> primary a_expr m_expr u_expr atom call
+%type <expr> primary a_expr m_expr u_expr p_expr atom
 %type <swblock> switch_block
 %type <swcase> switch_case
 %type <func> function
@@ -117,8 +117,8 @@ void yyerror(yyscan_t, const char*);
 %left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
 %left TOK_COMMA
-%left TOK_INC TOK_DEC
 %right TOK_DEF TOK_EQ
+%nonassoc TOK_INC TOK_DEC
 %nonassoc TOK_NOT TOK_ATMARK
 %nonassoc UNOP ELSENOP
 
@@ -655,27 +655,29 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_DEC);
                 }
-        |       u_expr TOK_INC
+        |       p_expr
+                {
+                    $$ = $1;
+                }
+                ;
+p_expr:         p_expr TOK_INC
                 {
                     $$ = expr_op_new_suffix($1, OP_INC);
                 }
-        |       u_expr TOK_DEC
+        |       p_expr TOK_DEC
                 {
                     $$ = expr_op_new_suffix($1, OP_DEC);
                 }
-        |       call
+        |       p_expr TOK_LPAREN expr_list TOK_RPAREN
                 {
-                    $$ = $1;
+                    $$ = expr_new_call($1, $3);
                 }
         |       primary
                 {
                     $$ = $1;
                 }
                 ;
-call:           primary TOK_LPAREN expr_list TOK_RPAREN
-                {
-                    $$ = expr_new_call($1, $3);
-                }
+
                 ;
 primary:        atom
                 {

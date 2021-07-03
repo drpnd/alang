@@ -138,7 +138,7 @@ typedef struct {
  * Function call
  */
 typedef struct {
-    var_t *var;
+    expr_t *callee;
     expr_list_t *exprs;
 } call_t;
 
@@ -685,7 +685,7 @@ extern "C" {
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
     expr_t * expr_op_new_suffix(expr_t *, op_type_t);
-    expr_t * expr_new_call(var_t *, expr_list_t *);
+    expr_t * expr_new_call(expr_t *, expr_list_t *);
     expr_t * expr_new_ref(var_t *, expr_t *);
     expr_t * expr_new_switch(expr_t *, switch_block_t *);
     expr_t * expr_new_if(expr_t *, inner_block_t *, inner_block_t *);
