@@ -143,12 +143,28 @@ typedef struct {
 } call_t;
 
 /*
- * Array reference
+ * Array subscription
  */
 typedef struct {
     var_t *var;
     expr_t *arg;
 } ref_t;
+
+/*
+ * Pointer type
+ */
+typedef enum {
+    PTR_INDIRECTION,
+    PTR_REFERENCE,
+} ptr_type_t;
+
+/*
+ * Pointer indirection, reference
+ */
+typedef struct {
+    ptr_type_t type;
+    expr_t *e;
+} ptr_t;
 
 /*
  * Variable type
