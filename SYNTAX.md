@@ -178,9 +178,13 @@ All the data are carried a packet.
             atom ( "." identifier
                   | "[" expression_list_with_comma "]"
                   | "(" expression_list_with_comma ")" )*
+
+    p_expr ::=
+            primary | u_expr "++" | u_expr "--"
+
     u_expr ::=
-            primary | "-" u_expr | "+" u_expr | "~" u_expr | "++" u_expr
-            | "--" u_expr | u_expr "++" | u_expr "--"
+            p_expr | "-" u_expr | "+" u_expr | "~" u_expr | "++" u_expr
+            | "--" u_expr
 
     m_expr ::=
             u_expr ( ( "*" | "/" | "%" ) u_expr )*
