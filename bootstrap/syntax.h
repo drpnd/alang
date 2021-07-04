@@ -212,6 +212,7 @@ struct _var_stack {
 typedef enum {
     VAL_LITERAL,
     VAL_VAR,
+    VAL_DECL,
 } val_type_t;
 
 /*
@@ -222,6 +223,7 @@ typedef struct {
     union {
         literal_t *lit;
         var_t *var;
+	decl_t *decl;
     } u;
 } val_t;
 
