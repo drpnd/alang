@@ -75,7 +75,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_LCHEVRON TOK_RCHEVRON
 %token TOK_IF TOK_ELSE TOK_WHILE TOK_SWITCH TOK_CASE TOK_DEFAULT
 %token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
-%token TOK_EQ TOK_COMMA TOK_ATMARK
+%token TOK_EQ TOK_COMMA TOK_DOT TOK_ATMARK
 %token TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE TOK_RETURN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
@@ -116,7 +116,7 @@ void yyerror(yyscan_t, const char*);
 %left TOK_LAND TOK_LOR
 %left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
-%left TOK_COMMA
+%left TOK_COMMA TOK_DOT
 %right TOK_DEF TOK_EQ
 %nonassoc TOK_INC TOK_DEC
 %nonassoc TOK_NOT TOK_ATMARK
@@ -668,6 +668,10 @@ p_expr:         p_expr TOK_INC
         |       p_expr TOK_DEC
                 {
                     $$ = expr_op_new_suffix($1, OP_DEC);
+                }
+        |       p_expr TOK_DOT identifier
+                {
+                    $$ = expr_new_member($1, $3);
                 }
         |       p_expr TOK_LPAREN expr_list TOK_RPAREN
                 {

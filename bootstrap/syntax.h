@@ -351,6 +351,7 @@ typedef enum {
     EXPR_IF,
     EXPR_CALL,
     EXPR_REF,
+    EXPR_MEMBER,
 } expr_type_t;
 
 /*
@@ -399,6 +400,14 @@ typedef struct {
 } if_t;
 
 /*
+ * Member reference
+ */
+typedef struct {
+    expr_t *e;
+    char *id;
+} member_t;
+
+/*
  * Expression
  */
 struct _expr {
@@ -408,6 +417,7 @@ struct _expr {
         op_t *op;
         switch_t sw;
         if_t ife;
+        member_t mem;
         call_t *call;
         ref_t *ref;
     } u;
@@ -701,6 +711,7 @@ extern "C" {
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
     expr_t * expr_op_new_suffix(expr_t *, op_type_t);
+    expr_t * expr_new_member(expr_t *, const char *);
     expr_t * expr_new_call(expr_t *, expr_list_t *);
     expr_t * expr_new_ref(expr_t *, expr_t *);
     expr_t * expr_new_switch(expr_t *, switch_block_t *);

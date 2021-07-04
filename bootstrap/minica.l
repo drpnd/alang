@@ -175,6 +175,7 @@ _append_buffer_char(yyscan_t scanner, char c)
 "["         return TOK_LBRACKET;
 "]"         return TOK_RBRACKET;
 ","         return TOK_COMMA;
+"."         return TOK_DOT;
 "@"         return TOK_ATMARK;
 "<"         return TOK_LCHEVRON;
 ">"         return TOK_RCHEVRON;

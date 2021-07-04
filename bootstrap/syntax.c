@@ -641,6 +641,30 @@ expr_new_val(val_t *val)
 }
 
 /*
+ * expr_new_member -- allocate a member reference expression
+ */
+expr_t *
+expr_new_member(expr_t *pe, const char *id)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    e->type = EXPR_MEMBER;
+    e->u.mem.e = pe;
+    e->u.mem.id = strdup(id);
+    if ( NULL == e->u.mem.id ) {
+        free(e);
+        return NULL;
+    }
+    e->next = NULL;
+
+    return e;
+}
+
+/*
  * expr_new_call -- allocate a call expression
  */
 expr_t *
