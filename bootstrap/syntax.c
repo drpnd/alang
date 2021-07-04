@@ -234,7 +234,7 @@ val_new_literal(literal_t *lit)
 }
 
 /*
- * val_new_variable -- allocate a literal value
+ * val_new_variable -- allocate a variable value
  */
 val_t *
 val_new_variable(var_t *var)
@@ -247,6 +247,24 @@ val_new_variable(var_t *var)
     }
     v->type = VAL_VAR;
     v->u.var = var;
+
+    return v;
+}
+
+/*
+ * val_new_declaration -- allocate a declaration value
+ */
+val_t *
+val_new_declaration(decl_t *decl)
+{
+    val_t *v;
+
+    v = malloc(sizeof(val_t));
+    if ( NULL == v ) {
+        return NULL;
+    }
+    v->type = VAL_DECL;
+    v->u.decl = decl;
 
     return v;
 }
