@@ -21,8 +21,7 @@
  * SOFTWARE.
  */
 
-#include "syntax.h"
-#include "compile.h"
+#include "../compile.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
