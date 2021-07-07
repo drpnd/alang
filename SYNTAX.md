@@ -227,6 +227,13 @@ All the data are carried a packet.
             primary ":=" assign_expr
             | or_test
 
+    else_block ::=
+            "else" "{" statements "}"
+            | "else" if_expr
+
+    if_expr ::=
+            "if" expression "{" statemenets "}" [ else_block ]
+
     control_expr ::=
             if_expr
             | switch_expr
@@ -239,6 +246,9 @@ All the data are carried a packet.
             expression_stmt EOS
              | fndef
 
-    input ::= 
-            (statement)* EOF
+    statements ::=
+            (statement)*
+
+    input ::=
+            statements EOF
 
