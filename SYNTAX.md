@@ -242,9 +242,20 @@ All the data are carried a packet.
     expression ::=
             control_expr
 
+    return_stmt ::=
+            "return" expression
+
+    fndef ::=
+            "fn" identifier funcargs [ funcargs ] "{" statements "}"
+
+    crdef ::=
+            "coroutine" identifer funcargs [ funcargs ] "{" statements "}"
+
     statement ::=
-            expression_stmt EOS
-             | fndef
+            expression
+            | return_stmt
+            | fndef
+            | crdef
 
     statements ::=
             (statement)*
