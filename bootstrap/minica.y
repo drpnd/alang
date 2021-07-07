@@ -92,7 +92,7 @@ void yyerror(yyscan_t, const char*);
 %type <idval> identifier
 %type <var> variable
 %type <decl> declaration
-%type <args> args funcargs
+%type <args> args funcargs retvals
 %type <arg> arg
 %type <directive> directive struct_def union_def enum_def use typedef
 %type <decl_list> decl_list
@@ -121,7 +121,7 @@ void yyerror(yyscan_t, const char*);
 %nonassoc TOK_INC TOK_DEC
 %nonassoc TOK_NOT TOK_ATMARK
 %nonassoc TOK_LPAREN
-%nonassoc UNOP ELSENOP
+%nonassoc UNOP ELSENOP RETNOP
 
 %locations
 
@@ -303,13 +303,13 @@ module:         TOK_MODULE identifier TOK_LBRACE outer_block TOK_RBRACE
                 ;
 
 /* Coroutine & function */
-coroutine:      TOK_COROUTINE identifier funcargs funcargs
+coroutine:      TOK_COROUTINE identifier funcargs retvals
                 TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = coroutine_new($2, $3, $4, $6);
                 }
                 ;
-function:       TOK_FN identifier funcargs funcargs
+function:       TOK_FN identifier funcargs retvals
                 TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = func_new($2, $3, $4, $6);
@@ -320,6 +320,14 @@ funcargs:       TOK_LPAREN args TOK_RPAREN
                     $$ = $2;
                 }
                 ;
+retvals:        TOK_LPAREN args TOK_RPAREN
+                {
+                    $$ = $2;
+                }
+        |       %prec RETNOP
+                {
+                    $$ = NULL;
+                }
 args:           arg
                 {
                     arg_list_t *list;
