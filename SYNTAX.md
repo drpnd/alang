@@ -244,6 +244,7 @@ All the data are carried a packet.
 
     return_stmt ::=
             "return" expression
+            | "return" ";"
 
     fndef ::=
             "fn" identifier funcargs [ funcargs ] "{" statements "}"
