@@ -410,6 +410,10 @@ stmt_return:    TOK_RETURN expression
                 {
                     $$ = stmt_new_return($2);
                 }
+        |       TOK_RETURN TOK_SEMICOLON
+                {
+                    $$ = stmt_new_return(NULL);
+                }
                 ;
 
 /* Expressions */
