@@ -107,7 +107,7 @@ void yyerror(yyscan_t, const char*);
 %type <swcase> switch_case
 %type <func> function
 %type <coroutine> coroutine
-%type <stmt> statement stmt_decl stmt_while stmt_expr stmt_expr_list stmt_return
+%type <stmt> statement stmt_decl stmt_while stmt_expr_list stmt_return
 %type <stmts> statements
 %type <lit> literal
 
@@ -399,11 +399,6 @@ stmt_decl:      declaration
 stmt_while:     TOK_WHILE expression TOK_LBRACE inner_block TOK_RBRACE
                 {
                     $$ = stmt_new_while($2, $4);
-                }
-                ;
-stmt_expr:      expression
-                {
-                    $$ = stmt_new_expr($1);
                 }
                 ;
 stmt_expr_list: expr_list
