@@ -442,6 +442,7 @@ typedef enum {
     STMT_ASSIGN,
     STMT_WHILE,
     STMT_EXPR,
+    STMT_EXPR_LIST,
     STMT_BLOCK,
     STMT_RETURN,
 } stmt_type_t;
@@ -472,6 +473,7 @@ struct _stmt {
         stmt_assign_t assign;
         stmt_while_t whilestmt;
         expr_t *expr;
+        expr_list_t *exprs;
         inner_block_t *block;
         expr_t *ret;
     } u;
@@ -703,6 +705,7 @@ extern "C" {
     stmt_t * stmt_new_assign(var_list_t *, expr_t *);
     stmt_t * stmt_new_while(expr_t *, inner_block_t *);
     stmt_t * stmt_new_expr(expr_t *);
+    stmt_t * stmt_new_expr_list(expr_list_t *);
     stmt_t * stmt_new_return(expr_t *);
     stmt_t * stmt_new_block(inner_block_t *);
     stmt_list_t * stmt_list_new(stmt_t *);

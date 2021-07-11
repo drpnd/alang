@@ -1170,6 +1170,25 @@ stmt_new_expr(expr_t *e)
 }
 
 /*
+ * stmt_new_expr_list -- allocate an expression list statement
+ */
+stmt_t *
+stmt_new_expr_list(expr_list_t *e)
+{
+    stmt_t *stmt;
+
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_EXPR_LIST;
+    stmt->u.exprs = e;
+    stmt->next = NULL;
+
+    return stmt;
+}
+
+/*
  * stmt_new_return -- allocate a return statement
  */
 stmt_t *

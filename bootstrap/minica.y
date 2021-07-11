@@ -378,7 +378,7 @@ statement:      stmt_decl
                 {
                     $$ = $1;
                 }
-        |       stmt_expr
+        |       stmt_expr_list
                 {
                     $$ = $1;
                 }
@@ -408,7 +408,7 @@ stmt_expr:      expression
                 ;
 stmt_expr_list: expr_list
                 {
-                    $$ = NULL;
+                    $$ = stmt_new_expr_list($1);
                 }
                 ;
 stmt_return:    TOK_RETURN expression
