@@ -86,7 +86,7 @@ void yyerror(yyscan_t, const char*);
 
 %type <file> file
 %type <module> module
-%type <iblock> inner_block else_block
+%type <iblock> inner_block suite else_block
 %type <oblock> outer_block
 %type <obent> outer_entry
 %type <idval> identifier
@@ -303,16 +303,14 @@ module:         TOK_MODULE identifier TOK_LBRACE outer_block TOK_RBRACE
                 ;
 
 /* Coroutine & function */
-coroutine:      TOK_COROUTINE identifier funcargs retvals
-                TOK_LBRACE inner_block TOK_RBRACE
+coroutine:      TOK_COROUTINE identifier funcargs retvals suite
                 {
-                    $$ = coroutine_new($2, $3, $4, $6);
+                    $$ = coroutine_new($2, $3, $4, $5);
                 }
                 ;
-function:       TOK_FN identifier funcargs retvals
-                TOK_LBRACE inner_block TOK_RBRACE
+function:       TOK_FN identifier funcargs retvals suite
                 {
-                    $$ = func_new($2, $3, $4, $6);
+                    $$ = func_new($2, $3, $4, $5);
                 }
                 ;
 funcargs:       TOK_LPAREN args TOK_RPAREN
@@ -355,6 +353,11 @@ inner_block:    statements
                     $$ = inner_block_new($1);
                 }
                 ;
+suite:          TOK_LBRACE inner_block TOK_RBRACE
+                {
+                    $$ = $2;
+                }
+                ;
 statements:     statement
                 {
                     $$ = stmt_list_new($1);
@@ -386,9 +389,9 @@ statement:      stmt_decl
                 {
                     $$ = $1;
                 }
-        |       TOK_LBRACE inner_block TOK_RBRACE
+        |       suite
                 {
-                    $$ = stmt_new_block($2);
+                    $$ = stmt_new_block($1);
                 }
                 ;
 stmt_decl:      declaration
@@ -451,14 +454,14 @@ control_expr:   if_expr
                     $$ = $1;
                 }
                 ;
-if_expr:        TOK_IF expression TOK_LBRACE inner_block TOK_RBRACE else_block
+if_expr:        TOK_IF expression suite else_block
                 {
-                    $$ = expr_new_if($2, $4, $6);
+                    $$ = expr_new_if($2, $3, $4);
                 }
                 ;
-else_block:     TOK_ELSE TOK_LBRACE inner_block TOK_RBRACE
+else_block:     TOK_ELSE suite
                 {
-                    $$ = $3;
+                    $$ = $2;
                 }
         |       TOK_ELSE if_expr
                 {
