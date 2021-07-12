@@ -228,11 +228,11 @@ All the data are carried a packet.
             | or_test
 
     else_block ::=
-            "else" "{" statements "}"
+            "else" suite
             | "else" if_expr
 
     if_expr ::=
-            "if" expression "{" statemenets "}" [ else_block ]
+            "if" expression suite [ else_block ]
 
     control_expr ::=
             if_expr
@@ -247,10 +247,10 @@ All the data are carried a packet.
             | "return" ";"
 
     fndef ::=
-            "fn" identifier funcargs [ funcargs ] "{" statements "}"
+            "fn" identifier funcargs [ funcargs ] suite
 
     crdef ::=
-            "coroutine" identifer funcargs [ funcargs ] "{" statements "}"
+            "coroutine" identifer funcargs [ funcargs ] suite
 
     statement ::=
             expression
