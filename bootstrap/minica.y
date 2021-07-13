@@ -347,15 +347,16 @@ arg:            declaration
                 }
                 ;
 
+/* Suite */
+suite:          TOK_LBRACE inner_block TOK_RBRACE
+                {
+                    $$ = $2;
+                }
+                ;
 /* Inner block */
 inner_block:    statements
                 {
                     $$ = inner_block_new($1);
-                }
-                ;
-suite:          TOK_LBRACE inner_block TOK_RBRACE
-                {
-                    $$ = $2;
                 }
                 ;
 statements:     statement

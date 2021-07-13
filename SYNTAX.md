@@ -122,8 +122,14 @@ All the data are carried a packet.
     struct_type ::=
             "struct" struct_name
 
+    union_name ::=
+            identifier
+
+    union_type ::=
+            "union" union_name
+
     type ::=
-            integer_type | fp_type | "string"
+            integer_type | fp_type | "string" | struct_type | union_type
 
     suite ::=
             "{" statement* "}"
@@ -136,6 +142,9 @@ All the data are carried a packet.
 
     structdef ::=
             "struct" struct_name "{" member_list "}"
+
+    typedef ::=
+            "typedef" type identifier
 
     retval ::=
             [ identifier ":" ] type
