@@ -272,7 +272,7 @@ All the data are carried a packet.
             | while_stmt
 
     statements ::=
-            (statement)*
+            ( statement )*
 
     input ::=
             statements EOF

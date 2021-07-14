@@ -1111,26 +1111,6 @@ stmt_new_decl(decl_t *decl)
 }
 
 /*
- * stmt_new_assign -- allocate an assign statement
- */
-stmt_t *
-stmt_new_assign(var_list_t *vars, expr_t *e)
-{
-    stmt_t *stmt;
-
-    stmt = malloc(sizeof(stmt_t));
-    if ( NULL == stmt ) {
-        return NULL;
-    }
-    stmt->type = STMT_ASSIGN;
-    stmt->u.assign.vars = vars;
-    stmt->u.assign.e = e;
-    stmt->next = NULL;
-
-    return stmt;
-}
-
-/*
  * stmt_new_while
  */
 stmt_t *
