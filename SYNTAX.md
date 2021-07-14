@@ -261,11 +261,15 @@ All the data are carried a packet.
     crdef ::=
             "coroutine" identifer funcargs [ funcargs ] suite
 
+    while_stmt ::=
+            "while" expression suite
+
     statement ::=
             expression
             | return_stmt
             | fndef
             | crdef
+            | while_stmt
 
     statements ::=
             (statement)*
