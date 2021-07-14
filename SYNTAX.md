@@ -32,6 +32,12 @@ All the data are carried a packet.
 
     a, b = x + y, x + z
 
+## if-else and switch expressions
+
+    r = if condition { true } else { false }
+
+    r = switch ternary { case 0: case nil: false; case 1: true }
+
 ## Precedence of operators
 
 1. `!` `~` unary ops
