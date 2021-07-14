@@ -52,6 +52,7 @@ void yyerror(yyscan_t, const char*);
     switch_case_t *swcase;
     switch_block_t *swblock;
     literal_t *lit;
+    literal_set_t *lset;
     var_t *var;
     var_list_t *varlist;
     val_t *val;
@@ -110,6 +111,7 @@ void yyerror(yyscan_t, const char*);
 %type <stmt> statement stmt_decl stmt_while stmt_expr_list stmt_return
 %type <stmts> statements
 %type <lit> literal
+%type <lset> literal_set
 
 %left TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_DIVMOD
 %left TOK_BIT_LSHIFT TOK_BIT_RSHIFT
@@ -492,7 +494,7 @@ switch_block:   switch_block switch_case
                     $$ = switch_block_append(block, $1);
                 }
                 ;
-switch_case:    TOK_CASE literal TOK_COLON inner_block
+switch_case:    TOK_CASE literal_set TOK_COLON inner_block
                 {
                     $$ = switch_case_new($2, $4);
                 }
@@ -792,6 +794,18 @@ primitive_type: TOK_TYPE_I8
         |       TOK_TYPE_BOOL
                 {
                     $$ = type_new_primitive(TYPE_PRIMITIVE_BOOL);
+                }
+                ;
+
+/* Literal set */
+literal_set:    literal_set TOK_COMMA literal
+                {
+                    $$ = literal_set_add($1, $3);
+                }
+        |       literal
+                {
+                    $$ = literal_set_new();
+                    $$ = literal_set_add($$, $1);
                 }
                 ;
 

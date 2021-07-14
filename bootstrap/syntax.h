@@ -68,14 +68,24 @@ typedef enum {
 /*
  * Literals
  */
-typedef struct {
+typedef struct _literal literal_t;
+struct _literal {
     literal_type_t type;
     union {
         char *n;
         char *s;
         bool_t b;
     } u;
-} literal_t;
+    literal_t *next;
+};
+
+/*
+ * Literal sets
+ */
+typedef struct {
+    literal_t *head;
+    literal_t *tail;
+} literal_set_t;
 
 /*
  * Type type
@@ -371,7 +381,7 @@ typedef struct {
  */
 typedef struct _switch_case switch_case_t;
 struct _switch_case {
-    literal_t *value;
+    literal_set_t *lset;
     inner_block_t *block;
     switch_case_t *next;
 };
@@ -658,6 +668,8 @@ extern "C" {
     literal_t * literal_new_string(const char *);
     literal_t * literal_new_bool(bool_t);
     literal_t * literal_new_nil(void);
+    literal_set_t * literal_set_new(void);
+    literal_set_t * literal_set_add(literal_set_t *, literal_t *);
     type_t * type_new_primitive(type_type_t);
     type_t * type_new_struct(const char *);
     type_t * type_new_union(const char *);
@@ -713,7 +725,7 @@ extern "C" {
     expr_t * expr_new_if(expr_t *, inner_block_t *, inner_block_t *);
     expr_list_t * expr_list_new(void);
     expr_list_t * expr_list_append(expr_list_t *, expr_t *);
-    switch_case_t * switch_case_new(literal_t *, inner_block_t *);
+    switch_case_t * switch_case_new(literal_set_t *, inner_block_t *);
     switch_block_t * switch_block_new(void);
     switch_block_t * switch_block_append(switch_block_t *, switch_case_t *);
     int func_vec_add(func_vec_t *, func_t *);

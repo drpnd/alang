@@ -44,6 +44,7 @@ literal_new_int(const char *v, int type)
         free(lit);
         return NULL;
     }
+    lit->next = NULL;
 
     return lit;
 }
@@ -66,6 +67,7 @@ literal_new_float(const char *v)
         free(lit);
         return NULL;
     }
+    lit->next = NULL;
 
     return lit;
 }
@@ -88,6 +90,7 @@ literal_new_string(const char *v)
         free(lit);
         return NULL;
     }
+    lit->next = NULL;
 
     return lit;
 }
@@ -106,6 +109,7 @@ literal_new_bool(bool_t bool)
     }
     lit->type = LIT_BOOL;
     lit->u.b = bool;
+    lit->next = NULL;
 
     return lit;
 }
@@ -123,8 +127,44 @@ literal_new_nil(void)
         return NULL;
     }
     lit->type = LIT_NIL;
+    lit->next = NULL;
 
     return lit;
+}
+
+/*
+ * literal_set_new -- allocate a literal set
+ */
+literal_set_t *
+literal_set_new(void)
+{
+    literal_set_t *set;
+
+    set = malloc(sizeof(literal_set_t));
+    if ( NULL == set ) {
+        return NULL;
+    }
+    set->head = NULL;
+    set->tail = NULL;
+
+    return set;
+}
+
+/*
+ * literal_set_add -- add a literal to the specified set
+ */
+literal_set_t *
+literal_set_add(literal_set_t *set, literal_t *lit)
+{
+    if ( NULL == set->head ) {
+        set->head = lit;
+        set->tail = lit;
+    } else {
+        set->tail->next = lit;
+        set->tail = lit;
+    }
+
+    return set;
 }
 
 /*
@@ -1245,7 +1285,7 @@ stmt_list_append(stmt_list_t *block, stmt_t *stmt)
  * switch_case_new -- allocate a new case block
  */
 switch_case_t *
-switch_case_new(literal_t *lit, inner_block_t *block)
+switch_case_new(literal_set_t *set, inner_block_t *block)
 {
     switch_case_t *c;
 
@@ -1253,7 +1293,7 @@ switch_case_new(literal_t *lit, inner_block_t *block)
     if ( NULL == c ) {
         return NULL;
     }
-    c->value = lit;
+    c->lset = set;
     c->block = block;
     c->next = NULL;
 
