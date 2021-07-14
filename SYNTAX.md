@@ -36,7 +36,7 @@ All the data are carried a packet.
 
     r = if condition { true } else { false }
 
-    r = switch ternary { case 0: case nil: false; case 1: true }
+    r = switch ternary { case 0, nil: false; case 1: true }
 
 ## Precedence of operators
 
