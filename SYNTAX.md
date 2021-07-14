@@ -135,7 +135,7 @@ All the data are carried a packet.
             "{" statement* "}"
 
     member ::=
-            type identifier
+            declaration [ ";" ]
 
     member_list ::=
             member ( "," member )*
