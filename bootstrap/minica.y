@@ -32,6 +32,13 @@
 code_file_t *code;
 void yyerror(yyscan_t, const char*);
 
+#define ERROR_ON_NULL(val, msg)     \
+    do {                            \
+        if ( NULL == (val) ) {      \
+            yyerror(scanner, msg);  \
+        }                           \
+    } while ( 0 )
+
 %}
 
 %union {
@@ -293,9 +300,7 @@ module:         TOK_MODULE identifier TOK_LBRACE outer_block TOK_RBRACE
                     module_t *module;
                     module_t *cur;
                     module = module_new($2, $4);
-                    if ( NULL == module ) {
-                        yyerror(scanner, "Cannot initialize a new module.");
-                    }
+                    ERROR_ON_NULL(module, "Cannot initialize a new module.");
                     context = yyget_extra(scanner);
                     cur = context->cur;
                     context->cur = module;
@@ -427,9 +432,7 @@ expr_list:      expression
                 {
                     expr_list_t *list;
                     list = expr_list_new();
-                    if ( NULL == list ) {
-                        yyerror(scanner, "Memory error: expr_list_new()");
-                    }
+                    ERROR_ON_NULL(list, "Memory error: expr_list_new()");
                     $$ = expr_list_append(list, $1);
                 }
         |       expr_list TOK_COMMA expression
@@ -488,17 +491,13 @@ switch_block:   switch_block switch_case
                 {
                     switch_block_t *block;
                     block = switch_block_new();
-                    if ( NULL == block ) {
-                        yyerror(scanner, "Parse error: switch");
-                    }
+                    ERROR_ON_NULL(block, "Parse error: switch");
                     $$ = switch_block_append(block, $1);
                 }
                 ;
 switch_case:    TOK_CASE literal_set TOK_COLON inner_block
                 {
-                    if ( NULL == $2 ) {
-                        yyerror(scanner, "Parse error: case");
-                    }
+                    ERROR_ON_NULL($2, "Parse error: case");
                     $$ = switch_case_new($2, $4);
                 }
         |       TOK_DEFAULT TOK_COLON inner_block
@@ -518,9 +517,7 @@ assign_expr:    primary TOK_DEF assign_expr
 or_test:        or_test TOK_LOR or_test
                 {
                     $$ = expr_op_new_infix($1, $3, OP_OR);
-                    if ( NULL == $$ ) {
-                        yyerror(scanner, "Parse error: ||");
-                    }
+                    ERROR_ON_NULL($$, "Parse error: ||");
                 }
         |       and_test
                 {
@@ -530,9 +527,7 @@ or_test:        or_test TOK_LOR or_test
 and_test:       and_test TOK_LAND and_test
                 {
                     $$ = expr_op_new_infix($1, $3, OP_AND);
-                    if ( NULL == $$ ) {
-                        yyerror(scanner, "Parse error: &&");
-                    }
+                    ERROR_ON_NULL($$, "Parse error: &&");
                 }
         |       or_expr
                 {
@@ -542,9 +537,7 @@ and_test:       and_test TOK_LAND and_test
 or_expr:        or_expr TOK_BIT_OR or_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_OR);
-                    if ( NULL == $$ ) {
-                        yyerror(scanner, "Parse error: ||");
-                    }
+                    ERROR_ON_NULL($$, "Parse error: ||");
                 }
         |       xor_expr
                 {
@@ -554,9 +547,7 @@ or_expr:        or_expr TOK_BIT_OR or_expr
 xor_expr:       xor_expr TOK_BIT_XOR xor_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_XOR);
-                    if ( NULL == $$ ) {
-                        yyerror(scanner, "Parse error: ^");
-                    }
+                    ERROR_ON_NULL($$, "Parse error: ^");
                 }
         |       and_expr
                 {
@@ -566,9 +557,7 @@ xor_expr:       xor_expr TOK_BIT_XOR xor_expr
 and_expr:       and_expr TOK_BIT_AND and_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_AND);
-                    if ( NULL == $$ ) {
-                        yyerror(scanner, "Parse error: &");
-                    }
+                    ERROR_ON_NULL($$, "Parse error: &");
                 }
         |       comparison_eq
                 {
