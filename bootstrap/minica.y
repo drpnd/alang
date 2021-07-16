@@ -496,6 +496,9 @@ switch_block:   switch_block switch_case
                 ;
 switch_case:    TOK_CASE literal_set TOK_COLON inner_block
                 {
+                    if ( NULL == $2 ) {
+                        yyerror(scanner, "Parse error: case");
+                    }
                     $$ = switch_case_new($2, $4);
                 }
         |       TOK_DEFAULT TOK_COLON inner_block
