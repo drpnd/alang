@@ -173,9 +173,6 @@ outer_entry:    directive
                     block = outer_block_entry_new(OUTER_BLOCK_COROUTINE);
                     block->u.cr = $1;
                     $$ = block;
-                    context_t *context;
-                    context = yyget_extra(scanner);
-                    coroutine_vec_add(&code->coroutines, $1);
                 }
         |       function
                 {
