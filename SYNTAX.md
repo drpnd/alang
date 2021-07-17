@@ -268,6 +268,9 @@ All the data are carried a packet.
     retval ::=
             [ identifier ":" ] type
 
+    retvals ::=
+            [ retval ( "," retval )* ]
+
     fndef ::=
             "fn" identifier funcargs [ funcargs ] suite
 
