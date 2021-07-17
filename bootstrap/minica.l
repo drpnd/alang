@@ -196,6 +196,10 @@ _append_buffer_char(yyscan_t scanner, char c)
 "i16"       return TOK_TYPE_I16;
 "i32"       return TOK_TYPE_I32;
 "i64"       return TOK_TYPE_I64;
+"u8"        return TOK_TYPE_U8;
+"u16"       return TOK_TYPE_U16;
+"u32"       return TOK_TYPE_U32;
+"u64"       return TOK_TYPE_U64;
 "fp32"      return TOK_TYPE_FP32;
 "fp64"      return TOK_TYPE_FP64;
 "string"    return TOK_TYPE_STRING;

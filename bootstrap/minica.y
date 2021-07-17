@@ -87,6 +87,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE TOK_RETURN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
+%token TOK_TYPE_U8 TOK_TYPE_U16 TOK_TYPE_U32 TOK_TYPE_U64
 %token TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
 %token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING TOK_TYPE_BOOL
 %token TOK_NIL TOK_TRUE TOK_FALSE
@@ -756,17 +757,33 @@ primitive_type: TOK_TYPE_I8
                 {
                     $$ = type_new_primitive(TYPE_PRIMITIVE_I8);
                 }
+        |       TOK_TYPE_U8
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_U8);
+                }
         |       TOK_TYPE_I16
                 {
                     $$ = type_new_primitive(TYPE_PRIMITIVE_I16);
+                }
+        |       TOK_TYPE_U16
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_U16);
                 }
         |       TOK_TYPE_I32
                 {
                     $$ = type_new_primitive(TYPE_PRIMITIVE_I32);
                 }
+        |       TOK_TYPE_U32
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_U32);
+                }
         |       TOK_TYPE_I64
                 {
                     $$ = type_new_primitive(TYPE_PRIMITIVE_I64);
+                }
+        |       TOK_TYPE_U64
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_U64);
                 }
         |       TOK_TYPE_FP32
                 {
