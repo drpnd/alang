@@ -116,15 +116,13 @@ All the data are carried a packet.
     EOS ::=
             NEWLINE | ";"
 
-### Primitive types
+### Datq types
 
     integer_type ::=
             "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64" | "u64"
 
     fp_type ::=
             "fp32" | "fp64"
-
-### Struct or union types
 
     struct_name ::=
             identifier
@@ -138,13 +136,8 @@ All the data are carried a packet.
     union_type ::=
             "union" union_name
 
-### Syntax
-
     type ::=
             integer_type | fp_type | "string" | struct_type | union_type
-
-    suite ::=
-            "{" statement* "}"
 
     member ::=
             declaration [ ";" ]
@@ -152,11 +145,19 @@ All the data are carried a packet.
     member_list ::=
             member ( "," member )*
 
-    structdef ::=
-            "struct" struct_name "{" member_list "}"
+    struct_def ::=
+            struct_type "{" member_list "}"
+
+    uniond_def ::=
+            union_type "{" member_list "}"
 
     typedef ::=
             "typedef" type identifier
+
+### Syntax
+
+    suite ::=
+            "{" statement* "}"
 
     retval ::=
             [ identifier ":" ] type
