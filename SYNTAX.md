@@ -176,7 +176,7 @@ All the data are carried a packet.
 ### Expressions
 
     p_expr ::=
-            primary | u_expr "++" | u_expr "--"
+            primary | p_expr "++" | p_expr "--"
             | p_expr ( "." identifier
                       | "[" expression_list "]"
                       | "(" expression_list ")" )*
