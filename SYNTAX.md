@@ -101,6 +101,9 @@ All the data are carried a packet.
     float ::=
             digit+ "." digit* | "." digit+
 
+    literal ::=
+            string | integer | float
+
 ### Datq types
 
     integer_type ::=
@@ -145,6 +148,11 @@ All the data are carried a packet.
     typedef ::=
             "typedef" type identifier
 
+## Primitives
+
+    declaration ::=
+            identifer ":" type
+
 ### Function / Coroutine
 
     funcarg ::=
@@ -165,57 +173,7 @@ All the data are carried a packet.
     crdef ::=
             "coroutine" identifer funcargs [ retvals ] suite
 
-### Statements
-
-    statement ::=
-            expression
-            | return_stmt
-            | fndef
-            | crdef
-            | while_stmt
-
-    statements ::=
-            statement*
-
-    suite ::=
-            "{" statement* "}"
-
 ### Expressions
-
-
-
-### Syntax
-
-    atom ::=
-            identifier | literal | list_display | dict_display
-            | "(" expression_list_with_comma ")"
-
-    expression_list_with_comma ::=
-            [ expression ( "," expression )* [","] ]
-
-    literal ::=
-            stringliteral | integer | floatnumber
-
-    list_display ::=
-            "[" expression_list_with_comma "]"
-
-    dict_display ::=
-            "{" key_datum_list "}"
-
-    key_datum_list ::=
-            [ key_datum ("," key_datum)* ]
-
-    key_datum ::=
-            expression ":" expression
-
-    declaration ::=
-            identifer ":" type
-
-    primary ::=
-            atom ( "." identifier
-                  | "[" expression_list_with_comma "]"
-                  | "(" expression_list_with_comma ")" )*
-            | "(" expression ")"
 
     p_expr ::=
             primary | u_expr "++" | u_expr "--"
@@ -279,12 +237,54 @@ All the data are carried a packet.
     expression ::=
             control_expr
 
+    expression_list ::=
+            expression ( "," expression )*
+
+### Statements
+
     return_stmt ::=
             "return" expression
             | "return" ";"
 
     while_stmt ::=
             "while" expression suite
+
+    statement ::=
+            expression_list
+            | return_stmt
+            | while_stmt
+            | fndef
+            | crdef
+
+    statements ::=
+            statement*
+
+    suite ::=
+            "{" statement* "}"
+
+### Syntax
+
+    atom ::=
+            identifier | literal | list_display | dict_display
+            | "(" expression_list_with_comma ")"
+
+    list_display ::=
+            "[" expression_list_with_comma "]"
+
+    dict_display ::=
+            "{" key_datum_list "}"
+
+    key_datum_list ::=
+            [ key_datum ("," key_datum)* ]
+
+    key_datum ::=
+            expression ":" expression
+
+    primary ::=
+            atom ( "." identifier
+                  | "[" expression_list_with_comma "]"
+                  | "(" expression_list_with_comma ")" )*
+            | "(" expression ")"
 
     input ::=
             statements EOF
