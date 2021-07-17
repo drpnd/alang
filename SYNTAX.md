@@ -116,11 +116,15 @@ All the data are carried a packet.
     EOS ::=
             NEWLINE | ";"
 
+### Primitive types
+
     integer_type ::=
             "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64" | "u64"
 
     fp_type ::=
             "fp32" | "fp64"
+
+### Struct or union types
 
     struct_name ::=
             identifier
@@ -133,6 +137,8 @@ All the data are carried a packet.
 
     union_type ::=
             "union" union_name
+
+### Syntax
 
     type ::=
             integer_type | fp_type | "string" | struct_type | union_type
