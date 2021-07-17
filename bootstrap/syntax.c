@@ -680,10 +680,10 @@ enum_elem_prepend(enum_elem_t *elem, enum_elem_t *list)
 }
 
 /*
- * expr_new_val -- allocate an expression with a value
+ * expr_new_id -- allocate an expression with an ID
  */
 expr_t *
-expr_new_val(val_t *val)
+expr_new_id(const char *id)
 {
     expr_t *e;
 
@@ -691,8 +691,32 @@ expr_new_val(val_t *val)
     if ( NULL == e ) {
         return NULL;
     }
-    e->type = EXPR_VAL;
-    e->u.val = val;
+    e->type = EXPR_ID;
+    e->u.id = strdup(id);
+    if ( NULL == e->u.id ) {
+        free(e);
+        return NULL;
+    }
+    e->next = NULL;
+
+    return e;
+}
+
+
+/*
+ * expr_new_literal -- allocate an expression with a literal
+ */
+expr_t *
+expr_new_literal(literal_t *lit)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    e->type = EXPR_LITERAL;
+    e->u.lit = lit;
     e->next = NULL;
 
     return e;

@@ -361,7 +361,8 @@ typedef enum {
  * Expression type
  */
 typedef enum {
-    EXPR_VAL,
+    EXPR_ID,
+    EXPR_LITERAL,
     EXPR_OP,
     EXPR_SWITCH,
     EXPR_IF,
@@ -429,7 +430,8 @@ typedef struct {
 struct _expr {
     expr_type_t type;
     union {
-        val_t *val;
+        char *id;
+        literal_t *lit;
         op_t *op;
         switch_t sw;
         if_t ife;
@@ -718,7 +720,8 @@ extern "C" {
     op_t * op_new_infix(expr_t *, expr_t *, op_type_t);
     op_t * op_new_prefix(expr_t *, op_type_t);
     op_t * op_new_suffix(expr_t *, op_type_t);
-    expr_t * expr_new_val(val_t *);
+    expr_t * expr_new_id(const char *);
+    expr_t * expr_new_literal(literal_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);
     expr_t * expr_op_new_suffix(expr_t *, op_type_t);

@@ -100,7 +100,6 @@ void yyerror(yyscan_t, const char*);
 %type <oblock> outer_block
 %type <obent> outer_entry
 %type <idval> identifier
-%type <var> variable
 %type <decl> declaration
 %type <args> args funcargs retvals
 %type <arg> arg
@@ -707,18 +706,11 @@ primary:        atom
 
 atom:           literal
                 {
-                    $$ = expr_new_val(val_new_literal($1));
+                    $$ = expr_new_literal($1);
                 }
-        |       variable
+        |       identifier
                 {
-                    $$ = expr_new_val(val_new_variable($1));
-                }
-                ;
-variable:       identifier
-                {
-                    context_t *context;
-                    context = yyget_extra(scanner);
-                    $$ = var_new_id(&context->vars, $1);
+                    $$ = expr_new_id($1);
                 }
                 ;
 declaration:    identifier TOK_COLON type
