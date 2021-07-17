@@ -154,6 +154,26 @@ All the data are carried a packet.
     typedef ::=
             "typedef" type identifier
 
+### Function / Coroutine
+
+    funcarg ::=
+            identifier ":" type
+
+    funcargs ::=
+            "(" [ funcarg ( "," funcarg )* ] ")"
+
+    retval ::=
+            [ identifier ":" ] type
+
+    retvals ::=
+            "(" [ retval ( "," retval )* ] ")"
+
+    fndef ::=
+            "fn" identifier funcargs [ retvals ] suite
+
+    crdef ::=
+            "coroutine" identifer funcargs [ retvals ] suite
+
 ### Syntax
 
     suite ::=
@@ -258,24 +278,6 @@ All the data are carried a packet.
     return_stmt ::=
             "return" expression
             | "return" ";"
-
-    funcarg ::=
-            identifier ":" type
-
-    funcargs ::=
-            "(" [ funcarg ( "," funcarg )* ] ")"
-
-    retval ::=
-            [ identifier ":" ] type
-
-    retvals ::=
-            "(" [ retval ( "," retval )* ] ")"
-
-    fndef ::=
-            "fn" identifier funcargs [ retvals ] suite
-
-    crdef ::=
-            "coroutine" identifer funcargs [ retvals ] suite
 
     while_stmt ::=
             "while" expression suite
