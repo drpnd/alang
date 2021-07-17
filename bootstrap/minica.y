@@ -129,8 +129,8 @@ void yyerror(yyscan_t, const char*);
 %left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
 %left TOK_COMMA TOK_DOT
 %right TOK_DEF TOK_EQ
+%right TOK_NOT TOK_ATMARK TOK_BIT_NOT
 %nonassoc TOK_INC TOK_DEC
-%nonassoc TOK_NOT TOK_ATMARK TOK_BIT_NOT
 %nonassoc TOK_LPAREN
 %nonassoc UNOP ELSENOP RETNOP
 
