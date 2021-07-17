@@ -212,20 +212,20 @@ All the data are carried a packet.
     or_expr ::=
             xor_expr ( "|" xor_expr )*
 
-    comparison ::=
-            or_expr [ comp_operator or_expr ]
-
     comp_operator ::=
             "<" | ">" | "==" | ">=" | "<=" | "!="
 
+    comparison ::=
+            or_expr [ comp_operator or_expr ]
+
     not_test ::=
-            comparison | "not" not_test
+            comparison | "!" not_test
 
     and_test ::=
-            not_test ( "and" not_test )*
+            not_test ( "&&" not_test )*
 
     or_test ::=
-            and_test ( "or" and_test )*
+            and_test ( "||" and_test )*
 
     assign_expr ::=
             primary ":=" assign_expr
