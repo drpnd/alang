@@ -109,6 +109,9 @@ All the data are carried a packet.
     fp_type ::=
             "fp32" | "fp64"
 
+    string_type ::=
+            "string"
+
     struct_name ::=
             identifier
 
