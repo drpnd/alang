@@ -112,6 +112,9 @@ All the data are carried a packet.
     string_type ::=
             "string"
 
+    boolean_type ::=
+            "bool"
+
     struct_name ::=
             identifier
 
