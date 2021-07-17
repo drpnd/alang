@@ -263,19 +263,19 @@ All the data are carried a packet.
             identifier ":" type
 
     funcargs ::=
-            [ funcarg ( "," funcarg )* ]
+            "(" [ funcarg ( "," funcarg )* ] ")"
 
     retval ::=
             [ identifier ":" ] type
 
     retvals ::=
-            [ retval ( "," retval )* ]
+            "(" [ retval ( "," retval )* ] ")"
 
     fndef ::=
-            "fn" identifier funcargs [ funcargs ] suite
+            "fn" identifier funcargs [ retvals ] suite
 
     crdef ::=
-            "coroutine" identifer funcargs [ funcargs ] suite
+            "coroutine" identifer funcargs [ retvals ] suite
 
     while_stmt ::=
             "while" expression suite
