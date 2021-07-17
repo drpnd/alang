@@ -101,6 +101,9 @@ All the data are carried a packet.
     float ::=
             digit+ "." digit* | "." digit+
 
+    literal_list ::=
+            literal ("," literal)*
+
     literal ::=
             string | integer | float
 
@@ -228,6 +231,18 @@ All the data are carried a packet.
 
     if_expr ::=
             "if" expression suite [ else_block ]
+
+    switch_case ::=
+            "case" literal_list ":" statements
+
+    switch_default ::=
+            "default" ":" statements
+
+    switch_cases ::=
+            [ switch_case* ] [ switch_default ]
+
+    switch_expr ::=
+            "switch" expression "{" switch_cases "}"
 
     control_expr ::=
             if_expr
