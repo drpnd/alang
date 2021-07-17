@@ -54,8 +54,10 @@ All the data are carried a packet.
 1. `:=`
 1. `,`
 
+## Grammar (BNF)
 
-## BNF
+    EOS ::=
+            NEWLINE | ";"
 
     token ::=
             "nil" | "true" | "false"
@@ -96,25 +98,6 @@ All the data are carried a packet.
 
     float ::=
             digit+ "." digit* | "." digit+
-
-
-## Priority of operators
-
-    "*" | "/" | "%"
-    "+" | "-"
-    "<<" | ">>"
-    "&"
-    "^"
-    "|"
-    "<" | ">" | "==" | ">=" | "<=" | "!="
-    not
-    and
-    or
-
-## Grammar
-
-    EOS ::=
-            NEWLINE | ";"
 
 ### Datq types
 
@@ -182,9 +165,6 @@ All the data are carried a packet.
     atom ::=
             identifier | literal | list_display | dict_display
             | "(" expression_list_with_comma ")"
-
-    #identifier_list ::=
-    #        identifer ( "," identifer )* [ "," ]
 
     expression_list_with_comma ::=
             [ expression ( "," expression )* [","] ]
