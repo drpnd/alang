@@ -178,8 +178,8 @@ All the data are carried a packet.
     p_expr ::=
             primary | u_expr "++" | u_expr "--"
             | p_expr ( "." identifier
-                      | "[" expression_list_with_comma "]"
-                      | "(" expression_list_with_comma ")" )*
+                      | "[" expression_list "]"
+                      | "(" expression_list ")" )*
 
     u_expr ::=
             p_expr | "-" u_expr | "+" u_expr | "~" u_expr | "++" u_expr
@@ -265,13 +265,10 @@ All the data are carried a packet.
 ### Syntax
 
     atom ::=
-            identifier | literal | "(" expression_list ")"
+            identifier | literal
 
     primary ::=
-            atom ( "." identifier
-                  | "[" expression_list_with_comma "]"
-                  | "(" expression_list_with_comma ")" )*
-            | "(" expression ")"
+            atom | "(" expression ")"
 
     input ::=
             statements EOF
