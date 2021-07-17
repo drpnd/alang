@@ -156,6 +156,12 @@ All the data are carried a packet.
     declaration ::=
             identifer ":" type
 
+    atom ::=
+            identifier | literal
+
+    primary ::=
+            atom | "(" expression ")"
+
 ### Function / Coroutine
 
     funcarg ::=
@@ -276,12 +282,6 @@ All the data are carried a packet.
             "{" statement* "}"
 
 ### Syntax
-
-    atom ::=
-            identifier | literal
-
-    primary ::=
-            atom | "(" expression ")"
 
     input ::=
             statements EOF
