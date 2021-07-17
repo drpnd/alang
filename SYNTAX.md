@@ -84,6 +84,8 @@ All the data are carried a packet.
     digit ::=
             "0"..."9"
 
+### Literals
+
     string ::=
             '"' stringitem* '"'
 
@@ -157,10 +159,26 @@ All the data are carried a packet.
     crdef ::=
             "coroutine" identifer funcargs [ retvals ] suite
 
-### Syntax
+### Statements
+
+    statement ::=
+            expression
+            | return_stmt
+            | fndef
+            | crdef
+            | while_stmt
+
+    statements ::=
+            statement*
 
     suite ::=
             "{" statement* "}"
+
+### Expressions
+
+
+
+### Syntax
 
     atom ::=
             identifier | literal | list_display | dict_display
@@ -261,16 +279,6 @@ All the data are carried a packet.
 
     while_stmt ::=
             "while" expression suite
-
-    statement ::=
-            expression
-            | return_stmt
-            | fndef
-            | crdef
-            | while_stmt
-
-    statements ::=
-            ( statement )*
 
     input ::=
             statements EOF
