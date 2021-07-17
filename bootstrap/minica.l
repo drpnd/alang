@@ -154,7 +154,6 @@ _append_buffer_char(yyscan_t scanner, char c)
 "*"         return TOK_MUL;
 "/"         return TOK_DIV;
 "%"         return TOK_MOD;
-"/%"        return TOK_DIVMOD;
 "++"        return TOK_INC;
 "--"        return TOK_DEC;
     /* Bitwise operations */
@@ -163,6 +162,7 @@ _append_buffer_char(yyscan_t scanner, char c)
 "^"         return TOK_BIT_XOR;
 "<<"        return TOK_BIT_LSHIFT;
 ">>"        return TOK_BIT_RSHIFT;
+"~"         return TOK_BIT_NOT;
     /* Logical operations */
 "||"        return TOK_LOR;
 "&&"        return TOK_LAND;

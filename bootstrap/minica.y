@@ -76,7 +76,7 @@ void yyerror(yyscan_t, const char*);
 %token <numval>         TOK_LIT_HEXINT TOK_LIT_DECINT TOK_LIT_OCTINT
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR
-%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_DIVMOD TOK_INC TOK_DEC
+%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_INC TOK_DEC
 %token TOK_DEF
 %token TOK_LAND TOK_LOR TOK_NOT
 %token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
@@ -86,6 +86,7 @@ void yyerror(yyscan_t, const char*);
 %token TOK_EQ TOK_COMMA TOK_DOT TOK_ATMARK
 %token TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE TOK_RETURN
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
+%token TOK_BIT_NOT
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPE_U8 TOK_TYPE_U16 TOK_TYPE_U32 TOK_TYPE_U64
 %token TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
@@ -121,7 +122,7 @@ void yyerror(yyscan_t, const char*);
 %type <lit> literal
 %type <lset> literal_set
 
-%left TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_DIVMOD
+%left TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD
 %left TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %left TOK_LAND TOK_LOR
 %left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
@@ -129,7 +130,7 @@ void yyerror(yyscan_t, const char*);
 %left TOK_COMMA TOK_DOT
 %right TOK_DEF TOK_EQ
 %nonassoc TOK_INC TOK_DEC
-%nonassoc TOK_NOT TOK_ATMARK
+%nonassoc TOK_NOT TOK_ATMARK TOK_BIT_NOT
 %nonassoc TOK_LPAREN
 %nonassoc UNOP ELSENOP RETNOP
 
@@ -635,10 +636,6 @@ m_expr:         m_expr TOK_MUL m_expr
                 {
                     $$ = expr_op_new_infix($1, $3, OP_MOD);
                 }
-        |       m_expr TOK_DIVMOD m_expr
-                {
-                    $$ = expr_op_new_infix($1, $3, OP_DIVMOD);
-                }
         |       u_expr
                 {
                     $$ = $1;
@@ -655,6 +652,10 @@ u_expr:         TOK_SUB u_expr
         |       TOK_NOT u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_NOT);
+                }
+        |       TOK_BIT_NOT u_expr
+                {
+                    $$ = expr_op_new_prefix($2, OP_COMP);
                 }
         |       TOK_INC u_expr
                 {

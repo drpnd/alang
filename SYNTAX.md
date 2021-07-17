@@ -191,8 +191,8 @@ All the data are carried a packet.
                       | "(" expression_list ")" )*
 
     u_expr ::=
-            p_expr | "-" u_expr | "+" u_expr | "~" u_expr | "++" u_expr
-            | "--" u_expr
+            p_expr | "-" u_expr | "+" u_expr  | "!" u_expr | "~" u_expr
+            | "++" u_expr | "--" u_expr
 
     m_expr ::=
             u_expr ( ( "*" | "/" | "%" ) u_expr )*
@@ -203,8 +203,14 @@ All the data are carried a packet.
     shift_expr ::=
             a_expr ( ( "<<" | ">>" ) a_expr )*
 
+    compariosn ::=
+            shift_expr ( ("<" | ">" | "<=" | ">=") shift_expr )*
+
+    comparison_eq ::=
+            comparison ( ("==" | "!=") comparison )*
+
     and_expr ::=
-            shift_expr ( "&" shift_expr )*
+            comparison_eq ( "&" comparison_eq )*
 
     xor_expr ::=
             and_expr ( "^" and_expr )*
@@ -212,17 +218,8 @@ All the data are carried a packet.
     or_expr ::=
             xor_expr ( "|" xor_expr )*
 
-    comp_operator ::=
-            "<" | ">" | "==" | ">=" | "<=" | "!="
-
-    comparison ::=
-            or_expr [ comp_operator or_expr ]
-
-    not_test ::=
-            comparison | "!" not_test
-
     and_test ::=
-            not_test ( "&&" not_test )*
+            or_expr ( "&&" or_expr )*
 
     or_test ::=
             and_test ( "||" and_test )*
