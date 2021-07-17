@@ -234,12 +234,10 @@ All the data are carried a packet.
 
     switch_case ::=
             "case" literal_list ":" statements
-
-    switch_default ::=
-            "default" ":" statements
+            | "default" ":" statements
 
     switch_cases ::=
-            [ switch_case* ] [ switch_default ]
+            [ switch_case* ]
 
     switch_expr ::=
             "switch" expression "{" switch_cases "}"
