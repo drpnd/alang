@@ -265,20 +265,7 @@ All the data are carried a packet.
 ### Syntax
 
     atom ::=
-            identifier | literal | list_display | dict_display
-            | "(" expression_list_with_comma ")"
-
-    list_display ::=
-            "[" expression_list_with_comma "]"
-
-    dict_display ::=
-            "{" key_datum_list "}"
-
-    key_datum_list ::=
-            [ key_datum ("," key_datum)* ]
-
-    key_datum ::=
-            expression ":" expression
+            identifier | literal | "(" expression_list ")"
 
     primary ::=
             atom ( "." identifier
