@@ -221,27 +221,6 @@ struct _var_stack {
 };
 
 /*
- * Value type
- */
-typedef enum {
-    VAL_LITERAL,
-    VAL_VAR,
-    VAL_DECL,
-} val_type_t;
-
-/*
- * Values
- */
-typedef struct {
-    val_type_t type;
-    union {
-        literal_t *lit;
-        var_t *var;
-	decl_t *decl;
-    } u;
-} val_t;
-
-/*
  * Arguments
  */
 typedef struct _arg arg_t;
@@ -684,9 +663,6 @@ extern "C" {
     var_t * var_new_id(var_stack_t **, char *);
     var_t * var_new_ptr(var_stack_t **, var_t *);
     var_list_t * var_list_new(var_t *);
-    val_t * val_new_literal(literal_t *);
-    val_t * val_new_variable(var_t *);
-    val_t * val_new_declaration(decl_t *);
     decl_t * decl_new(const char *, type_t *);
     decl_list_t * decl_list_new(decl_t *);
     decl_list_t * decl_list_append(decl_list_t *, decl_t *);

@@ -256,60 +256,6 @@ var_list_new(var_t *var)
 }
 
 /*
- * val_new_literal -- allocate a literal value
- */
-val_t *
-val_new_literal(literal_t *lit)
-{
-    val_t *v;
-
-    v = malloc(sizeof(val_t));
-    if ( NULL == v ) {
-        return NULL;
-    }
-    v->type = VAL_LITERAL;
-    v->u.lit = lit;
-
-    return v;
-}
-
-/*
- * val_new_variable -- allocate a variable value
- */
-val_t *
-val_new_variable(var_t *var)
-{
-    val_t *v;
-
-    v = malloc(sizeof(val_t));
-    if ( NULL == v ) {
-        return NULL;
-    }
-    v->type = VAL_VAR;
-    v->u.var = var;
-
-    return v;
-}
-
-/*
- * val_new_declaration -- allocate a declaration value
- */
-val_t *
-val_new_declaration(decl_t *decl)
-{
-    val_t *v;
-
-    v = malloc(sizeof(val_t));
-    if ( NULL == v ) {
-        return NULL;
-    }
-    v->type = VAL_DECL;
-    v->u.decl = decl;
-
-    return v;
-}
-
-/*
  * type_new_primitive -- allocate a type
  */
 type_t *
