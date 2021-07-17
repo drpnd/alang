@@ -281,7 +281,7 @@ All the data are carried a packet.
     suite ::=
             "{" statement* "}"
 
-### Syntax
+### File
 
     input ::=
             statements EOF
