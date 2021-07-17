@@ -159,15 +159,6 @@ All the data are carried a packet.
     suite ::=
             "{" statement* "}"
 
-    retval ::=
-            [ identifier ":" ] type
-
-    fnname ::=
-            identifier
-
-    fndef ::=
-            "fn" fnname "(" parameter_list ")" [retval] suite
-
     atom ::=
             identifier | literal | list_display | dict_display
             | "(" expression_list_with_comma ")"
@@ -267,6 +258,15 @@ All the data are carried a packet.
     return_stmt ::=
             "return" expression
             | "return" ";"
+
+    funcarg ::=
+            identifier ":" type
+
+    funcargs ::=
+            [ funcarg ( "," funcarg )* ]
+
+    retval ::=
+            [ identifier ":" ] type
 
     fndef ::=
             "fn" identifier funcargs [ funcargs ] suite
