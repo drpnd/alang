@@ -719,7 +719,6 @@ extern "C" {
     int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
     int typedef_define(context_t *, type_t *, const char *);
     code_file_t * code_file_new(outer_block_t *);
-    int code_file_init(code_file_t *);
 
 #ifdef __cplusplus
 }

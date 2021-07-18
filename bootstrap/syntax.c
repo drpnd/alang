@@ -1425,32 +1425,6 @@ code_file_new(outer_block_t *block)
 }
 
 /*
- * code_file_init -- initialie code file
- */
-int
-code_file_init(code_file_t *code)
-{
-    /* Initialize functions */
-    code->funcs.n = 0;
-    code->funcs.size = VECTOR_INIT_SIZE;
-    code->funcs.vec = malloc(VECTOR_INIT_SIZE * sizeof(func_t *));
-    if ( NULL == code->funcs.vec ) {
-        return -1;
-    }
-
-    /* Initialize coroutines */
-    code->coroutines.n = 0;
-    code->coroutines.size = VECTOR_INIT_SIZE;
-    code->coroutines.vec = malloc(VECTOR_INIT_SIZE * sizeof(coroutine_t *));
-    if ( NULL == code->coroutines.vec ) {
-        free(code->funcs.vec);
-        return -1;
-    }
-
-    return 0;
-}
-
-/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4
