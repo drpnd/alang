@@ -349,6 +349,7 @@ typedef enum {
     EXPR_CALL,
     EXPR_REF,
     EXPR_MEMBER,
+    EXPR_LIST,
 } expr_type_t;
 
 /*
@@ -419,6 +420,7 @@ struct _expr {
         member_t mem;
         call_t *call;
         ref_t *ref;
+        expr_list_t *list;
     } u;
     expr_t *next;
 };
@@ -706,6 +708,7 @@ extern "C" {
     expr_t * expr_new_ref(expr_t *, expr_t *);
     expr_t * expr_new_switch(expr_t *, switch_block_t *);
     expr_t * expr_new_if(expr_t *, inner_block_t *, inner_block_t *);
+    expr_t * expr_new_list(expr_list_t *);
     expr_list_t * expr_list_new(void);
     expr_list_t * expr_list_append(expr_list_t *, expr_t *);
     switch_case_t * switch_case_new(literal_set_t *, inner_block_t *);

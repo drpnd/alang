@@ -688,9 +688,9 @@ primary:        atom
                 {
                     $$ = $1;
                 }
-        |       TOK_LPAREN expression TOK_RPAREN
+        |       TOK_LPAREN expr_list TOK_RPAREN
                 {
-                    $$ = $2;
+                    $$ = expr_new_list($2);
                 }
                 ;
 

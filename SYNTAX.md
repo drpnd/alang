@@ -160,7 +160,7 @@ All the data are carried a packet.
             literal | identifier | declaration
 
     primary ::=
-            atom | "(" expression ")"
+            atom | "(" expression_list ")"
 
 ### Function / Coroutine
 

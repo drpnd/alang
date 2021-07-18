@@ -802,6 +802,25 @@ expr_new_if(expr_t *cond, inner_block_t *bif, inner_block_t *belse)
 }
 
 /*
+ * expr_new_list
+ */
+expr_t *
+expr_new_list(expr_list_t *list)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    e->type = EXPR_LIST;
+    e->u.list = list;
+    e->next = NULL;
+
+    return e;
+}
+
+/*
  * expr_list_new -- allocate an expression list
  */
 expr_list_t *
