@@ -1419,6 +1419,7 @@ code_file_new(outer_block_t *block)
     if ( NULL == code ) {
         return NULL;
     }
+    code->block = block;
 
     return code;
 }

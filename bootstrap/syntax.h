@@ -604,7 +604,7 @@ typedef struct {
     func_vec_t funcs;
     coroutine_vec_t coroutines;
 
-    outer_block_t *blocks;
+    outer_block_t *block;
 } code_file_t;
 
 #define STRING_CHUNK 4096
