@@ -157,7 +157,7 @@ All the data are carried a packet.
             identifer ":" type
 
     atom ::=
-            identifier | literal | declaration
+            literal | identifier | declaration
 
     primary ::=
             atom | "(" expression ")"
