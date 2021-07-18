@@ -231,9 +231,6 @@ include:        TOK_INCLUDE TOK_LIT_STR
                 ;
 use:            TOK_USE identifier
                 {
-                    context_t *context;
-                    context = yyget_extra(scanner);
-                    //compile_use_extern(context, $2);
                     $$ = directive_use_new($2);
                 }
                 ;
