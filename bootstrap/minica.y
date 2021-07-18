@@ -62,7 +62,6 @@ void yyerror(yyscan_t, const char*);
     literal_set_t *lset;
     var_t *var;
     var_list_t *varlist;
-    val_t *val;
     arg_list_t *args;
     arg_t *arg;
     enum_elem_t *enum_elem;
