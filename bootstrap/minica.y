@@ -29,7 +29,6 @@
 #include "compile.h"
 #include "lex.yy.h"
 
-code_file_t *code;
 void yyerror(yyscan_t, const char*);
 
 #define ERROR_ON_NULL(val, msg)     \
@@ -863,7 +862,6 @@ yyerror(yyscan_t scanner, const char *str)
 code_file_t *
 minica_parse(FILE *fp)
 {
-    int ret;
     yyscan_t scanner;
     context_t *context;
     module_t *module;
@@ -882,19 +880,6 @@ minica_parse(FILE *fp)
         return NULL;
     }
     context->cur = module;
-
-    /* Initialize the code file (output) */
-    code = malloc(sizeof(code_file_t));
-    if ( NULL == code ) {
-        free(context);
-        return NULL;
-    }
-    ret = code_file_init(code);
-    if ( ret < 0 ) {
-        free(context);
-        free(code);
-        return NULL;
-    }
 
     /* Initialize the scanner with the extra data context */
     yylex_init_extra(context, &scanner);
@@ -915,7 +900,7 @@ minica_parse(FILE *fp)
     /* Compile */
     //compile(code);
 
-    return code;
+    return context->code;
 }
 
 /*
