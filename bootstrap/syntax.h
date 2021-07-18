@@ -341,6 +341,7 @@ typedef enum {
  */
 typedef enum {
     EXPR_ID,
+    EXPR_DECL,
     EXPR_LITERAL,
     EXPR_OP,
     EXPR_SWITCH,
@@ -410,6 +411,7 @@ struct _expr {
     expr_type_t type;
     union {
         char *id;
+        decl_t *decl;
         literal_t *lit;
         op_t *op;
         switch_t sw;
@@ -433,7 +435,6 @@ struct _expr_list {
  * Statement type
  */
 typedef enum {
-    STMT_DECL,
     STMT_WHILE,
     STMT_EXPR,
     STMT_EXPR_LIST,
@@ -455,7 +456,6 @@ typedef struct {
 struct _stmt {
     stmt_type_t type;
     union {
-        decl_t *decl;
         stmt_while_t whilestmt;
         expr_t *expr;
         expr_list_t *exprs;
@@ -685,7 +685,6 @@ extern "C" {
     outer_block_entry_t * outer_block_entry_new(outer_block_entry_type_t);
     outer_block_t * outer_block_new(outer_block_entry_t *);
     inner_block_t * inner_block_new(stmt_list_t *);
-    stmt_t * stmt_new_decl(decl_t *);
     stmt_t * stmt_new_while(expr_t *, inner_block_t *);
     stmt_t * stmt_new_expr(expr_t *);
     stmt_t * stmt_new_expr_list(expr_list_t *);
@@ -697,6 +696,7 @@ extern "C" {
     op_t * op_new_prefix(expr_t *, op_type_t);
     op_t * op_new_suffix(expr_t *, op_type_t);
     expr_t * expr_new_id(const char *);
+    expr_t * expr_new_decl(decl_t *);
     expr_t * expr_new_literal(literal_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(expr_t *, op_type_t);

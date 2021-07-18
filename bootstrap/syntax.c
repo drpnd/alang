@@ -648,6 +648,24 @@ expr_new_id(const char *id)
     return e;
 }
 
+/*
+ * expr_new_decl -- allocate an expression with a declaration
+ */
+expr_t *
+expr_new_decl(decl_t *decl)
+{
+    expr_t *e;
+
+    e = malloc(sizeof(expr_t));
+    if ( NULL == e ) {
+        return NULL;
+    }
+    e->type = EXPR_DECL;
+    e->u.decl = decl;
+    e->next = NULL;
+
+    return e;
+}
 
 /*
  * expr_new_literal -- allocate an expression with a literal
@@ -1099,25 +1117,6 @@ inner_block_new(stmt_list_t *stmts)
     block->next = NULL;
 
     return block;
-}
-
-/*
- * stmt_new_decl -- allocate a declaration statement
- */
-stmt_t *
-stmt_new_decl(decl_t *decl)
-{
-    stmt_t *stmt;
-
-    stmt = malloc(sizeof(stmt_t));
-    if ( NULL == stmt ) {
-        return NULL;
-    }
-    stmt->type = STMT_DECL;
-    stmt->u.decl = decl;
-    stmt->next = NULL;
-
-    return stmt;
 }
 
 /*

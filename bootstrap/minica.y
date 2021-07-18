@@ -115,7 +115,7 @@ void yyerror(yyscan_t, const char*);
 %type <swcase> switch_case
 %type <func> function
 %type <coroutine> coroutine
-%type <stmt> statement stmt_decl stmt_while stmt_expr_list stmt_return
+%type <stmt> statement stmt_while stmt_expr_list stmt_return
 %type <stmts> statements
 %type <lit> literal
 %type <lset> literal_set
@@ -378,11 +378,7 @@ statements:     statement
                 ;
 
 /* Statements */
-statement:      stmt_decl
-                {
-                    $$ = $1;
-                }
-        |       stmt_while
+statement:      stmt_while
                 {
                     $$ = $1;
                 }
@@ -397,11 +393,6 @@ statement:      stmt_decl
         |       suite
                 {
                     $$ = stmt_new_block($1);
-                }
-                ;
-stmt_decl:      declaration
-                {
-                    $$ = stmt_new_decl($1);
                 }
                 ;
 stmt_while:     TOK_WHILE expression TOK_LBRACE inner_block TOK_RBRACE
@@ -710,6 +701,10 @@ atom:           literal
         |       identifier
                 {
                     $$ = expr_new_id($1);
+                }
+        |       declaration
+                {
+                    $$ = expr_new_decl($1);
                 }
                 ;
 declaration:    identifier TOK_COLON type
