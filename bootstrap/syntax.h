@@ -715,9 +715,6 @@ extern "C" {
     switch_case_t * switch_case_new(literal_set_t *, inner_block_t *);
     switch_block_t * switch_block_new(void);
     switch_block_t * switch_block_append(switch_block_t *, switch_case_t *);
-    int func_vec_add(func_vec_t *, func_t *);
-    int coroutine_vec_add(coroutine_vec_t *, coroutine_t *);
-    int typedef_define(context_t *, type_t *, const char *);
     code_file_t * code_file_new(outer_block_t *);
 
 #ifdef __cplusplus

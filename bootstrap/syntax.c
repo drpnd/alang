@@ -1324,56 +1324,6 @@ switch_block_append(switch_block_t *block, switch_case_t *c)
 }
 
 /*
- * func_vec_add -- add a function to the function vector
- */
-int
-func_vec_add(func_vec_t *vec, func_t *func)
-{
-    func_t **nvec;
-    size_t resized;
-
-    if ( vec->n >= vec->size ) {
-        /* Resize */
-        resized = vec->size + VECTOR_DELTA;
-        nvec = realloc(vec->vec, resized * sizeof(func_t *));
-        if ( NULL == nvec ) {
-            return -1;
-        }
-        vec->vec = nvec;
-        vec->size = resized;
-    }
-    vec->vec[vec->n] = func;
-    vec->n++;
-
-    return 0;
-}
-
-/*
- * coroutine_vec_add -- add a coroutine to the coroutine vector
- */
-int
-coroutine_vec_add(coroutine_vec_t *vec, coroutine_t *cr)
-{
-    coroutine_t **nvec;
-    size_t resized;
-
-    if ( vec->n >= vec->size ) {
-        /* Resize */
-        resized = vec->size + VECTOR_DELTA;
-        nvec = realloc(vec->vec, resized * sizeof(coroutine_t *));
-        if ( NULL == nvec ) {
-            return -1;
-        }
-        vec->vec = nvec;
-        vec->size = resized;
-    }
-    vec->vec[vec->n] = cr;
-    vec->n++;
-
-    return 0;
-}
-
-/*
  * module_vec_add -- add a module block to the module vector
  */
 int
@@ -1395,15 +1345,6 @@ module_vec_add(module_vec_t *vec, module_t *module)
     vec->vec[vec->n] = module;
     vec->n++;
 
-    return 0;
-}
-
-/*
- * typedef_define -- define a type
- */
-int
-typedef_define(context_t *context, type_t *type1, const char *type2)
-{
     return 0;
 }
 

@@ -239,9 +239,6 @@ use:            TOK_USE identifier
                 ;
 typedef:        TOK_TYPEDEF type identifier
                 {
-                    context_t *context;
-                    context = yyget_extra(scanner);
-                    typedef_define(context, $2, $3);
                     $$ = directive_typedef_new($2, $3);
                 }
                 ;
