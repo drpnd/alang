@@ -137,11 +137,18 @@ void yyerror(yyscan_t, const char*);
 %lex-param { void *scanner }
 %parse-param { void *scanner }
 
-%start file
+%start start
 
 %%
 
 /* Syntax and parser implementation below */
+start:          file
+                {
+                    context_t *context;
+                    context = yyget_extra(scanner);
+                    context->code = $1;
+                }
+                ;
 file:           outer_block
                 {
                     $$ = code_file_new($1);

@@ -637,6 +637,7 @@ typedef struct {
     /* Lexer string buffer */
     struct string buffer;
     /* Parser's context */
+    code_file_t *code;
     var_stack_t *vars;
     module_t *cur;
 } context_t;
