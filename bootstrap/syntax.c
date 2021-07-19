@@ -440,7 +440,7 @@ arg_new(decl_t *dcl)
  * arg_list_new -- allocate an argument list
  */
 arg_list_t *
-arg_list_new(void)
+arg_list_new(arg_t *arg)
 {
     arg_list_t *list;
 
@@ -450,6 +450,10 @@ arg_list_new(void)
     }
     list->head = NULL;
     list->tail = NULL;
+
+    if ( NULL != arg ) {
+        return arg_list_append(list, arg);
+    }
 
     return list;
 }

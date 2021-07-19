@@ -332,9 +332,7 @@ retvals:        TOK_LPAREN args TOK_RPAREN
                 }
 args:           arg
                 {
-                    arg_list_t *list;
-                    list = arg_list_new();
-                    $$ = arg_list_append(list, $1);
+                    $$ = arg_list_new($1);
                 }
         |       args TOK_COMMA arg
                 {
@@ -342,7 +340,7 @@ args:           arg
                 }
         |
                 {
-                    $$ = arg_list_new();
+                    $$ = arg_list_new(NULL);
                 }
                 ;
 arg:            declaration

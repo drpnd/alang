@@ -670,7 +670,7 @@ extern "C" {
     decl_list_t * decl_list_new(decl_t *);
     decl_list_t * decl_list_append(decl_list_t *, decl_t *);
     arg_t * arg_new(decl_t *);
-    arg_list_t * arg_list_new(void);
+    arg_list_t * arg_list_new(arg_t *);
     arg_list_t * arg_list_append(arg_list_t *, arg_t *);
     directive_t * directive_struct_new(const char *, decl_list_t *);
     directive_t * directive_union_new(const char *, decl_list_t *);
