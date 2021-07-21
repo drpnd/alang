@@ -95,8 +95,17 @@ All the data are carried a packet.
     escapeseq ::=
             "\x" [0-9a-fA-F]{2} | "\" [0-9]{1,3} | "\" <any ascii char>
 
+    octint ::=
+            0 ("0"..."7")*
+
+    hexint ::=
+            0x (digit | "a"..."f" | "A"..."F")*
+
+    decint ::=
+            digit*
+
     integer ::=
-            0 ("0"..."7")* | 0x (digit | "a"..."f" | "A"..."F")* | digit*
+            octint | hexint | decint
 
     float ::=
             digit+ "." digit* | "." digit+
