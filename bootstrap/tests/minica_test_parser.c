@@ -39,10 +39,70 @@ usage(const char *prog)
 
 code_file_t * minica_parse(FILE *);
 
+static char *
+_type(type_t *t)
+{
+    switch ( t->type ) {
+    case TYPE_PRIMITIVE_I8:
+        return "i8";
+    case TYPE_PRIMITIVE_U8:
+        return "u8";
+    case TYPE_PRIMITIVE_I16:
+        return "i16";
+    case TYPE_PRIMITIVE_U16:
+        return "u16";
+    case TYPE_PRIMITIVE_I32:
+        return "i32";
+    case TYPE_PRIMITIVE_U32:
+        return "u32";
+    case TYPE_PRIMITIVE_I64:
+        return "i64";
+    case TYPE_PRIMITIVE_U64:
+        return "u64";
+    case TYPE_PRIMITIVE_FP32:
+        return "fp32";
+    case TYPE_PRIMITIVE_FP64:
+        return "fp64";
+    case TYPE_PRIMITIVE_STRING:
+        return "string";
+    case TYPE_PRIMITIVE_BOOL:
+        return "bool";
+    case TYPE_STRUCT:
+        return "struct";
+    case TYPE_UNION:
+        return "union";
+    case TYPE_ENUM:
+        return "enum";
+    case TYPE_ID:
+        return t->u.id;
+    }
+    return "(unknown type)";
+}
+
+static void
+_decl(decl_t *decl)
+{
+    printf("Declaration %s : %s\n", decl->id, _type(decl->type));
+}
+
+static void
+_args(arg_list_t *args)
+{
+    arg_t *a;
+
+    a = args->head;
+    while ( NULL != a ) {
+        _decl(a->decl);
+        a = a->next;
+    }
+}
+
 static void
 _func(func_t *fn)
 {
     printf("Function: %s\n", fn->id);
+    _args(fn->args);
+    _args(fn->rets);
 }
 
 static void
