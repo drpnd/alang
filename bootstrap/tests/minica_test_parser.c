@@ -39,6 +39,67 @@ usage(const char *prog)
 
 code_file_t * minica_parse(FILE *);
 
+static void
+_func(func_t *fn)
+{
+    printf("Function: %s\n", fn->id);
+}
+
+static void
+_coroutine(coroutine_t *cr)
+{
+    printf("Coroutine: %s\n", cr->id);
+}
+
+static void
+_module(module_t *md)
+{
+    printf("Module: %s\n", md->id);
+}
+
+static void
+_directive(directive_t *dr)
+{
+    printf("Directive\n");
+}
+
+static void
+_outer_block_entry(outer_block_entry_t *e)
+{
+    switch ( e->type ) {
+    case OUTER_BLOCK_FUNC:
+        _func(e->u.fn);
+        break;
+    case OUTER_BLOCK_COROUTINE:
+        _coroutine(e->u.cr);
+        break;
+    case OUTER_BLOCK_MODULE:
+        _module(e->u.md);
+        break;
+    case OUTER_BLOCK_DIRECTIVE:
+        _directive(e->u.dr);
+        break;
+    }
+}
+
+static void
+_outer_block(outer_block_t *block)
+{
+    outer_block_entry_t *e;
+
+    e = block->head;
+    while ( NULL != e ) {
+        _outer_block_entry(e);
+        e = e->next;
+    }
+}
+
+static void
+_display_ast(code_file_t *code)
+{
+    _outer_block(code->block);
+}
+
 /*
  * Main routine for the parser test
  */
@@ -66,6 +127,9 @@ main(int argc, const char *const argv[])
     if ( NULL == code ) {
         exit(EXIT_FAILURE);
     }
+
+    /* Print out the AST */
+    _display_ast(code);
 
     return EXIT_SUCCESS;
 }
