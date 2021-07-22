@@ -889,9 +889,6 @@ minica_parse(FILE *fp)
     free(context);
     yylex_destroy(scanner);
 
-    /* Compile */
-    //compile(code);
-
     return context->code;
 }
 
