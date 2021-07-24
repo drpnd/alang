@@ -39,6 +39,9 @@ usage(const char *prog)
 
 code_file_t * minica_parse(FILE *);
 
+/* Declarations */
+static void _inner_block(inner_block_t *);
+
 static char *
 _type(type_t *t)
 {
@@ -98,6 +101,32 @@ _args(arg_list_t *args)
 }
 
 static void
+_expr(expr_t *e)
+{
+    printf("expr\n");
+}
+
+static void
+_expr_list(expr_list_t *exprs)
+{
+    expr_t *e;
+
+    e = exprs->head;
+    while ( NULL != e ) {
+        _expr(e);
+        e = e->next;
+    }
+}
+
+static void
+_return(expr_t *e)
+{
+    printf("Return:");
+    _expr(e);
+    printf("\n");
+}
+
+static void
 _stmt(stmt_t *stmt)
 {
     switch ( stmt->type ) {
@@ -105,16 +134,16 @@ _stmt(stmt_t *stmt)
         printf("while\n");
         break;
     case STMT_EXPR:
-        printf("expr\n");
+        _expr(stmt->u.expr);
         break;
     case STMT_EXPR_LIST:
-        printf("exprs\n");
+        _expr_list(stmt->u.exprs);
         break;
     case STMT_BLOCK:
-        printf("block\n");
+        _inner_block(stmt->u.block);
         break;
     case STMT_RETURN:
-        printf("return\n");
+        _return(stmt->u.expr);
         break;
     }
 }
