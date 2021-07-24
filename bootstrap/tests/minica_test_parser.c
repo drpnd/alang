@@ -119,6 +119,12 @@ _expr_list(expr_list_t *exprs)
 }
 
 static void
+_while(stmt_while_t *w)
+{
+    printf("while\n");
+}
+
+static void
 _return(expr_t *e)
 {
     printf("Return:");
@@ -131,7 +137,7 @@ _stmt(stmt_t *stmt)
 {
     switch ( stmt->type ) {
     case STMT_WHILE:
-        printf("while\n");
+        _while(&stmt->u.whilestmt);
         break;
     case STMT_EXPR:
         _expr(stmt->u.expr);
