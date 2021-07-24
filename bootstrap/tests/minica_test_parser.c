@@ -104,17 +104,33 @@ _args(arg_list_t *args)
 static void
 _expr(expr_t *e)
 {
-    printf("expr\n");
     switch ( e->type ) {
     case EXPR_ID:
+        printf("ID\n");
+        break;
     case EXPR_DECL:
+        printf("DECL\n");
+        break;
     case EXPR_LITERAL:
+        printf("LITERAL\n");
+        break;
     case EXPR_OP:
+        printf("OP\n");
+        break;
     case EXPR_SWITCH:
+        printf("SWITCH\n");
+        break;
     case EXPR_IF:
+        printf("IF\n");
+        break;
     case EXPR_CALL:
+        printf("CALL\n");
+        break;
     case EXPR_REF:
+        printf("REF\n");
+        break;
     case EXPR_MEMBER:
+        printf("MEMBER\n");
         break;
     case EXPR_LIST:
         _expr_list(e->u.list);
