@@ -98,11 +98,52 @@ _args(arg_list_t *args)
 }
 
 static void
+_stmt(stmt_t *stmt)
+{
+    switch ( stmt->type ) {
+    case STMT_WHILE:
+        printf("while\n");
+        break;
+    case STMT_EXPR:
+        printf("expr\n");
+        break;
+    case STMT_EXPR_LIST:
+        printf("exprs\n");
+        break;
+    case STMT_BLOCK:
+        printf("block\n");
+        break;
+    case STMT_RETURN:
+        printf("return\n");
+        break;
+    }
+}
+
+static void
+_inner_block(inner_block_t *block)
+{
+    stmt_t *stmt;
+
+    stmt = block->stmts->head;
+    while ( NULL != stmt ) {
+        _stmt(stmt);
+        stmt = stmt->next;
+    }
+}
+
+static void
 _func(func_t *fn)
 {
     printf("Function: %s\n", fn->id);
+    printf("Arguments: ");
     _args(fn->args);
+    printf("\n");
+    printf("Return values: ");
     _args(fn->rets);
+    printf("\n");
+    printf("Block: ");
+    _inner_block(fn->block);
+    printf("\n");
 }
 
 static void
