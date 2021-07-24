@@ -40,6 +40,7 @@ usage(const char *prog)
 code_file_t * minica_parse(FILE *);
 
 /* Declarations */
+static void _expr_list(expr_list_t *);
 static void _inner_block(inner_block_t *);
 
 static char *
@@ -104,6 +105,21 @@ static void
 _expr(expr_t *e)
 {
     printf("expr\n");
+    switch ( e->type ) {
+    case EXPR_ID:
+    case EXPR_DECL:
+    case EXPR_LITERAL:
+    case EXPR_OP:
+    case EXPR_SWITCH:
+    case EXPR_IF:
+    case EXPR_CALL:
+    case EXPR_REF:
+    case EXPR_MEMBER:
+        break;
+    case EXPR_LIST:
+        _expr_list(e->u.list);
+        break;
+    }
 }
 
 static void
@@ -122,6 +138,10 @@ static void
 _while(stmt_while_t *w)
 {
     printf("while\n");
+    printf("condition: ");
+    _expr(w->cond);
+    printf("block: ");
+    _inner_block(w->block);
 }
 
 static void
