@@ -40,6 +40,7 @@ usage(const char *prog)
 code_file_t * minica_parse(FILE *);
 
 /* Declarations */
+static void _expr(expr_t *);
 static void _expr_list(expr_list_t *);
 static void _inner_block(inner_block_t *);
 
@@ -102,26 +103,101 @@ _args(arg_list_t *args)
 }
 
 static void
+_assign(op_t *op)
+{
+    if ( FIX_INFIX != op->fix ) {
+        printf("error\n");
+        exit(EXIT_FAILURE);
+    }
+
+    _expr(op->e0);
+    printf(" := ");
+    _expr(op->e1);
+}
+
+static void
+_add(op_t *op)
+{
+    switch ( op->fix ) {
+    case FIX_PREFIX:
+        printf("+");
+        _expr(op->e0);
+        break;
+    case FIX_INFIX:
+        _expr(op->e0);
+        printf("+");
+        _expr(op->e1);
+        break;
+    default:
+        printf("Error\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+static void
+_sub(op_t *op)
+{
+    switch ( op->fix ) {
+    case FIX_PREFIX:
+        printf("-");
+        _expr(op->e0);
+        break;
+    case FIX_INFIX:
+        _expr(op->e0);
+        printf("-");
+        _expr(op->e1);
+        break;
+    default:
+        printf("Error\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+static void
+_mul(op_t *op)
+{
+    if ( FIX_INFIX != op->fix ) {
+        printf("Error\n");
+        exit(EXIT_FAILURE);
+    }
+    _expr(op->e0);
+    printf("*");
+    _expr(op->e1);
+}
+
+static void
+_div(op_t *op)
+{
+    printf("div\n");
+}
+
+static void
+_mod(op_t *op)
+{
+    printf("mod\n");
+}
+
+static void
 _op(op_t *op)
 {
     switch ( op->type ) {
     case OP_ASSIGN:
-        printf("assign\n");
+        _assign(op);
         break;
     case OP_ADD:
-        printf("add\n");
+        _add(op);
         break;
     case OP_SUB:
-        printf("sub\n");
+        _sub(op);
         break;
     case OP_MUL:
-        printf("mul\n");
+        _mul(op);
         break;
     case OP_DIV:
-        printf("div\n");
+        _div(op);
         break;
     case OP_MOD:
-        printf("mod\n");
+        _mod(op);
         break;
     case OP_NOT:
         printf("not\n");
