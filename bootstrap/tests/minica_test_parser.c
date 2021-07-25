@@ -102,6 +102,76 @@ _args(arg_list_t *args)
 }
 
 static void
+_op(op_t *op)
+{
+    switch ( op->type ) {
+    case OP_ASSIGN:
+        printf("assign\n");
+        break;
+    case OP_ADD:
+        printf("add\n");
+        break;
+    case OP_SUB:
+        printf("sub\n");
+        break;
+    case OP_MUL:
+        printf("mul\n");
+        break;
+    case OP_DIV:
+        printf("div\n");
+        break;
+    case OP_MOD:
+        printf("mod\n");
+        break;
+    case OP_NOT:
+        printf("not\n");
+        break;
+    case OP_AND:
+        printf("and\n");
+        break;
+    case OP_OR:
+        printf("or\n");
+        break;
+    case OP_XOR:
+        printf("xor\n");
+        break;
+    case OP_COMP:
+        printf("comp\n");
+        break;
+    case OP_LSHIFT:
+        printf("lshift\n");
+        break;
+    case OP_RSHIFT:
+        printf("rshift\n");
+        break;
+    case OP_CMP_EQ:
+        printf("==\n");
+        break;
+    case OP_CMP_NEQ:
+        printf("!=\n");
+        break;
+    case OP_CMP_GT:
+        printf(">\n");
+        break;
+    case OP_CMP_LT:
+        printf("<\n");
+        break;
+    case OP_CMP_GEQ:
+        printf(">=\n");
+        break;
+    case OP_CMP_LEQ:
+        printf("<=\n");
+        break;
+    case OP_INC:
+        printf("++\n");
+        break;
+    case OP_DEC:
+        printf("--\n");
+        break;
+    }
+}
+
+static void
 _expr(expr_t *e)
 {
     switch ( e->type ) {
@@ -115,7 +185,7 @@ _expr(expr_t *e)
         printf("LITERAL\n");
         break;
     case EXPR_OP:
-        printf("OP\n");
+        _op(e->u.op);
         break;
     case EXPR_SWITCH:
         printf("SWITCH\n");
