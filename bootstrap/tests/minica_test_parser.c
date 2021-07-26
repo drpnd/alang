@@ -87,7 +87,7 @@ _type(type_t *t)
 static void
 _decl(decl_t *decl)
 {
-    printf("Declaration %s : %s\n", decl->id, _type(decl->type));
+    printf("%s : %s", decl->id, _type(decl->type));
 }
 
 static void
@@ -168,13 +168,25 @@ _mul(op_t *op)
 static void
 _div(op_t *op)
 {
-    printf("div\n");
+    if ( FIX_INFIX != op->fix ) {
+        printf("Error\n");
+        exit(EXIT_FAILURE);
+    }
+    _expr(op->e0);
+    printf("/");
+    _expr(op->e1);
 }
 
 static void
 _mod(op_t *op)
 {
-    printf("mod\n");
+    if ( FIX_INFIX != op->fix ) {
+        printf("Error\n");
+        exit(EXIT_FAILURE);
+    }
+    _expr(op->e0);
+    printf("%%");
+    _expr(op->e1);
 }
 
 static void
@@ -248,14 +260,20 @@ _op(op_t *op)
 }
 
 static void
+_id(const char *id)
+{
+    printf("%s", id);
+}
+
+static void
 _expr(expr_t *e)
 {
     switch ( e->type ) {
     case EXPR_ID:
-        printf("ID\n");
+        _id(e->u.id);
         break;
     case EXPR_DECL:
-        printf("DECL\n");
+        _decl(e->u.decl);
         break;
     case EXPR_LITERAL:
         printf("LITERAL\n");
