@@ -260,6 +260,34 @@ _op(op_t *op)
 }
 
 static void
+_literal(literal_t *lit)
+{
+    switch ( lit->type ) {
+    case LIT_HEXINT:
+        printf("0x%s", lit->u.n);
+        break;
+    case LIT_DECINT:
+        printf("%s", lit->u.n);
+        break;
+    case LIT_OCTINT:
+        printf("0%s", lit->u.n);
+        break;
+    case LIT_FLOAT:
+        printf("%s", lit->u.n);
+        break;
+    case LIT_STRING:
+        printf("%s", lit->u.s);
+        break;
+    case LIT_BOOL:
+        printf("%s", lit->u.b == BOOL_TRUE ? "true" : "false");
+        break;
+    case LIT_NIL:
+        printf("nil");
+        break;
+    }
+}
+
+static void
 _id(const char *id)
 {
     printf("%s", id);
@@ -276,7 +304,7 @@ _expr(expr_t *e)
         _decl(e->u.decl);
         break;
     case EXPR_LITERAL:
-        printf("LITERAL\n");
+        _literal(e->u.lit);
         break;
     case EXPR_OP:
         _op(e->u.op);
@@ -317,11 +345,11 @@ _expr_list(expr_list_t *exprs)
 static void
 _while(stmt_while_t *w)
 {
-    printf("while\n");
-    printf("condition: ");
+    printf("while ");
     _expr(w->cond);
-    printf("block: ");
+    printf("{\n");
     _inner_block(w->block);
+    printf("}\n");
 }
 
 static void
@@ -352,6 +380,7 @@ _stmt(stmt_t *stmt)
         _return(stmt->u.expr);
         break;
     }
+    printf("\n");
 }
 
 static void
