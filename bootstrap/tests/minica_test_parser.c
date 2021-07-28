@@ -212,25 +212,25 @@ _op(op_t *op)
         _mod(op);
         break;
     case OP_NOT:
-        printf("not\n");
+        printf("!\n");
         break;
     case OP_AND:
-        printf("and\n");
+        printf("&\n");
         break;
     case OP_OR:
-        printf("or\n");
+        printf("|\n");
         break;
     case OP_XOR:
-        printf("xor\n");
+        printf("^\n");
         break;
     case OP_COMP:
-        printf("comp\n");
+        printf("~\n");
         break;
     case OP_LSHIFT:
-        printf("lshift\n");
+        printf("<<\n");
         break;
     case OP_RSHIFT:
-        printf("rshift\n");
+        printf(">>\n");
         break;
     case OP_CMP_EQ:
         printf("==\n");
