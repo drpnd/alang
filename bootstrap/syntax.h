@@ -311,6 +311,8 @@ typedef enum {
     OP_DIV,
     OP_MOD,
     OP_NOT,
+    OP_LAND,
+    OP_LOR,
     OP_AND,
     OP_OR,
     OP_XOR,

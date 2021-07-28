@@ -214,6 +214,12 @@ _op(op_t *op)
     case OP_NOT:
         printf("!\n");
         break;
+    case OP_LAND:
+        printf("&&\n");
+        break;
+    case OP_LOR:
+        printf("||\n");
+        break;
     case OP_AND:
         printf("&\n");
         break;

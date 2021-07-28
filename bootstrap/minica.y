@@ -502,7 +502,7 @@ assign_expr:    primary TOK_DEF assign_expr
                 ;
 or_test:        or_test TOK_LOR or_test
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_OR);
+                    $$ = expr_op_new_infix($1, $3, OP_LOR);
                     ERROR_ON_NULL($$, "Parse error: ||");
                 }
         |       and_test
@@ -512,7 +512,7 @@ or_test:        or_test TOK_LOR or_test
                 ;
 and_test:       and_test TOK_LAND and_test
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_AND);
+                    $$ = expr_op_new_infix($1, $3, OP_LAND);
                     ERROR_ON_NULL($$, "Parse error: &&");
                 }
         |       or_expr
