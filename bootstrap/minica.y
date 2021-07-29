@@ -119,17 +119,23 @@ void yyerror(yyscan_t, const char*);
 %type <lit> literal
 %type <lset> literal_set
 
-%left TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD
-%left TOK_BIT_LSHIFT TOK_BIT_RSHIFT
-%left TOK_LAND TOK_LOR
-%left TOK_EQ_EQ TOK_NEQ TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
-%left TOK_BIT_OR TOK_BIT_XOR TOK_BIT_AND
-%left TOK_COMMA TOK_DOT
-%right TOK_DEF TOK_EQ
-%right TOK_NOT TOK_ATMARK TOK_BIT_NOT
-%nonassoc TOK_INC TOK_DEC
 %nonassoc TOK_LPAREN
-%nonassoc UNOP ELSENOP RETNOP
+%left TOK_DOT TOK_INC TOK_DEC SNOP
+%right TOK_NOT TOK_BIT_NOT TOK_ATMARK UNOP
+%left TOK_MUL TOK_DIV TOK_MOD
+%left TOK_ADD TOK_SUB
+%left TOK_BIT_LSHIFT TOK_BIT_RSHIFT
+%left TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
+%left TOK_EQ_EQ TOK_NEQ
+%left TOK_BIT_AND
+%left TOK_BIT_XOR
+%left TOK_BIT_OR
+%left TOK_LAND
+%left TOK_LOR
+%right TOK_DEF TOK_EQ
+%left TOK_COMMA
+
+%nonassoc ELSENOP RETNOP
 
 %locations
 
@@ -652,7 +658,7 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix($2, OP_DEC);
                 }
-        |       p_expr %prec UNOP
+        |       p_expr %prec SNOP
                 {
                     $$ = $1;
                 }
