@@ -190,8 +190,24 @@ _mod(op_t *op)
 }
 
 static void
+_inc(op_t *op)
+{
+    if ( FIX_PREFIX == op->fix ) {
+        printf("++");
+        _expr(op->e0);
+    } else if ( FIX_SUFFIX == op->fix ) {
+        _expr(op->e0);
+        printf("++");
+    } else {
+        printf("Error\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+static void
 _op(op_t *op)
 {
+    printf("(");
     switch ( op->type ) {
     case OP_ASSIGN:
         _assign(op);
@@ -257,12 +273,13 @@ _op(op_t *op)
         printf("<=\n");
         break;
     case OP_INC:
-        printf("++\n");
+        _inc(op);
         break;
     case OP_DEC:
         printf("--\n");
         break;
     }
+    printf(")");
 }
 
 static void

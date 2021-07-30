@@ -40,8 +40,9 @@ All the data are carried a packet.
 
 ## Precedence of operators
 
-1. `!` `~` unary ops
-1. `*` `/` `%`
+1. suffix `++` `--`, `()`
+1. `!`, `~`, unary `+` `-`, `++` (prefix), `--` (prefix)
+1. `*`, `/`, `%`
 1. `+` `-`
 1. `<<` `>>`
 1. `<` `<=` `>` `>=`
