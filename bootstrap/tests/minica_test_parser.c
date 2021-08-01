@@ -44,6 +44,28 @@ static void _expr(expr_t *);
 static void _expr_list(expr_list_t *);
 static void _inner_block(inner_block_t *);
 
+static void
+_infix(const char *op, expr_t *e0, expr_t *e1)
+{
+    _expr(e0);
+    printf(" %s ", op);
+    _expr(e1);
+}
+
+static void
+_prefix(const char *op, expr_t *e)
+{
+    printf("%s ", op);
+    _expr(e);
+}
+
+static void
+_suffix(const char *op, expr_t *e)
+{
+    _expr(e);
+    printf(" %s", op);
+}
+
 static char *
 _type(type_t *t)
 {
@@ -109,10 +131,7 @@ _assign(op_t *op)
         printf("error\n");
         exit(EXIT_FAILURE);
     }
-
-    _expr(op->e0);
-    printf(" := ");
-    _expr(op->e1);
+    _infix(":=", op->e0, op->e1);
 }
 
 static void
@@ -120,13 +139,10 @@ _add(op_t *op)
 {
     switch ( op->fix ) {
     case FIX_PREFIX:
-        printf("+");
-        _expr(op->e0);
+        _prefix("+", op->e0);
         break;
     case FIX_INFIX:
-        _expr(op->e0);
-        printf("+");
-        _expr(op->e1);
+        _infix("+", op->e0, op->e1);
         break;
     default:
         printf("Error\n");
@@ -139,13 +155,10 @@ _sub(op_t *op)
 {
     switch ( op->fix ) {
     case FIX_PREFIX:
-        printf("-");
-        _expr(op->e0);
+        _prefix("-", op->e0);
         break;
     case FIX_INFIX:
-        _expr(op->e0);
-        printf("-");
-        _expr(op->e1);
+        _infix("-", op->e0, op->e1);
         break;
     default:
         printf("Error\n");
@@ -160,9 +173,7 @@ _mul(op_t *op)
         printf("Error\n");
         exit(EXIT_FAILURE);
     }
-    _expr(op->e0);
-    printf("*");
-    _expr(op->e1);
+    _infix("*", op->e0, op->e1);
 }
 
 static void
@@ -172,9 +183,7 @@ _div(op_t *op)
         printf("Error\n");
         exit(EXIT_FAILURE);
     }
-    _expr(op->e0);
-    printf("/");
-    _expr(op->e1);
+    _infix("/", op->e0, op->e1);
 }
 
 static void
@@ -184,20 +193,16 @@ _mod(op_t *op)
         printf("Error\n");
         exit(EXIT_FAILURE);
     }
-    _expr(op->e0);
-    printf("%%");
-    _expr(op->e1);
+    _infix("%%", op->e0, op->e1);
 }
 
 static void
 _inc(op_t *op)
 {
     if ( FIX_PREFIX == op->fix ) {
-        printf("++");
-        _expr(op->e0);
+        _prefix("++", op->e0);
     } else if ( FIX_SUFFIX == op->fix ) {
-        _expr(op->e0);
-        printf("++");
+        _suffix("++", op->e0);
     } else {
         printf("Error\n");
         exit(EXIT_FAILURE);
@@ -208,11 +213,9 @@ static void
 _dec(op_t *op)
 {
     if ( FIX_PREFIX == op->fix ) {
-        printf("--");
-        _expr(op->e0);
+        _prefix("--", op->e0);
     } else if ( FIX_SUFFIX == op->fix ) {
-        _expr(op->e0);
-        printf("--");
+        _suffix("--", op->e0);
     } else {
         printf("Error\n");
         exit(EXIT_FAILURE);
