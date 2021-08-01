@@ -396,7 +396,7 @@ _while(stmt_while_t *w)
 static void
 _return(expr_t *e)
 {
-    printf("Return:");
+    printf("return ");
     _expr(e);
     printf("\n");
 }
