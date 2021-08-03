@@ -120,9 +120,9 @@ void yyerror(yyscan_t, const char*);
 %type <lset> literal_set
 
 %nonassoc TOK_LPAREN
-%nonassoc SNOP
+%right SNOP
 %left TOK_DOT TOK_INC TOK_DEC
-%nonassoc UNOP
+%left UNOP
 %right TOK_NOT TOK_BIT_NOT TOK_ATMARK
 %left TOK_MUL TOK_DIV TOK_MOD
 %left TOK_ADD TOK_SUB
