@@ -439,16 +439,15 @@ _inner_block(inner_block_t *block)
 static void
 _func(func_t *fn)
 {
-    printf("Function: %s\n", fn->id);
-    printf("Arguments: ");
+    printf("fn %s(", fn->id);
     _args(fn->args);
-    printf("\n");
+    printf(")\n");
     printf("Return values: ");
     _args(fn->rets);
     printf("\n");
-    printf("Block: ");
+    printf("{\n");
     _inner_block(fn->block);
-    printf("\n");
+    printf("}\n");
 }
 
 static void
