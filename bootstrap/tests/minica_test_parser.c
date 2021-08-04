@@ -109,7 +109,7 @@ _type(type_t *t)
 static void
 _decl(decl_t *decl)
 {
-    printf("%s : %s", decl->id, _type(decl->type));
+    printf("%s: %s", decl->id, _type(decl->type));
 }
 
 static void
