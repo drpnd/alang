@@ -441,10 +441,9 @@ _func(func_t *fn)
 {
     printf("fn %s(", fn->id);
     _args(fn->args);
-    printf(")\n");
-    printf("Return values: ");
+    printf(") (");
     _args(fn->rets);
-    printf("\n");
+    printf(")\n");
     printf("{\n");
     _inner_block(fn->block);
     printf("}\n");
