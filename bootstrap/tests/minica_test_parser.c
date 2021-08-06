@@ -43,6 +43,7 @@ code_file_t * minica_parse(FILE *);
 static void _expr(expr_t *);
 static void _expr_list(expr_list_t *);
 static void _inner_block(inner_block_t *);
+static void _outer_block(outer_block_t *);
 
 static void
 _infix(const char *op, expr_t *e0, expr_t *e1)
@@ -452,13 +453,22 @@ _func(func_t *fn)
 static void
 _coroutine(coroutine_t *cr)
 {
-    printf("Coroutine: %s\n", cr->id);
+    printf("coroutine %s(", cr->id);
+    _args(cr->args);
+    printf(") (");
+    _args(cr->rets);
+    printf(")\n");
+    printf("{\n");
+    _inner_block(cr->block);
+    printf("}\n");
 }
 
 static void
 _module(module_t *md)
 {
-    printf("Module: %s\n", md->id);
+    printf("module %s {\n", md->id);
+    _outer_block(md->block);
+    printf("}\n");
 }
 
 static void
