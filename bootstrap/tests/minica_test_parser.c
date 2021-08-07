@@ -474,7 +474,23 @@ _module(module_t *md)
 static void
 _directive(directive_t *dr)
 {
-    printf("Directive\n");
+    switch ( dr->type ) {
+    case DIRECTIVE_USE:
+        printf("use %s\n", dr->u.use.id);
+        break;
+    case DIRECTIVE_STRUCT:
+        printf("struct %s\n", dr->u.st.id);
+        break;
+    case DIRECTIVE_UNION:
+        printf("union %s\n", dr->u.un.id);
+        break;
+    case DIRECTIVE_ENUM:
+        printf("enum %s\n", dr->u.en.id);
+        break;
+    case DIRECTIVE_TYPEDEF:
+        printf("typedef\n");
+        break;
+    }
 }
 
 static void
