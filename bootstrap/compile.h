@@ -129,17 +129,28 @@ typedef enum {
 /*
  * Variable
  */
-typedef struct {
+typedef struct _var compiler_var_t;
+struct _var {
     var_type_t reg;
     char *id;
     size_t size;
-} compiler_var_t;
+    compiler_var_t *prev;
+    compiler_var_t *next;
+};
+
+/*
+ * Variable stack
+ */
+typedef struct {
+    compiler_var_t *top;
+} compiler_var_stack_t;
 
 /*
  * Environment
  */
 typedef struct {
     /* Variables */
+    compiler_var_stack_t *vars;
 } compiler_env_t;
 
 /*
