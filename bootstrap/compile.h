@@ -59,26 +59,6 @@ typedef struct {
 } linker_t;
 
 /*
- * Register type
- */
-typedef enum {
-    REG_I8,
-    REG_I16,
-    REG_I32,
-    REG_I64,
-    MEM_I8,
-    MEM_I16,
-    MEM_I32,
-    MEM_I64,
-    REG_FP16,
-    REG_FP32,
-    REG_FP64,
-    MEM_FP16,
-    MEM_FP32,
-    MEM_FP64,
-} register_type_t;
-
-/*
  * Opcode
  */
 typedef enum {
@@ -133,13 +113,26 @@ typedef struct {
     compiler_instr_t *instr;
 } compiler_block_t;
 
+/*
+ * Register type
+ */
+typedef enum {
+    REG_I8,
+    REG_I16,
+    REG_I32,
+    REG_I64,
+    REG_FP16,
+    REG_FP32,
+    REG_FP64,
+    REG_MEM,
+} reg_type_t;
 
 /*
  * Variable
  */
 typedef struct {
-    var_t *var;
-    register_type_t reg;
+    reg_type_t reg;
+    char *id;
 } compiler_var_t;
 
 /*

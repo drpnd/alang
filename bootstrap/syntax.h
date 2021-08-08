@@ -683,7 +683,6 @@ extern "C" {
     coroutine_t *
     coroutine_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
     module_t * module_new(const char *, outer_block_t *);
-    void module_delete(module_t *);
     outer_block_entry_t * outer_block_entry_new(outer_block_entry_type_t);
     outer_block_t * outer_block_new(outer_block_entry_t *);
     inner_block_t * inner_block_new(stmt_list_t *);

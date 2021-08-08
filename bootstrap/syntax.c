@@ -981,16 +981,6 @@ module_new(const char *id, outer_block_t *block)
 }
 
 /*
- * module_delete -- delete the module
- */
-void
-module_delete(module_t *module)
-{
-    free(module->id);
-    free(module);
-}
-
-/*
  * outer_block_entry_new -- allocate an outer block entry with the specified
  * type
  */
