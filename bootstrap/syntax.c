@@ -928,8 +928,6 @@ func_new(const char *id, arg_list_t *args, arg_list_t *rets,
     f->rets = rets;
     f->block = block;
 
-    f->vars = NULL;
-
     return f;
 }
 

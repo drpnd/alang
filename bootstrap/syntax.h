@@ -181,46 +181,6 @@ typedef struct {
 } ptr_t;
 
 /*
- * Variable type
- */
-typedef enum {
-    VAR_ID,
-    VAR_PTR,
-    VAR_DECL,
-} var_type_t;
-
-/*
- * Variables
- */
-struct _var {
-    var_type_t type;
-    union {
-        char *id;
-        var_t *ptr;
-        decl_t *decl;
-    } u;
-    var_t *next;
-};
-
-/*
- * Variable list
- */
-typedef struct {
-    var_t *head;
-    var_t *tail;
-} var_list_t;
-
-/*
- * Variable sets
- */
-typedef struct _var_stack var_stack_t;
-struct _var_stack {
-    char *id;
-    var_t *var;
-    var_stack_t *next;
-};
-
-/*
  * Arguments
  */
 typedef struct _arg arg_t;
@@ -286,8 +246,6 @@ typedef struct {
     arg_list_t *args;
     arg_list_t *rets;
     inner_block_t *block;
-    /* Variables */
-    var_stack_t *vars;
 } func_t;
 
 /*
@@ -640,7 +598,6 @@ typedef struct {
     struct string buffer;
     /* Parser's context */
     code_file_t *code;
-    var_stack_t *vars;
     module_t *cur;
 } context_t;
 

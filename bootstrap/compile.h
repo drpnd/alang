@@ -117,22 +117,22 @@ typedef struct {
  * Register type
  */
 typedef enum {
-    REG_I8,
-    REG_I16,
-    REG_I32,
-    REG_I64,
-    REG_FP16,
-    REG_FP32,
-    REG_FP64,
-    REG_MEM,
-} reg_type_t;
+    VAR_REG_I8,
+    VAR_REG_I16,
+    VAR_REG_I32,
+    VAR_REG_I64,
+    VAR_REG_FP32,
+    VAR_REG_FP64,
+    VAR_MEM,
+} var_type_t;
 
 /*
  * Variable
  */
 typedef struct {
-    reg_type_t reg;
+    var_type_t reg;
     char *id;
+    size_t size;
 } compiler_var_t;
 
 /*
