@@ -79,21 +79,6 @@ typedef enum {
 } register_type_t;
 
 /*
- * Variable
- */
-typedef struct {
-    var_t *var;
-    register_type_t reg;
-} scope_var_t;
-
-/*
- * Scope
- */
-typedef struct {
-    scope_var_t var;
-} scope_t;
-
-/*
  * Opcode
  */
 typedef enum {
@@ -117,7 +102,6 @@ typedef enum {
 typedef struct {
     operand_type_t type;
     union {
-        scope_var_t var;
         int64_t i;
     } u;
 } operand_t;
@@ -149,10 +133,27 @@ typedef struct {
     compiler_instr_t *instr;
 } compiler_block_t;
 
+
+/*
+ * Variable
+ */
+typedef struct {
+    var_t *var;
+    register_type_t reg;
+} compiler_var_t;
+
+/*
+ * Environment
+ */
+typedef struct {
+    /* Variables */
+} compiler_env_t;
+
 /*
  * Compiler
  */
 typedef struct {
+    /* Compiler */
     /* Assembler */
     /* Linker */
     FILE *fout;
