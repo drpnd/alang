@@ -665,9 +665,6 @@ extern "C" {
     type_t * type_new_union(const char *);
     type_t * type_new_enum(const char *);
     type_t * type_new_id(const char *);
-    var_t * var_new_id(var_stack_t **, char *);
-    var_t * var_new_ptr(var_stack_t **, var_t *);
-    var_list_t * var_list_new(var_t *);
     decl_t * decl_new(const char *, type_t *);
     decl_list_t * decl_list_new(decl_t *);
     decl_list_t * decl_list_append(decl_list_t *, decl_t *);
