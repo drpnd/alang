@@ -288,7 +288,44 @@ compile_code(compiler_t *c, code_file_t *code)
 static int
 _var_push(compiler_env_t *env, const char *id)
 {
+    compiler_var_t *var;
+
+    var = malloc(sizeof(compiler_var_t));
+    if ( NULL == var ) {
+        return -1;
+    }
+    var->id = strdup(id);
+    if ( NULL == var->id ) {
+        free(var);
+        return -1;
+    }
+    var->reg = 0;
+    var->size = 0;
+    var->next = env->vars->top;
+    env->vars->top = var;
+
     return 0;
+}
+
+/*
+ * _var_search -- search a variable from the stack
+ */
+static compiler_var_t *
+_var_search(compiler_env_t *env, const char *id)
+{
+    compiler_var_t *var;
+
+    var = env->vars->top;
+    while ( NULL != var ) {
+        if ( 0 == strcmp(id, var->id) ) {
+            /* Found a variable with the specified identifier */
+            return var;
+        }
+        var = var->next;
+    }
+
+    /* Not found */
+    return NULL;
 }
 
 /*

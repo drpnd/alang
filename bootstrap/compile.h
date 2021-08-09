@@ -134,7 +134,6 @@ struct _var {
     char *id;
     var_type_t reg;
     size_t size;
-    compiler_var_t *prev;
     compiler_var_t *next;
 };
 
