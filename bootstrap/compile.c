@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if 0
 int compile_expr(compiler_t *, expr_t *);
 
 /*
@@ -278,6 +279,42 @@ compile_code(compiler_t *c, code_file_t *code)
     }
 
     return 0;
+}
+#endif
+
+/*
+ * _var_push -- push a variable to the stack
+ */
+static int
+_var_push(compiler_env_t *env, const char *id)
+{
+    return 0;
+}
+
+/*
+ * _outer_block -- compile an outer block
+ */
+static int
+_outer_block(compiler_t *c, outer_block_t *block)
+{
+    compiler_env_t *env;
+
+    env = malloc(sizeof(compiler_env_t));
+    if ( NULL == env ) {
+        return -1;
+    }
+    env->vars = NULL;
+
+    return -1;
+}
+
+/*
+ * compile_code -- compile code
+ */
+int
+compile_code(compiler_t *c, code_file_t *code)
+{
+    return _outer_block(c, code->block);
 }
 
 /*

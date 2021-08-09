@@ -33,7 +33,7 @@ minica_test_ld: tests/minica_test_ld.o ld/mach-o.o ld/elf.o
 minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o arch/x86-64/instr.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o
+minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
