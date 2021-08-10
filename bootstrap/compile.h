@@ -132,7 +132,7 @@ typedef enum {
 typedef struct _var compiler_var_t;
 struct _var {
     char *id;
-    var_type_t reg;
+    var_type_t type;
     size_t size;
     compiler_var_t *next;
 };

@@ -283,10 +283,10 @@ compile_code(compiler_t *c, code_file_t *code)
 #endif
 
 /*
- * _var_push -- push a variable to the stack
+ * _var_new -- allocate a new variable
  */
-static int
-_var_push(compiler_env_t *env, const char *id)
+static compiler_var_t *
+_var_new(const char *id, var_type_t type)
 {
     compiler_var_t *var;
 
@@ -299,8 +299,17 @@ _var_push(compiler_env_t *env, const char *id)
         free(var);
         return -1;
     }
-    var->reg = 0;
-    var->size = 0;
+    var->type = type;
+
+    return var;
+}
+
+/*
+ * _var_push -- push a variable to the stack
+ */
+static int
+_var_push(compiler_env_t *env, compiler_var_t *var)
+{
     var->next = env->vars->top;
     env->vars->top = var;
 
@@ -329,20 +338,52 @@ _var_search(compiler_env_t *env, const char *id)
 }
 
 /*
+ * _outer_block_entry
+ */
+static int
+_outer_block_entry(compiler_t *c, outer_block_entry_t *e)
+{
+    switch ( e->type ) {
+    case OUTER_BLOCK_FUNC:
+        //_func(e->u.fn);
+        break;
+    case OUTER_BLOCK_COROUTINE:
+        //_coroutine(e->u.cr);
+        break;
+    case OUTER_BLOCK_MODULE:
+        //_module(e->u.md);
+        break;
+    case OUTER_BLOCK_DIRECTIVE:
+        //_directive(e->u.dr);
+        break;
+    }
+    return -1;
+}
+
+/*
  * _outer_block -- compile an outer block
  */
 static int
 _outer_block(compiler_t *c, outer_block_t *block)
 {
     compiler_env_t *env;
+    outer_block_entry_t *e;
 
+    /* Allocate the environment data structure for this block (i.e., scope) */
     env = malloc(sizeof(compiler_env_t));
     if ( NULL == env ) {
         return -1;
     }
     env->vars = NULL;
 
-    return -1;
+    /* Parse all outer block entries */
+    e = block->head;
+    while ( NULL != e ) {
+        _outer_block_entry(c, e);
+        e = e->next;
+    }
+
+    return 0;
 }
 
 /*
