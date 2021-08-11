@@ -338,7 +338,61 @@ _var_search(compiler_env_t *env, const char *id)
 }
 
 /*
- * _outer_block_entry
+ * _decl -- parse a declaration
+ */
+static int
+_decl(compiler_t *c, decl_t *decl)
+{
+    decl->id, decl->type;
+    return -1;
+}
+
+/*
+ * _inner_block -- parse an inner block
+ */
+static int
+_inner_block(compiler_t *c, inner_block_t *block)
+{
+    return -1;
+}
+
+/*
+ * _func -- parse a function
+ */
+static int
+_func(compiler_t *c, func_t *fn)
+{
+    /* Parse arguments and return values */
+    fn->args, fn->rets;
+
+    _inner_block(c, fn->block);
+
+    return -1;
+}
+
+/*
+ * _directive -- parse a directive
+ */
+static int
+_directive(compiler_t *c, directive_t *dr)
+{
+    switch ( dr->type ) {
+    case DIRECTIVE_USE:
+        break;
+    case DIRECTIVE_STRUCT:
+        break;
+    case DIRECTIVE_UNION:
+        break;
+    case DIRECTIVE_ENUM:
+        break;
+    case DIRECTIVE_TYPEDEF:
+        break;
+    }
+    return -1;
+}
+
+/*
+ * _outer_block_entry -- parse an outer block entry
  */
 static int
 _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
