@@ -153,6 +153,14 @@ typedef struct {
 } compiler_env_t;
 
 /*
+ * Type list
+ */
+typedef struct {
+    type_t *type;
+    size_t size;
+} compiler_type_t;
+
+/*
  * Compiler
  */
 typedef struct {
