@@ -286,7 +286,7 @@ compile_code(compiler_t *c, code_file_t *code)
  * _var_new -- allocate a new variable
  */
 static compiler_var_t *
-_var_new(const char *id, var_type_t type)
+_var_new(const char *id, type_t *type)
 {
     compiler_var_t *var;
 
@@ -343,7 +343,10 @@ _var_search(compiler_env_t *env, const char *id)
 static int
 _decl(compiler_t *c, decl_t *decl)
 {
-    decl->id, decl->type;
+    compiler_var_t *var;
+
+    var = _var_new(decl->id, decl->type);
+
     return -1;
 }
 
