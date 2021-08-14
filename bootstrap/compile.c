@@ -305,6 +305,16 @@ _var_new(const char *id, type_t *type)
 }
 
 /*
+ * _var_delete -- deallocate the specified variable
+ */
+static void
+_var_delete(compiler_var_t *var)
+{
+    free(var->id);
+    free(var);
+}
+
+/*
  * _var_push -- push a variable to the stack
  */
 static int
@@ -341,11 +351,20 @@ _var_search(compiler_env_t *env, const char *id)
  * _decl -- parse a declaration
  */
 static int
-_decl(compiler_t *c, decl_t *decl)
+_decl(compiler_t *c, compiler_env_t *env, decl_t *decl)
 {
     compiler_var_t *var;
+    int ret;
 
     var = _var_new(decl->id, decl->type);
+    if ( NULL == var ) {
+        return -1;
+    }
+    ret = _var_push(env, var);
+    if ( ret < 0 ) {
+        _var_delete(var);
+        return -1;
+    }
 
     return -1;
 }
