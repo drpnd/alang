@@ -417,7 +417,7 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
  * _inner_block -- parse an inner block
  */
 static int
-_inner_block(compiler_t *c, inner_block_t *block)
+_inner_block(compiler_t *c, compiler_env_t *env, inner_block_t *block)
 {
     return -1;
 }
@@ -447,9 +447,13 @@ _func(compiler_t *c, func_t *fn)
         return -1;
     }
 
-    _inner_block(c, fn->block);
+    /* Parse the inner block */
+    ret = _inner_block(c, env, fn->block);
+    if ( ret < 0 ) {
+        return -1;
+    }
 
-    return -1;
+    return 0;
 }
 
 /*
