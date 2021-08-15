@@ -283,6 +283,28 @@ compile_code(compiler_t *c, code_file_t *code)
 #endif
 
 /*
+ * _env_new -- allocate a new environment
+ */
+static compiler_env_t *
+_env_new(compiler_t *c)
+{
+    compiler_env_t *env;
+
+    env = malloc(sizeof(compiler_env_t));
+    if ( NULL == env ) {
+        return NULL;
+    }
+    env->vars = malloc(sizeof(compiler_var_table_t));
+    if ( NULL == env->vars ) {
+        free(env);
+        return NULL;
+    }
+    env->vars->top = NULL;
+
+    return env;
+}
+
+/*
  * _var_new -- allocate a new variable
  */
 static compiler_var_t *
@@ -292,12 +314,12 @@ _var_new(const char *id, type_t *type)
 
     var = malloc(sizeof(compiler_var_t));
     if ( NULL == var ) {
-        return -1;
+        return NULL;
     }
     var->id = strdup(id);
     if ( NULL == var->id ) {
         free(var);
-        return -1;
+        return NULL;
     }
     var->type = type;
 
@@ -356,6 +378,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl)
     compiler_var_t *var;
     int ret;
 
+    /* Add a new variable */
     var = _var_new(decl->id, decl->type);
     if ( NULL == var ) {
         return -1;
@@ -366,7 +389,28 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl)
         return -1;
     }
 
-    return -1;
+    return 0;
+}
+
+/*
+ * _args -- parse arguments
+ */
+static int
+_args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
+{
+    arg_t *a;
+    int ret;
+
+    a = args->head;
+    while ( NULL != a ) {
+        ret = _decl(c, env, a->decl);
+        if ( ret < 0 ) {
+            return -1;
+        }
+        a = a->next;
+    }
+
+    return 0;
 }
 
 /*
@@ -384,8 +428,24 @@ _inner_block(compiler_t *c, inner_block_t *block)
 static int
 _func(compiler_t *c, func_t *fn)
 {
+    int ret;
+    compiler_env_t *env;
+
+    /* Allocate a new environment */
+    env = _env_new(c);
+    if ( NULL == env ) {
+        return -1;
+    }
+
     /* Parse arguments and return values */
-    fn->args, fn->rets;
+    ret = _args(c, env, fn->args);
+    if ( ret < 0 ) {
+        return -1;
+    }
+    ret = _args(c, env, fn->rets);
+    if ( ret < 0 ) {
+        return -1;
+    }
 
     _inner_block(c, fn->block);
 
