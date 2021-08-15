@@ -460,6 +460,7 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
 {
     int ret;
 
+    ret = -1;
     switch ( stmt->type ) {
     case STMT_WHILE:
         ret = _while(c, env, &stmt->u.whilestmt);
@@ -476,9 +477,8 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
     case STMT_RETURN:
         ret = _return(c, env, stmt->u.expr);
         break;
-    default:
-        return -1;
     }
+
     return ret;
 }
 
@@ -564,9 +564,12 @@ _directive(compiler_t *c, directive_t *dr)
 static int
 _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
 {
+    int ret;
+
+    ret = -1;
     switch ( e->type ) {
     case OUTER_BLOCK_FUNC:
-        //_func(e->u.fn);
+        ret = _func(c, e->u.fn);
         break;
     case OUTER_BLOCK_COROUTINE:
         //_coroutine(e->u.cr);
@@ -575,10 +578,11 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
         //_module(e->u.md);
         break;
     case OUTER_BLOCK_DIRECTIVE:
-        //_directive(e->u.dr);
+        ret = _directive(c, e->u.dr);
         break;
     }
-    return -1;
+
+    return ret;
 }
 
 /*
