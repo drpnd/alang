@@ -282,6 +282,9 @@ compile_code(compiler_t *c, code_file_t *code)
 }
 #endif
 
+/* Declarations */
+static int _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
+
 /*
  * _env_new -- allocate a new environment
  */
@@ -414,12 +417,90 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
 }
 
 /*
+ * _expr -- parse an expression
+ */
+static int
+_expr(compiler_t *c, compiler_env_t *env, expr_t *e)
+{
+    return -1;
+}
+
+/*
+ * _expr_list -- parse an expression list
+ */
+static int
+_expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
+{
+    return -1;
+}
+
+/*
+ * _while -- parse a while statement
+ */
+static int
+_while(compiler_t *c, compiler_env_t *env, stmt_while_t *w)
+{
+    return -1;
+}
+
+/*
+ * _return -- parse a return statement
+ */
+static int
+_return(compiler_t *c, compiler_env_t *env, expr_t *e)
+{
+    return -1;
+}
+
+/*
+ * _stmt -- parse a statement
+ */
+static int
+_stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
+{
+    int ret;
+
+    switch ( stmt->type ) {
+    case STMT_WHILE:
+        ret = _while(c, env, &stmt->u.whilestmt);
+        break;
+    case STMT_EXPR:
+        ret = _expr(c, env, stmt->u.expr);
+        break;
+    case STMT_EXPR_LIST:
+        ret = _expr_list(c, env, stmt->u.exprs);
+        break;
+    case STMT_BLOCK:
+        ret = _inner_block(c, env, stmt->u.block);
+        break;
+    case STMT_RETURN:
+        ret = _return(c, env, stmt->u.expr);
+        break;
+    default:
+        return -1;
+    }
+    return ret;
+}
+
+/*
  * _inner_block -- parse an inner block
  */
 static int
 _inner_block(compiler_t *c, compiler_env_t *env, inner_block_t *block)
 {
-    return -1;
+    stmt_t *stmt;
+    int ret;
+
+    stmt = block->stmts->head;
+    while ( NULL != stmt ) {
+        ret = _stmt(c, env, stmt);
+        if ( ret < 0 ) {
+            return -1;
+        }
+        stmt = stmt->next;
+    }
+
+    return 0;
 }
 
 /*
