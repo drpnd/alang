@@ -138,18 +138,18 @@ struct _var {
 };
 
 /*
- * Variable stack
+ * Variable table
  */
 typedef struct {
-    compiler_var_t *top;
-} compiler_var_stack_t;
+    compiler_var_t *top;    /* Stack */
+} compiler_var_table_t;
 
 /*
  * Environment
  */
 typedef struct {
     /* Variables */
-    compiler_var_stack_t *vars;
+    compiler_var_table_t *vars;
 } compiler_env_t;
 
 /*
