@@ -147,10 +147,13 @@ typedef struct {
 /*
  * Environment
  */
-typedef struct {
+typedef struct _compiler_env compiler_env_t;
+struct _compiler_env {
     /* Variables */
     compiler_var_table_t *vars;
-} compiler_env_t;
+    /* Pointer to the stacked environement below */
+    compiler_env_t *prev;
+};
 
 /*
  * Type list

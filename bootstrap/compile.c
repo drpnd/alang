@@ -303,6 +303,7 @@ _env_new(compiler_t *c)
         return NULL;
     }
     env->vars->top = NULL;
+    env->prev = NULL;
 
     return env;
 }
@@ -459,6 +460,7 @@ static int
 _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
 {
     int ret;
+    compiler_env_t *nenv;
 
     ret = -1;
     switch ( stmt->type ) {
@@ -472,7 +474,13 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         ret = _expr_list(c, env, stmt->u.exprs);
         break;
     case STMT_BLOCK:
-        ret = _inner_block(c, env, stmt->u.block);
+        /* Create a new environemt */
+        nenv = _env_new(c);
+        if ( NULL == nenv ) {
+            return -1;
+        }
+        nenv->prev = env;
+        ret = _inner_block(c, nenv, stmt->u.block);
         break;
     case STMT_RETURN:
         ret = _return(c, env, stmt->u.expr);
