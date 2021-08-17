@@ -27,6 +27,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define COMPILE_ERROR_RETURN(c, msg)        \
+    do {                                    \
+        fprintf(stderr, "Parse error: ");   \
+        fprintf(stderr, msg);               \
+        fprintf(stderr, "\n");              \
+        return -1;                          \
+    } while ( 0 )
+
 #if 0
 int compile_expr(compiler_t *, expr_t *);
 
@@ -523,6 +531,7 @@ _func(compiler_t *c, func_t *fn)
     /* Allocate a new environment */
     env = _env_new(c);
     if ( NULL == env ) {
+        COMPILE_ERROR_RETURN(c, "memory");
         return -1;
     }
 
@@ -563,7 +572,7 @@ _directive(compiler_t *c, directive_t *dr)
     case DIRECTIVE_TYPEDEF:
         break;
     }
-    return -1;
+    COMPILE_ERROR_RETURN(c, "invalid directive");
 }
 
 /*
@@ -601,18 +610,22 @@ _outer_block(compiler_t *c, outer_block_t *block)
 {
     compiler_env_t *env;
     outer_block_entry_t *e;
+    int ret;
 
     /* Allocate the environment data structure for this block (i.e., scope) */
     env = malloc(sizeof(compiler_env_t));
     if ( NULL == env ) {
-        return -1;
+        COMPILE_ERROR_RETURN(c, "memory");
     }
     env->vars = NULL;
 
     /* Parse all outer block entries */
     e = block->head;
     while ( NULL != e ) {
-        _outer_block_entry(c, e);
+        ret = _outer_block_entry(c, e);
+        if ( ret < 0 ) {
+            return -1;
+        }
         e = e->next;
     }
 
@@ -643,9 +656,7 @@ compile(code_file_t *code)
     }
     c->fout = NULL;
 
-    compile_code(c, code);
-
-    return 0;
+    return compile_code(c, code);
 }
 
 /*

@@ -538,6 +538,7 @@ main(int argc, const char *const argv[])
 {
     FILE *fp;
     code_file_t *code;
+    int ret;
 
     if ( argc < 2 ) {
         fp = stdin;
@@ -560,6 +561,14 @@ main(int argc, const char *const argv[])
 
     /* Print out the AST */
     _display_ast(code);
+
+    /* Try to compile the code */
+    ret = compile(code);
+    if ( ret < 0 ) {
+        fprintf(stderr, "Failed to compile the code.\n");
+        return EXIT_FAILURE;
+    }
+
 
     return EXIT_SUCCESS;
 }
