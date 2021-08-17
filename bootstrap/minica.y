@@ -27,15 +27,16 @@
 #include <stdlib.h>
 #include "syntax.h"
 #include "compile.h"
+#include "y.tab.h"
 #include "lex.yy.h"
 
-void yyerror(yyscan_t, const char*);
+void yyerror(YYLTYPE *, yyscan_t, const char *);
 
-#define ERROR_ON_NULL(val, msg)     \
-    do {                            \
-        if ( NULL == (val) ) {      \
-            yyerror(scanner, msg);  \
-        }                           \
+#define ERROR_ON_NULL(val, msg)             \
+    do {                                    \
+        if ( NULL == (val) ) {              \
+            yyerror(&yylloc, scanner, msg); \
+        }                                   \
     } while ( 0 )
 
 %}
@@ -137,6 +138,7 @@ void yyerror(yyscan_t, const char*);
 
 %nonassoc ELSENOP RETNOP
 
+%pure-parser
 %locations
 
 %lex-param { void *scanner }
@@ -231,7 +233,7 @@ directive:      include
 
 include:        TOK_INCLUDE TOK_LIT_STR
                 {
-                    yyerror(scanner,
+                    yyerror(&yylloc, scanner,
                             "The include directive is not implemented.");
                 }
                 ;
@@ -847,7 +849,7 @@ literal:        TOK_LIT_HEXINT
  * yyerror -- error handler
  */
 void
-yyerror(yyscan_t scanner, const char *str)
+yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str)
 {
     int lineno;
     lineno = yyget_lineno(scanner);

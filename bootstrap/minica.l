@@ -24,6 +24,8 @@
 %option reentrant
 %option extra-type="void *"
 %option header-file="lex.yy.h"
+%option bison-bridge
+%option bison-locations
 %option yylineno
 
 %{
@@ -33,11 +35,11 @@
 #include "compile.h"
 #include "y.tab.h"
 
-#define YY_USER_ACTION _update_locations(&yylloc, yytext);
+#define YY_USER_ACTION _update_locations(yylloc, yytext);
 
 /* Declaration of yyget_extra for functions in this file */
 void * yyget_extra(yyscan_t);
-void yyerror(yyscan_t, const char *);
+void yyerror(YYLTYPE *, yyscan_t, const char *);
 
 /*
  * yywrap
@@ -71,7 +73,7 @@ _update_locations(YYLTYPE *loc, char *s)
  * _clear_buffer -- clear string buffer
  */
 static void
-_clear_buffer(yyscan_t scanner)
+_clear_buffer(YYLTYPE *loc, yyscan_t scanner)
 {
     context_t *context;
 
@@ -81,7 +83,7 @@ _clear_buffer(yyscan_t scanner)
     if ( NULL == context->buffer.buf ) {
         context->buffer.buf = malloc(STRING_CHUNK);
         if ( NULL == context->buffer.buf ) {
-            yyerror(scanner, "Memory error");
+            yyerror(loc, scanner, "Memory error");
         }
         context->buffer.size = STRING_CHUNK;
     }
@@ -91,7 +93,7 @@ _clear_buffer(yyscan_t scanner)
  * _append_buffer_str -- append string to the buffer
  */
 static void
-_append_buffer_str(yyscan_t scanner, const char *s)
+_append_buffer_str(YYLTYPE *loc, yyscan_t scanner, const char *s)
 {
     size_t len;
     size_t nsize;
@@ -108,7 +110,7 @@ _append_buffer_str(yyscan_t scanner, const char *s)
     if ( nsize != context->buffer.size ) {
         ptr = realloc(context->buffer.buf, nsize);
         if ( NULL == ptr ) {
-            yyerror(scanner, "Memory error");
+            yyerror(loc, scanner, "Memory error");
         }
         context->buffer.buf = ptr;
         context->buffer.size = nsize;
@@ -121,7 +123,7 @@ _append_buffer_str(yyscan_t scanner, const char *s)
  * _append_buffer_char -- append a character to the buffer
  */
 static void
-_append_buffer_char(yyscan_t scanner, char c)
+_append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
 {
     size_t nsize;
     char *ptr;
@@ -134,7 +136,7 @@ _append_buffer_char(yyscan_t scanner, char c)
         nsize += STRING_CHUNK;
         ptr = realloc(context->buffer.buf, nsize);
         if ( NULL == ptr ) {
-            yyerror(scanner, "Memory error");
+            yyerror(loc, scanner, "Memory error");
         }
         context->buffer.buf = ptr;
         context->buffer.size = nsize;
@@ -232,7 +234,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     if ( NULL == val ) {
         return *yytext;
     }
-    yylval.idval = val;
+    yylval->idval = val;
     return TOK_ID;
 }
 
@@ -243,7 +245,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     if ( NULL == val ) {
         return *yytext;
     }
-    yylval.numval = val;
+    yylval->numval = val;
     return TOK_LIT_DECINT;
 }
     /* Hexadecimal numbers */
@@ -253,7 +255,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     if ( NULL == val ) {
         return *yytext;
     }
-    yylval.numval = val;
+    yylval->numval = val;
     return TOK_LIT_HEXINT;
 }
     /* Octal numbers */
@@ -263,7 +265,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     if ( NULL == val ) {
         return *yytext;
     }
-    yylval.numval = val;
+    yylval->numval = val;
     return TOK_LIT_OCTINT;
 }
 
@@ -274,7 +276,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     if ( NULL == val ) {
         return *yytext;
     }
-    yylval.numval = val;
+    yylval->numval = val;
     return TOK_LIT_FLOAT;
 }
     /* Floating point (<1.0) */
@@ -284,7 +286,7 @@ _append_buffer_char(yyscan_t scanner, char c)
     if ( NULL == val ) {
         return *yytext;
     }
-    yylval.numval = val;
+    yylval->numval = val;
     return TOK_LIT_FLOAT;
 }
     /* Floating point (d.0) */
@@ -294,28 +296,28 @@ _append_buffer_char(yyscan_t scanner, char c)
     if ( NULL == val ) {
         return *yytext;
     }
-    yylval.numval = val;
+    yylval->numval = val;
     return TOK_LIT_FLOAT;
 }
 
     /* String format */
-\" { BEGIN string; _clear_buffer(yyscanner); }
+\" { BEGIN string; _clear_buffer(yylloc, yyscanner); }
 <string>[^\\"\n]* {
-    _append_buffer_str(yyscanner, yytext);
+    _append_buffer_str(yylloc, yyscanner, yytext);
 }
 <string>\\[0-7][0-7]?[0-7]? {
-    _append_buffer_char(yyscanner, strtol(yytext + 1, 0, 8));
+    _append_buffer_char(yylloc, yyscanner, strtol(yytext + 1, 0, 8));
 }
 <string>\\x[0-9a-fA-F][0-9a-fA-F]? {
-    _append_buffer_char(yyscanner, strtol(yytext + 2, 0, 16));
+    _append_buffer_char(yylloc, yyscanner, strtol(yytext + 2, 0, 16));
 }
 <string>\\[\\"] {
-    _append_buffer_char(yyscanner, yytext[1]);
+    _append_buffer_char(yylloc, yyscanner, yytext[1]);
 }
 <string>\" {
     context_t *context;
     context = yyget_extra(yyscanner);
-    yylval.strval = strdup(context->buffer.buf);
+    yylval->strval = strdup(context->buffer.buf);
     BEGIN 0;
     return TOK_LIT_STR;
 }

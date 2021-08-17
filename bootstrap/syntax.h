@@ -45,6 +45,14 @@ typedef struct _outer_block_entry outer_block_entry_t;
 typedef struct _inner_block inner_block_t;
 
 /*
+ * Position
+ */
+typedef struct {
+    off_t line;
+    off_t column;
+} pos_t;
+
+/*
  * Literal types
  */
 typedef enum {
@@ -369,6 +377,7 @@ typedef struct {
  * Expression
  */
 struct _expr {
+    pos_t pos;
     expr_type_t type;
     union {
         char *id;
