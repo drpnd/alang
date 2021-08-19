@@ -22,6 +22,8 @@
  */
 
 #include "syntax.h"
+#include "y.tab.h"
+#include "lex.yy.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -545,9 +547,10 @@ enum_elem_prepend(enum_elem_t *elem, enum_elem_t *list)
  * expr_new_id -- allocate an expression with an ID
  */
 expr_t *
-expr_new_id(const char *id)
+expr_new_id(void *scanner, const char *id)
 {
     expr_t *e;
+    YYLTYPE *loc;
 
     e = malloc(sizeof(expr_t));
     if ( NULL == e ) {
@@ -560,6 +563,8 @@ expr_new_id(const char *id)
         return NULL;
     }
     e->next = NULL;
+
+    loc = yyget_lloc(scanner);
 
     return e;
 }

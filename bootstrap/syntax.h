@@ -662,7 +662,7 @@ extern "C" {
     op_t * op_new_infix(expr_t *, expr_t *, op_type_t);
     op_t * op_new_prefix(expr_t *, op_type_t);
     op_t * op_new_suffix(expr_t *, op_type_t);
-    expr_t * expr_new_id(const char *);
+    expr_t * expr_new_id(void *, const char *);
     expr_t * expr_new_decl(decl_t *);
     expr_t * expr_new_literal(literal_t *);
     expr_t * expr_op_new_infix(expr_t *, expr_t *, op_type_t);
