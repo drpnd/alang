@@ -702,7 +702,7 @@ primary:        atom
 
 atom:           literal
                 {
-                    $$ = expr_new_literal($1);
+                    $$ = expr_new_literal(scanner, $1);
                 }
         |       identifier
                 {
@@ -710,7 +710,7 @@ atom:           literal
                 }
         |       declaration
                 {
-                    $$ = expr_new_decl($1);
+                    $$ = expr_new_decl(scanner, $1);
                 }
                 ;
 declaration:    identifier TOK_COLON type

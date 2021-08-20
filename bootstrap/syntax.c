@@ -577,9 +577,10 @@ expr_new_id(void *scanner, const char *id)
  * expr_new_decl -- allocate an expression with a declaration
  */
 expr_t *
-expr_new_decl(decl_t *decl)
+expr_new_decl(void *scanner, decl_t *decl)
 {
     expr_t *e;
+    YYLTYPE *loc;
 
     e = malloc(sizeof(expr_t));
     if ( NULL == e ) {
@@ -589,6 +590,12 @@ expr_new_decl(decl_t *decl)
     e->u.decl = decl;
     e->next = NULL;
 
+    loc = yyget_lloc(scanner);
+    e->pos.first_line = loc->first_line;
+    e->pos.first_column = loc->first_column;
+    e->pos.last_line = loc->last_line;
+    e->pos.last_column = loc->last_column;
+
     return e;
 }
 
@@ -596,9 +603,10 @@ expr_new_decl(decl_t *decl)
  * expr_new_literal -- allocate an expression with a literal
  */
 expr_t *
-expr_new_literal(literal_t *lit)
+expr_new_literal(void *scanner, literal_t *lit)
 {
     expr_t *e;
+    YYLTYPE *loc;
 
     e = malloc(sizeof(expr_t));
     if ( NULL == e ) {
@@ -607,6 +615,12 @@ expr_new_literal(literal_t *lit)
     e->type = EXPR_LITERAL;
     e->u.lit = lit;
     e->next = NULL;
+
+    loc = yyget_lloc(scanner);
+    e->pos.first_line = loc->first_line;
+    e->pos.first_column = loc->first_column;
+    e->pos.last_line = loc->last_line;
+    e->pos.last_column = loc->last_column;
 
     return e;
 }
