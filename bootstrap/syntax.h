@@ -48,8 +48,10 @@ typedef struct _inner_block inner_block_t;
  * Position
  */
 typedef struct {
-    off_t line;
-    off_t column;
+    off_t first_line;
+    off_t first_column;
+    off_t last_line;
+    off_t last_column;
 } pos_t;
 
 /*
@@ -377,7 +379,6 @@ typedef struct {
  * Expression
  */
 struct _expr {
-    pos_t pos;
     expr_type_t type;
     union {
         char *id;
@@ -392,6 +393,7 @@ struct _expr {
         expr_list_t *list;
     } u;
     expr_t *next;
+    pos_t pos;
 };
 
 /*

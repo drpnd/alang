@@ -565,6 +565,10 @@ expr_new_id(void *scanner, const char *id)
     e->next = NULL;
 
     loc = yyget_lloc(scanner);
+    e->pos.first_line = loc->first_line;
+    e->pos.first_column = loc->first_column;
+    e->pos.last_line = loc->last_line;
+    e->pos.last_column = loc->last_column;
 
     return e;
 }

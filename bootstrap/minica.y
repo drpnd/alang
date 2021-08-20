@@ -706,8 +706,6 @@ atom:           literal
                 }
         |       identifier
                 {
-                    YYLTYPE *loc = yyget_lloc(scanner);
-                    printf("xxx %d %d\n", loc->first_line, loc->first_column);
                     $$ = expr_new_id(scanner, $1);
                 }
         |       declaration
