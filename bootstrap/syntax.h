@@ -86,6 +86,7 @@ struct _literal {
         char *s;
         bool_t b;
     } u;
+    pos_t pos;
     literal_t *next;
 };
 
@@ -621,11 +622,11 @@ typedef struct {
 extern "C" {
 #endif
 
-    literal_t * literal_new_int(const char *, int);
-    literal_t * literal_new_float(const char *);
-    literal_t * literal_new_string(const char *);
-    literal_t * literal_new_bool(bool_t);
-    literal_t * literal_new_nil(void);
+    literal_t * literal_new_int(void *, const char *, int);
+    literal_t * literal_new_float(void *, const char *);
+    literal_t * literal_new_string(void *, const char *);
+    literal_t * literal_new_bool(void *, bool_t);
+    literal_t * literal_new_nil(void *);
     literal_set_t * literal_set_new(void);
     literal_set_t * literal_set_add(literal_set_t *, literal_t *);
     type_t * type_new_primitive(type_type_t);

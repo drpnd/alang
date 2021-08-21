@@ -811,35 +811,35 @@ literal_set:    literal_set TOK_COMMA literal
 /* Literal values */
 literal:        TOK_LIT_HEXINT
                 {
-                    $$ = literal_new_int($1, LIT_HEXINT);
+                    $$ = literal_new_int(scanner, $1, LIT_HEXINT);
                 }
         |       TOK_LIT_DECINT
                 {
-                    $$ = literal_new_int($1, LIT_DECINT);
+                    $$ = literal_new_int(scanner, $1, LIT_DECINT);
                 }
         |       TOK_LIT_OCTINT
                 {
-                    $$ = literal_new_int($1, LIT_OCTINT);
+                    $$ = literal_new_int(scanner, $1, LIT_OCTINT);
                 }
         |       TOK_LIT_FLOAT
                 {
-                    $$ = literal_new_float($1);
+                    $$ = literal_new_float(scanner, $1);
                 }
         |       TOK_LIT_STR
                 {
-                    $$ = literal_new_string($1);
+                    $$ = literal_new_string(scanner, $1);
                 }
         |       TOK_TRUE
                 {
-                    $$ = literal_new_bool(BOOL_TRUE);
+                    $$ = literal_new_bool(scanner, BOOL_TRUE);
                 }
         |       TOK_FALSE
                 {
-                    $$ = literal_new_bool(BOOL_FALSE);
+                    $$ = literal_new_bool(scanner, BOOL_FALSE);
                 }
         |       TOK_NIL
                 {
-                    $$ = literal_new_nil();
+                    $$ = literal_new_nil(scanner);
                 }
                 ;
 

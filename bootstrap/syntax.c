@@ -32,9 +32,10 @@
  * literal_new_int -- allocate an integer literal
  */
 literal_t *
-literal_new_int(const char *v, int type)
+literal_new_int(void *scanner, const char *v, int type)
 {
     literal_t *lit;
+    YYLTYPE *loc;
 
     lit = malloc(sizeof(literal_t));
     if ( NULL == lit ) {
@@ -48,6 +49,12 @@ literal_new_int(const char *v, int type)
     }
     lit->next = NULL;
 
+    loc = yyget_lloc(scanner);
+    lit->pos.first_line = loc->first_line;
+    lit->pos.first_column = loc->first_column;
+    lit->pos.last_line = loc->last_line;
+    lit->pos.last_column = loc->last_column;
+
     return lit;
 }
 
@@ -55,9 +62,10 @@ literal_new_int(const char *v, int type)
  * literal_new_float -- allocate a float literal
  */
 literal_t *
-literal_new_float(const char *v)
+literal_new_float(void *scanner, const char *v)
 {
     literal_t *lit;
+    YYLTYPE *loc;
 
     lit = malloc(sizeof(literal_t));
     if ( NULL == lit ) {
@@ -71,6 +79,12 @@ literal_new_float(const char *v)
     }
     lit->next = NULL;
 
+    loc = yyget_lloc(scanner);
+    lit->pos.first_line = loc->first_line;
+    lit->pos.first_column = loc->first_column;
+    lit->pos.last_line = loc->last_line;
+    lit->pos.last_column = loc->last_column;
+
     return lit;
 }
 
@@ -78,9 +92,10 @@ literal_new_float(const char *v)
  * literal_new_string -- allocate a string literal
  */
 literal_t *
-literal_new_string(const char *v)
+literal_new_string(void *scanner, const char *v)
 {
     literal_t *lit;
+    YYLTYPE *loc;
 
     lit = malloc(sizeof(literal_t));
     if ( NULL == lit ) {
@@ -94,6 +109,12 @@ literal_new_string(const char *v)
     }
     lit->next = NULL;
 
+    loc = yyget_lloc(scanner);
+    lit->pos.first_line = loc->first_line;
+    lit->pos.first_column = loc->first_column;
+    lit->pos.last_line = loc->last_line;
+    lit->pos.last_column = loc->last_column;
+
     return lit;
 }
 
@@ -101,9 +122,10 @@ literal_new_string(const char *v)
  * literal_new_bool -- allocate a bool literal
  */
 literal_t *
-literal_new_bool(bool_t bool)
+literal_new_bool(void *scanner, bool_t bool)
 {
     literal_t *lit;
+    YYLTYPE *loc;
 
     lit = malloc(sizeof(literal_t));
     if ( NULL == lit ) {
@@ -113,6 +135,12 @@ literal_new_bool(bool_t bool)
     lit->u.b = bool;
     lit->next = NULL;
 
+    loc = yyget_lloc(scanner);
+    lit->pos.first_line = loc->first_line;
+    lit->pos.first_column = loc->first_column;
+    lit->pos.last_line = loc->last_line;
+    lit->pos.last_column = loc->last_column;
+
     return lit;
 }
 
@@ -120,9 +148,10 @@ literal_new_bool(bool_t bool)
  * literal_new_nil -- allocate a nil literal
  */
 literal_t *
-literal_new_nil(void)
+literal_new_nil(void *scanner)
 {
     literal_t *lit;
+    YYLTYPE *loc;
 
     lit = malloc(sizeof(literal_t));
     if ( NULL == lit ) {
@@ -130,6 +159,12 @@ literal_new_nil(void)
     }
     lit->type = LIT_NIL;
     lit->next = NULL;
+
+    loc = yyget_lloc(scanner);
+    lit->pos.first_line = loc->first_line;
+    lit->pos.first_column = loc->first_column;
+    lit->pos.last_line = loc->last_line;
+    lit->pos.last_column = loc->last_column;
 
     return lit;
 }
