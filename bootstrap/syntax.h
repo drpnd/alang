@@ -670,11 +670,11 @@ extern "C" {
     expr_t * expr_op_new_infix(void *, expr_t *, expr_t *, op_type_t);
     expr_t * expr_op_new_prefix(void *, expr_t *, op_type_t);
     expr_t * expr_op_new_suffix(void *, expr_t *, op_type_t);
-    expr_t * expr_new_member(expr_t *, const char *);
-    expr_t * expr_new_call(expr_t *, expr_list_t *);
-    expr_t * expr_new_ref(expr_t *, expr_t *);
-    expr_t * expr_new_switch(expr_t *, switch_block_t *);
-    expr_t * expr_new_if(expr_t *, inner_block_t *, inner_block_t *);
+    expr_t * expr_new_member(void *, expr_t *, const char *);
+    expr_t * expr_new_call(void *, expr_t *, expr_list_t *);
+    expr_t * expr_new_ref(void *, expr_t *, expr_t *);
+    expr_t * expr_new_switch(void *, expr_t *, switch_block_t *);
+    expr_t * expr_new_if(void *, expr_t *, inner_block_t *, inner_block_t *);
     expr_t * expr_new_list(expr_list_t *);
     expr_list_t * expr_list_new(void);
     expr_list_t * expr_list_append(expr_list_t *, expr_t *);
