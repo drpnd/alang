@@ -858,10 +858,11 @@ op_new_suffix(expr_t *e0, op_type_t type)
  * expr_op_new_infix -- allocate an infix operation expression
  */
 expr_t *
-expr_op_new_infix(expr_t *e0, expr_t *e1, op_type_t type)
+expr_op_new_infix(void *scanner, expr_t *e0, expr_t *e1, op_type_t type)
 {
     op_t *op;
     expr_t *e;
+    YYLTYPE *loc;
 
     e = malloc(sizeof(expr_t));
     if ( NULL == e ) {
@@ -876,6 +877,12 @@ expr_op_new_infix(expr_t *e0, expr_t *e1, op_type_t type)
     e->u.op = op;
     e->next = NULL;
 
+    loc = yyget_lloc(scanner);
+    e->pos.first_line = loc->first_line;
+    e->pos.first_column = loc->first_column;
+    e->pos.last_line = loc->last_line;
+    e->pos.last_column = loc->last_column;
+
     return e;
 }
 
@@ -883,10 +890,11 @@ expr_op_new_infix(expr_t *e0, expr_t *e1, op_type_t type)
  * expr_op_new_prefix -- allocate a prefixed operation expression
  */
 expr_t *
-expr_op_new_prefix(expr_t *e0, op_type_t type)
+expr_op_new_prefix(void *scanner, expr_t *e0, op_type_t type)
 {
     op_t *op;
     expr_t *e;
+    YYLTYPE *loc;
 
     e = malloc(sizeof(expr_t));
     if ( NULL == e ) {
@@ -901,6 +909,12 @@ expr_op_new_prefix(expr_t *e0, op_type_t type)
     e->u.op = op;
     e->next = NULL;
 
+    loc = yyget_lloc(scanner);
+    e->pos.first_line = loc->first_line;
+    e->pos.first_column = loc->first_column;
+    e->pos.last_line = loc->last_line;
+    e->pos.last_column = loc->last_column;
+
     return e;
 }
 
@@ -908,10 +922,11 @@ expr_op_new_prefix(expr_t *e0, op_type_t type)
  * expr_op_new_suffix -- allocate a suffixed operation expression
  */
 expr_t *
-expr_op_new_suffix(expr_t *e0, op_type_t type)
+expr_op_new_suffix(void *scanner, expr_t *e0, op_type_t type)
 {
     op_t *op;
     expr_t *e;
+    YYLTYPE *loc;
 
     e = malloc(sizeof(expr_t));
     if ( NULL == e ) {
@@ -925,6 +940,12 @@ expr_op_new_suffix(expr_t *e0, op_type_t type)
     e->type = EXPR_OP;
     e->u.op = op;
     e->next = NULL;
+
+    loc = yyget_lloc(scanner);
+    e->pos.first_line = loc->first_line;
+    e->pos.first_column = loc->first_column;
+    e->pos.last_line = loc->last_line;
+    e->pos.last_column = loc->last_column;
 
     return e;
 }

@@ -501,7 +501,7 @@ switch_case:    TOK_CASE literal_set TOK_COLON inner_block
                 ;
 assign_expr:    primary TOK_DEF assign_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_ASSIGN);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_ASSIGN);
                 }
         |       or_test
                 {
@@ -510,7 +510,7 @@ assign_expr:    primary TOK_DEF assign_expr
                 ;
 or_test:        or_test TOK_LOR or_test
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_LOR);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_LOR);
                     ERROR_ON_NULL($$, "Parse error: ||");
                 }
         |       and_test
@@ -520,7 +520,7 @@ or_test:        or_test TOK_LOR or_test
                 ;
 and_test:       and_test TOK_LAND and_test
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_LAND);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_LAND);
                     ERROR_ON_NULL($$, "Parse error: &&");
                 }
         |       or_expr
@@ -530,7 +530,7 @@ and_test:       and_test TOK_LAND and_test
                 ;
 or_expr:        or_expr TOK_BIT_OR or_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_OR);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_OR);
                     ERROR_ON_NULL($$, "Parse error: ||");
                 }
         |       xor_expr
@@ -540,7 +540,7 @@ or_expr:        or_expr TOK_BIT_OR or_expr
                 ;
 xor_expr:       xor_expr TOK_BIT_XOR xor_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_XOR);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_XOR);
                     ERROR_ON_NULL($$, "Parse error: ^");
                 }
         |       and_expr
@@ -550,7 +550,7 @@ xor_expr:       xor_expr TOK_BIT_XOR xor_expr
                 ;
 and_expr:       and_expr TOK_BIT_AND and_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_AND);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_AND);
                     ERROR_ON_NULL($$, "Parse error: &");
                 }
         |       comparison_eq
@@ -561,11 +561,11 @@ and_expr:       and_expr TOK_BIT_AND and_expr
 
 comparison_eq:  comparison_eq TOK_EQ_EQ comparison_eq
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_EQ);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_CMP_EQ);
                 }
         |       comparison_eq TOK_NEQ comparison_eq
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_NEQ);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_CMP_NEQ);
                 }
         |       comparison
                 {
@@ -574,19 +574,19 @@ comparison_eq:  comparison_eq TOK_EQ_EQ comparison_eq
                 ;
 comparison:     comparison TOK_LCHEVRON comparison
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_LT);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_CMP_LT);
                 }
         |       comparison TOK_RCHEVRON comparison
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_GT);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_CMP_GT);
                 }
         |       comparison TOK_LEQ comparison
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_LEQ);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_CMP_LEQ);
                 }
         |       comparison TOK_GEQ comparison
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_CMP_GEQ);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_CMP_GEQ);
                 }
         |       shift_expr
                 {
@@ -595,11 +595,11 @@ comparison:     comparison TOK_LCHEVRON comparison
                 ;
 shift_expr:     shift_expr TOK_BIT_LSHIFT shift_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_LSHIFT);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_LSHIFT);
                 }
         |       shift_expr TOK_BIT_RSHIFT shift_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_RSHIFT);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_RSHIFT);
                 }
         |       a_expr %prec UNOP
                 {
@@ -608,11 +608,11 @@ shift_expr:     shift_expr TOK_BIT_LSHIFT shift_expr
                 ;
 a_expr:         a_expr TOK_ADD a_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_ADD);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_ADD);
                 }
         |       a_expr TOK_SUB a_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_SUB);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_SUB);
                 }
         |       m_expr
                 {
@@ -621,15 +621,15 @@ a_expr:         a_expr TOK_ADD a_expr
                 ;
 m_expr:         m_expr TOK_MUL m_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_MUL);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_MUL);
                 }
         |       m_expr TOK_DIV m_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_DIV);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_DIV);
                 }
         |       m_expr TOK_MOD m_expr
                 {
-                    $$ = expr_op_new_infix($1, $3, OP_MOD);
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_MOD);
                 }
         |       u_expr
                 {
@@ -638,27 +638,27 @@ m_expr:         m_expr TOK_MUL m_expr
                 ;
 u_expr:         TOK_SUB u_expr
                 {
-                    $$ = expr_op_new_prefix($2, OP_SUB);
+                    $$ = expr_op_new_prefix(scanner, $2, OP_SUB);
                 }
         |       TOK_ADD u_expr
                 {
-                    $$ = expr_op_new_prefix($2, OP_ADD);
+                    $$ = expr_op_new_prefix(scanner, $2, OP_ADD);
                 }
         |       TOK_NOT u_expr
                 {
-                    $$ = expr_op_new_prefix($2, OP_NOT);
+                    $$ = expr_op_new_prefix(scanner, $2, OP_NOT);
                 }
         |       TOK_BIT_NOT u_expr
                 {
-                    $$ = expr_op_new_prefix($2, OP_COMP);
+                    $$ = expr_op_new_prefix(scanner, $2, OP_COMP);
                 }
         |       TOK_INC u_expr
                 {
-                    $$ = expr_op_new_prefix($2, OP_INC);
+                    $$ = expr_op_new_prefix(scanner, $2, OP_INC);
                 }
         |       TOK_DEC u_expr
                 {
-                    $$ = expr_op_new_prefix($2, OP_DEC);
+                    $$ = expr_op_new_prefix(scanner, $2, OP_DEC);
                 }
         |       p_expr %prec SNOP
                 {
@@ -667,11 +667,11 @@ u_expr:         TOK_SUB u_expr
                 ;
 p_expr:         p_expr TOK_INC
                 {
-                    $$ = expr_op_new_suffix($1, OP_INC);
+                    $$ = expr_op_new_suffix(scanner, $1, OP_INC);
                 }
         |       p_expr TOK_DEC
                 {
-                    $$ = expr_op_new_suffix($1, OP_DEC);
+                    $$ = expr_op_new_suffix(scanner, $1, OP_DEC);
                 }
         |       p_expr TOK_DOT identifier
                 {
