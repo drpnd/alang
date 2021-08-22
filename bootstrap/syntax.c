@@ -428,9 +428,10 @@ arg_list_append(arg_list_t *list, arg_t *arg)
  * directive_struct_new -- allocate a struct data structure
  */
 directive_t *
-directive_struct_new(const char *id, decl_list_t *list)
+directive_struct_new(void *scanner, const char *id, decl_list_t *list)
 {
     directive_t *dir;
+    YYLTYPE *loc;
 
     dir = malloc(sizeof(directive_t));
     if ( NULL == dir ) {
@@ -448,6 +449,12 @@ directive_struct_new(const char *id, decl_list_t *list)
     }
     dir->u.st.list = list;
 
+    loc = yyget_lloc(scanner);
+    dir->pos.first_line = loc->first_line;
+    dir->pos.first_column = loc->first_column;
+    dir->pos.last_line = loc->last_line;
+    dir->pos.last_column = loc->last_column;
+
     return dir;
 }
 
@@ -455,9 +462,10 @@ directive_struct_new(const char *id, decl_list_t *list)
  * directive_union_new -- allocate a union data structure
  */
 directive_t *
-directive_union_new(const char *id, decl_list_t *list)
+directive_union_new(void *scanner, const char *id, decl_list_t *list)
 {
     directive_t *dir;
+    YYLTYPE *loc;
 
     dir = malloc(sizeof(directive_t));
     if ( NULL == dir ) {
@@ -475,6 +483,12 @@ directive_union_new(const char *id, decl_list_t *list)
     }
     dir->u.un.list = list;
 
+    loc = yyget_lloc(scanner);
+    dir->pos.first_line = loc->first_line;
+    dir->pos.first_column = loc->first_column;
+    dir->pos.last_line = loc->last_line;
+    dir->pos.last_column = loc->last_column;
+
     return dir;
 }
 
@@ -482,9 +496,10 @@ directive_union_new(const char *id, decl_list_t *list)
  * directive_enum_new -- allocate an enum data structure
  */
 directive_t *
-directive_enum_new(const char *id, enum_elem_t *list)
+directive_enum_new(void *scanner, const char *id, enum_elem_t *list)
 {
     directive_t *dir;
+    YYLTYPE *loc;
 
     dir = malloc(sizeof(directive_t));
     if ( NULL == dir ) {
@@ -498,6 +513,12 @@ directive_enum_new(const char *id, enum_elem_t *list)
     }
     dir->u.en.list = list;
 
+    loc = yyget_lloc(scanner);
+    dir->pos.first_line = loc->first_line;
+    dir->pos.first_column = loc->first_column;
+    dir->pos.last_line = loc->last_line;
+    dir->pos.last_column = loc->last_column;
+
     return dir;
 }
 
@@ -505,9 +526,10 @@ directive_enum_new(const char *id, enum_elem_t *list)
  * directive_typedef_new -- allocate a new use statement
  */
 directive_t *
-directive_typedef_new(type_t *src, const char *dst)
+directive_typedef_new(void *scanner, type_t *src, const char *dst)
 {
     directive_t *dir;
+    YYLTYPE *loc;
 
     dir = malloc(sizeof(directive_t));
     if ( NULL == dir ) {
@@ -521,6 +543,12 @@ directive_typedef_new(type_t *src, const char *dst)
         return NULL;
     }
 
+    loc = yyget_lloc(scanner);
+    dir->pos.first_line = loc->first_line;
+    dir->pos.first_column = loc->first_column;
+    dir->pos.last_line = loc->last_line;
+    dir->pos.last_column = loc->last_column;
+
     return dir;
 }
 
@@ -528,9 +556,10 @@ directive_typedef_new(type_t *src, const char *dst)
  * directive_use_new -- allocate a new use statement
  */
 directive_t *
-directive_use_new(const char *id)
+directive_use_new(void *scanner, const char *id)
 {
     directive_t *dir;
+    YYLTYPE *loc;
 
     dir = malloc(sizeof(directive_t));
     if ( NULL == dir ) {
@@ -542,6 +571,12 @@ directive_use_new(const char *id)
         free(dir);
         return NULL;
     }
+
+    loc = yyget_lloc(scanner);
+    dir->pos.first_line = loc->first_line;
+    dir->pos.first_column = loc->first_column;
+    dir->pos.last_line = loc->last_line;
+    dir->pos.last_column = loc->last_column;
 
     return dir;
 }

@@ -239,30 +239,30 @@ include:        TOK_INCLUDE TOK_LIT_STR
                 ;
 use:            TOK_USE identifier
                 {
-                    $$ = directive_use_new($2);
+                    $$ = directive_use_new(scanner, $2);
                 }
                 ;
 typedef:        TOK_TYPEDEF type identifier
                 {
-                    $$ = directive_typedef_new($2, $3);
+                    $$ = directive_typedef_new(scanner, $2, $3);
                 }
                 ;
 struct_def:     TOK_STRUCT identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
-                    $$ = directive_struct_new($2, $4);
+                    $$ = directive_struct_new(scanner, $2, $4);
                 }
         |       TOK_STRUCT TOK_LBRACE decl_list TOK_RBRACE
                 {
-                    $$ = directive_struct_new(NULL, $3);
+                    $$ = directive_struct_new(scanner, NULL, $3);
                 }
                 ;
 union_def:      TOK_UNION identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
-                    $$ = directive_union_new($2, $4);
+                    $$ = directive_union_new(scanner, $2, $4);
                 }
         |       TOK_UNION TOK_LBRACE decl_list TOK_RBRACE
                 {
-                    $$ = directive_union_new(NULL, $3);
+                    $$ = directive_union_new(scanner, NULL, $3);
                 }
                 ;
 decl_list:      decl_list declaration
@@ -280,7 +280,7 @@ decl_list:      decl_list declaration
                 ;
 enum_def:       TOK_ENUM identifier TOK_LBRACE enum_list TOK_RBRACE
                 {
-                    $$ = directive_enum_new($2, $4);
+                    $$ = directive_enum_new(scanner, $2, $4);
                 }
                 ;
 enum_list:      enum_elem TOK_COMMA enum_list
