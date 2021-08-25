@@ -564,6 +564,15 @@ _coroutine(compiler_t *c, coroutine_t *cr)
 }
 
 /*
+ * _module -- parse a module
+ */
+static int
+_module(compiler_t *c, module_t *md)
+{
+    return -1;
+}
+
+/*
  * _directive -- parse a directive
  */
 static int
@@ -601,7 +610,7 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
         _coroutine(c, e->u.cr);
         break;
     case OUTER_BLOCK_MODULE:
-        //_module(e->u.md);
+        _module(c, e->u.md);
         break;
     case OUTER_BLOCK_DIRECTIVE:
         ret = _directive(c, e->u.dr);
