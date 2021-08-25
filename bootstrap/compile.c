@@ -607,10 +607,10 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
         ret = _func(c, e->u.fn);
         break;
     case OUTER_BLOCK_COROUTINE:
-        _coroutine(c, e->u.cr);
+        ret = _coroutine(c, e->u.cr);
         break;
     case OUTER_BLOCK_MODULE:
-        _module(c, e->u.md);
+        ret = _module(c, e->u.md);
         break;
     case OUTER_BLOCK_DIRECTIVE:
         ret = _directive(c, e->u.dr);
