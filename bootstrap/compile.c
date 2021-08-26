@@ -291,6 +291,7 @@ compile_code(compiler_t *c, code_file_t *code)
 #endif
 
 /* Declarations */
+static int _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static int _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
 
 /*
@@ -431,7 +432,43 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
 static int
 _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
 {
-    return -1;
+    int ret;
+
+    ret = -1;
+    switch ( e->type ) {
+    case EXPR_ID:
+        //_id(e->u.id);
+        break;
+    case EXPR_DECL:
+        //_decl(e->u.decl);
+        break;
+    case EXPR_LITERAL:
+        //_literal(e->u.lit);
+        break;
+    case EXPR_OP:
+        //_op(e->u.op);
+        break;
+    case EXPR_SWITCH:
+        //printf("SWITCH\n");
+        break;
+    case EXPR_IF:
+        //printf("IF\n");
+        break;
+    case EXPR_CALL:
+        //printf("CALL\n");
+        break;
+    case EXPR_REF:
+        //printf("REF\n");
+        break;
+    case EXPR_MEMBER:
+        //printf("MEMBER\n");
+        break;
+    case EXPR_LIST:
+        ret = _expr_list(c, env, e->u.list);
+        break;
+    }
+
+    return ret;
 }
 
 /*
