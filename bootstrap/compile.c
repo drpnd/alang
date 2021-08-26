@@ -440,7 +440,20 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
 static int
 _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
 {
-    return -1;
+    expr_t *e;
+    int ret;
+
+    e = exprs->head;
+    while ( NULL != e ) {
+        ret = _expr(c, env, e);
+        if ( ret < 0 ) {
+            printf("failed to parse expr.\n");
+            return -1;
+        }
+        e = e->next;
+    }
+
+    return 0;
 }
 
 /*
