@@ -447,8 +447,7 @@ _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
     while ( NULL != e ) {
         ret = _expr(c, env, e);
         if ( ret < 0 ) {
-            printf("failed to parse expr.\n");
-            return -1;
+            COMPILE_ERROR_RETURN(c, "expression list");
         }
         e = e->next;
     }
