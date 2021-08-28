@@ -119,14 +119,14 @@ typedef struct {
  * Register type
  */
 typedef enum {
-    VAR_REG_I8,
-    VAR_REG_I16,
-    VAR_REG_I32,
-    VAR_REG_I64,
-    VAR_REG_FP32,
-    VAR_REG_FP64,
-    VAR_MEM,
-} var_type_t;
+    REG_I8,
+    REG_I16,
+    REG_I32,
+    REG_I64,
+    REG_FP32,
+    REG_FP64,
+    REG_MEM,
+} reg_type_t;
 
 /*
  * Variable
@@ -145,6 +145,13 @@ struct _var {
 typedef struct {
     compiler_var_t *top;    /* Stack */
 } compiler_var_table_t;
+
+/*
+ * Value
+ */
+typedef struct {
+    reg_type_t type;
+} compiler_val_t;
 
 /*
  * Environment

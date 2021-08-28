@@ -291,6 +291,7 @@ compile_code(compiler_t *c, code_file_t *code)
 #endif
 
 /* Declarations */
+static int _expr(compiler_t *, compiler_env_t *, expr_t *);
 static int _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static int _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
 
@@ -499,6 +500,9 @@ static int
 _inc(compiler_t *c, compiler_env_t *env, op_t *op)
 {
     compiler_instr_t *instr;
+    int ret;
+
+    ret = _expr(c, env, op->e0);
 
     instr = _instr_new();
     if ( NULL == instr ) {
