@@ -63,6 +63,8 @@ typedef struct {
  */
 typedef enum {
     OPCODE_ADD,
+    OPCODE_INC,
+    OPCODE_DEC,
 } opcode_t;
 
 /*

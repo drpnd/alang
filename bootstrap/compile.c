@@ -295,6 +295,23 @@ static int _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static int _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
 
 /*
+ * _instr_new -- allocate a new instruction
+ */
+static compiler_instr_t *
+_instr_new(void)
+{
+    compiler_instr_t *instr;
+
+    instr = malloc(sizeof(compiler_instr_t));
+    if ( NULL == instr ) {
+        return NULL;
+    }
+    memset(instr, 0, sizeof(compiler_instr_t));
+
+    return instr;
+}
+
+/*
  * _env_new -- allocate a new environment
  */
 static compiler_env_t *
@@ -476,6 +493,29 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
 }
 
 /*
+ * _inc -- parse an increment instruction
+ */
+static int
+_inc(compiler_t *c, compiler_env_t *env, op_t *op)
+{
+    compiler_instr_t *instr;
+
+    instr = _instr_new();
+    if ( NULL == instr ) {
+        COMPILE_ERROR_RETURN(c, "Memory");
+    }
+    instr->opcode = OPCODE_INC;
+
+    if ( FIX_PREFIX == op->fix ) {
+    } else if ( FIX_SUFFIX == op->fix ) {
+    } else {
+        COMPILE_ERROR_RETURN(c, "inc");
+    }
+
+    return 0;
+}
+
+/*
  * _op -- parse an operator
  */
 static int
@@ -549,7 +589,7 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
         //printf("<=\n");
         break;
     case OP_INC:
-        //_inc(op);
+        ret = _inc(c, env, op);
         break;
     case OP_DEC:
         //_dec(op);
