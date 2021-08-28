@@ -148,10 +148,24 @@ typedef struct {
 } compiler_var_table_t;
 
 /*
+ * Value type
+ */
+typedef enum {
+    VAL_VAR,
+    VAL_LITERAL,
+    VAL_REG,
+} compiler_val_type_t;
+
+/*
  * Value
  */
 typedef struct {
-    reg_type_t type;
+    int type;
+    reg_type_t reg;
+    union {
+        compiler_var_t *var;
+        literal_t *lit;
+    } u;
 } compiler_val_t;
 
 /*
