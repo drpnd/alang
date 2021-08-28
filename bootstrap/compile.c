@@ -383,6 +383,55 @@ _var_search(compiler_env_t *env, const char *id)
 }
 
 /*
+ * _id -- parse an identifier
+ */
+static int
+_id(compiler_t *c, compiler_env_t *env, const char *id)
+{
+    compiler_var_t *var;
+
+    var = _var_search(env, id);
+    if ( NULL == var ) {
+        COMPILE_ERROR_RETURN(c, "variable not defined");
+    }
+
+    return 0;
+}
+
+/*
+ * _literal -- parse a literal
+ */
+static int
+_literal(compiler_t *c, compiler_env_t *env, literal_t *lit)
+{
+    switch ( lit->type ) {
+    case LIT_HEXINT:
+        printf("0x%s", lit->u.n);
+        break;
+    case LIT_DECINT:
+        printf("%s", lit->u.n);
+        break;
+    case LIT_OCTINT:
+        printf("0%s", lit->u.n);
+        break;
+    case LIT_FLOAT:
+        printf("%s", lit->u.n);
+        break;
+    case LIT_STRING:
+        printf("%s", lit->u.s);
+        break;
+    case LIT_BOOL:
+        printf("%s", lit->u.b == BOOL_TRUE ? "true" : "false");
+        break;
+    case LIT_NIL:
+        printf("nil");
+        break;
+    }
+
+    return -1;
+}
+
+/*
  * _decl -- parse a declaration
  */
 static int
@@ -427,6 +476,90 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
 }
 
 /*
+ * _op -- parse an operator
+ */
+static int
+_op(compiler_t *c, compiler_env_t *env, op_t *op)
+{
+    int ret;
+
+    ret = -1;
+    switch ( op->type ) {
+    case OP_ASSIGN:
+        //_assign(op);
+        break;
+    case OP_ADD:
+        //_add(op);
+        break;
+    case OP_SUB:
+        //_sub(op);
+        break;
+    case OP_MUL:
+        //_mul(op);
+        break;
+    case OP_DIV:
+        //_div(op);
+        break;
+    case OP_MOD:
+        //_mod(op);
+        break;
+    case OP_NOT:
+        //printf("!\n");
+        break;
+    case OP_LAND:
+        //printf("&&\n");
+        break;
+    case OP_LOR:
+        //printf("||\n");
+        break;
+    case OP_AND:
+        //printf("&\n");
+        break;
+    case OP_OR:
+        //printf("|\n");
+        break;
+    case OP_XOR:
+        //printf("^\n");
+        break;
+    case OP_COMP:
+        //printf("~\n");
+        break;
+    case OP_LSHIFT:
+        //printf("<<\n");
+        break;
+    case OP_RSHIFT:
+        //printf(">>\n");
+        break;
+    case OP_CMP_EQ:
+        //printf("==\n");
+        break;
+    case OP_CMP_NEQ:
+        //printf("!=\n");
+        break;
+    case OP_CMP_GT:
+        //printf(">\n");
+        break;
+    case OP_CMP_LT:
+        //printf("<\n");
+        break;
+    case OP_CMP_GEQ:
+        //printf(">=\n");
+        break;
+    case OP_CMP_LEQ:
+        //printf("<=\n");
+        break;
+    case OP_INC:
+        //_inc(op);
+        break;
+    case OP_DEC:
+        //_dec(op);
+        break;
+    }
+
+    return ret;
+}
+
+/*
  * _expr -- parse an expression
  */
 static int
@@ -437,16 +570,16 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
     ret = -1;
     switch ( e->type ) {
     case EXPR_ID:
-        //_id(e->u.id);
+        ret = _id(c, env, e->u.id);
         break;
     case EXPR_DECL:
-        //_decl(e->u.decl);
+        ret = _decl(c, env, e->u.decl);
         break;
     case EXPR_LITERAL:
-        //_literal(e->u.lit);
+        ret = _literal(c, env, e->u.lit);
         break;
     case EXPR_OP:
-        //_op(e->u.op);
+        ret = _op(c, env, e->u.op);
         break;
     case EXPR_SWITCH:
         //printf("SWITCH\n");
