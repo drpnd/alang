@@ -177,6 +177,12 @@ struct _val {
 };
 
 /*
+ * Constant values
+ */
+typedef struct {
+} compiler_data_t;
+
+/*
  * Environment
  */
 typedef struct _compiler_env compiler_env_t;

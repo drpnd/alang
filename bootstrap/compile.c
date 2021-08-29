@@ -225,34 +225,19 @@ _id(compiler_t *c, compiler_env_t *env, const char *id)
 /*
  * _literal -- parse a literal
  */
-static int
+static compiler_val_t *
 _literal(compiler_t *c, compiler_env_t *env, literal_t *lit)
 {
-    switch ( lit->type ) {
-    case LIT_HEXINT:
-        printf("0x%s", lit->u.n);
-        break;
-    case LIT_DECINT:
-        printf("%s", lit->u.n);
-        break;
-    case LIT_OCTINT:
-        printf("0%s", lit->u.n);
-        break;
-    case LIT_FLOAT:
-        printf("%s", lit->u.n);
-        break;
-    case LIT_STRING:
-        printf("%s", lit->u.s);
-        break;
-    case LIT_BOOL:
-        printf("%s", lit->u.b == BOOL_TRUE ? "true" : "false");
-        break;
-    case LIT_NIL:
-        printf("nil");
-        break;
-    }
+    compiler_val_t *val;
 
-    return -1;
+    val = _val_new();
+    if ( NULL == val ) {
+        return NULL;
+    }
+    val->type = VAL_LITERAL;
+    val->u.lit = lit;
+
+    return val;
 }
 
 /*
@@ -315,7 +300,7 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
 /*
  * _inc -- parse an increment instruction
  */
-static int
+static compiler_val_t *
 _inc(compiler_t *c, compiler_env_t *env, op_t *op)
 {
     compiler_instr_t *instr;
@@ -325,28 +310,28 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
 
     instr = _instr_new();
     if ( NULL == instr ) {
-        COMPILE_ERROR_RETURN(c, "Memory");
+        return NULL;
     }
     instr->opcode = OPCODE_INC;
 
     if ( FIX_PREFIX == op->fix ) {
     } else if ( FIX_SUFFIX == op->fix ) {
     } else {
-        COMPILE_ERROR_RETURN(c, "inc");
+        return NULL;
     }
 
-    return 0;
+    return val;
 }
 
 /*
  * _op -- parse an operator
  */
-static int
+static compiler_val_t *
 _op(compiler_t *c, compiler_env_t *env, op_t *op)
 {
-    int ret;
+    compiler_val_t *val;
 
-    ret = -1;
+    val = NULL;
     switch ( op->type ) {
     case OP_ASSIGN:
         //_assign(op);
@@ -412,14 +397,14 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
         //printf("<=\n");
         break;
     case OP_INC:
-        ret = _inc(c, env, op);
+        val = _inc(c, env, op);
         break;
     case OP_DEC:
         //_dec(op);
         break;
     }
 
-    return ret;
+    return val;
 }
 
 /*
@@ -429,23 +414,20 @@ static compiler_val_t *
 _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
 {
     compiler_val_t *val;
-    int ret;
 
-    ret = -1;
     val = NULL;
     switch ( e->type ) {
     case EXPR_ID:
         val = _id(c, env, e->u.id);
-        ret = 0;
         break;
     case EXPR_DECL:
         val = _decl(c, env, e->u.decl);
         break;
     case EXPR_LITERAL:
-        ret = _literal(c, env, e->u.lit);
+        val = _literal(c, env, e->u.lit);
         break;
     case EXPR_OP:
-        ret = _op(c, env, e->u.op);
+        val = _op(c, env, e->u.op);
         break;
     case EXPR_SWITCH:
         //printf("SWITCH\n");
@@ -464,7 +446,6 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         break;
     case EXPR_LIST:
         val = _expr_list(c, env, e->u.list);
-        ret = 0;
         break;
     }
 
