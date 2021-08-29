@@ -114,10 +114,10 @@ _var_delete(compiler_var_t *var)
 }
 
 /*
- * _var_push -- push a variable to the stack
+ * _var_add -- add a variable to the stack
  */
 static int
-_var_push(compiler_env_t *env, compiler_var_t *var)
+_var_add(compiler_env_t *env, compiler_var_t *var)
 {
     var->next = env->vars->top;
     env->vars->top = var;
@@ -281,7 +281,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl)
     val->u.var = var;
 
     /* Add the variable to the table */
-    ret = _var_push(env, var);
+    ret = _var_add(env, var);
     if ( ret < 0 ) {
         _var_delete(var);
         free(val);
