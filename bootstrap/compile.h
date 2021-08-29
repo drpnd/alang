@@ -159,14 +159,24 @@ typedef enum {
 /*
  * Value
  */
-typedef struct {
-    int type;
+typedef struct _val compiler_val_t;
+struct _val {
+    compiler_val_type_t type;
     reg_type_t reg;
     union {
         compiler_var_t *var;
         literal_t *lit;
     } u;
-} compiler_val_t;
+    compiler_val_t *next;
+};
+
+/*
+ * Value list
+ */
+typedef struct {
+    compiler_val_t *head;
+    compiler_val_t *tail;
+} compiler_val_list_t;
 
 /*
  * Environment

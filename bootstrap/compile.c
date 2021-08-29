@@ -291,7 +291,7 @@ compile_code(compiler_t *c, code_file_t *code)
 #endif
 
 /* Declarations */
-static int _expr(compiler_t *, compiler_env_t *, expr_t *);
+static compiler_val_t * _expr(compiler_t *, compiler_env_t *, expr_t *);
 static int _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static int _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
 
@@ -401,19 +401,61 @@ _var_search(compiler_env_t *env, const char *id)
 }
 
 /*
+ * _val_new -- allocate a new value
+ */
+static compiler_val_t *
+_val_new(void)
+{
+    compiler_val_t *val;
+
+    val = malloc(sizeof(compiler_val_t));
+    if ( NULL == val ) {
+        return NULL;
+    }
+
+    return val;
+}
+
+/*
+ * _val_list_new -- allocate a new value list
+ */
+static compiler_val_list_t *
+_val_list_new(compiler_val_t *val)
+{
+    compiler_val_list_t *l;
+
+    l = malloc(sizeof(compiler_val_list_t));
+    if ( NULL == l ) {
+        return NULL;
+    }
+    l->head = val;
+    l->tail = val;
+
+    return l;
+}
+
+/*
  * _id -- parse an identifier
  */
-static int
+static compiler_val_t *
 _id(compiler_t *c, compiler_env_t *env, const char *id)
 {
+    compiler_val_t *val;
     compiler_var_t *var;
 
     var = _var_search(env, id);
     if ( NULL == var ) {
-        COMPILE_ERROR_RETURN(c, "variable not defined");
+        return NULL;
     }
 
-    return 0;
+    val = _val_new();
+    if ( NULL == val ) {
+        return NULL;
+    }
+    val->type = VAL_VAR;
+    val->u.var = var;
+
+    return val;
 }
 
 /*
@@ -452,24 +494,37 @@ _literal(compiler_t *c, compiler_env_t *env, literal_t *lit)
 /*
  * _decl -- parse a declaration
  */
-static int
+static compiler_val_t *
 _decl(compiler_t *c, compiler_env_t *env, decl_t *decl)
 {
+    compiler_val_t *val;
     compiler_var_t *var;
     int ret;
 
-    /* Add a new variable */
+    /* Allocate a new variable */
     var = _var_new(decl->id, decl->type);
     if ( NULL == var ) {
-        return -1;
+        return NULL;
     }
+
+    /* Allocate a new value */
+    val = _val_new();
+    if ( NULL == val ) {
+        _var_delete(var);
+        return NULL;
+    }
+    val->type = VAL_VAR;
+    val->u.var = var;
+
+    /* Add the variable to the table */
     ret = _var_push(env, var);
     if ( ret < 0 ) {
         _var_delete(var);
-        return -1;
+        free(val);
+        return NULL;
     }
 
-    return 0;
+    return val;
 }
 
 /*
@@ -479,12 +534,12 @@ static int
 _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
 {
     arg_t *a;
-    int ret;
+    compiler_val_t *val;
 
     a = args->head;
     while ( NULL != a ) {
-        ret = _decl(c, env, a->decl);
-        if ( ret < 0 ) {
+        val = _decl(c, env, a->decl);
+        if ( NULL == val ) {
             return -1;
         }
         a = a->next;
@@ -500,9 +555,9 @@ static int
 _inc(compiler_t *c, compiler_env_t *env, op_t *op)
 {
     compiler_instr_t *instr;
-    int ret;
+    compiler_val_t *val;
 
-    ret = _expr(c, env, op->e0);
+    val = _expr(c, env, op->e0);
 
     instr = _instr_new();
     if ( NULL == instr ) {
@@ -606,18 +661,21 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
 /*
  * _expr -- parse an expression
  */
-static int
+static compiler_val_t *
 _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
 {
+    compiler_val_t *val;
     int ret;
 
     ret = -1;
+    val = NULL;
     switch ( e->type ) {
     case EXPR_ID:
-        ret = _id(c, env, e->u.id);
+        val = _id(c, env, e->u.id);
+        ret = 0;
         break;
     case EXPR_DECL:
-        ret = _decl(c, env, e->u.decl);
+        val = _decl(c, env, e->u.decl);
         break;
     case EXPR_LITERAL:
         ret = _literal(c, env, e->u.lit);
@@ -645,7 +703,7 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         break;
     }
 
-    return ret;
+    return val;
 }
 
 /*
@@ -655,12 +713,12 @@ static int
 _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
 {
     expr_t *e;
-    int ret;
+    compiler_val_t *val;
 
     e = exprs->head;
     while ( NULL != e ) {
-        ret = _expr(c, env, e);
-        if ( ret < 0 ) {
+        val = _expr(c, env, e);
+        if ( NULL == val ) {
             COMPILE_ERROR_RETURN(c, "expression list");
         }
         e = e->next;
@@ -695,6 +753,7 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
 {
     int ret;
     compiler_env_t *nenv;
+    compiler_val_t *val;
 
     ret = -1;
     switch ( stmt->type ) {
@@ -702,7 +761,8 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         ret = _while(c, env, &stmt->u.whilestmt);
         break;
     case STMT_EXPR:
-        ret = _expr(c, env, stmt->u.expr);
+        val = _expr(c, env, stmt->u.expr);
+        ret = 0;
         break;
     case STMT_EXPR_LIST:
         ret = _expr_list(c, env, stmt->u.exprs);
