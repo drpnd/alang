@@ -734,24 +734,36 @@ _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
 {
     expr_t *e;
     compiler_val_t *val;
+    compiler_val_t *v;
     compiler_val_list_t *l;
 
+    val = _val_new();
+    if ( NULL == val ) {
+        return NULL;
+    }
     l = _val_list_new(NULL);
+    if ( NULL == l ) {
+        free(val);
+        return NULL;
+    }
 
     e = exprs->head;
     while ( NULL != e ) {
-        val = _expr(c, env, e);
-        if ( NULL == val ) {
+        v = _expr(c, env, e);
+        if ( NULL == v ) {
             return NULL;
         }
-        l = _val_list_append(l, val);
+        l = _val_list_append(l, v);
         if ( NULL == l ) {
             return NULL;
         }
         e = e->next;
     }
 
-    return 0;
+    v->type = VAL_LIST;
+    v->u.list = l;
+
+    return v;
 }
 
 /*

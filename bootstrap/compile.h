@@ -170,6 +170,7 @@ struct _val {
     reg_type_t reg;
     union {
         compiler_var_t *var;
+        compiler_val_list_t *list;
         literal_t *lit;
     } u;
     compiler_val_t *next;
