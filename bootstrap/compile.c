@@ -292,7 +292,8 @@ compile_code(compiler_t *c, code_file_t *code)
 
 /* Declarations */
 static compiler_val_t * _expr(compiler_t *, compiler_env_t *, expr_t *);
-static int _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
+static compiler_val_t *
+_expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static int _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
 
 /*
@@ -412,6 +413,7 @@ _val_new(void)
     if ( NULL == val ) {
         return NULL;
     }
+    memset(val, 0, sizeof(compiler_val_t));
 
     return val;
 }
@@ -430,6 +432,23 @@ _val_list_new(compiler_val_t *val)
     }
     l->head = val;
     l->tail = val;
+
+    return l;
+}
+
+/*
+ * _val_list_append -- append a value to the list
+ */
+static compiler_val_list_t *
+_val_list_append(compiler_val_list_t *l, compiler_val_t *val)
+{
+    if ( NULL == l->head ) {
+        l->head = val;
+        l->tail = val;
+    } else {
+        l->tail->next = val;
+        l->tail = val;
+    }
 
     return l;
 }
@@ -699,7 +718,8 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         //printf("MEMBER\n");
         break;
     case EXPR_LIST:
-        ret = _expr_list(c, env, e->u.list);
+        val = _expr_list(c, env, e->u.list);
+        ret = 0;
         break;
     }
 
@@ -709,17 +729,24 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
 /*
  * _expr_list -- parse an expression list
  */
-static int
+static compiler_val_t *
 _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
 {
     expr_t *e;
     compiler_val_t *val;
+    compiler_val_list_t *l;
+
+    l = _val_list_new(NULL);
 
     e = exprs->head;
     while ( NULL != e ) {
         val = _expr(c, env, e);
         if ( NULL == val ) {
-            COMPILE_ERROR_RETURN(c, "expression list");
+            return NULL;
+        }
+        l = _val_list_append(l, val);
+        if ( NULL == l ) {
+            return NULL;
         }
         e = e->next;
     }
@@ -765,7 +792,8 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         ret = 0;
         break;
     case STMT_EXPR_LIST:
-        ret = _expr_list(c, env, stmt->u.exprs);
+        val = _expr_list(c, env, stmt->u.exprs);
+        ret = 0;
         break;
     case STMT_BLOCK:
         /* Create a new environemt */
