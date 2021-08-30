@@ -307,6 +307,10 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
     compiler_val_t *val;
 
     val = _expr(c, env, op->e0);
+    if ( VAL_VAR != val->type ) {
+        /* Only variable is allowed for this operation. */
+        return NULL;
+    }
 
     instr = _instr_new();
     if ( NULL == instr ) {
