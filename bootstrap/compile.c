@@ -297,6 +297,23 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
     return 0;
 }
 
+static compiler_val_t *
+_assign(compiler_t *c, compiler_env_t *env, op_t *op)
+{
+    compiler_val_t *v0;
+    compiler_val_t *v1;
+
+    if ( FIX_INFIX != op->fix ) {
+        return NULL;
+    }
+
+    /* Evaluate the expressions */
+    v0 = _expr(c, env, op->e0);
+    v1 = _expr(c, env, op->e1);
+
+    return v0;
+}
+
 /*
  * _inc -- parse an increment instruction
  */
@@ -338,7 +355,7 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
     val = NULL;
     switch ( op->type ) {
     case OP_ASSIGN:
-        //_assign(op);
+        val = _assign(c, env, op);
         break;
     case OP_ADD:
         //_add(op);
