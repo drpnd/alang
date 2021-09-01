@@ -297,6 +297,9 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
     return 0;
 }
 
+/*
+ * _assign -- parse an assignment instruction
+ */
 static compiler_val_t *
 _assign(compiler_t *c, compiler_env_t *env, op_t *op)
 {
