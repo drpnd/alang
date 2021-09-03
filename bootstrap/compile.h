@@ -72,7 +72,7 @@ typedef enum {
  * Operand type
  */
 typedef enum {
-    OPERAND_VAR,
+    OPERAND_VAL,
     OPERAND_I8,
     OPERAND_I16,
     OPERAND_I32,
@@ -85,7 +85,6 @@ typedef enum {
 typedef struct {
     operand_type_t type;
     union {
-        int64_t i;
     } u;
 } operand_t;
 
@@ -168,7 +167,6 @@ typedef struct {
 } compiler_val_list_t;
 struct _val {
     compiler_val_type_t type;
-    reg_type_t reg;
     union {
         compiler_var_t *var;
         compiler_val_list_t *list;
