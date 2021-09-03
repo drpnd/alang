@@ -305,16 +305,58 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
 {
     compiler_val_t *v0;
     compiler_val_t *v1;
+    compiler_instr_t *instr;
 
     if ( FIX_INFIX != op->fix ) {
         return NULL;
     }
+
+    instr = _instr_new();
+    if ( NULL == instr ) {
+        return NULL;
+    }
+    instr->opcode = OPCODE_MOV;
 
     /* Evaluate the expressions */
     v0 = _expr(c, env, op->e0);
     v1 = _expr(c, env, op->e1);
 
     return v0;
+}
+
+/*
+* _add -- parse an addition instruction
+ */
+static compiler_val_t *
+_add(compiler_t *c, compiler_env_t *env, op_t *op)
+{
+    compiler_val_t *vr;
+    compiler_val_t *v0;
+    compiler_val_t *v1;
+    compiler_instr_t *instr;
+
+    if ( FIX_INFIX != op->fix ) {
+        return NULL;
+    }
+
+    instr = _instr_new();
+    if ( NULL == instr ) {
+        return NULL;
+    }
+    instr->opcode = OPCODE_ADD;
+
+    /* Allocate a new value */
+    vr = _val_new();
+    if ( NULL == vr ) {
+        return NULL;
+    }
+    vr->type = VAL_REG;
+
+    /* Evaluate the expressions */
+    v0 = _expr(c, env, op->e0);
+    v1 = _expr(c, env, op->e1);
+
+    return vr;
 }
 
 /*
