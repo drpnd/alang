@@ -196,7 +196,7 @@ struct _compiler_env {
     /* Variables */
     compiler_var_table_t *vars;
     /* Instructions */
-    compiler_code_t *code;
+    compiler_code_t code;
     /* Pointer to the stacked environement below */
     compiler_env_t *prev;
 };
