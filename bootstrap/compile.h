@@ -116,6 +116,13 @@ typedef struct {
 } compiler_block_t;
 
 /*
+ * Code
+ */
+typedef struct {
+    compiler_instr_t *head;
+} compiler_code_t;
+
+/*
  * Register type
  */
 typedef enum {
@@ -188,6 +195,8 @@ typedef struct _compiler_env compiler_env_t;
 struct _compiler_env {
     /* Variables */
     compiler_var_table_t *vars;
+    /* Instructions */
+    compiler_code_t *code;
     /* Pointer to the stacked environement below */
     compiler_env_t *prev;
 };
