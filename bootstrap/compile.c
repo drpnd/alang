@@ -79,6 +79,7 @@ _env_new(compiler_t *c)
     env->prev = NULL;
 
     env->code.head = NULL;
+    env->code.tail = NULL;
 
     return env;
 }
@@ -198,6 +199,21 @@ _val_list_append(compiler_val_list_t *l, compiler_val_t *val)
     }
 
     return l;
+}
+
+/*
+ * _append_instr
+ */
+static int
+_append_instr(compiler_code_t *code, compiler_instr_t *instr)
+{
+    if ( NULL == code->head ) {
+        code->head = instr;
+        code->tail = instr;
+    } else {
+        code->tail->next = instr;
+        code->tail = instr;
+    }
 }
 
 /*

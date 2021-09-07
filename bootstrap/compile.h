@@ -120,6 +120,7 @@ typedef struct {
  */
 typedef struct {
     compiler_instr_t *head;
+    compiler_instr_t *tail;
 } compiler_code_t;
 
 /*
