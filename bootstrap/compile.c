@@ -335,6 +335,8 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
     }
     instr->opcode = OPCODE_MOV;
 
+    _append_instr(&env->code, instr);
+
     /* Evaluate the expressions */
     v0 = _expr(c, env, op->e0);
     v1 = _expr(c, env, op->e1);
