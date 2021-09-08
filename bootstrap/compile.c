@@ -334,7 +334,6 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
         return NULL;
     }
     instr->opcode = OPCODE_MOV;
-
     _append_instr(&env->code, instr);
 
     /* Evaluate the expressions */
@@ -364,6 +363,7 @@ _add(compiler_t *c, compiler_env_t *env, op_t *op)
         return NULL;
     }
     instr->opcode = OPCODE_ADD;
+    _append_instr(&env->code, instr);
 
     /* Allocate a new value */
     vr = _val_new();
