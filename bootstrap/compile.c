@@ -399,6 +399,7 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
         return NULL;
     }
     instr->opcode = OPCODE_INC;
+    _append_instr(&env->code, instr);
 
     if ( FIX_PREFIX == op->fix ) {
     } else if ( FIX_SUFFIX == op->fix ) {
