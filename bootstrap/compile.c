@@ -387,12 +387,19 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
 {
     compiler_instr_t *instr;
     compiler_val_t *val;
+    compiler_val_t *vr;
 
     val = _expr(c, env, op->e0);
     if ( VAL_VAR != val->type ) {
         /* Only variable is allowed for this operation. */
         return NULL;
     }
+
+    vr = _val_new();
+    if ( NULL == vr ) {
+        return NULL;
+    }
+    vr->type = VAL_REG;
 
     instr = _instr_new();
     if ( NULL == instr ) {
