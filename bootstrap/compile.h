@@ -85,6 +85,7 @@ typedef enum {
 typedef struct {
     operand_type_t type;
     union {
+        void *val;
     } u;
 } operand_t;
 

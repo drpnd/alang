@@ -395,21 +395,33 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
         return NULL;
     }
 
-    vr = _val_new();
-    if ( NULL == vr ) {
-        return NULL;
-    }
-    vr->type = VAL_REG;
-
-    instr = _instr_new();
-    if ( NULL == instr ) {
-        return NULL;
-    }
-    instr->opcode = OPCODE_INC;
-    _append_instr(&env->code, instr);
-
     if ( FIX_PREFIX == op->fix ) {
+        instr = _instr_new();
+        if ( NULL == instr ) {
+            return NULL;
+        }
+        instr->opcode = OPCODE_INC;
+        _append_instr(&env->code, instr);
     } else if ( FIX_SUFFIX == op->fix ) {
+        vr = _val_new();
+        if ( NULL == vr ) {
+            return NULL;
+        }
+        vr->type = VAL_REG;
+
+        instr = _instr_new();
+        if ( NULL == instr ) {
+            return NULL;
+        }
+        instr->opcode = OPCODE_MOV;
+        _append_instr(&env->code, instr);
+
+        instr = _instr_new();
+        if ( NULL == instr ) {
+            return NULL;
+        }
+        instr->opcode = OPCODE_INC;
+        _append_instr(&env->code, instr);
     } else {
         return NULL;
     }
