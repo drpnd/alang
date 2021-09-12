@@ -214,6 +214,8 @@ _append_instr(compiler_code_t *code, compiler_instr_t *instr)
         code->tail->next = instr;
         code->tail = instr;
     }
+
+    return 0;
 }
 
 /*

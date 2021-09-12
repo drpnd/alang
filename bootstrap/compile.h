@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+typedef struct _val compiler_val_t;
+
 /*
  * Assembler operations
  */
@@ -85,7 +87,7 @@ typedef enum {
 typedef struct {
     operand_type_t type;
     union {
-        void *val;
+        compiler_val_t *val;
     } u;
 } operand_t;
 
@@ -169,7 +171,6 @@ typedef enum {
 /*
  * Value
  */
-typedef struct _val compiler_val_t;
 typedef struct {
     compiler_val_t *head;
     compiler_val_t *tail;
