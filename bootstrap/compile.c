@@ -416,6 +416,10 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
             return NULL;
         }
         instr->opcode = OPCODE_MOV;
+        instr->operands[0].type = OPERAND_VAL;
+        instr->operands[0].u.val = val;
+        instr->operands[1].type = OPERAND_VAL;
+        instr->operands[1].u.val = vr;
         _append_instr(&env->code, instr);
 
         instr = _instr_new();
