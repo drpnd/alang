@@ -403,7 +403,11 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
             return NULL;
         }
         instr->opcode = OPCODE_INC;
+        instr->operands[0].type = OPERAND_VAL;
+        instr->operands[0].u.val = val;
         _append_instr(&env->code, instr);
+
+        return val;
     } else if ( FIX_SUFFIX == op->fix ) {
         vr = _val_new();
         if ( NULL == vr ) {
@@ -411,6 +415,7 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
         }
         vr->type = VAL_REG;
 
+        /* Copy the value to a register */
         instr = _instr_new();
         if ( NULL == instr ) {
             return NULL;
@@ -427,12 +432,14 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
             return NULL;
         }
         instr->opcode = OPCODE_INC;
+        instr->operands[0].type = OPERAND_VAL;
+        instr->operands[0].u.val = val;
         _append_instr(&env->code, instr);
+
+        return val;
     } else {
         return NULL;
     }
-
-    return val;
 }
 
 /*
