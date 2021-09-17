@@ -326,6 +326,7 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
     compiler_val_t *v0;
     compiler_val_t *v1;
     compiler_instr_t *instr;
+    int ret;
 
     if ( FIX_INFIX != op->fix ) {
         return NULL;
@@ -336,7 +337,10 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
         return NULL;
     }
     instr->opcode = OPCODE_MOV;
-    _append_instr(&env->code, instr);
+    ret = _append_instr(&env->code, instr);
+    if ( ret < 0 ) {
+        return NULL;
+    }
 
     /* Evaluate the expressions */
     v0 = _expr(c, env, op->e0);
@@ -355,6 +359,7 @@ _add(compiler_t *c, compiler_env_t *env, op_t *op)
     compiler_val_t *v0;
     compiler_val_t *v1;
     compiler_instr_t *instr;
+    int ret;
 
     if ( FIX_INFIX != op->fix ) {
         return NULL;
@@ -365,7 +370,10 @@ _add(compiler_t *c, compiler_env_t *env, op_t *op)
         return NULL;
     }
     instr->opcode = OPCODE_ADD;
-    _append_instr(&env->code, instr);
+    ret = _append_instr(&env->code, instr);
+    if ( ret < 0 ) {
+        return NULL;
+    }
 
     /* Allocate a new value */
     vr = _val_new();
@@ -390,6 +398,7 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
     compiler_instr_t *instr;
     compiler_val_t *val;
     compiler_val_t *vr;
+    int ret;
 
     val = _expr(c, env, op->e0);
     if ( VAL_VAR != val->type ) {
@@ -405,7 +414,10 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
         instr->opcode = OPCODE_INC;
         instr->operands[0].type = OPERAND_VAL;
         instr->operands[0].u.val = val;
-        _append_instr(&env->code, instr);
+        ret = _append_instr(&env->code, instr);
+        if ( ret < 0 ) {
+            return NULL;
+        }
 
         return val;
     } else if ( FIX_SUFFIX == op->fix ) {
@@ -425,7 +437,10 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
         instr->operands[0].u.val = val;
         instr->operands[1].type = OPERAND_VAL;
         instr->operands[1].u.val = vr;
-        _append_instr(&env->code, instr);
+        ret = _append_instr(&env->code, instr);
+        if ( ret < 0 ) {
+            return NULL;
+        }
 
         instr = _instr_new();
         if ( NULL == instr ) {
@@ -434,7 +449,10 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
         instr->opcode = OPCODE_INC;
         instr->operands[0].type = OPERAND_VAL;
         instr->operands[0].u.val = val;
-        _append_instr(&env->code, instr);
+        ret = _append_instr(&env->code, instr);
+        if ( ret < 0 ) {
+            return NULL;
+        }
 
         return val;
     } else {
@@ -456,7 +474,7 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
         val = _assign(c, env, op);
         break;
     case OP_ADD:
-        //_add(op);
+        val = _add(c, env, op);
         break;
     case OP_SUB:
         //_sub(op);
