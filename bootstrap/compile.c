@@ -350,10 +350,10 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
 }
 
 /*
- * _add -- parse an addition instruction
+ * _op_infix -- parse an infix operation
  */
 static compiler_val_t *
-_add(compiler_t *c, compiler_env_t *env, op_t *op)
+_op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
 {
     compiler_val_t *vr;
     compiler_val_t *v0;
@@ -369,47 +369,7 @@ _add(compiler_t *c, compiler_env_t *env, op_t *op)
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->opcode = OPCODE_ADD;
-    ret = _append_instr(&env->code, instr);
-    if ( ret < 0 ) {
-        return NULL;
-    }
-
-    /* Allocate a new value */
-    vr = _val_new();
-    if ( NULL == vr ) {
-        return NULL;
-    }
-    vr->type = VAL_REG;
-
-    /* Evaluate the expressions */
-    v0 = _expr(c, env, op->e0);
-    v1 = _expr(c, env, op->e1);
-
-    return vr;
-}
-
-/*
- * _sub -- parse a subtractioninstruction
- */
-static compiler_val_t *
-_sub(compiler_t *c, compiler_env_t *env, op_t *op)
-{
-    compiler_val_t *vr;
-    compiler_val_t *v0;
-    compiler_val_t *v1;
-    compiler_instr_t *instr;
-    int ret;
-
-    if ( FIX_INFIX != op->fix ) {
-        return NULL;
-    }
-
-    instr = _instr_new();
-    if ( NULL == instr ) {
-        return NULL;
-    }
-    instr->opcode = OPCODE_SUB;
+    instr->opcode = opcode;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
         return NULL;
@@ -514,13 +474,13 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
         val = _assign(c, env, op);
         break;
     case OP_ADD:
-        val = _add(c, env, op);
+        val = _op_infix(c, env, op, OPCODE_ADD);
         break;
     case OP_SUB:
-        val = _sub(c, env, op);
+        val = _op_infix(c, env, op, OPCODE_SUB);
         break;
     case OP_MUL:
-        //_mul(op);
+        val = _op_infix(c, env, op, OPCODE_MUL);
         break;
     case OP_DIV:
         //_div(op);
