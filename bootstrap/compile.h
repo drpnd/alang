@@ -64,7 +64,7 @@ typedef struct {
  * Opcode
  */
 typedef enum {
-    OPCODE_MOV,
+    OPCODE_MOV, /* src,dst */
     OPCODE_ADD,
     OPCODE_SUB,
     OPCODE_MUL,

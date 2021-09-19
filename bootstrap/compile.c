@@ -332,19 +332,27 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
         return NULL;
     }
 
+    /* Evaluate the expressions */
+    v0 = _expr(c, env, op->e0);
+    v1 = _expr(c, env, op->e1);
+    if ( VAL_VAR != v0->type ) {
+        return NULL;
+    }
+
+    /* Assign */
     instr = _instr_new();
     if ( NULL == instr ) {
         return NULL;
     }
     instr->opcode = OPCODE_MOV;
+    instr->operands[0].type = OPERAND_VAL;
+    instr->operands[0].u.val = v1;
+    instr->operands[1].type = OPERAND_VAL;
+    instr->operands[1].u.val = v0;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
         return NULL;
     }
-
-    /* Evaluate the expressions */
-    v0 = _expr(c, env, op->e0);
-    v1 = _expr(c, env, op->e1);
 
     return v0;
 }
