@@ -405,10 +405,10 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
 }
 
 /*
- * _div -- paser a divide operation
+ * _divmod -- paser a divide/modulo operation
  */
 static compiler_val_t *
-_div(compiler_t *c, compiler_env_t *env, op_t *op)
+_divmod(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
 {
     compiler_val_t *vr;
     compiler_val_t *v0;
@@ -435,7 +435,7 @@ _div(compiler_t *c, compiler_env_t *env, op_t *op)
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->opcode = OPCODE_DIV;
+    instr->opcode = opcode;
     instr->operands[0].type = OPERAND_VAL;
     instr->operands[0].u.val = v0;
     instr->operands[1].type = OPERAND_VAL;
@@ -449,7 +449,6 @@ _div(compiler_t *c, compiler_env_t *env, op_t *op)
 
     return vr;
 }
-
 
 /*
  * _inc -- parse an increment instruction
@@ -545,10 +544,10 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
         val = _op_infix(c, env, op, OPCODE_MUL);
         break;
     case OP_DIV:
-        //_div(op);
+        val = _divmod(c, env, op, OPCODE_DIV);
         break;
     case OP_MOD:
-        //_mod(op);
+        val = _divmod(c, env, op, OPCODE_MOD);
         break;
     case OP_NOT:
         //printf("!\n");

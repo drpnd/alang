@@ -67,8 +67,9 @@ typedef enum {
     OPCODE_MOV, /* src,dst */
     OPCODE_ADD, /* op1,op2,dst */
     OPCODE_SUB, /* op1,op2,dst */
-    OPCODE_MUL, /* op1,op2,q,r */
-    OPCODE_DIV, /* op1,op2,r,q */
+    OPCODE_MUL, /* op1,op2,dst */
+    OPCODE_DIV, /* op1,op2,{q,r} */
+    OPCODE_MOD, /* op1,op2,{r,q} */
     OPCODE_INC, /* op */
     OPCODE_DEC, /* op */
 } opcode_t;
