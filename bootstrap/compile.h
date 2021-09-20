@@ -168,6 +168,7 @@ typedef enum {
     VAL_VAR,
     VAL_LITERAL,
     VAL_REG,
+    VAL_REG_SET,
     VAL_LIST,
 } compiler_val_type_t;
 
