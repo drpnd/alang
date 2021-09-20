@@ -65,12 +65,12 @@ typedef struct {
  */
 typedef enum {
     OPCODE_MOV, /* src,dst */
-    OPCODE_ADD,
-    OPCODE_SUB,
-    OPCODE_MUL,
-    OPCODE_DIV,
-    OPCODE_INC,
-    OPCODE_DEC,
+    OPCODE_ADD, /* op1,op2,dst */
+    OPCODE_SUB, /* op1,op2,dst */
+    OPCODE_MUL, /* op1,op2,q,r */
+    OPCODE_DIV, /* op1,op2,r,q */
+    OPCODE_INC, /* op */
+    OPCODE_DEC, /* op */
 } opcode_t;
 
 /*
@@ -100,7 +100,7 @@ typedef struct {
 typedef struct _instr compiler_instr_t;
 struct _instr {
     opcode_t opcode;
-    operand_t operands[3];
+    operand_t operands[4];
     compiler_instr_t *next;
 };
 
