@@ -405,6 +405,49 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
 }
 
 /*
+ * _op_prefix -- parse an prefix operation
+ */
+static compiler_val_t *
+_op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
+{
+    compiler_val_t *vr;
+    compiler_val_t *v;
+    compiler_instr_t *instr;
+    int ret;
+
+    if ( FIX_PREFIX != op->fix ) {
+        return NULL;
+    }
+
+    /* Evaluate the expressions */
+    v = _expr(c, env, op->e0);
+
+    /* Allocate a new value */
+    vr = _val_new();
+    if ( NULL == vr ) {
+        return NULL;
+    }
+    vr->type = VAL_REG;
+
+    /* Add an instruction */
+    instr = _instr_new();
+    if ( NULL == instr ) {
+        return NULL;
+    }
+    instr->opcode = opcode;
+    instr->operands[0].type = OPERAND_VAL;
+    instr->operands[0].u.val = v;
+    instr->operands[1].type = OPERAND_VAL;
+    instr->operands[1].u.val = vr;
+    ret = _append_instr(&env->code, instr);
+    if ( ret < 0 ) {
+        return NULL;
+    }
+
+    return vr;
+}
+
+/*
  * _divmod -- paser a divide/modulo operation
  */
 static compiler_val_t *
@@ -451,10 +494,10 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
 }
 
 /*
- * _inc -- parse an increment instruction
+ * _incdec -- parse an increment/decrement instruction
  */
 static compiler_val_t *
-_inc(compiler_t *c, compiler_env_t *env, op_t *op)
+_incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
 {
     compiler_instr_t *instr;
     compiler_val_t *val;
@@ -472,7 +515,7 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
         if ( NULL == instr ) {
             return NULL;
         }
-        instr->opcode = OPCODE_INC;
+        instr->opcode = opcode;
         instr->operands[0].type = OPERAND_VAL;
         instr->operands[0].u.val = val;
         ret = _append_instr(&env->code, instr);
@@ -507,7 +550,7 @@ _inc(compiler_t *c, compiler_env_t *env, op_t *op)
         if ( NULL == instr ) {
             return NULL;
         }
-        instr->opcode = OPCODE_INC;
+        instr->opcode = opcode;
         instr->operands[0].type = OPERAND_VAL;
         instr->operands[0].u.val = val;
         ret = _append_instr(&env->code, instr);
@@ -550,55 +593,55 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
         val = _divmod(c, env, op, OPCODE_MOD);
         break;
     case OP_NOT:
-        //printf("!\n");
+        val = _op_prefix(c, env, op, OPCODE_NOT);
         break;
     case OP_LAND:
-        //printf("&&\n");
+        val = _op_infix(c, env, op, OPCODE_LAND);
         break;
     case OP_LOR:
-        //printf("||\n");
+        val = _op_infix(c, env, op, OPCODE_LOR);
         break;
     case OP_AND:
-        //printf("&\n");
+        val = _op_infix(c, env, op, OPCODE_AND);
         break;
     case OP_OR:
-        //printf("|\n");
+        val = _op_infix(c, env, op, OPCODE_OR);
         break;
     case OP_XOR:
-        //printf("^\n");
+        val = _op_infix(c, env, op, OPCODE_XOR);
         break;
     case OP_COMP:
-        //printf("~\n");
+        val = _op_prefix(c, env, op, OPCODE_COMP);
         break;
     case OP_LSHIFT:
-        //printf("<<\n");
+        val = _op_infix(c, env, op, OPCODE_LSHIFT);
         break;
     case OP_RSHIFT:
-        //printf(">>\n");
+        val = _op_infix(c, env, op, OPCODE_RSHIFT);
         break;
     case OP_CMP_EQ:
-        //printf("==\n");
+        val = _op_infix(c, env, op, OPCODE_CMP_EQ);
         break;
     case OP_CMP_NEQ:
-        //printf("!=\n");
+        val = _op_infix(c, env, op, OPCODE_CMP_NEQ);
         break;
     case OP_CMP_GT:
-        //printf(">\n");
+        val = _op_infix(c, env, op, OPCODE_CMP_GT);
         break;
     case OP_CMP_LT:
-        //printf("<\n");
+        val = _op_infix(c, env, op, OPCODE_CMP_LT);
         break;
     case OP_CMP_GEQ:
-        //printf(">=\n");
+        val = _op_infix(c, env, op, OPCODE_CMP_GEQ);
         break;
     case OP_CMP_LEQ:
-        //printf("<=\n");
+        val = _op_infix(c, env, op, OPCODE_CMP_LEQ);
         break;
     case OP_INC:
-        val = _inc(c, env, op);
+        val = _incdec(c, env, op, OPCODE_INC);
         break;
     case OP_DEC:
-        //_dec(op);
+        val = _incdec(c, env, op, OPCODE_DEC);
         break;
     }
 
