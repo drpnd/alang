@@ -569,7 +569,6 @@ main(int argc, const char *const argv[])
         return EXIT_FAILURE;
     }
 
-
     return EXIT_SUCCESS;
 }
 

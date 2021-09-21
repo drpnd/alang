@@ -928,6 +928,7 @@ _outer_block(compiler_t *c, outer_block_t *block)
     if ( NULL == env ) {
         COMPILE_ERROR_RETURN(c, "memory");
     }
+    memset(env, 0, sizeof(compiler_env_t));
     env->vars = NULL;
 
     /* Parse all outer block entries */
