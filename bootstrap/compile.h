@@ -29,6 +29,7 @@
 #include <stdint.h>
 
 typedef struct _val compiler_val_t;
+typedef struct _compiler_env compiler_env_t;
 
 /*
  * Assembler operations
@@ -133,8 +134,7 @@ typedef enum {
  */
 typedef struct {
     compiler_block_type_t type;
-    const char *label;
-    compiler_instr_t *instr;
+    compiler_env_t *env;
 } compiler_block_t;
 
 /*
@@ -214,7 +214,6 @@ typedef struct {
 /*
  * Environment
  */
-typedef struct _compiler_env compiler_env_t;
 struct _compiler_env {
     /* Variables */
     compiler_var_table_t *vars;

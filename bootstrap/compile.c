@@ -820,6 +820,7 @@ _func(compiler_t *c, func_t *fn)
 {
     int ret;
     compiler_env_t *env;
+    compiler_block_t *block;
 
     /* Allocate a new environment */
     env = _env_new(c);
@@ -843,6 +844,13 @@ _func(compiler_t *c, func_t *fn)
     if ( ret < 0 ) {
         return -1;
     }
+
+    block = malloc(sizeof(compiler_block_t));
+    if ( NULL == block ) {
+        return -1;
+    }
+    block->type = BLOCK_FUNC;
+    block->env = env;
 
     return 0;
 }
