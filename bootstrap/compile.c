@@ -815,7 +815,7 @@ _inner_block(compiler_t *c, compiler_env_t *env, inner_block_t *block)
 /*
  * _func -- parse a function
  */
-static int
+static compiler_block_t *
 _func(compiler_t *c, func_t *fn)
 {
     int ret;
@@ -825,34 +825,34 @@ _func(compiler_t *c, func_t *fn)
     /* Allocate a new environment */
     env = _env_new(c);
     if ( NULL == env ) {
-        COMPILE_ERROR_RETURN(c, "memory");
-        return -1;
+        return NULL;
     }
 
     /* Parse arguments and return values */
     ret = _args(c, env, fn->args);
     if ( ret < 0 ) {
-        return -1;
+        return NULL;
     }
     ret = _args(c, env, fn->rets);
     if ( ret < 0 ) {
-        return -1;
+        return NULL;
     }
 
     /* Parse the inner block */
     ret = _inner_block(c, env, fn->block);
     if ( ret < 0 ) {
-        return -1;
+        return NULL;
     }
 
+    /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
     if ( NULL == block ) {
-        return -1;
+        return NULL;
     }
     block->type = BLOCK_FUNC;
     block->env = env;
 
-    return 0;
+    return block;
 }
 
 /*
@@ -901,11 +901,13 @@ static int
 _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
 {
     int ret;
+    compiler_block_t *block;
 
     ret = -1;
     switch ( e->type ) {
     case OUTER_BLOCK_FUNC:
-        ret = _func(c, e->u.fn);
+        block = _func(c, e->u.fn);
+        ret = 0;
         break;
     case OUTER_BLOCK_COROUTINE:
         ret = _coroutine(c, e->u.cr);
