@@ -858,10 +858,10 @@ _func(compiler_t *c, func_t *fn)
 /*
  * _coroutine -- parse a coroutine
  */
-static int
+static compiler_block_t *
 _coroutine(compiler_t *c, coroutine_t *cr)
 {
-    return -1;
+    return NULL;
 }
 
 /*
@@ -910,7 +910,8 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
         ret = 0;
         break;
     case OUTER_BLOCK_COROUTINE:
-        ret = _coroutine(c, e->u.cr);
+        block = _coroutine(c, e->u.cr);
+        ret = 0;
         break;
     case OUTER_BLOCK_MODULE:
         ret = _module(c, e->u.md);
