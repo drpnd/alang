@@ -904,6 +904,7 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
     compiler_block_t *block;
 
     ret = -1;
+    block = NULL;
     switch ( e->type ) {
     case OUTER_BLOCK_FUNC:
         block = _func(c, e->u.fn);
