@@ -849,6 +849,10 @@ _func(compiler_t *c, func_t *fn)
     if ( NULL == block ) {
         return NULL;
     }
+    block->label = strdup(fn->id);
+    if ( NULL == block->label ) {
+        return NULL;
+    }
     block->type = BLOCK_FUNC;
     block->env = env;
 

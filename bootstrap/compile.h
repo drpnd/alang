@@ -134,6 +134,7 @@ typedef enum {
  */
 typedef struct {
     compiler_block_type_t type;
+    char *label;
     compiler_env_t *env;
 } compiler_block_t;
 
