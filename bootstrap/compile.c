@@ -901,7 +901,7 @@ _directive(compiler_t *c, directive_t *dr)
 /*
  * _outer_block_entry -- parse an outer block entry
  */
-static int
+static compiler_block_t *
 _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
 {
     int ret;
@@ -926,7 +926,7 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
         break;
     }
 
-    return ret;
+    return block;
 }
 
 /*
@@ -936,8 +936,8 @@ static int
 _outer_block(compiler_t *c, outer_block_t *block)
 {
     compiler_env_t *env;
+    compiler_block_t *b;
     outer_block_entry_t *e;
-    int ret;
 
     /* Allocate the environment data structure for this block (i.e., scope) */
     env = malloc(sizeof(compiler_env_t));
@@ -950,8 +950,8 @@ _outer_block(compiler_t *c, outer_block_t *block)
     /* Parse all outer block entries */
     e = block->head;
     while ( NULL != e ) {
-        ret = _outer_block_entry(c, e);
-        if ( ret < 0 ) {
+        b = _outer_block_entry(c, e);
+        if ( NULL == b ) {
             return -1;
         }
         e = e->next;
