@@ -954,6 +954,8 @@ _outer_block(compiler_t *c, outer_block_t *block)
         if ( NULL == b ) {
             return -1;
         }
+        /* Implement the block handler */
+
         e = e->next;
     }
 
