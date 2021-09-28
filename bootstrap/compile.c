@@ -935,17 +935,8 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
 static int
 _outer_block(compiler_t *c, outer_block_t *block)
 {
-    compiler_env_t *env;
     compiler_block_t *b;
     outer_block_entry_t *e;
-
-    /* Allocate the environment data structure for this block (i.e., scope) */
-    env = malloc(sizeof(compiler_env_t));
-    if ( NULL == env ) {
-        COMPILE_ERROR_RETURN(c, "memory");
-    }
-    memset(env, 0, sizeof(compiler_env_t));
-    env->vars = NULL;
 
     /* Parse all outer block entries */
     e = block->head;
