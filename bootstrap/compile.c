@@ -855,6 +855,7 @@ _func(compiler_t *c, func_t *fn)
     }
     block->type = BLOCK_FUNC;
     block->env = env;
+    block->next = NULL;
 
     return block;
 }

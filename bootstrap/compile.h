@@ -132,11 +132,13 @@ typedef enum {
 /*
  * Block
  */
-typedef struct {
+typedef struct _compiler_block compiler_block_t;
+struct _compiler_block {
     compiler_block_type_t type;
     char *label;
     compiler_env_t *env;
-} compiler_block_t;
+    compiler_block_t *next;
+};
 
 /*
  * Code
