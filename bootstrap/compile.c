@@ -937,16 +937,26 @@ static int
 _outer_block(compiler_t *c, outer_block_t *block)
 {
     compiler_block_t *b;
+    compiler_block_t *tb;
+    compiler_block_t *pb;
     outer_block_entry_t *e;
 
     /* Parse all outer block entries */
     e = block->head;
+    pb = NULL;
+    tb = NULL;
     while ( NULL != e ) {
         b = _outer_block_entry(c, e);
         if ( NULL == b ) {
             return -1;
         }
         /* Implement the block handler */
+        if ( NULL != pb ) {
+            pb->next = b;
+        } else {
+            tb = b;
+        }
+        pb = b;
 
         e = e->next;
     }
