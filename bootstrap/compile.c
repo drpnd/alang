@@ -933,7 +933,7 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
 /*
  * _outer_block -- compile an outer block
  */
-static int
+static compiler_block_t *
 _outer_block(compiler_t *c, outer_block_t *block)
 {
     compiler_block_t *b;
@@ -948,7 +948,7 @@ _outer_block(compiler_t *c, outer_block_t *block)
     while ( NULL != e ) {
         b = _outer_block_entry(c, e);
         if ( NULL == b ) {
-            return -1;
+            return NULL;
         }
         /* Implement the block handler */
         if ( NULL != pb ) {
@@ -961,7 +961,7 @@ _outer_block(compiler_t *c, outer_block_t *block)
         e = e->next;
     }
 
-    return 0;
+    return tb;
 }
 
 /*
@@ -970,7 +970,14 @@ _outer_block(compiler_t *c, outer_block_t *block)
 int
 compile_code(compiler_t *c, code_file_t *code)
 {
-    return _outer_block(c, code->block);
+    compiler_block_t *b;
+
+    b = _outer_block(c, code->block);
+    if ( NULL == b ) {
+        return -1;
+    } else {
+        return 0;
+    }
 }
 
 /*
