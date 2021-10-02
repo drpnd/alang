@@ -988,11 +988,13 @@ compile(code_file_t *code)
         return NULL;
     }
     c->fout = NULL;
+    c->blocks = NULL;
 
     b = compile_code(c, code);
     if ( NULL == b ) {
         return NULL;
     }
+    c->blocks = b;
 
     return c;
 }

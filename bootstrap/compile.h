@@ -239,6 +239,7 @@ typedef struct {
  */
 typedef struct {
     /* Compiler */
+    compiler_block_t *blocks;
     /* Assembler */
     /* Linker */
     FILE *fout;
