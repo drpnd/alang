@@ -967,17 +967,10 @@ _outer_block(compiler_t *c, outer_block_t *block)
 /*
  * compile_code -- compile code
  */
-int
+compiler_block_t *
 compile_code(compiler_t *c, code_file_t *code)
 {
-    compiler_block_t *b;
-
-    b = _outer_block(c, code->block);
-    if ( NULL == b ) {
-        return -1;
-    } else {
-        return 0;
-    }
+    return _outer_block(c, code->block);
 }
 
 /*
@@ -987,6 +980,7 @@ int
 compile(code_file_t *code)
 {
     compiler_t *c;
+    compiler_block_t *b;
 
     /* Allocate compiler */
     c = malloc(sizeof(compiler_t));
@@ -995,7 +989,12 @@ compile(code_file_t *code)
     }
     c->fout = NULL;
 
-    return compile_code(c, code);
+    b = compile_code(c, code);
+    if ( NULL == b ) {
+        return -1;
+    }
+
+    return 0;
 }
 
 /*
