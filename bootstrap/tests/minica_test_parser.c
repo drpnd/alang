@@ -569,6 +569,15 @@ main(int argc, const char *const argv[])
         return EXIT_FAILURE;
     }
 
+    /* Print out the compiled code */
+    printf("Print out the compiled code:\n");
+    compiler_block_t *b;
+    b = c->blocks;
+    while ( NULL != b ) {
+        printf("label=%s\n", b->label);
+        b = b->next;
+    }
+
     return EXIT_SUCCESS;
 }
 
