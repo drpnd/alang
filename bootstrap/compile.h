@@ -248,7 +248,7 @@ typedef struct {
 extern "C" {
 #endif
 
-    int compile(code_file_t *);
+    compiler_t * compile(code_file_t *);
     int compile_use_extern(context_t *, const char *);
 
 #ifdef __cplusplus

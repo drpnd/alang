@@ -976,7 +976,7 @@ compile_code(compiler_t *c, code_file_t *code)
 /*
  * compile -- compiile code
  */
-int
+compiler_t *
 compile(code_file_t *code)
 {
     compiler_t *c;
@@ -985,16 +985,16 @@ compile(code_file_t *code)
     /* Allocate compiler */
     c = malloc(sizeof(compiler_t));
     if ( NULL == c ) {
-        return EXIT_FAILURE;
+        return NULL;
     }
     c->fout = NULL;
 
     b = compile_code(c, code);
     if ( NULL == b ) {
-        return -1;
+        return NULL;
     }
 
-    return 0;
+    return c;
 }
 
 /*
