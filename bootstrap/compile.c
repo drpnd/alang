@@ -761,19 +761,19 @@ _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
 /*
  * _while -- parse a while statement
  */
-static int
+static compiler_val_t *
 _while(compiler_t *c, compiler_env_t *env, stmt_while_t *w)
 {
-    return -1;
+    return NULL;
 }
 
 /*
  * _return -- parse a return statement
  */
-static int
+static compiler_val_t *
 _return(compiler_t *c, compiler_env_t *env, expr_t *e)
 {
-    return -1;
+    return NULL;
 }
 
 /*
@@ -782,22 +782,13 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
 static compiler_val_t *
 _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
 {
-    int ret;
     compiler_env_t *nenv;
     compiler_val_t *val;
 
     val = NULL;
     switch ( stmt->type ) {
     case STMT_WHILE:
-        ret = _while(c, env, &stmt->u.whilestmt);
-        if ( ret < 0 ) {
-            return NULL;
-        }
-        val = _val_new();
-        if ( NULL == val ) {
-            return NULL;
-        }
-        val->type = VAL_NIL;
+        val = _while(c, env, &stmt->u.whilestmt);
         break;
     case STMT_EXPR:
         val = _expr(c, env, stmt->u.expr);
@@ -815,15 +806,7 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         val = _inner_block(c, nenv, stmt->u.block);
         break;
     case STMT_RETURN:
-        ret = _return(c, env, stmt->u.expr);
-        if ( ret < 0 ) {
-            return NULL;
-        }
-        val = _val_new();
-        if ( NULL == val ) {
-            return NULL;
-        }
-        val->type = VAL_NIL;
+        val = _return(c, env, stmt->u.expr);
         break;
     }
 
