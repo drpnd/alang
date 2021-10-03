@@ -785,19 +785,24 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
     compiler_env_t *nenv;
     compiler_val_t *val;
 
-    ret = -1;
     val = NULL;
     switch ( stmt->type ) {
     case STMT_WHILE:
         ret = _while(c, env, &stmt->u.whilestmt);
+        if ( ret < 0 ) {
+            return NULL;
+        }
+        val = _val_new();
+        if ( NULL == val ) {
+            return NULL;
+        }
+        val->type = VAL_NIL;
         break;
     case STMT_EXPR:
         val = _expr(c, env, stmt->u.expr);
-        ret = 0;
         break;
     case STMT_EXPR_LIST:
         val = _expr_list(c, env, stmt->u.exprs);
-        ret = 0;
         break;
     case STMT_BLOCK:
         /* Create a new environemt */
@@ -810,6 +815,14 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         break;
     case STMT_RETURN:
         ret = _return(c, env, stmt->u.expr);
+        if ( ret < 0 ) {
+            return NULL;
+        }
+        val = _val_new();
+        if ( NULL == val ) {
+            return NULL;
+        }
+        val->type = VAL_NIL;
         break;
     }
 

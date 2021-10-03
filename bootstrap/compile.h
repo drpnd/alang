@@ -184,6 +184,7 @@ typedef struct {
  * Value type
  */
 typedef enum {
+    VAL_NIL,
     VAL_VAR,
     VAL_LITERAL,
     VAL_REG,
