@@ -39,7 +39,8 @@
 static compiler_val_t * _expr(compiler_t *, compiler_env_t *, expr_t *);
 static compiler_val_t *
 _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
-static int _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
+static compiler_val_t *
+_inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
 
 /*
  * _instr_new -- allocate a new instruction
@@ -655,16 +656,20 @@ static compiler_val_t *
 _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
 {
     compiler_val_t *cond;
+    compiler_val_t *val;
+    compiler_val_t *rv;
     switch_case_t *cs;
 
     cond = _expr(c, env, sw->cond);
     cs = sw->block->head;
 
+    rv = NULL;
     while ( NULL != cs ) {
+        val = _inner_block(c, env, cs->block);
         cs = cs->next;
     }
 
-    return NULL;
+    return rv;
 }
 
 /*
@@ -773,7 +778,7 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
 /*
  * _stmt -- parse a statement
  */
-static int
+static compiler_val_t *
 _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
 {
     int ret;
@@ -781,6 +786,7 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
     compiler_val_t *val;
 
     ret = -1;
+    val = NULL;
     switch ( stmt->type ) {
     case STMT_WHILE:
         ret = _while(c, env, &stmt->u.whilestmt);
@@ -797,38 +803,38 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         /* Create a new environemt */
         nenv = _env_new(c);
         if ( NULL == nenv ) {
-            return -1;
+            return NULL;
         }
         nenv->prev = env;
-        ret = _inner_block(c, nenv, stmt->u.block);
+        val = _inner_block(c, nenv, stmt->u.block);
         break;
     case STMT_RETURN:
         ret = _return(c, env, stmt->u.expr);
         break;
     }
 
-    return ret;
+    return val;
 }
 
 /*
  * _inner_block -- parse an inner block
  */
-static int
+static compiler_val_t *
 _inner_block(compiler_t *c, compiler_env_t *env, inner_block_t *block)
 {
+    compiler_val_t *rv;
     stmt_t *stmt;
-    int ret;
 
     stmt = block->stmts->head;
     while ( NULL != stmt ) {
-        ret = _stmt(c, env, stmt);
-        if ( ret < 0 ) {
-            return -1;
+        rv = _stmt(c, env, stmt);
+        if ( NULL == rv ) {
+            return NULL;
         }
         stmt = stmt->next;
     }
 
-    return 0;
+    return rv;
 }
 
 /*
@@ -840,6 +846,7 @@ _func(compiler_t *c, func_t *fn)
     int ret;
     compiler_env_t *env;
     compiler_block_t *block;
+    compiler_val_t *val;
 
     /* Allocate a new environment */
     env = _env_new(c);
@@ -858,8 +865,8 @@ _func(compiler_t *c, func_t *fn)
     }
 
     /* Parse the inner block */
-    ret = _inner_block(c, env, fn->block);
-    if ( ret < 0 ) {
+    val = _inner_block(c, env, fn->block);
+    if ( NULL == val ) {
         return NULL;
     }
 
