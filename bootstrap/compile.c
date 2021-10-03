@@ -659,14 +659,22 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
     compiler_val_t *cond;
     compiler_val_t *val;
     compiler_val_t *rv;
+    compiler_env_t *nenv;
     switch_case_t *cs;
+
+    /* Create a new environemt */
+    nenv = _env_new(c);
+    if ( NULL == nenv ) {
+        return NULL;
+    }
+    nenv->prev = env;
 
     cond = _expr(c, env, sw->cond);
     cs = sw->block->head;
 
     rv = NULL;
     while ( NULL != cs ) {
-        val = _inner_block(c, env, cs->block);
+        val = _inner_block(c, nenv, cs->block);
         cs = cs->next;
     }
 
