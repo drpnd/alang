@@ -530,6 +530,32 @@ _display_ast(code_file_t *code)
     _outer_block(code->block);
 }
 
+static void
+_display_env(compiler_env_t *env)
+{
+}
+
+static void
+_display_code(compiler_block_t *blocks)
+{
+    compiler_block_t *b;
+
+    b = blocks;
+    while ( NULL != b ) {
+        switch ( b->type ) {
+        case BLOCK_FUNC:
+            printf("fn %s\n", b->label);
+            _display_env(b->env);
+            break;
+        case BLOCK_COROUTINE:
+            printf("coroutine %s\n", b->label);
+            _display_env(b->env);
+            break;
+        }
+        b = b->next;
+    }
+}
+
 /*
  * Main routine for the parser test
  */
@@ -571,19 +597,7 @@ main(int argc, const char *const argv[])
 
     /* Print out the compiled code */
     printf("Print out the compiled code:\n");
-    compiler_block_t *b;
-    b = c->blocks;
-    while ( NULL != b ) {
-        switch ( b->type ) {
-        case BLOCK_FUNC:
-            printf("fn %s\n", b->label);
-            break;
-        case BLOCK_COROUTINE:
-            printf("coroutine %s\n", b->label);
-            break;
-        }
-        b = b->next;
-    }
+    _display_code(c->blocks);
 
     return EXIT_SUCCESS;
 }
