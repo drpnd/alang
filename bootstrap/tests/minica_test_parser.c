@@ -533,6 +533,32 @@ _display_ast(code_file_t *code)
 static void
 _display_env(compiler_env_t *env)
 {
+    compiler_var_t *var;
+    compiler_instr_t *instr;
+
+    /* Variables */
+    printf("variables:\n");
+    var = env->vars->top;
+    while ( NULL != var ) {
+        printf("var: %s\n", var->id);
+        var = var->next;
+    }
+
+    /* Code */
+    instr = env->code.head;
+    while ( NULL != instr ) {
+        switch ( instr->opcode ) {
+        case OPCODE_MOV:
+            printf("mov\n");
+            break;
+        case OPCODE_ADD:
+            printf("add\n");
+            break;
+        default:
+            printf("opcode %d\n", instr->opcode);
+        }
+        instr = instr->next;
+    }
 }
 
 static void
