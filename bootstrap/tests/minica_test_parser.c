@@ -545,6 +545,7 @@ _display_env(compiler_env_t *env)
     }
 
     /* Code */
+    printf("code:\n");
     instr = env->code.head;
     while ( NULL != instr ) {
         switch ( instr->opcode ) {

@@ -252,7 +252,6 @@ extern "C" {
 #endif
 
     compiler_t * compile(code_file_t *);
-    int compile_use_extern(context_t *, const char *);
 
 #ifdef __cplusplus
 }
