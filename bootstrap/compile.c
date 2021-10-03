@@ -163,6 +163,7 @@ _val_new(void)
         return NULL;
     }
     memset(val, 0, sizeof(compiler_val_t));
+    val->type = VAL_NIL;
 
     return val;
 }
