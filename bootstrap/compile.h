@@ -240,7 +240,7 @@ typedef struct {
  * Compiler
  */
 typedef struct {
-    /* Compiler */
+    /* Compiled code blocks */
     compiler_block_t *blocks;
     /* Assembler */
     /* Linker */
