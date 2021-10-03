@@ -649,6 +649,25 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op)
 }
 
 /*
+ * _switch -- parse a switch expression
+ */
+static compiler_val_t *
+_switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
+{
+    compiler_val_t *cond;
+    switch_case_t *cs;
+
+    cond = _expr(c, env, sw->cond);
+    cs = sw->block->head;
+
+    while ( NULL != cs ) {
+        cs = cs->next;
+    }
+
+    return NULL;
+}
+
+/*
  * _expr -- parse an expression
  */
 static compiler_val_t *
@@ -671,7 +690,7 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = _op(c, env, e->u.op);
         break;
     case EXPR_SWITCH:
-        //printf("SWITCH\n");
+        val = _switch(c, env, &e->u.sw);
         break;
     case EXPR_IF:
         //printf("IF\n");

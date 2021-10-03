@@ -189,6 +189,7 @@ typedef enum {
     VAL_REG,
     VAL_REG_SET,
     VAL_LIST,
+    VAL_COND,
 } compiler_val_type_t;
 
 /*

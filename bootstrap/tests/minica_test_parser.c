@@ -574,7 +574,14 @@ main(int argc, const char *const argv[])
     compiler_block_t *b;
     b = c->blocks;
     while ( NULL != b ) {
-        printf("label=%s\n", b->label);
+        switch ( b->type ) {
+        case BLOCK_FUNC:
+            printf("fn %s\n", b->label);
+            break;
+        case BLOCK_COROUTINE:
+            printf("coroutine %s\n", b->label);
+            break;
+        }
         b = b->next;
     }
 
