@@ -530,6 +530,45 @@ _display_ast(code_file_t *code)
     _outer_block(code->block);
 }
 
+static int
+_is_reg(operand_t *op)
+{
+    if ( OPERAND_VAL == op->type ) {
+        if ( VAL_REG == op->u.val->type ) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void
+_analyze_instruction(compiler_instr_t *instr)
+{
+    switch ( instr->opcode ) {
+    case OPCODE_MOV:
+        if ( _is_reg(&instr->operands[0]) ) {
+
+        }
+        break;
+    case OPCODE_ADD:
+        break;
+    default:
+        ;
+    }
+}
+
+static void
+_analyze_registers(compiler_env_t *env)
+{
+    compiler_instr_t *instr;
+
+    instr = env->code.head;
+    while ( NULL != instr ) {
+        _analyze_instruction(instr);
+        instr = instr->next;
+    }
+}
+
 static void
 _display_env(compiler_env_t *env)
 {
@@ -543,6 +582,9 @@ _display_env(compiler_env_t *env)
         printf("var: %s\n", var->id);
         var = var->next;
     }
+
+    /* Analyze registers */
+    _analyze_registers(env);
 
     /* Code */
     printf("code:\n");
