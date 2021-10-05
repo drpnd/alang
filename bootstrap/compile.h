@@ -208,6 +208,10 @@ struct _val {
         literal_t *lit;
     } u;
     compiler_val_t *next;
+    /* For compiler */
+    struct {
+        int id;
+    } opt;
 };
 
 /*

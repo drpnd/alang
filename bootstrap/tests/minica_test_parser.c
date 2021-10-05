@@ -547,7 +547,6 @@ _analyze_instruction(compiler_instr_t *instr)
     switch ( instr->opcode ) {
     case OPCODE_MOV:
         if ( _is_reg(&instr->operands[0]) ) {
-
         }
         break;
     case OPCODE_ADD:
