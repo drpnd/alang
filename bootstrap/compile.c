@@ -164,6 +164,7 @@ _val_new(void)
     }
     memset(val, 0, sizeof(compiler_val_t));
     val->type = VAL_NIL;
+    val->opt.id = -1;
 
     return val;
 }
