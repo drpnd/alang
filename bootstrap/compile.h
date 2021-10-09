@@ -230,6 +230,10 @@ struct _compiler_env {
     compiler_code_t code;
     /* Pointer to the stacked environement below */
     compiler_env_t *prev;
+    /* For optimization */
+    struct {
+        int max_id;
+    } opt;
 };
 
 /*

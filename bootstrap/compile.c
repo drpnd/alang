@@ -82,6 +82,8 @@ _env_new(compiler_t *c)
     env->code.head = NULL;
     env->code.tail = NULL;
 
+    env->opt.max_id = -1;
+
     return env;
 }
 
