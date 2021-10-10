@@ -542,14 +542,29 @@ _is_reg(operand_t *op)
 }
 
 static void
-_analyze_instruction(compiler_instr_t *instr)
+_analyze_operand(compiler_env_t *env, operand_t *operand)
+{
+    if ( _is_reg(operand) ) {
+    }
+    if ( OPERAND_VAL == operand->type ) {
+        if ( operand->u.val->opt.id < 0 ) {
+            operand->u.val->opt.id = ++env->opt.max_id;
+        }
+    }
+}
+
+static void
+_analyze_instruction(compiler_env_t *env, compiler_instr_t *instr)
 {
     switch ( instr->opcode ) {
     case OPCODE_MOV:
-        if ( _is_reg(&instr->operands[0]) ) {
-        }
+        _analyze_operand(env, &instr->operands[0]);
+        _analyze_operand(env, &instr->operands[1]);
         break;
     case OPCODE_ADD:
+        _analyze_operand(env, &instr->operands[0]);
+        _analyze_operand(env, &instr->operands[1]);
+        _analyze_operand(env, &instr->operands[2]);
         break;
     default:
         ;
@@ -563,7 +578,7 @@ _analyze_registers(compiler_env_t *env)
 
     instr = env->code.head;
     while ( NULL != instr ) {
-        _analyze_instruction(instr);
+        _analyze_instruction(env, instr);
         instr = instr->next;
     }
 }
