@@ -581,6 +581,8 @@ _analyze_registers(compiler_env_t *env)
         _analyze_instruction(env, instr);
         instr = instr->next;
     }
+
+    printf("max_id: %d\n", env->opt.max_id);
 }
 
 static void
