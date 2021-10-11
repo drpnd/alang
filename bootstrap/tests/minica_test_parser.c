@@ -566,6 +566,11 @@ _analyze_instruction(compiler_env_t *env, compiler_instr_t *instr)
         _analyze_operand(env, &instr->operands[1]);
         _analyze_operand(env, &instr->operands[2]);
         break;
+    case OPCODE_SUB:
+        _analyze_operand(env, &instr->operands[0]);
+        _analyze_operand(env, &instr->operands[1]);
+        _analyze_operand(env, &instr->operands[2]);
+        break;
     default:
         ;
     }
