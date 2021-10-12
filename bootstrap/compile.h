@@ -215,14 +215,14 @@ struct _val {
 };
 
 /*
- * Graph
+ * Interference graph
  */
 typedef struct {
     int pair[2];
 } compiler_edge_t;
 typedef struct {
     compiler_val_t *vals;
-} compiler_graph_t;
+} compiler_ig_t;
 
 
 /*
