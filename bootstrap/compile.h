@@ -215,6 +215,17 @@ struct _val {
 };
 
 /*
+ * Graph
+ */
+typedef struct {
+    int pair[2];
+} compiler_edge_t;
+typedef struct {
+    compiler_val_t *vals;
+} compiler_graph_t;
+
+
+/*
  * Constant values
  */
 typedef struct {
