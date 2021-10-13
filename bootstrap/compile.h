@@ -221,8 +221,12 @@ typedef struct {
     int pair[2];
 } compiler_edge_t;
 typedef struct {
-    size_t n;
-    compiler_val_t **vals;
+    struct {
+        size_t n;
+        compiler_val_t **vals;
+    } v;
+    struct {
+    } e;
 } compiler_ig_t;
 
 /*

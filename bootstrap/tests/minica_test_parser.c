@@ -589,10 +589,11 @@ _analyze_registers(compiler_env_t *env)
 
     printf("max_id: %d\n", env->opt.max_id);
 
+    /* Build an interference graph */
     compiler_ig_t ig;
-    ig.n = env->opt.max_id;
-    ig.vals = malloc(sizeof(compiler_val_t *) * ig.n);
-    if ( NULL == ig.vals ) {
+    ig.v.n = env->opt.max_id;
+    ig.v.vals = malloc(sizeof(compiler_val_t *) * ig.v.n);
+    if ( NULL == ig.v.vals ) {
         return;
     }
 }
