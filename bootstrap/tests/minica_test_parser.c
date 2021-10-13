@@ -588,6 +588,13 @@ _analyze_registers(compiler_env_t *env)
     }
 
     printf("max_id: %d\n", env->opt.max_id);
+
+    compiler_ig_t ig;
+    ig.n = env->opt.max_id;
+    ig.vals = malloc(sizeof(compiler_val_t *) * ig.n);
+    if ( NULL == ig.vals ) {
+        return;
+    }
 }
 
 static void

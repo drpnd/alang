@@ -221,9 +221,9 @@ typedef struct {
     int pair[2];
 } compiler_edge_t;
 typedef struct {
-    compiler_val_t *vals;
+    size_t n;
+    compiler_val_t **vals;
 } compiler_ig_t;
-
 
 /*
  * Constant values
