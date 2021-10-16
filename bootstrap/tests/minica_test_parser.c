@@ -554,22 +554,23 @@ _analyze_operand(compiler_env_t *env, operand_t *operand, compiler_ig_t *ig)
 }
 
 static void
-_analyze_instruction(compiler_env_t *env, compiler_instr_t *instr)
+_analyze_instruction(compiler_env_t *env, compiler_instr_t *instr,
+                     compiler_ig_t *ig)
 {
     switch ( instr->opcode ) {
     case OPCODE_MOV:
-        _analyze_operand(env, &instr->operands[0]);
-        _analyze_operand(env, &instr->operands[1]);
+        _analyze_operand(env, &instr->operands[0], ig);
+        _analyze_operand(env, &instr->operands[1], ig);
         break;
     case OPCODE_ADD:
-        _analyze_operand(env, &instr->operands[0]);
-        _analyze_operand(env, &instr->operands[1]);
-        _analyze_operand(env, &instr->operands[2]);
+        _analyze_operand(env, &instr->operands[0], ig);
+        _analyze_operand(env, &instr->operands[1], ig);
+        _analyze_operand(env, &instr->operands[2], ig);
         break;
     case OPCODE_SUB:
-        _analyze_operand(env, &instr->operands[0]);
-        _analyze_operand(env, &instr->operands[1]);
-        _analyze_operand(env, &instr->operands[2]);
+        _analyze_operand(env, &instr->operands[0], ig);
+        _analyze_operand(env, &instr->operands[1], ig);
+        _analyze_operand(env, &instr->operands[2], ig);
         break;
     default:
         ;
