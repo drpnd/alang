@@ -542,7 +542,7 @@ _is_reg(operand_t *op)
 }
 
 static void
-_analyze_operand(compiler_env_t *env, operand_t *operand)
+_analyze_operand(compiler_env_t *env, operand_t *operand, compiler_ig_t *ig)
 {
     if ( _is_reg(operand) ) {
     }
@@ -583,7 +583,7 @@ _analyze_registers(compiler_env_t *env)
 
     instr = env->code.head;
     while ( NULL != instr ) {
-        _analyze_instruction(env, instr);
+        _analyze_instruction(env, instr, NULL);
         instr = instr->next;
     }
 
@@ -596,6 +596,7 @@ _analyze_registers(compiler_env_t *env)
     if ( NULL == ig.v.vals ) {
         return;
     }
+
 }
 
 static void
