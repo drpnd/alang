@@ -550,6 +550,9 @@ _analyze_operand(compiler_env_t *env, operand_t *operand, compiler_ig_t *ig)
         if ( operand->u.val->opt.id < 0 ) {
             operand->u.val->opt.id = ++env->opt.max_id;
         }
+        if ( NULL != ig ) {
+            ig->v.vals[operand->u.val->opt.id] = operand->u.val;
+        }
     }
 }
 
