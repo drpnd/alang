@@ -600,7 +600,11 @@ _analyze_registers(compiler_env_t *env)
     if ( NULL == ig.v.vals ) {
         return;
     }
-
+    instr = env->code.head;
+    while ( NULL != instr ) {
+        _analyze_instruction(env, instr, &ig);
+        instr = instr->next;
+    }
 }
 
 static void
