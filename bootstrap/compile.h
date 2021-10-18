@@ -226,6 +226,7 @@ typedef struct {
         compiler_val_t **vals;
     } v;
     struct {
+        compiler_edge_t *edges;
     } e;
 } compiler_ig_t;
 
