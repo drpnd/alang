@@ -585,6 +585,7 @@ _analyze_registers(compiler_env_t *env)
 {
     compiler_instr_t *instr;
 
+    /* Count the number of values (registers) */
     instr = env->code.head;
     while ( NULL != instr ) {
         _analyze_instruction(env, instr, NULL);
@@ -600,6 +601,7 @@ _analyze_registers(compiler_env_t *env)
     if ( NULL == ig.v.vals ) {
         return;
     }
+    /* Register to ID */
     instr = env->code.head;
     while ( NULL != instr ) {
         _analyze_instruction(env, instr, &ig);
