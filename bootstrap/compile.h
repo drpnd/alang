@@ -99,6 +99,8 @@ typedef enum {
     OPERAND_I16,
     OPERAND_I32,
     OPERAND_I64,
+    OPERAND_FP32,
+    OPERAND_FP64,
 } operand_type_t;
 
 /*
