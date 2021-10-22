@@ -640,6 +640,12 @@ _display_env(compiler_env_t *env)
         case OPCODE_SUB:
             printf("sub\n");
             break;
+        case OPCODE_MUL:
+            printf("mul\n");
+            break;
+        case OPCODE_DIV:
+            printf("div\n");
+            break;
         default:
             printf("opcode %d\n", instr->opcode);
         }
