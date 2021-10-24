@@ -590,6 +590,7 @@ _analyze_instruction(compiler_env_t *env, compiler_instr_t *instr,
         break;
     case OPCODE_DEC:
         _analyze_operand(env, &instr->operands[0], ig);
+        break;
     default:
         ;
     }
