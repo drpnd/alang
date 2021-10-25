@@ -236,6 +236,13 @@ typedef struct {
  * Constant values
  */
 typedef struct {
+    union {
+        unsigned char *s;
+        uint8_t b;
+        uint16_t w;
+        uint32_t d;
+        uint64_t q;
+    } u;
 } compiler_data_t;
 
 /*
