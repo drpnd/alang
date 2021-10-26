@@ -235,6 +235,13 @@ typedef struct {
 /*
  * Constant values
  */
+typedef enum {
+    DATA_I8,
+    DATA_I16,
+    DATA_I32,
+    DATA_I64,
+    DATA_STRING,
+} compiler_data_type_t;
 typedef struct {
     union {
         unsigned char *s;
