@@ -158,6 +158,7 @@ typedef enum {
     REG_I16,
     REG_I32,
     REG_I64,
+    REG_I64_PAIR,
     REG_I64_SET,
     REG_FP32,
     REG_FP64,
