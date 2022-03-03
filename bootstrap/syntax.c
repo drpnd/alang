@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019,2021 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019,2021-2022 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -167,6 +167,31 @@ literal_new_nil(void *scanner)
     lit->pos.last_column = loc->last_column;
 
     return lit;
+}
+
+/*
+ * literal_release -- free a literal
+ */
+void
+literal_release(literal_t *lit)
+{
+    switch ( lit->type ) {
+    case LIT_OCTINT:
+    case LIT_DECINT:
+    case LIT_HEXINT:
+    case LIT_FLOAT:
+        free(lit->u.n);
+        break;
+    case LIT_STRING:
+        free(lit->u.s);
+        break;
+    case LIT_BOOL:
+        free(lit->u.b);
+        break;
+    case LIT_NIL:
+        break;
+    }
+    free(lit);
 }
 
 /*
