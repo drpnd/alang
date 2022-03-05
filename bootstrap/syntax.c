@@ -186,8 +186,6 @@ literal_release(literal_t *lit)
         free(lit->u.s);
         break;
     case LIT_BOOL:
-        free(lit->u.b);
-        break;
     case LIT_NIL:
         break;
     }
