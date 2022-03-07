@@ -224,6 +224,25 @@ _append_instr(compiler_code_t *code, compiler_instr_t *instr)
 }
 
 /*
+ * _instr_mov -- allocate a new mov instruction
+ */
+static compiler_instr_t *
+_instr_mov(operand_t *op0, operand_t *op1)
+{
+    compiler_instr_t *instr;
+
+    instr = _instr_new();
+    if ( NULL == instr ) {
+        return NULL;
+    }
+    instr->opcode = OPCODE_MOV;
+    memcpy(&instr->operands[0], op0, sizeof(operand_t));
+    memcpy(&instr->operands[1], op1, sizeof(operand_t));
+
+    return instr;
+}
+
+/*
  * _id -- parse an identifier
  */
 static compiler_val_t *
@@ -330,6 +349,8 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
 {
     compiler_val_t *v0;
     compiler_val_t *v1;
+    operand_t op0;
+    operand_t op1;
     compiler_instr_t *instr;
     int ret;
 
@@ -345,15 +366,14 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
     }
 
     /* Assign */
-    instr = _instr_new();
+    op0.type = OPERAND_VAL;
+    op0.u.val = v1;
+    op1.type = OPERAND_VAL;
+    op1.u.val = v0;
+    instr = _instr_mov(&op0, &op1);
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->opcode = OPCODE_MOV;
-    instr->operands[0].type = OPERAND_VAL;
-    instr->operands[0].u.val = v1;
-    instr->operands[1].type = OPERAND_VAL;
-    instr->operands[1].u.val = v0;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
         return NULL;
