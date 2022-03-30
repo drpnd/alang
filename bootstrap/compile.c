@@ -172,6 +172,41 @@ _val_new(void)
 }
 
 /*
+ * _val_new_nil -- allocate a new nil value
+ */
+static compiler_val_t *
+_val_new_nil(void)
+{
+    compiler_val_t *val;
+
+    val = _val_new();
+    if ( NULL == val ) {
+        return NULL;
+    }
+    val->type = VAL_NIL;
+
+    return val;
+}
+
+/*
+ * _val_new_literal -- allocate a new literal value
+ */
+static compiler_val_t *
+_val_new_literal(literal_t *lit)
+{
+    compiler_val_t *val;
+
+    val = _val_new();
+    if ( NULL == val ) {
+        return NULL;
+    }
+    val->type = VAL_LITERAL;
+    val->u.lit = lit;
+
+    return val;
+}
+
+/*
  * _val_list_new -- allocate a new value list
  */
 static compiler_val_list_t *
