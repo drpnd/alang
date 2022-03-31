@@ -60,6 +60,15 @@ _instr_new(void)
 }
 
 /*
+ * _instr_release -- release an instruction
+ */
+static void
+_instr_release(compiler_instr_t *instr)
+{
+    free(instr);
+}
+
+/*
  * _env_new -- allocate a new environment
  */
 static compiler_env_t *
@@ -184,6 +193,24 @@ _val_new_nil(void)
         return NULL;
     }
     val->type = VAL_NIL;
+
+    return val;
+}
+
+/*
+ * _val_new_var -- allocate a new variable value
+ */
+static compiler_val_t *
+_val_new_literal(var_t *var)
+{
+    compiler_val_t *val;
+
+    val = _val_new();
+    if ( NULL == val ) {
+        return NULL;
+    }
+    val->type = VAL_VAR;
+    val->u.var = var;
 
     return val;
 }
@@ -458,6 +485,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
     instr->operands[2].u.val = vr;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
+        _instr_release(instr);
         return NULL;
     }
 
