@@ -755,14 +755,19 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
     }
     nenv->prev = env;
 
+    /* Parse the condition */
     cond = _expr(c, env, sw->cond);
-    cs = sw->block->head;
 
+    /* Initialize the return value */
     rv = NULL;
+
+    /* Parse the code block */
+    cs = sw->block->head;
     while ( NULL != cs ) {
         val = _inner_block(c, nenv, cs->block);
         cs = cs->next;
     }
+    rv = val;
 
     return rv;
 }
