@@ -201,7 +201,7 @@ _val_new_nil(void)
  * _val_new_var -- allocate a new variable value
  */
 static compiler_val_t *
-_val_new_literal(var_t *var)
+_val_new_var(var_t *var)
 {
     compiler_val_t *val;
 
