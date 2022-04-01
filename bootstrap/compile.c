@@ -886,6 +886,8 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
         return NULL;
     }
     instr->opcode = OPCODE_RET;
+    instr->operands[0].type = OPERAND_VAL;
+    instr->operands[0].u.val = val;
 
     return val;
 }
