@@ -872,7 +872,22 @@ _while(compiler_t *c, compiler_env_t *env, stmt_while_t *w)
 static compiler_val_t *
 _return(compiler_t *c, compiler_env_t *env, expr_t *e)
 {
-    return NULL;
+    compiler_instr_t *instr;
+    compiler_val_t *val;
+
+    val = _expr(c, env, e);
+    if ( NULL == val ) {
+        return NULL;
+    }
+
+    /* return instruction */
+    instr = _instr_new();
+    if ( NULL == instr ) {
+        return NULL;
+    }
+    instr->opcode = OPCODE_RET;
+
+    return val;
 }
 
 /*
