@@ -875,9 +875,14 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
     compiler_instr_t *instr;
     compiler_val_t *val;
 
-    val = _expr(c, env, e);
-    if ( NULL == val ) {
-        return NULL;
+    if ( NULL == e ) {
+        /* FIXME: Get the last statement value */
+        val = NULL;
+    } else {
+        val = _expr(c, env, e);
+        if ( NULL == val ) {
+            return NULL;
+        }
     }
 
     /* return instruction */
