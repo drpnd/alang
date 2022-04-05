@@ -88,6 +88,8 @@ _env_new(compiler_t *c)
     env->vars->top = NULL;
     env->prev = NULL;
 
+    env->retval = NULL;
+
     env->code.head = NULL;
     env->code.tail = NULL;
 
