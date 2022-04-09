@@ -912,12 +912,15 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
     switch ( stmt->type ) {
     case STMT_WHILE:
         val = _while(c, env, &stmt->u.whilestmt);
+        env->retval = val;
         break;
     case STMT_EXPR:
         val = _expr(c, env, stmt->u.expr);
+        env->retval = val;
         break;
     case STMT_EXPR_LIST:
         val = _expr_list(c, env, stmt->u.exprs);
+        env->retval = val;
         break;
     case STMT_BLOCK:
         /* Create a new environemt */
