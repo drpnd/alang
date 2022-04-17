@@ -60,10 +60,10 @@ _instr_new(void)
 }
 
 /*
- * _instr_release -- release an instruction
+ * _instr_delete -- delete an instruction
  */
 static void
-_instr_release(compiler_instr_t *instr)
+_instr_delete(compiler_instr_t *instr)
 {
     free(instr);
 }
@@ -96,6 +96,16 @@ _env_new(compiler_t *c)
     env->opt.max_id = -1;
 
     return env;
+}
+
+/*
+ * _env_delete -- delete an environment
+ */
+static void
+_env_delete(compiler_env_t *env)
+{
+    free(env->vars);
+    free(env);
 }
 
 /*
@@ -487,7 +497,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
     instr->operands[2].u.val = vr;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
-        _instr_release(instr);
+        _instr_delete(instr);
         return NULL;
     }
 
@@ -930,6 +940,10 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         }
         nenv->prev = env;
         val = _inner_block(c, nenv, stmt->u.block);
+        if ( NULL == val ) {
+
+            return NULL;
+        }
         break;
     case STMT_RETURN:
         val = _return(c, env, stmt->u.expr);
