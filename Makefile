@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019 Hirochika Asai
+# Copyright (c) 2019,2022 Hirochika Asai
 # All rights reserved.
 #
 # Authors:
@@ -12,7 +12,10 @@ bootstrap:
 all:
 	$(MAKE) bootstrap
 
+test: bootstrap
+	$(MAKE) -C bootstrap test
+
 clean:
 	$(MAKE) -C bootstrap clean
 
-.PHONY: all clean bootstrap
+.PHONY: all test clean bootstrap

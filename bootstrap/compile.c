@@ -36,6 +36,12 @@
     } while ( 0 )
 
 /* Declarations */
+static compiler_instr_t * _instr_new(void);
+static void _instr_delete(compiler_instr_t *);
+static compiler_var_table_t * _var_table_initialize(compiler_var_table_t *);
+static void _var_table_release(compiler_var_table_t *);
+static compiler_env_t * _env_new(compiler_t *);
+static void _env_delete(compiler_env_t *);
 static compiler_val_t * _expr(compiler_t *, compiler_env_t *, expr_t *);
 static compiler_val_t *
 _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
@@ -69,6 +75,37 @@ _instr_delete(compiler_instr_t *instr)
 }
 
 /*
+ * _var_table_init -- initialize a variable table
+ */
+static compiler_var_table_t *
+_var_table_initialize(compiler_var_table_t *t)
+{
+    if ( NULL == t ) {
+        t = malloc(sizeof(compiler_var_table_t));
+        if ( NULL == t ) {
+            return NULL;
+        }
+        t->_allocated = 1;
+    } else {
+        t->_allocated = 0;
+    }
+    t->top = NULL;
+
+    return t;
+}
+
+/*
+ * _var_table_release -- release a variable table
+ */
+static void
+_var_table_release(compiler_var_table_t *t)
+{
+    if ( t->_allocated ) {
+        free(t);
+    }
+}
+
+/*
  * _env_new -- allocate a new environment
  */
 static compiler_env_t *
@@ -80,14 +117,13 @@ _env_new(compiler_t *c)
     if ( NULL == env ) {
         return NULL;
     }
-    env->vars = malloc(sizeof(compiler_var_table_t));
+    env->vars = _var_table_initialize(NULL);
     if ( NULL == env->vars ) {
         free(env);
         return NULL;
     }
-    env->vars->top = NULL;
-    env->prev = NULL;
 
+    env->prev = NULL;
     env->retval = NULL;
 
     env->code.head = NULL;
@@ -104,7 +140,8 @@ _env_new(compiler_t *c)
 static void
 _env_delete(compiler_env_t *env)
 {
-    free(env->vars);
+    /* Delete the variables */
+    _var_table_release(env->vars);
     free(env);
 }
 

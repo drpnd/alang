@@ -182,6 +182,7 @@ struct _var {
  */
 typedef struct {
     compiler_var_t *top;    /* Stack */
+    int _allocated;
 } compiler_var_table_t;
 
 /*
