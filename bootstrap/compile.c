@@ -283,6 +283,23 @@ _val_new_literal(literal_t *lit)
 }
 
 /*
+ * _val_delete -- delete a value
+ */
+static void
+_val_delete(compiler_val_t *val)
+{
+    switch ( val->type ) {
+    case VAL_NIL:
+        break;
+    case VAL_VAR:
+        break;
+    case VAL_LITERAL:
+        break;
+    }
+    free(val);
+}
+
+/*
  * _val_list_new -- allocate a new value list
  */
 static compiler_val_list_t *
@@ -315,6 +332,25 @@ _val_list_append(compiler_val_list_t *l, compiler_val_t *val)
     }
 
     return l;
+}
+
+/*
+ * _val_list_delete -- delete a value list
+ */
+static void
+_val_list_delete(compiler_val_list_t *l)
+{
+    compiler_val_t *v;
+    compiler_val_t *nv;
+
+    v = l->head;
+    while ( NULL != v ) {
+        nv = v->next;
+        free(v);
+        v = nv;
+    }
+
+    free(l);
 }
 
 /*
