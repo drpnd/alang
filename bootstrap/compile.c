@@ -888,7 +888,6 @@ static compiler_val_t *
 _if(compiler_t *c, compiler_env_t *env, if_t *i)
 {
     compiler_val_t *cond;
-    compiler_val_t *val;
     compiler_val_t *rv;
     compiler_env_t *nenv;
     compiler_val_cond_t *cset;
@@ -904,18 +903,22 @@ _if(compiler_t *c, compiler_env_t *env, if_t *i)
     cond = _expr(c, env, i->cond);
 
     /* Initialize the return value */
-    rv = NULL;
+    rv = _val_new();
+    if ( NULL == rv ) {
+        return NULL;
+    }
 
+    /* Allocate a two-conditional-value set value */
     cset = _val_cond_new(2);
     if ( NULL == cset ) {
         return NULL;
     }
+    rv->type = VAL_COND;
+    rv->u.conds = cset;
 
     /* Parse the code block */
-    val = _inner_block(c, nenv, i->bif);
-    cset->vals[0] = val;
-    val = _inner_block(c, nenv, i->belse);
-    cset->vals[1] = val;
+    cset->vals[0] = _inner_block(c, nenv, i->bif);
+    cset->vals[1] = _inner_block(c, nenv, i->belse);
 
     return rv;
 }
