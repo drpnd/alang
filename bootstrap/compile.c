@@ -354,6 +354,29 @@ _val_list_delete(compiler_val_list_t *l)
 }
 
 /*
+ * _val_cond_new -- allocate a new value condition set
+ */
+static compiler_val_cond_t *
+_val_cond_new(int n)
+{
+    compiler_val_cond_t *cset;
+
+    cset = malloc(sizeof(compiler_val_cond_t));
+    if ( NULL == cset ) {
+        return NULL;
+    }
+    cset->n = n;
+    cset->vals = malloc(sizeof(compiler_val_t *) * n);
+    if ( NULL == cset->vals ) {
+        free(cset);
+        return NULL;
+    }
+    memset(cset->vals, 0, sizeof(compiler_val_t *) * n);
+
+    return cset;
+}
+
+/*
  * _append_instr
  */
 static int

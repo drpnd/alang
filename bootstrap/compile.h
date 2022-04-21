@@ -205,6 +205,10 @@ typedef struct {
     compiler_val_t *head;
     compiler_val_t *tail;
 } compiler_val_list_t;
+typedef struct {
+    int n;
+    compiler_val_t **vals;
+} compiler_val_cond_t;
 struct _val {
     compiler_val_type_t type;
     union {
