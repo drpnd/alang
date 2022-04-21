@@ -855,6 +855,7 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
     compiler_val_t *rv;
     compiler_env_t *nenv;
     switch_case_t *cs;
+    compiler_val_cond_t *cset;
 
     /* Create a new environemt */
     nenv = _env_new(c);
@@ -890,6 +891,7 @@ _if(compiler_t *c, compiler_env_t *env, if_t *i)
     compiler_val_t *val;
     compiler_val_t *rv;
     compiler_env_t *nenv;
+    compiler_val_cond_t *cset;
 
     /* Create a new environment */
     nenv = _env_new(c);
@@ -904,9 +906,16 @@ _if(compiler_t *c, compiler_env_t *env, if_t *i)
     /* Initialize the return value */
     rv = NULL;
 
+    cset = _val_cond_new(2);
+    if ( NULL == cset ) {
+        return NULL;
+    }
+
     /* Parse the code block */
     val = _inner_block(c, nenv, i->bif);
+    cset->vals[0] = val;
     val = _inner_block(c, nenv, i->belse);
+    cset->vals[1] = val;
 
     return rv;
 }

@@ -214,6 +214,7 @@ struct _val {
     union {
         compiler_var_t *var;
         compiler_val_list_t *list;
+        compiler_val_cond_t *conds;
         literal_t *lit;
     } u;
     /* Linked list */
