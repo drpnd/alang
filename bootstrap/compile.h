@@ -212,8 +212,9 @@ struct _val {
         compiler_val_list_t *list;
         literal_t *lit;
     } u;
+    /* Linked list */
     compiler_val_t *next;
-    /* For compiler */
+    /* For compiler use */
     struct {
         int id;
     } opt;

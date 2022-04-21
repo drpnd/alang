@@ -858,6 +858,36 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
 }
 
 /*
+ * _if -- parse an if expression
+ */
+static compiler_val_t *
+_if(compiler_t *c, compiler_env_t *env, if_t *i)
+{
+    compiler_val_t *cond;
+    compiler_val_t *val;
+    compiler_val_t *rv;
+    compiler_env_t *nenv;
+
+    /* Create a new environment */
+    nenv = _env_new(c);
+    if ( NULL == nenv ) {
+        return NULL;
+    }
+    nenv->prev = env;
+
+    /* Parse the condition */
+    cond = _expr(c, env, i->cond);
+
+    /* Initialize the return value */
+    rv = NULL;
+
+    /* Parse the code block */
+    val = _inner_block(c, nenv, i->bif);
+    val = _inner_block(c, nenv, i->belse);
+
+    return rv;
+}
+/*
  * _expr -- parse an expression
  */
 static compiler_val_t *
