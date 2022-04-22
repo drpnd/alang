@@ -968,6 +968,34 @@ _call(compiler_t *c, compiler_env_t *env, call_t *call)
 }
 
 /*
+ * _ref -- parse a reference
+ */
+static compiler_val_t *
+_ref(compiler_t *c, compiler_env_t *env, ref_t *ref)
+{
+    compiler_val_t *val;
+    compiler_val_t *arg;
+
+    val = _expr(c, env, ref->var);
+    arg = _expr(c, env, ref->arg);
+
+    return NULL;
+}
+
+/*
+ * _member -- parse a member reference
+ */
+static compiler_val_t *
+_member(compiler_t *c, compiler_env_t *env, member_t *mem)
+{
+    compiler_val_t *val;
+
+    val = _expr(c, env, mem->e);
+
+    return NULL;
+}
+
+/*
  * _expr -- parse an expression
  */
 static compiler_val_t *
@@ -999,10 +1027,10 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = _call(c, env, e->u.call);
         break;
     case EXPR_REF:
-        //printf("REF\n");
+        val = _ref(c, env, e->u.ref);
         break;
     case EXPR_MEMBER:
-        //printf("MEMBER\n");
+        val = _member(c, env, &e->u.mem);
         break;
     case EXPR_LIST:
         val = _expr_list(c, env, e->u.list);
