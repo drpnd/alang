@@ -851,11 +851,12 @@ static compiler_val_t *
 _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
 {
     compiler_val_t *cond;
-    compiler_val_t *val;
     compiler_val_t *rv;
     compiler_env_t *nenv;
     switch_case_t *cs;
+    literal_set_t *lset;
     compiler_val_cond_t *cset;
+    ssize_t n;
 
     /* Create a new environemt */
     nenv = _env_new(c);
@@ -867,16 +868,37 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
     /* Parse the condition */
     cond = _expr(c, env, sw->cond);
 
-    /* Initialize the return value */
-    rv = NULL;
-
-    /* Parse the code block */
+    /* Count the number of cases */
+    n = 0;
     cs = sw->block->head;
     while ( NULL != cs ) {
-        val = _inner_block(c, nenv, cs->block);
+        n++;
         cs = cs->next;
     }
-    rv = val;
+
+    /* Initialize the return value */
+    rv = _val_new();
+    if ( NULL == rv ) {
+        return NULL;
+    }
+
+    /* Allocate a n-conditional-value set value */
+    cset = _val_cond_new(n);
+    if ( NULL == cset ) {
+        return NULL;
+    }
+    rv->type = VAL_COND;
+    rv->u.conds = cset;
+
+    /* Parse the code block */
+    n = 0;
+    cs = sw->block->head;
+    while ( NULL != cs ) {
+        lset = cs->lset;
+        cset->vals[n] = _inner_block(c, nenv, cs->block);
+        n++;
+        cs = cs->next;
+    }
 
     return rv;
 }
