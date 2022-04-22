@@ -996,7 +996,7 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = _if(c, env, &e->u.ife);
         break;
     case EXPR_CALL:
-        val = _call(c, env, &e->u.call);
+        val = _call(c, env, e->u.call);
         break;
     case EXPR_REF:
         //printf("REF\n");
@@ -1271,6 +1271,11 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
     case OUTER_BLOCK_DIRECTIVE:
         ret = _directive(c, e->u.dr);
         break;
+    }
+
+    if ( ret < 0 ) {
+        /* Raise a parse error */
+        return NULL;
     }
 
     return block;
