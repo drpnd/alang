@@ -907,7 +907,7 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
  * _if -- parse an if expression
  */
 static compiler_val_t *
-_if(compiler_t *c, compiler_env_t *env, if_t *i)
+_if(compiler_t *c, compiler_env_t *env, if_t *ife)
 {
     compiler_val_t *cond;
     compiler_val_t *rv;
@@ -922,7 +922,7 @@ _if(compiler_t *c, compiler_env_t *env, if_t *i)
     nenv->prev = env;
 
     /* Parse the condition */
-    cond = _expr(c, env, i->cond);
+    cond = _expr(c, env, ife->cond);
 
     /* Initialize the return value */
     rv = _val_new();
@@ -939,11 +939,31 @@ _if(compiler_t *c, compiler_env_t *env, if_t *i)
     rv->u.conds = cset;
 
     /* Parse the code block */
-    cset->vals[0] = _inner_block(c, nenv, i->bif);
-    cset->vals[1] = _inner_block(c, nenv, i->belse);
+    cset->vals[0] = _inner_block(c, nenv, ife->bif);
+    cset->vals[1] = _inner_block(c, nenv, ife->belse);
 
     return rv;
 }
+
+/*
+ * _call -- parse a call expression
+ */
+static compiler_val_t *
+_call(compiler_t *c, compiler_env_t *env, call_t *call)
+{
+    compiler_val_t *rv;
+    compiler_env_t *nenv;
+
+    /* Create a new environment */
+    nenv = _env_new(c);
+    if ( NULL == nenv ) {
+        return NULL;
+    }
+    nenv->prev = env;
+
+    return NULL;
+}
+
 /*
  * _expr -- parse an expression
  */
@@ -970,10 +990,10 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = _switch(c, env, &e->u.sw);
         break;
     case EXPR_IF:
-        //printf("IF\n");
+        val = _if(c, env, &e->u.ife);
         break;
     case EXPR_CALL:
-        //printf("CALL\n");
+        val = _call(c, env, &e->u.call);
         break;
     case EXPR_REF:
         //printf("REF\n");
