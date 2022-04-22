@@ -961,7 +961,10 @@ _call(compiler_t *c, compiler_env_t *env, call_t *call)
     }
     nenv->prev = env;
 
-    return NULL;
+    /* Initialize the return value */
+    rv = NULL;
+
+    return rv;
 }
 
 /*
