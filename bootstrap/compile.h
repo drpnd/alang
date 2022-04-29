@@ -241,6 +241,7 @@ struct _val {
     /* For compiler use */
     struct {
         int id;
+        type_t *type;
     } opt;
 };
 

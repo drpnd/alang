@@ -996,6 +996,8 @@ _member(compiler_t *c, compiler_env_t *env, member_t *mem)
 
     /* Referecne to mem->id from val */
 
+    /* Resolve the type of value */
+
     /* Resolve the member offset */
 
     return NULL;
