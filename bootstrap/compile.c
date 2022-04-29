@@ -414,6 +414,26 @@ _instr_mov(operand_t *op0, operand_t *op1)
 }
 
 /*
+ * _instr_add -- allocate a new add instruction
+ */
+static compiler_instr_t *
+_instr_add(operand_t *op0, operand_t *op1, operand_t *op2)
+{
+    compiler_instr_t *instr;
+
+    instr = _instr_new();
+    if ( NULL == instr ) {
+        return NULL;
+    }
+    instr->opcode = OPCODE_ADD;
+    memcpy(&instr->operands[0], op0, sizeof(operand_t));
+    memcpy(&instr->operands[1], op1, sizeof(operand_t));
+    memcpy(&instr->operands[2], op2, sizeof(operand_t));
+
+    return instr;
+}
+
+/*
  * _id -- parse an identifier
  */
 static compiler_val_t *
