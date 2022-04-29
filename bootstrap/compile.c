@@ -979,6 +979,8 @@ _ref(compiler_t *c, compiler_env_t *env, ref_t *ref)
     val = _expr(c, env, ref->var);
     arg = _expr(c, env, ref->arg);
 
+    /* Reference to arg from val */
+
     return NULL;
 }
 
@@ -991,6 +993,10 @@ _member(compiler_t *c, compiler_env_t *env, member_t *mem)
     compiler_val_t *val;
 
     val = _expr(c, env, mem->e);
+
+    /* Referecne to mem->id from val */
+
+    /* Resolve the member offset */
 
     return NULL;
 }

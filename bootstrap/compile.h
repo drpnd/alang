@@ -96,6 +96,7 @@ typedef enum {
  */
 typedef enum {
     OPERAND_VAL,
+    OPERAND_REF,
     OPERAND_I8,
     OPERAND_I16,
     OPERAND_I32,
@@ -105,12 +106,30 @@ typedef enum {
 } operand_type_t;
 
 /*
+ * Reference operand
+ */
+typedef struct {
+    compiler_val_t *val;
+    compiler_val_t *off;
+} operand_ref_val_t;
+
+/*
+ * Reference operand
+ */
+typedef struct {
+    compiler_val_t *val;
+    int off;
+} operand_ref_imm_t;
+
+/*
  * Operand
  */
 typedef struct {
     operand_type_t type;
     union {
         compiler_val_t *val;
+        operand_ref_val_t *refval;
+        operand_ref_imm_t *refimm;
     } u;
 } operand_t;
 
