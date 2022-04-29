@@ -225,6 +225,7 @@ _val_new(void)
     memset(val, 0, sizeof(compiler_val_t));
     val->type = VAL_NIL;
     val->opt.id = -1;
+    val->opt.type = NULL;
 
     return val;
 }
@@ -979,6 +980,15 @@ _ref(compiler_t *c, compiler_env_t *env, ref_t *ref)
     val = _expr(c, env, ref->var);
     arg = _expr(c, env, ref->arg);
 
+    if ( NULL == val || NULL == arg  ) {
+        return NULL;
+    }
+    /* Check the type of the value */
+    if ( VAL_VAR != val->type ) {
+        /* Type error */
+        return NULL;
+    }
+
     /* Reference to arg from val */
 
     return NULL;
@@ -993,6 +1003,15 @@ _member(compiler_t *c, compiler_env_t *env, member_t *mem)
     compiler_val_t *val;
 
     val = _expr(c, env, mem->e);
+
+    if ( NULL == val ) {
+        return NULL;
+    }
+    /* Check the type of the value */
+    if ( VAL_VAR != val->type ) {
+        /* Type error */
+        return NULL;
+    }
 
     /* Referecne to mem->id from val */
 
