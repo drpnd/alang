@@ -604,6 +604,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
     }
     vr->type = VAL_REG;
 
+    /* Prepare operands */
     op0.type = OPERAND_VAL;
     op0.u.val = v0;
     op1.type = OPERAND_VAL;
@@ -613,6 +614,9 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
 
     /* Add an instruction */
     instr = _instr_infix(opcode, &op0, &op1, &op2);
+    if ( instr == NULL ) {
+        return NULL;
+    }
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
         return NULL;
@@ -728,6 +732,7 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
     }
 
     if ( FIX_PREFIX == op->fix ) {
+        /* Prefix: apply the operation to the variable, then return the value */
         instr = _instr_new();
         if ( NULL == instr ) {
             return NULL;
@@ -742,6 +747,8 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
 
         return val;
     } else if ( FIX_SUFFIX == op->fix ) {
+        /* Suffix: return the original value, then apply the operation to the
+           variable */
         vr = _val_new();
         if ( NULL == vr ) {
             return NULL;
