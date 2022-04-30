@@ -414,6 +414,27 @@ _instr_mov(operand_t *op0, operand_t *op1)
 }
 
 /*
+ * _instr_infix -- allocate a new infix instruction
+ */
+static compiler_instr_t *
+_instr_infix(opcode_t opcode, operand_t *op0, operand_t *op1, operand_t *op2)
+{
+    compiler_instr_t *instr;
+
+    /* Add an instruction */
+    instr = _instr_new();
+    if ( NULL == instr ) {
+        return NULL;
+    }
+    instr->opcode = opcode;
+    memcpy(&instr->operands[0], op0, sizeof(operand_t));
+    memcpy(&instr->operands[1], op1, sizeof(operand_t));
+    memcpy(&instr->operands[2], op2, sizeof(operand_t));
+
+    return instr;
+}
+
+/*
  * _id -- parse an identifier
  */
 static compiler_val_t *
@@ -563,6 +584,9 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
     compiler_val_t *v0;
     compiler_val_t *v1;
     compiler_instr_t *instr;
+    operand_t op0;
+    operand_t op1;
+    operand_t op2;
     int ret;
 
     if ( FIX_INFIX != op->fix ) {
@@ -580,21 +604,17 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
     }
     vr->type = VAL_REG;
 
+    op0.type = OPERAND_VAL;
+    op0.u.val = v0;
+    op1.type = OPERAND_VAL;
+    op1.u.val = v1;
+    op2.type = OPERAND_VAL;
+    op2.u.val = vr;
+
     /* Add an instruction */
-    instr = _instr_new();
-    if ( NULL == instr ) {
-        return NULL;
-    }
-    instr->opcode = opcode;
-    instr->operands[0].type = OPERAND_VAL;
-    instr->operands[0].u.val = v0;
-    instr->operands[1].type = OPERAND_VAL;
-    instr->operands[1].u.val = v1;
-    instr->operands[2].type = OPERAND_VAL;
-    instr->operands[2].u.val = vr;
+    instr = _instr_infix(opcode, &op0, &op1, &op2);
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
-        _instr_delete(instr);
         return NULL;
     }
 
