@@ -723,6 +723,8 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
     compiler_instr_t *instr;
     compiler_val_t *val;
     compiler_val_t *vr;
+    operand_t op0;
+    operand_t op1;
     int ret;
 
     val = _expr(c, env, op->e0);
@@ -756,15 +758,14 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
         vr->type = VAL_REG;
 
         /* Copy the value to a register */
-        instr = _instr_new();
-        if ( NULL == instr ) {
+        op0.type = OPERAND_VAL;
+        op0.u.val = val;
+        op1.type = OPERAND_VAL;
+        op1.u.val = vr;
+        instr = _instr_mov(&op0, &op1);
+        if ( instr == NULL  ) {
             return NULL;
         }
-        instr->opcode = OPCODE_MOV;
-        instr->operands[0].type = OPERAND_VAL;
-        instr->operands[0].u.val = val;
-        instr->operands[1].type = OPERAND_VAL;
-        instr->operands[1].u.val = vr;
         ret = _append_instr(&env->code, instr);
         if ( ret < 0 ) {
             return NULL;
