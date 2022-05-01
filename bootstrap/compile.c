@@ -733,22 +733,7 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
         return NULL;
     }
 
-    if ( FIX_PREFIX == op->fix ) {
-        /* Prefix: apply the operation to the variable, then return the value */
-        instr = _instr_new();
-        if ( NULL == instr ) {
-            return NULL;
-        }
-        instr->opcode = opcode;
-        instr->operands[0].type = OPERAND_VAL;
-        instr->operands[0].u.val = val;
-        ret = _append_instr(&env->code, instr);
-        if ( ret < 0 ) {
-            return NULL;
-        }
-
-        return val;
-    } else if ( FIX_SUFFIX == op->fix ) {
+    if ( FIX_SUFFIX == op->fix ) {
         /* Suffix: return the original value, then apply the operation to the
            variable */
         vr = _val_new();
@@ -770,23 +755,24 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
         if ( ret < 0 ) {
             return NULL;
         }
-
-        instr = _instr_new();
-        if ( NULL == instr ) {
-            return NULL;
-        }
-        instr->opcode = opcode;
-        instr->operands[0].type = OPERAND_VAL;
-        instr->operands[0].u.val = val;
-        ret = _append_instr(&env->code, instr);
-        if ( ret < 0 ) {
-            return NULL;
-        }
-
-        return val;
+    } else if ( FIX_PREFIX == op->fix ) {
+        /* Prefix: apply the operation to the variable, then return the value */
     } else {
         return NULL;
     }
+    instr = _instr_new();
+    if ( instr == NULL ) {
+        return NULL;
+    }
+    instr->opcode = opcode;
+    instr->operands[0].type = OPERAND_VAL;
+    instr->operands[0].u.val = val;
+    ret = _append_instr(&env->code, instr);
+    if ( ret < 0 ) {
+        return NULL;
+    }
+
+    return val;
 }
 
 /*
