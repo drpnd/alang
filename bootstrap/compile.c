@@ -758,8 +758,11 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
     } else if ( FIX_PREFIX == op->fix ) {
         /* Prefix: apply the operation to the variable, then return the value */
     } else {
+        /* Other than above, then raise an error */
         return NULL;
     }
+
+    /* Add the inc/dec instruction */
     instr = _instr_new();
     if ( instr == NULL ) {
         return NULL;
@@ -1294,21 +1297,73 @@ _module(compiler_t *c, module_t *md)
 }
 
 /*
+ * _use -- parse a use directive
+ */
+static int
+_use(compiler_t *c, use_t *use)
+{
+    return -1;
+}
+
+/*
+ * _struct -- parse a struct directive
+ */
+static int
+_struct(compiler_t *c, struct_t *st)
+{
+    return -1;
+}
+
+/*
+ * _union -- parse a union directive
+ */
+static int
+_union(compiler_t *c, union_t *un)
+{
+    return -1;
+}
+
+/*
+ * _enum -- parse an enum directive
+ */
+static int
+_enum(compiler_t *c, enum_t *en)
+{
+    return -1;
+}
+
+/*
+ * _typedef -- parse a typedef directive
+ */
+static int
+_typedef(compiler_t *c, typedef_t *td)
+{
+    return -1;
+}
+
+/*
  * _directive -- parse a directive
  */
 static int
 _directive(compiler_t *c, directive_t *dr)
 {
+    int ret;
+
     switch ( dr->type ) {
     case DIRECTIVE_USE:
+        ret = _use(c, &dr->u.use);
         break;
     case DIRECTIVE_STRUCT:
+        ret = _struct(c, &dr->u.st);
         break;
     case DIRECTIVE_UNION:
+        ret = _union(c, &dr->u.un);
         break;
     case DIRECTIVE_ENUM:
+        ret = _enum(c, &dr->u.en);
         break;
     case DIRECTIVE_TYPEDEF:
+        ret = _typedef(c, &dr->u.td);
         break;
     }
     COMPILE_ERROR_RETURN(c, "invalid directive");
@@ -1402,7 +1457,7 @@ compile(code_file_t *code)
     compiler_t *c;
     compiler_block_t *b;
 
-    /* Allocate compiler */
+    /* Allocate a compiler instance */
     c = malloc(sizeof(compiler_t));
     if ( NULL == c ) {
         return NULL;
@@ -1410,6 +1465,7 @@ compile(code_file_t *code)
     c->fout = NULL;
     c->blocks = NULL;
 
+    /* Compile the code */
     b = compile_code(c, code);
     if ( NULL == b ) {
         return NULL;
