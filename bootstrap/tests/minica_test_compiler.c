@@ -136,11 +136,60 @@ _analyze_registers(compiler_env_t *env)
 }
 
 static void
+_display_operand(compiler_env_t *env, operand_t *operand)
+{
+    printf(" ");
+    switch ( operand->type ) {
+    case OPERAND_VAL:
+        switch ( operand->u.val->type ) {
+        case VAL_NIL:
+            printf("nil");
+            break;
+        case VAL_VAR:
+            /* Variable */
+            break;
+        case VAL_LITERAL:
+            printf("[literal]");
+            break;
+        case VAL_REG:
+            printf("%%");
+            break;
+        case VAL_REG_SET:
+            printf("(%%,%%)");
+            break;
+        case VAL_LIST:
+            printf("[list]");
+            break;
+        case VAL_COND:
+            printf("[cond]");
+            break;
+        }
+        break;
+    case OPERAND_REF:
+        break;
+    case OPERAND_I8:
+        break;
+    case OPERAND_I16:
+        break;
+    case OPERAND_I32:
+        break;
+    case OPERAND_I64:
+        break;
+    case OPERAND_FP32:
+        break;
+    case OPERAND_FP64:
+        break;
+    }
+}
+
+static void
 _display_instr(compiler_env_t *env, compiler_instr_t *instr)
 {
     switch ( instr->opcode ) {
     case OPCODE_MOV:
-        printf("mov\n");
+        printf("mov");
+        _display_operand(env, &instr->operands[0]);
+        _display_operand(env, &instr->operands[1]);
         break;
     case OPCODE_ADD:
         printf("add\n");
@@ -163,6 +212,7 @@ _display_instr(compiler_env_t *env, compiler_instr_t *instr)
     default:
         printf("opcode %d\n", instr->opcode);
     }
+    printf("\n");
 }
 
 static void
