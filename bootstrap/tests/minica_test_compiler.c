@@ -136,6 +136,34 @@ _analyze_registers(compiler_env_t *env)
 }
 
 static void
+_display_literal(literal_t *lit)
+{
+    switch ( lit->type ) {
+    case LIT_HEXINT:
+        printf("0x%s", lit->u.n);
+        break;
+    case LIT_DECINT:
+        printf("%s", lit->u.n);
+        break;
+    case LIT_OCTINT:
+        printf("0%s", lit->u.n);
+        break;
+    case LIT_FLOAT:
+        printf("%s", lit->u.n);
+        break;
+    case LIT_STRING:
+        printf("%s", lit->u.s);
+        break;
+    case LIT_BOOL:
+        printf("%s", lit->u.b == BOOL_TRUE ? "true" : "false");
+        break;
+    case LIT_NIL:
+        printf("nil");
+        break;
+    }
+}
+
+static void
 _display_operand(compiler_env_t *env, operand_t *operand)
 {
     printf(" ");
@@ -150,7 +178,7 @@ _display_operand(compiler_env_t *env, operand_t *operand)
             printf("[var]");
             break;
         case VAL_LITERAL:
-            printf("[literal]");
+            _display_literal(operand->u.val->u.lit);
             break;
         case VAL_REG:
             printf("%%");
@@ -175,7 +203,7 @@ _display_operand(compiler_env_t *env, operand_t *operand)
     case OPERAND_I64:
     case OPERAND_FP32:
     case OPERAND_FP64:
-        printf("[To be implemented]");
+        printf("[imm]");
         break;
     }
 }
