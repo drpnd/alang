@@ -147,6 +147,7 @@ _display_operand(compiler_env_t *env, operand_t *operand)
             break;
         case VAL_VAR:
             /* Variable */
+            printf("[var]");
             break;
         case VAL_LITERAL:
             printf("[literal]");
@@ -166,18 +167,15 @@ _display_operand(compiler_env_t *env, operand_t *operand)
         }
         break;
     case OPERAND_REF:
+        printf("[ref]");
         break;
     case OPERAND_I8:
-        break;
     case OPERAND_I16:
-        break;
     case OPERAND_I32:
-        break;
     case OPERAND_I64:
-        break;
     case OPERAND_FP32:
-        break;
     case OPERAND_FP64:
+        printf("[To be implemented]");
         break;
     }
 }
@@ -192,22 +190,40 @@ _display_instr(compiler_env_t *env, compiler_instr_t *instr)
         _display_operand(env, &instr->operands[1]);
         break;
     case OPCODE_ADD:
-        printf("add\n");
+        printf("add");
+        _display_operand(env, &instr->operands[0]);
+        _display_operand(env, &instr->operands[1]);
+        _display_operand(env, &instr->operands[2]);
         break;
     case OPCODE_SUB:
-        printf("sub\n");
+        printf("sub");
+        _display_operand(env, &instr->operands[0]);
+        _display_operand(env, &instr->operands[1]);
+        _display_operand(env, &instr->operands[2]);
         break;
     case OPCODE_MUL:
-        printf("mul\n");
+        printf("mul");
+        _display_operand(env, &instr->operands[0]);
+        _display_operand(env, &instr->operands[1]);
+        _display_operand(env, &instr->operands[2]);
         break;
     case OPCODE_DIV:
-        printf("div\n");
+        printf("div");
+        _display_operand(env, &instr->operands[0]);
+        _display_operand(env, &instr->operands[1]);
+        _display_operand(env, &instr->operands[2]);
+        break;
+    case OPCODE_MOD:
+        printf("mod");
+        _display_operand(env, &instr->operands[0]);
+        _display_operand(env, &instr->operands[1]);
+        _display_operand(env, &instr->operands[2]);
         break;
     case OPCODE_INC:
         printf("inc\n");
         break;
     case OPCODE_DEC:
-        printf("inc\n");
+        printf("dec\n");
         break;
     default:
         printf("opcode %d\n", instr->opcode);
@@ -222,7 +238,7 @@ _display_env(compiler_env_t *env)
     compiler_instr_t *instr;
 
     /* Variables */
-    printf("variables:\n");
+    printf("Printing variables:\n");
     var = env->vars->top;
     while ( NULL != var ) {
         printf("var: %s\n", var->id);
@@ -230,10 +246,11 @@ _display_env(compiler_env_t *env)
     }
 
     /* Analyze registers */
+    printf("Analyzing registers\n");
     _analyze_registers(env);
 
     /* Code */
-    printf("code:\n");
+    printf("Printing code:\n");
     instr = env->code.head;
     while ( NULL != instr ) {
         _display_instr(env, instr);
