@@ -39,6 +39,9 @@ usage(const char *prog)
 
 code_file_t * minica_parse(FILE *);
 
+/* Declarations */
+static void _display_val(compiler_env_t *, compiler_val_t *);
+
 static int
 _is_reg(operand_t *op)
 {
@@ -164,35 +167,53 @@ _display_literal(literal_t *lit)
 }
 
 static void
+_display_val_list(compiler_env_t *env, compiler_val_list_t *list)
+{
+    compiler_val_t *cur;
+
+    cur = list->head;
+    while ( cur != NULL ) {
+        _display_val(env, cur);
+        cur = cur->next;
+    }
+}
+
+static void
+_display_val(compiler_env_t *env, compiler_val_t *val)
+{
+    switch ( val->type ) {
+    case VAL_NIL:
+        printf("nil");
+        break;
+    case VAL_VAR:
+        /* Variable */
+        printf("[var]");
+        break;
+    case VAL_LITERAL:
+        _display_literal(val->u.lit);
+        break;
+    case VAL_REG:
+        printf("%%");
+        break;
+    case VAL_REG_SET:
+        printf("(%%,%%)");
+        break;
+    case VAL_LIST:
+        _display_val_list(env, val->u.list);
+        break;
+    case VAL_COND:
+        printf("[cond]");
+        break;
+    }
+}
+
+static void
 _display_operand(compiler_env_t *env, operand_t *operand)
 {
     printf(" ");
     switch ( operand->type ) {
     case OPERAND_VAL:
-        switch ( operand->u.val->type ) {
-        case VAL_NIL:
-            printf("nil");
-            break;
-        case VAL_VAR:
-            /* Variable */
-            printf("[var]");
-            break;
-        case VAL_LITERAL:
-            _display_literal(operand->u.val->u.lit);
-            break;
-        case VAL_REG:
-            printf("%%");
-            break;
-        case VAL_REG_SET:
-            printf("(%%,%%)");
-            break;
-        case VAL_LIST:
-            printf("[list]");
-            break;
-        case VAL_COND:
-            printf("[cond]");
-            break;
-        }
+        _display_val(env, operand->u.val);
         break;
     case OPERAND_REF:
         printf("[ref]");

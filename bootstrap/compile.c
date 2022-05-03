@@ -1118,10 +1118,7 @@ _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
         e = e->next;
     }
 
-    v->type = VAL_LIST;
-    v->u.list = l;
-
-    return v;
+    return l;
 }
 
 /*
