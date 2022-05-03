@@ -1284,7 +1284,47 @@ _func(compiler_t *c, func_t *fn)
 static compiler_block_t *
 _coroutine(compiler_t *c, coroutine_t *cr)
 {
-    return NULL;
+    int ret;
+    compiler_env_t *env;
+    compiler_block_t *block;
+    compiler_val_t *val;
+
+    /* Allocate a new environment */
+    env = _env_new(c);
+    if ( NULL == env ) {
+        return NULL;
+    }
+
+    /* Parse arguments and return values */
+    ret = _args(c, env, cr->args);
+    if ( ret < 0 ) {
+        return NULL;
+    }
+    ret = _args(c, env, cr->rets);
+    if ( ret < 0 ) {
+        return NULL;
+    }
+
+    /* Parse the inner block */
+    val = _inner_block(c, env, cr->block);
+    if ( NULL == val ) {
+        return NULL;
+    }
+
+    /* Allocate a block */
+    block = malloc(sizeof(compiler_block_t));
+    if ( NULL == block ) {
+        return NULL;
+    }
+    block->label = strdup(cr->id);
+    if ( NULL == block->label ) {
+        return NULL;
+    }
+    block->type = BLOCK_COROUTINE;
+    block->env = env;
+    block->next = NULL;
+
+    return block;
 }
 
 /*
@@ -1302,6 +1342,7 @@ _module(compiler_t *c, module_t *md)
 static int
 _use(compiler_t *c, use_t *use)
 {
+    //use->id;
     return -1;
 }
 
@@ -1311,6 +1352,7 @@ _use(compiler_t *c, use_t *use)
 static int
 _struct(compiler_t *c, struct_t *st)
 {
+    //st->id;
     return -1;
 }
 
@@ -1320,6 +1362,7 @@ _struct(compiler_t *c, struct_t *st)
 static int
 _union(compiler_t *c, union_t *un)
 {
+    //un->id;
     return -1;
 }
 
@@ -1329,6 +1372,7 @@ _union(compiler_t *c, union_t *un)
 static int
 _enum(compiler_t *c, enum_t *en)
 {
+    //en0>id;
     return -1;
 }
 
@@ -1338,6 +1382,8 @@ _enum(compiler_t *c, enum_t *en)
 static int
 _typedef(compiler_t *c, typedef_t *td)
 {
+    //td->src;
+    //td->dst;
     return -1;
 }
 
