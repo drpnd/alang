@@ -54,6 +54,7 @@ static void
 _analyze_operand(compiler_env_t *env, operand_t *operand, compiler_ig_t *ig)
 {
     if ( _is_reg(operand) ) {
+        /* Register */
     }
     if ( OPERAND_VAL == operand->type ) {
         if ( operand->u.val->opt.id < 0 ) {
@@ -135,6 +136,36 @@ _analyze_registers(compiler_env_t *env)
 }
 
 static void
+_display_instr(compiler_env_t *env, compiler_instr_t *instr)
+{
+    switch ( instr->opcode ) {
+    case OPCODE_MOV:
+        printf("mov\n");
+        break;
+    case OPCODE_ADD:
+        printf("add\n");
+        break;
+    case OPCODE_SUB:
+        printf("sub\n");
+        break;
+    case OPCODE_MUL:
+        printf("mul\n");
+        break;
+    case OPCODE_DIV:
+        printf("div\n");
+        break;
+    case OPCODE_INC:
+        printf("inc\n");
+        break;
+    case OPCODE_DEC:
+        printf("inc\n");
+        break;
+    default:
+        printf("opcode %d\n", instr->opcode);
+    }
+}
+
+static void
 _display_env(compiler_env_t *env)
 {
     compiler_var_t *var;
@@ -155,31 +186,7 @@ _display_env(compiler_env_t *env)
     printf("code:\n");
     instr = env->code.head;
     while ( NULL != instr ) {
-        switch ( instr->opcode ) {
-        case OPCODE_MOV:
-            printf("mov\n");
-            break;
-        case OPCODE_ADD:
-            printf("add\n");
-            break;
-        case OPCODE_SUB:
-            printf("sub\n");
-            break;
-        case OPCODE_MUL:
-            printf("mul\n");
-            break;
-        case OPCODE_DIV:
-            printf("div\n");
-            break;
-        case OPCODE_INC:
-            printf("inc\n");
-            break;
-        case OPCODE_DEC:
-            printf("inc\n");
-            break;
-        default:
-            printf("opcode %d\n", instr->opcode);
-        }
+        _display_instr(env, instr);
         instr = instr->next;
     }
 }
