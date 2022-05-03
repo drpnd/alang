@@ -10,7 +10,7 @@ BASEDIR=$(shell pwd)
 CFLAGS=-g -Wall -DBASEDIR=\"$(BASEDIR)\"
 
 all:
-	$(MAKE) minica_test_ld minica_test_asm minica_test_parser
+	$(MAKE) minica_test_ld minica_test_asm minica_test_parser minica_test_compiler
 
 minica.l: y.tab.h
 y.tab.c: minica.y
@@ -34,6 +34,9 @@ minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o arch/x86-64/instr.
 	$(CC) $(CFLAGS) -o $@ $^
 
 minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+minica_test_compiler: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 test: minica_test_parser
