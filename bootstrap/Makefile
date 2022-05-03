@@ -36,7 +36,7 @@ minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o arch/x86-64/instr.
 minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_compiler: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile.o
+minica_test_compiler: tests/minica_test_compiler.o y.tab.o lex.yy.o syntax.o compile.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 test: minica_test_parser
