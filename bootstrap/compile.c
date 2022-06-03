@@ -36,13 +36,20 @@
     } while ( 0 )
 
 /* Declarations */
-static compiler_instr_t * _instr_new(void);
-static void _instr_delete(compiler_instr_t *);
-static compiler_var_table_t * _var_table_initialize(compiler_var_table_t *);
-static void _var_table_release(compiler_var_table_t *);
-static compiler_env_t * _env_new(compiler_t *);
-static void _env_delete(compiler_env_t *);
-static compiler_val_t * _expr(compiler_t *, compiler_env_t *, expr_t *);
+static compiler_instr_t *
+_instr_new(void);
+static void
+_instr_delete(compiler_instr_t *);
+static compiler_var_table_t *
+_var_table_initialize(compiler_var_table_t *);
+static void
+_var_table_release(compiler_var_table_t *);
+static compiler_env_t *
+_env_new(compiler_t *);
+static void
+_env_delete(compiler_env_t *);
+static compiler_val_t *
+_expr(compiler_t *, compiler_env_t *, expr_t *);
 static compiler_val_t *
 _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static compiler_val_t *
