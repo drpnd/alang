@@ -57,8 +57,10 @@
 /* Group 4 */
 #define OVERRIDE_ADDR_SIZE  0x67
 
-void * x86_64_initialize(void *);
-int x86_64_load_instr(void *);
+void *
+x86_64_initialize(void *);
+int
+x86_64_load_instr(void *);
 
 /*
  * Encode ModR/M
