@@ -112,6 +112,13 @@ typedef struct {
 
 } arch_code_t;
 
+/*
+ * Architecture-specific function
+ */
+typedef struct {
+    void *assemble;
+} arch_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -88,7 +88,7 @@ typedef enum {
     OPCODE_CMP_LT,  /* op1,op2,dst */
     OPCODE_CMP_GEQ, /* op1,op2,dst */
     OPCODE_CMP_LEQ, /* op1,op2,dst */
-    OPCODE_RET,
+    OPCODE_RET,     /* no operands */
 } opcode_t;
 
 /*
