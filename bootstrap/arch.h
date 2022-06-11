@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2020 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020,2022 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,6 +27,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
+
+#define ARCH_X86_64     0x11
+#define ARCH_AARCH64    0x21
+
 
 /*
  * Architecture
