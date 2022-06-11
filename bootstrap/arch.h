@@ -28,15 +28,12 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#define ARCH_X86_64     0x11
-#define ARCH_AARCH64    0x21
-
-
 /*
  * Architecture
  */
 typedef enum {
     ARCH_CPU_X86_64,
+    ARCH_CPU_AARCH64,
 } arch_cpu_t;
 
 /*
