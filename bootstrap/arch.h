@@ -85,6 +85,7 @@ typedef struct {
  * Architecture-specific code
  */
 typedef struct {
+    /* CPU architecture */
     arch_cpu_t cpu;
 
     /* Text */
