@@ -27,7 +27,7 @@ compile.o: compile.c compile.h
 minica: y.tab.o lex.yy.o syntax.o arch/x86-64/x86-64.o arch/x86-64/instr.o ld/mach-o.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_ld: tests/minica_test_ld.o ld/mach-o.o ld/elf.o
+minica_test_ld: tests/minica_test_ld.o ld/mach-o/mach-o.o ld/elf/elf.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o arch/x86-64/instr.o
