@@ -118,7 +118,9 @@ typedef struct {
  * Architecture-specific function
  */
 typedef struct {
+    arch_loader_t loader;
     void *assemble;
+    int (*export)(FILE *, arch_code_t *);
 } arch_t;
 
 #ifdef __cplusplus
