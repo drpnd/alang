@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2018-2019,2021 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2018-2019,2021-2022 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -34,6 +34,7 @@
 #include <string.h>
 #include "compile.h"
 #include "y.tab.h"
+#include "minica.h"
 
 #define YY_USER_ACTION _update_locations(yylloc, yytext);
 
