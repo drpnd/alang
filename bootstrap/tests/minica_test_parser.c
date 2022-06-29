@@ -22,6 +22,7 @@
  */
 
 #include "../compile.h"
+#include "../minica.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -36,8 +37,6 @@ usage(const char *prog)
     fprintf(stderr, "Usage: %s <file>\n", prog);
     exit(EXIT_FAILURE);
 }
-
-code_file_t * minica_parse(FILE *);
 
 /* Declarations */
 static void _expr(expr_t *);
