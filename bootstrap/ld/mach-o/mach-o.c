@@ -304,6 +304,7 @@ _export(FILE *fp, arch_code_t *code)
             relocinfo[i].r_length = 2;
             relocinfo[i].r_type = X86_64_RELOC_SIGNED;
             break;
+        case ARCH_REL_BRANCH:
         default:
             fprintf(stderr, "Unknown relocation type (%d).\n",
                     code->rel.rels[i].type);
