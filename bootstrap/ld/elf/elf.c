@@ -405,10 +405,10 @@ elf64_hash(const unsigned char *name)
 }
 
 /*
- * Export
+ * General export function
  */
-int
-elf_export(FILE *fp, arch_code_t *code)
+static int
+_export(FILE *fp, arch_code_t *code)
 {
     Elf64_Ehdr hdr;
     char *strtab;
@@ -755,6 +755,15 @@ elf_export(FILE *fp, arch_code_t *code)
     }
 
     return 0;
+}
+
+/*
+ * Export
+ */
+int
+elf_export(FILE *fp, arch_code_t *code)
+{
+    return _export(fp, code);
 }
 
 /*
