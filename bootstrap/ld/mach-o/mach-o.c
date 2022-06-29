@@ -229,10 +229,10 @@ struct nlist_64 {
 } __attribute__ ((packed));
 
 /*
- * Export
+ * General export function
  */
-int
-mach_o_export(FILE *fp, arch_code_t *code)
+static int
+_export(FILE *fp, arch_code_t *code)
 {
     struct mach_header_64 hdr;
     struct segment_command_64 seg;
@@ -520,6 +520,15 @@ mach_o_export(FILE *fp, arch_code_t *code)
     }
 
     return 0;
+}
+
+/*
+ * Export
+ */
+int
+mach_o_export(FILE *fp, arch_code_t *code)
+{
+    return _export(fp, code);
 }
 
 /*
