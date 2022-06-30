@@ -215,6 +215,7 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
 "fn"        return TOK_FN;
 "coroutine" return TOK_COROUTINE;
 "return"    return TOK_RETURN;
+"type"      return TOK_TYPE;
 "typedef"   return TOK_TYPEDEF;
 "struct"    return TOK_STRUCT;
 "union"     return TOK_UNION;
