@@ -606,13 +606,6 @@ typedef struct {
 } context_symbol_table_t;
 
 /*
- * Context for parser
- */
-typedef struct {
-    module_t *module_cur;
-} context_parser_t;
-
-/*
  * Compiler context for lexer and parser
  */
 typedef struct {
