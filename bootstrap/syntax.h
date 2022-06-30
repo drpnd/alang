@@ -593,11 +593,11 @@ typedef struct {
 /*
  * String
  */
-struct string {
+typedef struct {
     size_t len;
     size_t size;
     char *buf;
-};
+} string_t;
 
 /*
  * Symbols
@@ -617,7 +617,7 @@ typedef struct {
  */
 typedef struct {
     /* Lexer string buffer */
-    struct string buffer;
+    string_t buffer;
     /* Parser's context */
     code_file_t *code;
     module_t *cur;
