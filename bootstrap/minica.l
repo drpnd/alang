@@ -34,7 +34,8 @@
 #include <string.h>
 #include "compile.h"
 #include "y.tab.h"
-#include "minica.h"
+
+#define STRING_CHUNK 4096
 
 #define YY_USER_ACTION _update_locations(yylloc, yytext);
 

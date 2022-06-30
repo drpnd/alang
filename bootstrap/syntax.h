@@ -590,7 +590,6 @@ typedef struct {
     outer_block_t *block;
 } code_file_t;
 
-#define STRING_CHUNK 4096
 /*
  * String
  */
