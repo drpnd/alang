@@ -559,6 +559,14 @@ struct _outer_block {
 };
 
 /*
+ * Syntax tree
+ */
+typedef struct {
+    outer_block_t *blocks;
+    void *data;
+} st_t;
+
+/*
  * File stack
  */
 typedef struct _file_Stack file_stack_t;
