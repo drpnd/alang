@@ -1496,7 +1496,7 @@ _outer_block(compiler_t *c, outer_block_t *block)
  * compile_code -- compile code
  */
 compiler_block_t *
-compile_code(compiler_t *c, code_file_t *code)
+compile_code(compiler_t *c, st_t *code)
 {
     return _outer_block(c, code->block);
 }
@@ -1505,7 +1505,7 @@ compile_code(compiler_t *c, code_file_t *code)
  * compile -- compiile code
  */
 compiler_t *
-compile(code_file_t *code)
+compile(st_t *code)
 {
     compiler_t *c;
     compiler_block_t *b;

@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-    code_file_t * minica_parse(FILE *);
+    st_t * minica_parse(FILE *);
 
 #ifdef __cplusplus
 }

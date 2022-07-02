@@ -562,7 +562,7 @@ struct _outer_block {
  * Syntax tree
  */
 typedef struct {
-    outer_block_t *blocks;
+    outer_block_t *block;
     void *data;
 } st_t;
 
@@ -579,16 +579,6 @@ struct _file_stack {
     off_t last_column;
     file_stack_t *next;
 };
-
-/*
- * Code file
- */
-typedef struct {
-    func_vec_t funcs;
-    coroutine_vec_t coroutines;
-
-    outer_block_t *block;
-} code_file_t;
 
 /*
  * String
@@ -612,7 +602,7 @@ typedef struct {
     /* Lexer string buffer */
     string_t buffer;
     /* Parser's context */
-    code_file_t *code;
+    st_t *st;
     module_t *cur;
 } context_t;
 
@@ -685,7 +675,7 @@ extern "C" {
     switch_case_t * switch_case_new(literal_set_t *, inner_block_t *);
     switch_block_t * switch_block_new(void);
     switch_block_t * switch_block_append(switch_block_t *, switch_case_t *);
-    code_file_t * code_file_new(outer_block_t *);
+    st_t * st_new(outer_block_t *);
 
 #ifdef __cplusplus
 }

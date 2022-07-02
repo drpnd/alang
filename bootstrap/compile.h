@@ -322,7 +322,7 @@ typedef struct {
 extern "C" {
 #endif
 
-    compiler_t * compile(code_file_t *);
+    compiler_t * compile(st_t *);
 
 #ifdef __cplusplus
 }

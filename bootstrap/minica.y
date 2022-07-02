@@ -43,7 +43,7 @@ void yyerror(YYLTYPE *, yyscan_t, const char *);
 %}
 
 %union {
-    code_file_t *file;
+    st_t *file;
     module_t *module;
     outer_block_t *oblock;
     outer_block_entry_t *obent;
@@ -154,12 +154,12 @@ start:          file
                 {
                     context_t *context;
                     context = yyget_extra(scanner);
-                    context->code = $1;
+                    context->st = $1;
                 }
                 ;
 file:           outer_block
                 {
-                    $$ = code_file_new($1);
+                    $$ = st_new($1);
                 }
                 ;
 
@@ -860,7 +860,7 @@ yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str)
 /*
  * minica_parse -- parse the specified file
  */
-code_file_t *
+st_t *
 minica_parse(FILE *fp)
 {
     yyscan_t scanner;
@@ -898,7 +898,7 @@ minica_parse(FILE *fp)
     free(context);
     yylex_destroy(scanner);
 
-    return context->code;
+    return context->st;
 }
 
 /*

@@ -524,7 +524,7 @@ _outer_block(outer_block_t *block)
 }
 
 static void
-_display_ast(code_file_t *code)
+_display_ast(st_t *code)
 {
     _outer_block(code->block);
 }
@@ -702,7 +702,7 @@ int
 main(int argc, const char *const argv[])
 {
     FILE *fp;
-    code_file_t *code;
+    st_t *code;
     compiler_t *c;
 
     if ( argc < 2 ) {

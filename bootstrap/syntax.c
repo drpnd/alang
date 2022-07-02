@@ -1426,20 +1426,20 @@ module_vec_add(module_vec_t *vec, module_t *module)
 }
 
 /*
- * code_file_new -- allocate a new code file
+ * st_new -- allocate a new syntax tree
  */
-code_file_t *
-code_file_new(outer_block_t *block)
+st_t *
+st_new(outer_block_t *block)
 {
-    code_file_t *code;
+    st_t *st;
 
-    code = malloc(sizeof(code_file_t));
-    if ( NULL == code ) {
+    st = malloc(sizeof(st_t));
+    if ( NULL == st ) {
         return NULL;
     }
-    code->block = block;
+    st->block = block;
 
-    return code;
+    return st;
 }
 
 /*
