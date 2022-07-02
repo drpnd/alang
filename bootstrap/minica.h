@@ -25,6 +25,13 @@
 #define _MINICA_H
 
 /*
+ * Compiler
+ */
+typedef struct {
+    int (*compile)(void *);
+} minica_compiler_t;
+
+/*
  * Assembler operations
  */
 typedef struct {
