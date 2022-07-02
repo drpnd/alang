@@ -247,6 +247,10 @@ typedef:        TOK_TYPEDEF type identifier
                 {
                     $$ = directive_typedef_new(scanner, $2, $3);
                 }
+        |       TOK_TYPE type TOK_DEF identifier
+                {
+                    $$ = directive_typedef_new(scanner, $2, $4);
+                }
                 ;
 struct_def:     TOK_STRUCT identifier TOK_LBRACE decl_list TOK_RBRACE
                 {
@@ -502,6 +506,11 @@ switch_case:    TOK_CASE literal_set TOK_COLON inner_block
                 ;
 assign_expr:    primary TOK_DEF assign_expr
                 {
+                    $$ = expr_op_new_infix(scanner, $1, $3, OP_ASSIGN);
+                }
+        |       primary TOK_EQ assign_expr
+                {
+                    fprintf(stderr, "Warning: \"=\" is not recommended.\n");
                     $$ = expr_op_new_infix(scanner, $1, $3, OP_ASSIGN);
                 }
         |       or_test
