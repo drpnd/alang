@@ -670,9 +670,13 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix(scanner, $2, OP_DEC);
                 }
-        |       TOK_ATMARK u_expr
+        |       TOK_BIT_AND u_expr
                 {
                     $$ = expr_op_new_prefix(scanner, $2, OP_PTRREF);
+                }
+        |       TOK_ATMARK u_expr
+                {
+                    $$ = expr_op_new_prefix(scanner, $2, OP_PTRIND);
                 }
         |       p_expr %prec SNOP
                 {
