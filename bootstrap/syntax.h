@@ -297,7 +297,8 @@ typedef enum {
     OP_CMP_GEQ,
     OP_CMP_LEQ,
     OP_INC,
-    OP_DEC
+    OP_DEC,
+    OP_PTRREF
 } op_type_t;
 
 /*
