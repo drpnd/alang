@@ -25,55 +25,12 @@
 #define _COMPILE_H
 
 #include "syntax.h"
+#include "ir.h"
 #include <stdio.h>
 #include <stdint.h>
 
 typedef struct _val compiler_val_t;
 typedef struct _compiler_env compiler_env_t;
-
-/*
- * Opcode
- */
-typedef enum {
-    OPCODE_MOV,     /* src,dst */
-    OPCODE_ADD,     /* op1,op2,dst */
-    OPCODE_SUB,     /* op1,op2,dst */
-    OPCODE_MUL,     /* op1,op2,dst */
-    OPCODE_DIV,     /* op1,op2,{q,r} */
-    OPCODE_MOD,     /* op1,op2,{r,q} */
-    OPCODE_INC,     /* op */
-    OPCODE_DEC,     /* op */
-    OPCODE_NOT,     /* op,dst */
-    OPCODE_COMP,    /* op,dst */
-    OPCODE_LAND,    /* op1,op2,dst */
-    OPCODE_LOR,     /* op1,op2,dst */
-    OPCODE_AND,     /* op1,op2,dst */
-    OPCODE_OR,      /* op1,op2,dst */
-    OPCODE_XOR,     /* op1,op2,dst */
-    OPCODE_LSHIFT,  /* op1,op2,dst */
-    OPCODE_RSHIFT,  /* op1,op2,dst */
-    OPCODE_CMP_EQ,  /* op1,op2,dst */
-    OPCODE_CMP_NEQ, /* op1,op2,dst */
-    OPCODE_CMP_GT,  /* op1,op2,dst */
-    OPCODE_CMP_LT,  /* op1,op2,dst */
-    OPCODE_CMP_GEQ, /* op1,op2,dst */
-    OPCODE_CMP_LEQ, /* op1,op2,dst */
-    OPCODE_RET,     /* no operands */
-} opcode_t;
-
-/*
- * Operand type
- */
-typedef enum {
-    OPERAND_VAL,
-    OPERAND_REF,
-    OPERAND_I8,
-    OPERAND_I16,
-    OPERAND_I32,
-    OPERAND_I64,
-    OPERAND_FP32,
-    OPERAND_FP64,
-} operand_type_t;
 
 /*
  * Reference operand
