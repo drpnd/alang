@@ -592,9 +592,29 @@ typedef struct {
 } string_t;
 
 /*
+ * Symbol
+ */
+typedef enum {
+    CTX_SYMBOL_FUNC,
+    CTX_SYMBOL_COROUTINE,
+    CTX_SYMBOL_VAR,
+} context_symbol_type_t;
+typedef struct {
+    context_symbol_type_t type;
+    union {
+        void *func;
+        void *cr;
+        void *var;
+    } u;
+} context_symbol_t;
+
+/*
  * Symbols
  */
 typedef struct {
+    off_t i;
+    size_t n;
+    context_symbol_t *symbols;
 } context_symbol_table_t;
 
 /*
