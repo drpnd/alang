@@ -288,8 +288,15 @@ All the data are carried a packet.
     suite ::=
             "{" statement* "}"
 
+    outer_entry ::=
+            fndef
+            | crdef
+
+    outer_block ::=
+            outer_entry
+
 ### File
 
     input ::=
-            statements EOF
+            outer_block EOF
 
