@@ -1445,11 +1445,15 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
     switch ( e->type ) {
     case OUTER_BLOCK_FUNC:
         block = _func(c, e->u.fn);
-        ret = 0;
+        if ( block != NULL ) {
+            ret = 0;
+        }
         break;
     case OUTER_BLOCK_COROUTINE:
         block = _coroutine(c, e->u.cr);
-        ret = 0;
+        if ( block != NULL ) {
+            ret = 0;
+        }
         break;
     case OUTER_BLOCK_MODULE:
         ret = _module(c, e->u.md);
