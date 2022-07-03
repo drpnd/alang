@@ -97,6 +97,16 @@ typedef struct {
 } ir_imm_t;
 
 /*
+ * Reference (pointer)
+ */
+typedef struct {
+    ir_reg_t base;
+    ir_reg_t index;
+    int scale;
+    int64_t disp;
+} ir_ref_t;
+
+/*
  * Operand
  */
 typedef struct {
