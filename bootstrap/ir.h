@@ -74,13 +74,14 @@ typedef enum {
  * Operand size
  */
 typedef enum {
+    OPERAND_SIZE_AUTO,
     OPERAND_SIZE_I8,
     OPERAND_SIZE_I16,
     OPERAND_SIZE_I32,
     OPERAND_SIZE_I64,
     OPERAND_SIZE_FP32,
     OPERAND_SIZE_FP64,
-} operand_size_t;
+} ir_operand_size_t;
 
 /*
  * Register
@@ -111,7 +112,7 @@ typedef struct {
  */
 typedef struct {
     operand_type_t type;
-    operand_size_t size;
+    ir_operand_size_t size;
     union {
         ir_reg_t reg;
         ir_imm_t imm;
