@@ -1246,7 +1246,7 @@ _inner_block(compiler_t *c, compiler_env_t *env, inner_block_t *block)
 }
 
 /*
- * _func -- parse a function
+ * _func -- parse a function definition
  */
 static compiler_block_t *
 _func(compiler_t *c, func_t *fn)
@@ -1295,7 +1295,7 @@ _func(compiler_t *c, func_t *fn)
 }
 
 /*
- * _coroutine -- parse a coroutine
+ * _coroutine -- parse a coroutine definition
  */
 static compiler_block_t *
 _coroutine(compiler_t *c, coroutine_t *cr)
