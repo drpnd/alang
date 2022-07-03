@@ -112,8 +112,8 @@ void yyerror(YYLTYPE *, yyscan_t, const char *);
 %type <expr> primary a_expr m_expr u_expr p_expr atom
 %type <swblock> switch_block
 %type <swcase> switch_case
-%type <func> function
-%type <coroutine> coroutine
+%type <func> fndef
+%type <coroutine> crdef
 %type <stmt> statement stmt_while stmt_expr_list stmt_return
 %type <stmts> statements
 %type <lit> literal
@@ -182,14 +182,14 @@ outer_entry:    directive
                     block->u.dr = $1;
                     $$ = block;
                 }
-        |       coroutine
+        |       crdef
                 {
                     outer_block_entry_t *block;
                     block = outer_block_entry_new(OUTER_BLOCK_COROUTINE);
                     block->u.cr = $1;
                     $$ = block;
                 }
-        |       function
+        |       fndef
                 {
                     outer_block_entry_t *block;
                     block = outer_block_entry_new(OUTER_BLOCK_FUNC);
@@ -320,12 +320,12 @@ module:         TOK_MODULE identifier TOK_LBRACE outer_block TOK_RBRACE
                 ;
 
 /* Coroutine & function */
-coroutine:      TOK_COROUTINE identifier funcargs retvals suite
+crdef:          TOK_COROUTINE identifier funcargs retvals suite
                 {
                     $$ = coroutine_new($2, $3, $4, $5);
                 }
                 ;
-function:       TOK_FN identifier funcargs retvals suite
+fndef:          TOK_FN identifier funcargs retvals suite
                 {
                     $$ = func_new($2, $3, $4, $5);
                 }
