@@ -288,14 +288,14 @@ All the data are carried a packet.
     suite ::=
             "{" statement* "}"
 
+### File
+
     outer_entry ::=
             fndef
             | crdef
 
     outer_block ::=
             outer_entry
-
-### File
 
     input ::=
             outer_block EOF
