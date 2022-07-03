@@ -71,6 +71,15 @@ typedef enum {
 } operand_type_t;
 
 /*
+ * Operand type
+ */
+typedef enum {
+    OPERAND_TYPE_REG,
+    OPERAND_TYPE_REF,
+    OPERAND_TYPE_IMM,
+} ir_operand_type_t;
+
+/*
  * Operand size
  */
 typedef enum {
