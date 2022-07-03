@@ -1505,9 +1505,9 @@ _outer_block(compiler_t *c, outer_block_t *block)
  * _st -- compile the syntax treee
  */
 static compiler_block_t *
-_st(compiler_t *c, st_t *code)
+_st(compiler_t *c, st_t *st)
 {
-    return _outer_block(c, code->block);
+    return _outer_block(c, st->block);
 }
 
 /*
