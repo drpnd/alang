@@ -70,6 +70,37 @@ typedef enum {
     OPERAND_FP64,
 } operand_type_t;
 
+/*
+ * Operand size
+ */
+typedef enum {
+    OPERAND_SIZE_I8,
+    OPERAND_SIZE_I16,
+    OPERAND_SIZE_I32,
+    OPERAND_SIZE_I64,
+    OPERAND_SIZE_FP32,
+    OPERAND_SIZE_FP64,
+} operand_size_t;
+
+/*
+ * Operand
+ */
+typedef struct {
+    operand_type_t type;
+    union {
+        void *reg;
+        uint8_t *imm;
+    } u;
+} ir_operand_t;
+
+/*
+ * Instruction
+ */
+typedef struct {
+    opcode_t opcode;
+    void *operands[4];
+} ir_instr_t;
+
 #endif /* _IR_H */
 
 /*
