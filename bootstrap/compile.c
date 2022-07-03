@@ -442,6 +442,15 @@ _instr_infix(opcode_t opcode, operand_t *op0, operand_t *op1, operand_t *op2)
 }
 
 /*
+ * _operand -- convert a variable to an operand
+ */
+static int
+_operand(compiler_t *c, compiler_env_t *env, ir_operand_t *operand)
+{
+    return -1;
+}
+
+/*
  * _id -- parse an identifier
  */
 static compiler_val_t *
@@ -1493,19 +1502,19 @@ _outer_block(compiler_t *c, outer_block_t *block)
 }
 
 /*
- * compile_code -- compile code
+ * _st -- compile the syntax treee
  */
-compiler_block_t *
-compile_code(compiler_t *c, st_t *code)
+static compiler_block_t *
+_st(compiler_t *c, st_t *code)
 {
     return _outer_block(c, code->block);
 }
 
 /*
- * compile -- compiile code
+ * compile -- compiile a syntax tree to the intermediate representation
  */
 compiler_t *
-compile(st_t *code)
+compile(st_t *st)
 {
     compiler_t *c;
     compiler_block_t *b;
@@ -1518,8 +1527,8 @@ compile(st_t *code)
     c->fout = NULL;
     c->blocks = NULL;
 
-    /* Compile the code */
-    b = compile_code(c, code);
+    /* Compile the syntax tree */
+    b = _st(c, st);
     if ( NULL == b ) {
         return NULL;
     }
