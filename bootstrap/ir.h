@@ -83,13 +83,28 @@ typedef enum {
 } operand_size_t;
 
 /*
+ * Register
+ */
+typedef struct {
+    int nr;
+} ir_reg_t;
+
+/*
+ * Immediate value
+ */
+typedef struct {
+    uint8_t *bin;
+} ir_imm_t;
+
+/*
  * Operand
  */
 typedef struct {
     operand_type_t type;
+    operand_size_t size;
     union {
-        void *reg;
-        uint8_t *imm;
+        ir_reg_t reg;
+        ir_imm_t imm;
     } u;
 } ir_operand_t;
 
