@@ -496,7 +496,7 @@ _literal(compiler_t *c, compiler_env_t *env, literal_t *lit)
  * _decl -- parse a declaration
  */
 static compiler_val_t *
-_decl(compiler_t *c, compiler_env_t *env, decl_t *decl)
+_decl(compiler_t *c, compiler_env_t *env, decl_t *decl, int arg, int retflag)
 {
     compiler_val_t *val;
     compiler_var_t *var;
@@ -507,6 +507,8 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl)
     if ( NULL == var ) {
         return NULL;
     }
+    var->arg = arg;
+    var->ret = retflag;
 
     /* Allocate a new value */
     val = _val_new();
@@ -539,7 +541,7 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
 
     a = args->head;
     while ( NULL != a ) {
-        val = _decl(c, env, a->decl);
+        val = _decl(c, env, a->decl, 1, 0);
         if ( NULL == val ) {
             return -1;
         }
@@ -1069,7 +1071,7 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = _id(c, env, e->u.id);
         break;
     case EXPR_DECL:
-        val = _decl(c, env, e->u.decl);
+        val = _decl(c, env, e->u.decl, 0, 0);
         break;
     case EXPR_LITERAL:
         val = _literal(c, env, e->u.lit);

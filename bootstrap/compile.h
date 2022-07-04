@@ -121,6 +121,8 @@ struct _var {
     char *id;
     type_t *type;
     size_t size;
+    int arg;
+    int ret;
     compiler_var_t *next;
 };
 
