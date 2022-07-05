@@ -534,14 +534,18 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, int arg, int retflag)
  * _args -- parse arguments
  */
 static int
-_args(compiler_t *c, compiler_env_t *env, arg_list_t *args)
+_args(compiler_t *c, compiler_env_t *env, arg_list_t *args, int retvals)
 {
     arg_t *a;
     compiler_val_t *val;
 
     a = args->head;
     while ( NULL != a ) {
-        val = _decl(c, env, a->decl, 1, 0);
+        if ( retvals ) {
+            val = _decl(c, env, a->decl, 0, 1);
+        } else {
+            val = _decl(c, env, a->decl, 1, 0);
+        }
         if ( NULL == val ) {
             return -1;
         }
@@ -1265,11 +1269,11 @@ _func(compiler_t *c, func_t *fn)
     }
 
     /* Parse arguments and return values */
-    ret = _args(c, env, fn->args);
+    ret = _args(c, env, fn->args, 0);
     if ( ret < 0 ) {
         return NULL;
     }
-    ret = _args(c, env, fn->rets);
+    ret = _args(c, env, fn->rets, 1);
     if ( ret < 0 ) {
         return NULL;
     }
@@ -1314,11 +1318,11 @@ _coroutine(compiler_t *c, coroutine_t *cr)
     }
 
     /* Parse arguments and return values */
-    ret = _args(c, env, cr->args);
+    ret = _args(c, env, cr->args, 0);
     if ( ret < 0 ) {
         return NULL;
     }
-    ret = _args(c, env, cr->rets);
+    ret = _args(c, env, cr->rets, 1);
     if ( ret < 0 ) {
         return NULL;
     }
