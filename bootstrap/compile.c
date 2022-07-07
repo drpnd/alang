@@ -190,6 +190,17 @@ _var_delete(compiler_var_t *var)
 static int
 _var_add(compiler_env_t *env, compiler_var_t *var)
 {
+    compiler_var_t *v;
+
+    /* Duplicate check */
+    v = env->vars->top;
+    while ( v != NULL ) {
+        if ( strcmp(var->id, v->id) == 0 ) {
+            return -1;
+        }
+        v = v->next;
+    }
+
     var->next = env->vars->top;
     env->vars->top = var;
 
