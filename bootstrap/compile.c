@@ -196,6 +196,7 @@ _var_add(compiler_env_t *env, compiler_var_t *var)
     v = env->vars->top;
     while ( v != NULL ) {
         if ( strcmp(var->id, v->id) == 0 ) {
+            /* Already exists */
             return -1;
         }
         v = v->next;

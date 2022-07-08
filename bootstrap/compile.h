@@ -246,6 +246,12 @@ typedef struct {
     /* Assembler */
     /* Linker */
     FILE *fout;
+    /* Error code */
+    int errno;
+    struct {
+        off_t line;
+        off_t column;
+    } pos;
 } compiler_t;
 
 #ifdef __cplusplus
