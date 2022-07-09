@@ -237,6 +237,11 @@ typedef struct {
     size_t size;
 } compiler_type_t;
 
+/* Error */
+enum {
+    COMPILER_DUPLICATE_VARIABLE,
+} compiler_error_t;
+
 /*
  * Compiler
  */
