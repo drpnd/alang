@@ -188,7 +188,7 @@ _var_delete(compiler_var_t *var)
  * _var_add -- add a variable to the stack
  */
 static int
-_var_add(compiler_t *c, compiler_env_t *env, compiler_var_t *var)
+_var_add(compiler_t *c, compiler_env_t *env, compiler_var_t *var, pos_t *pos)
 {
     compiler_var_t *v;
 
@@ -198,6 +198,8 @@ _var_add(compiler_t *c, compiler_env_t *env, compiler_var_t *var)
         if ( strcmp(var->id, v->id) == 0 ) {
             /* Already exists */
             c->errno = COMPILER_DUPLICATE_VARIABLE;
+            c->pos.line = pos->first_line;
+            c->pos.column = pos->first_column;
             return -1;
         }
         v = v->next;
@@ -509,7 +511,8 @@ _literal(compiler_t *c, compiler_env_t *env, literal_t *lit)
  * _decl -- parse a declaration
  */
 static compiler_val_t *
-_decl(compiler_t *c, compiler_env_t *env, decl_t *decl, int arg, int retflag)
+_decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
+      int retflag)
 {
     compiler_val_t *val;
     compiler_var_t *var;
@@ -533,7 +536,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, int arg, int retflag)
     val->u.var = var;
 
     /* Add the variable to the table */
-    ret = _var_add(c, env, var);
+    ret = _var_add(c, env, var, pos);
     if ( ret < 0 ) {
         _var_delete(var);
         free(val);
@@ -555,9 +558,9 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args, int retvals)
     a = args->head;
     while ( NULL != a ) {
         if ( retvals ) {
-            val = _decl(c, env, a->decl, 0, 1);
+            val = _decl(c, env, a->decl, &a->pos, 0, 1);
         } else {
-            val = _decl(c, env, a->decl, 1, 0);
+            val = _decl(c, env, a->decl, &a->pos, 1, 0);
         }
         if ( NULL == val ) {
             return -1;
@@ -1088,7 +1091,7 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = _id(c, env, e->u.id);
         break;
     case EXPR_DECL:
-        val = _decl(c, env, e->u.decl, 0, 0);
+        val = _decl(c, env, e->u.decl, &e->pos, 0, 0);
         break;
     case EXPR_LITERAL:
         val = _literal(c, env, e->u.lit);

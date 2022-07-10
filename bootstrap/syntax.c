@@ -394,9 +394,10 @@ decl_list_append(decl_list_t *list, decl_t *dcl)
  * arg_new -- allocate an argument
  */
 arg_t *
-arg_new(decl_t *dcl)
+arg_new(void *scanner, decl_t *dcl)
 {
     arg_t *arg;
+    YYLTYPE *loc;
 
     arg = malloc(sizeof(arg_t));
     if ( NULL == arg ) {
@@ -404,6 +405,12 @@ arg_new(decl_t *dcl)
     }
     arg->decl = dcl;
     arg->next = NULL;
+
+    loc = yyget_lloc(scanner);
+    arg->pos.first_line = loc->first_line;
+    arg->pos.first_column = loc->first_column;
+    arg->pos.last_line = loc->last_line;
+    arg->pos.last_column = loc->last_column;
 
     return arg;
 }

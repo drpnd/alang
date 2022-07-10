@@ -358,7 +358,7 @@ args:           arg
                 ;
 arg:            declaration
                 {
-                    $$ = arg_new($1);
+                    $$ = arg_new(scanner, $1);
                 }
                 ;
 

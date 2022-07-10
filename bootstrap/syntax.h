@@ -200,6 +200,7 @@ typedef struct _arg arg_t;
 struct _arg {
     decl_t *decl;
     arg_t *next;
+    pos_t pos;
 };
 
 /*
@@ -652,7 +653,7 @@ extern "C" {
     decl_t * decl_new(const char *, type_t *);
     decl_list_t * decl_list_new(decl_t *);
     decl_list_t * decl_list_append(decl_list_t *, decl_t *);
-    arg_t * arg_new(decl_t *);
+    arg_t * arg_new(void *, decl_t *);
     arg_list_t * arg_list_new(arg_t *);
     arg_list_t * arg_list_append(arg_list_t *, arg_t *);
     directive_t * directive_struct_new(void *, const char *, decl_list_t *);
