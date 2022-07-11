@@ -252,7 +252,7 @@ typedef struct {
     /* Linker */
     FILE *fout;
     /* Error code */
-    int errno;
+    int err;
     pos_t pos;
 } compiler_t;
 
