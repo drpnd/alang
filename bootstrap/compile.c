@@ -198,8 +198,7 @@ _var_add(compiler_t *c, compiler_env_t *env, compiler_var_t *var, pos_t *pos)
         if ( strcmp(var->id, v->id) == 0 ) {
             /* Already exists */
             c->errno = COMPILER_DUPLICATE_VARIABLE;
-            c->pos.line = pos->first_line;
-            c->pos.column = pos->first_column;
+            memcpy(&c->pos, pos, sizeof(pos_t));
             return -1;
         }
         v = v->next;

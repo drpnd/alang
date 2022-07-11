@@ -253,10 +253,7 @@ typedef struct {
     FILE *fout;
     /* Error code */
     int errno;
-    struct {
-        off_t line;
-        off_t column;
-    } pos;
+    pos_t pos;
 } compiler_t;
 
 #ifdef __cplusplus
