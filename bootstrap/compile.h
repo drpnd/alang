@@ -239,6 +239,7 @@ typedef struct {
 
 /* Error */
 enum {
+    COMPILER_NOMEM,
     COMPILER_DUPLICATE_VARIABLE,
 } compiler_error_t;
 

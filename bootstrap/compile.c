@@ -520,6 +520,8 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     /* Allocate a new variable */
     var = _var_new(decl->id, decl->type);
     if ( NULL == var ) {
+        c->err = COMPILER_NOMEM;
+        memcpy(&c->pos, pos, sizeof(pos_t));
         return NULL;
     }
     var->arg = arg;
@@ -529,6 +531,8 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     val = _val_new();
     if ( NULL == val ) {
         _var_delete(var);
+        c->err = COMPILER_NOMEM;
+        memcpy(&c->pos, pos, sizeof(pos_t));
         return NULL;
     }
     val->type = VAL_VAR;
