@@ -188,7 +188,7 @@ _var_delete(compiler_var_t *var)
  * _var_add -- add a variable to the stack
  */
 static int
-_var_add(compiler_t *c, compiler_env_t *env, compiler_var_t *var, pos_t *pos)
+_var_add(compiler_env_t *env, compiler_var_t *var)
 {
     compiler_var_t *v;
 
@@ -196,9 +196,6 @@ _var_add(compiler_t *c, compiler_env_t *env, compiler_var_t *var, pos_t *pos)
     v = env->vars->top;
     while ( v != NULL ) {
         if ( strcmp(var->id, v->id) == 0 ) {
-            /* Already exists */
-            c->err = COMPILER_DUPLICATE_VARIABLE;
-            memcpy(&c->pos, pos, sizeof(pos_t));
             return -1;
         }
         v = v->next;
@@ -539,8 +536,12 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     val->u.var = var;
 
     /* Add the variable to the table */
-    ret = _var_add(c, env, var, pos);
+    ret = _var_add(env, var);
     if ( ret < 0 ) {
+        /* Already exists */
+        c->err = COMPILER_DUPLICATE_VARIABLE;
+        memcpy(&c->pos, pos, sizeof(pos_t));
+        /* Release the variable and value */
         _var_delete(var);
         free(val);
         return NULL;
