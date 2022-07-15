@@ -241,6 +241,7 @@ typedef struct {
 enum {
     COMPILER_NOMEM,
     COMPILER_DUPLICATE_VARIABLE,
+    COMPILER_SYNTAX_ERROR,
 } compiler_error_t;
 
 /*

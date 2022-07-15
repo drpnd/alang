@@ -589,6 +589,9 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
     int ret;
 
     if ( FIX_INFIX != op->fix ) {
+        /* Syntax error */
+        c->err = COMPILER_SYNTAX_ERROR;
+        //memcpy(&c->pos, pos, sizeof(pos_t));
         return NULL;
     }
 
