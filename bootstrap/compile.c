@@ -579,7 +579,7 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args, int retvals)
  * _assign -- parse an assignment instruction
  */
 static compiler_val_t *
-_assign(compiler_t *c, compiler_env_t *env, op_t *op)
+_assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
 {
     compiler_val_t *v0;
     compiler_val_t *v1;
@@ -591,7 +591,7 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
     if ( FIX_INFIX != op->fix ) {
         /* Syntax error */
         c->err = COMPILER_SYNTAX_ERROR;
-        //memcpy(&c->pos, pos, sizeof(pos_t));
+        memcpy(&c->pos, pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -599,6 +599,9 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op)
     v0 = _expr(c, env, op->e0);
     v1 = _expr(c, env, op->e1);
     if ( VAL_VAR != v0->type ) {
+        /* Syntax error */
+        c->err = COMPILER_SYNTAX_ERROR;
+        memcpy(&c->pos, pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -827,14 +830,14 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
  * _op -- parse an operator
  */
 static compiler_val_t *
-_op(compiler_t *c, compiler_env_t *env, op_t *op)
+_op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
 {
     compiler_val_t *val;
 
     val = NULL;
     switch ( op->type ) {
     case OP_ASSIGN:
-        val = _assign(c, env, op);
+        val = _assign(c, env, op, pos);
         break;
     case OP_ADD:
         val = _op_infix(c, env, op, OPCODE_ADD);
@@ -1104,7 +1107,7 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = _literal(c, env, e->u.lit);
         break;
     case EXPR_OP:
-        val = _op(c, env, e->u.op);
+        val = _op(c, env, e->u.op, &e->pos);
         break;
     case EXPR_SWITCH:
         val = _switch(c, env, &e->u.sw);
