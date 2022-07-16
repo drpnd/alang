@@ -626,7 +626,8 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
  * _op_infix -- parse an infix operation
  */
 static compiler_val_t *
-_op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
+_op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
+          pos_t *pos)
 {
     compiler_val_t *vr;
     compiler_val_t *v0;
@@ -677,7 +678,8 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
  * _op_prefix -- parse an prefix operation
  */
 static compiler_val_t *
-_op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
+_op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
+           pos_t *pos)
 {
     compiler_val_t *vr;
     compiler_val_t *v;
@@ -720,7 +722,8 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
  * _divmod -- paser a divide/modulo operation
  */
 static compiler_val_t *
-_divmod(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
+_divmod(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
+        pos_t *pos)
 {
     compiler_val_t *vr;
     compiler_val_t *v0;
@@ -766,7 +769,8 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
  * _incdec -- parse an increment/decrement instruction
  */
 static compiler_val_t *
-_incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode)
+_incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
+        pos_t *pos)
 {
     compiler_instr_t *instr;
     compiler_val_t *val;
@@ -840,70 +844,70 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
         val = _assign(c, env, op, pos);
         break;
     case OP_ADD:
-        val = _op_infix(c, env, op, OPCODE_ADD);
+        val = _op_infix(c, env, op, OPCODE_ADD, pos);
         break;
     case OP_SUB:
-        val = _op_infix(c, env, op, OPCODE_SUB);
+        val = _op_infix(c, env, op, OPCODE_SUB, pos);
         break;
     case OP_MUL:
-        val = _op_infix(c, env, op, OPCODE_MUL);
+        val = _op_infix(c, env, op, OPCODE_MUL, pos);
         break;
     case OP_DIV:
-        val = _divmod(c, env, op, OPCODE_DIV);
+        val = _divmod(c, env, op, OPCODE_DIV, pos);
         break;
     case OP_MOD:
-        val = _divmod(c, env, op, OPCODE_MOD);
+        val = _divmod(c, env, op, OPCODE_MOD, pos);
         break;
     case OP_NOT:
-        val = _op_prefix(c, env, op, OPCODE_NOT);
+        val = _op_prefix(c, env, op, OPCODE_NOT, pos);
         break;
     case OP_LAND:
-        val = _op_infix(c, env, op, OPCODE_LAND);
+        val = _op_infix(c, env, op, OPCODE_LAND, pos);
         break;
     case OP_LOR:
-        val = _op_infix(c, env, op, OPCODE_LOR);
+        val = _op_infix(c, env, op, OPCODE_LOR, pos);
         break;
     case OP_AND:
-        val = _op_infix(c, env, op, OPCODE_AND);
+        val = _op_infix(c, env, op, OPCODE_AND, pos);
         break;
     case OP_OR:
-        val = _op_infix(c, env, op, OPCODE_OR);
+        val = _op_infix(c, env, op, OPCODE_OR, pos);
         break;
     case OP_XOR:
-        val = _op_infix(c, env, op, OPCODE_XOR);
+        val = _op_infix(c, env, op, OPCODE_XOR, pos);
         break;
     case OP_COMP:
-        val = _op_prefix(c, env, op, OPCODE_COMP);
+        val = _op_prefix(c, env, op, OPCODE_COMP, pos);
         break;
     case OP_LSHIFT:
-        val = _op_infix(c, env, op, OPCODE_LSHIFT);
+        val = _op_infix(c, env, op, OPCODE_LSHIFT, pos);
         break;
     case OP_RSHIFT:
-        val = _op_infix(c, env, op, OPCODE_RSHIFT);
+        val = _op_infix(c, env, op, OPCODE_RSHIFT, pos);
         break;
     case OP_CMP_EQ:
-        val = _op_infix(c, env, op, OPCODE_CMP_EQ);
+        val = _op_infix(c, env, op, OPCODE_CMP_EQ, pos);
         break;
     case OP_CMP_NEQ:
-        val = _op_infix(c, env, op, OPCODE_CMP_NEQ);
+        val = _op_infix(c, env, op, OPCODE_CMP_NEQ, pos);
         break;
     case OP_CMP_GT:
-        val = _op_infix(c, env, op, OPCODE_CMP_GT);
+        val = _op_infix(c, env, op, OPCODE_CMP_GT, pos);
         break;
     case OP_CMP_LT:
-        val = _op_infix(c, env, op, OPCODE_CMP_LT);
+        val = _op_infix(c, env, op, OPCODE_CMP_LT, pos);
         break;
     case OP_CMP_GEQ:
-        val = _op_infix(c, env, op, OPCODE_CMP_GEQ);
+        val = _op_infix(c, env, op, OPCODE_CMP_GEQ, pos);
         break;
     case OP_CMP_LEQ:
-        val = _op_infix(c, env, op, OPCODE_CMP_LEQ);
+        val = _op_infix(c, env, op, OPCODE_CMP_LEQ, pos);
         break;
     case OP_INC:
-        val = _incdec(c, env, op, OPCODE_INC);
+        val = _incdec(c, env, op, OPCODE_INC, pos);
         break;
     case OP_DEC:
-        val = _incdec(c, env, op, OPCODE_DEC);
+        val = _incdec(c, env, op, OPCODE_DEC, pos);
         break;
     }
 
