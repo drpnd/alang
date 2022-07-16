@@ -290,12 +290,12 @@ All the data are carried a packet.
 
 ### File
 
-    outer_entry ::=
+    outer_block_entry ::=
             fndef
             | crdef
 
     outer_block ::=
-            outer_entry
+            outer_block_entry
 
     input ::=
             outer_block EOF
