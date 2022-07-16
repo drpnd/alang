@@ -1567,6 +1567,9 @@ compile(st_t *st)
     c->fout = NULL;
     c->blocks = NULL;
 
+    /* Initialize the error handler */
+    c->err = COMPILER_ERROR_UNKNOWN;
+
     /* Compile the syntax tree */
     b = _st(c, st);
     if ( NULL == b ) {
