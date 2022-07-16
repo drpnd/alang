@@ -122,11 +122,13 @@ _env_new(compiler_t *c)
 
     env = malloc(sizeof(compiler_env_t));
     if ( NULL == env ) {
+        c->err = COMPILER_NOMEM;
         return NULL;
     }
     env->vars = _var_table_initialize(NULL);
     if ( NULL == env->vars ) {
         free(env);
+        c->err = COMPILER_NOMEM;
         return NULL;
     }
 
@@ -1317,6 +1319,7 @@ _func(compiler_t *c, func_t *fn)
     /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
     if ( NULL == block ) {
+        c->err = COMPILER_NOMEM;
         return NULL;
     }
     block->label = strdup(fn->id);
