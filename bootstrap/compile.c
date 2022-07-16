@@ -1480,21 +1480,25 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
     block = NULL;
     switch ( e->type ) {
     case OUTER_BLOCK_FUNC:
+        /* Function */
         block = _func(c, e->u.fn);
         if ( block != NULL ) {
             ret = 0;
         }
         break;
     case OUTER_BLOCK_COROUTINE:
+        /* Coroutine */
         block = _coroutine(c, e->u.cr);
         if ( block != NULL ) {
             ret = 0;
         }
         break;
     case OUTER_BLOCK_MODULE:
+        /* Module */
         ret = _module(c, e->u.md);
         break;
     case OUTER_BLOCK_DIRECTIVE:
+        /* Directive */
         ret = _directive(c, e->u.dr);
         break;
     }
