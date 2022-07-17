@@ -237,13 +237,25 @@ typedef struct {
     size_t size;
 } compiler_type_t;
 
-/* Error */
-enum {
+/*
+ * Error code
+ */
+typedef enum {
     COMPILER_ERROR_UNKNOWN = -1,
     COMPILER_NOMEM,
     COMPILER_DUPLICATE_VARIABLE,
     COMPILER_SYNTAX_ERROR,
-} compiler_error_t;
+} compiler_error_code_t;
+
+/*
+ * Error stack
+ */
+typedef struct _error compiler_error_t;
+typedef struct _error {
+    compiler_error_code_t err;
+    pos_t pos;
+    compiler_error_t *next;
+};
 
 /*
  * Compiler
@@ -255,7 +267,7 @@ typedef struct {
     /* Linker */
     FILE *fout;
     /* Error code */
-    int err;
+    compiler_error_code_t err;
     pos_t pos;
 } compiler_t;
 
