@@ -1530,8 +1530,10 @@ _outer_block(compiler_t *c, outer_block_t *block)
     pb = NULL;
     tb = NULL;
     while ( NULL != e ) {
+        /* Parse an outer block entry */
         b = _outer_block_entry(c, e);
         if ( NULL == b ) {
+            /* FIXME: Free the compiled blocks */
             return NULL;
         }
         /* Implement the block handler */
