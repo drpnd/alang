@@ -1324,6 +1324,7 @@ _func(compiler_t *c, func_t *fn)
     }
     block->label = strdup(fn->id);
     if ( NULL == block->label ) {
+        c->err = COMPILER_NOMEM;
         return NULL;
     }
     block->type = BLOCK_FUNC;
