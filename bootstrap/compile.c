@@ -1312,18 +1312,18 @@ _func(compiler_t *c, func_t *fn)
 
     /* Parse the inner block */
     val = _inner_block(c, env, fn->block);
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
 
     /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
-    if ( NULL == block ) {
+    if ( block == NULL ) {
         c->err = COMPILER_NOMEM;
         return NULL;
     }
     block->label = strdup(fn->id);
-    if ( NULL == block->label ) {
+    if ( block->label == NULL ) {
         c->err = COMPILER_NOMEM;
         return NULL;
     }
@@ -1363,17 +1363,19 @@ _coroutine(compiler_t *c, coroutine_t *cr)
 
     /* Parse the inner block */
     val = _inner_block(c, env, cr->block);
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
 
     /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
-    if ( NULL == block ) {
+    if ( block == NULL ) {
+        c->err = COMPILER_NOMEM;
         return NULL;
     }
     block->label = strdup(cr->id);
-    if ( NULL == block->label ) {
+    if ( block->label == NULL ) {
+        c->err = COMPILER_NOMEM;
         return NULL;
     }
     block->type = BLOCK_COROUTINE;
