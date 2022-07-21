@@ -172,6 +172,7 @@ _var_new(const char *id, type_t *type)
         return NULL;
     }
     var->type = type;
+    var->next = NULL;
 
     return var;
 }
