@@ -1564,7 +1564,17 @@ _st(compiler_t *c, st_t *st)
 }
 
 /*
- * _analyze_env
+ * _analyze_instr -- analyze an instruction
+ */
+static int
+_analyze_instr(compiler_t *c, compiler_env_t *env, compiler_instr_t *instr,
+               compiler_ig_t *ig)
+{
+    return 0;
+}
+
+/*
+ * _analyze_env -- analyze an environment
  */
 static int
 _analyze_env(compiler_t *c, compiler_env_t *env)
