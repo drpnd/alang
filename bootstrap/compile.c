@@ -1564,6 +1564,39 @@ _st(compiler_t *c, st_t *st)
 }
 
 /*
+ * _analyze_env
+ */
+static int
+_analyze_env(compiler_t *c, compiler_env_t *env)
+{
+    compiler_instr_t *instr;
+    compiler_ig_t ig;
+
+    /* Count the number of values (registers) */
+    instr = env->code.head;
+    while ( NULL != instr ) {
+        /* ToDo: Analyze instruction (step 1) */
+        instr = instr->next;
+    }
+
+    /* Build an interference graph */
+    ig.v.n = env->opt.max_id;
+    ig.v.vals = malloc(sizeof(compiler_val_t *) * ig.v.n);
+    if ( NULL == ig.v.vals ) {
+        c->err = COMPILER_NOMEM;
+        return -1;
+    }
+    /* Register to ID */
+    instr = env->code.head;
+    while ( NULL != instr ) {
+        /* ToDo: Analyze instruction (step 2) */
+        instr = instr->next;
+    }
+
+    return 0;
+}
+
+/*
  * compile -- compiile a syntax tree to the intermediate representation
  */
 compiler_t *
