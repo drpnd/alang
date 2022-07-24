@@ -258,6 +258,14 @@ typedef struct _error {
 };
 
 /*
+ * Symbols
+ */
+typedef struct {
+    char *label;
+    ir_instr_t *code;
+} compiler_symbol_t;
+
+/*
  * Compiler
  */
 typedef struct {

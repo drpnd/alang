@@ -1570,6 +1570,25 @@ static int
 _analyze_instr(compiler_t *c, compiler_env_t *env, compiler_instr_t *instr,
                compiler_ig_t *ig)
 {
+    switch ( instr->opcode ) {
+    case OPCODE_MOV:
+        break;
+    case OPCODE_ADD:
+        break;
+    case OPCODE_SUB:
+        break;
+    case OPCODE_MUL:
+        break;
+    case OPCODE_DIV:
+        break;
+    case OPCODE_INC:
+        break;
+    case OPCODE_DEC:
+        break;
+    default:
+        return -1;
+    }
+
     return 0;
 }
 
