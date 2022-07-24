@@ -1567,9 +1567,22 @@ _st(compiler_t *c, st_t *st)
  * _analyze_operand -- analyze an operand
  */
 static int
-_analyze_operand(compiler_t *c, compiler_env_t *env, operand_t *opernad,
+_analyze_operand(compiler_t *c, compiler_env_t *env, operand_t *op,
                  compiler_ig_t *ig)
 {
+    /* Check if the value is a register */
+    if ( op->type == OPERAND_VAL && op->u.val->type == VAL_REG ) {
+        /* Register */
+    }
+    if ( op->type == OPERAND_VAL ) {
+        if ( op->u.val->opt.id < 0 ) {
+            op->u.val->opt.id = ++env->opt.max_id;
+        }
+        if ( ig == NULL ) {
+            ig->v.vals[op->u.val->opt.id] = op->u.val;
+        }
+    }
+
     return 0;
 }
 
