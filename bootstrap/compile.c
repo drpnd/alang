@@ -1564,6 +1564,16 @@ _st(compiler_t *c, st_t *st)
 }
 
 /*
+ * _analyze_operand -- analyze an operand
+ */
+static int
+_analyze_operand(compiler_t *c, compiler_env_t *env, operand_t *opernad,
+                 compiler_ig_t *ig)
+{
+    return 0;
+}
+
+/*
  * _analyze_instr -- analyze an instruction
  */
 static int
@@ -1572,18 +1582,21 @@ _analyze_instr(compiler_t *c, compiler_env_t *env, compiler_instr_t *instr,
 {
     switch ( instr->opcode ) {
     case OPCODE_MOV:
+        _analyze_operand(c, env, &instr->operands[0], ig);
+        _analyze_operand(c, env, &instr->operands[1], ig);
         break;
     case OPCODE_ADD:
-        break;
     case OPCODE_SUB:
-        break;
     case OPCODE_MUL:
-        break;
     case OPCODE_DIV:
+    case OPCODE_MOD:
+        _analyze_operand(c, env, &instr->operands[0], ig);
+        _analyze_operand(c, env, &instr->operands[1], ig);
+        _analyze_operand(c, env, &instr->operands[2], ig);
         break;
     case OPCODE_INC:
-        break;
     case OPCODE_DEC:
+        _analyze_operand(c, env, &instr->operands[0], ig);
         break;
     default:
         return -1;
