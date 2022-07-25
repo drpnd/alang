@@ -227,6 +227,7 @@ struct _compiler_env {
     struct {
         int max_id;
     } opt;
+    compiler_ig_t ig;
 };
 
 /*

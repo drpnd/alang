@@ -1625,7 +1625,6 @@ static int
 _analyze_env(compiler_t *c, compiler_env_t *env)
 {
     compiler_instr_t *instr;
-    compiler_ig_t ig;
     int ret;
 
     /* Count the number of values (registers) */
@@ -1640,17 +1639,17 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
     }
 
     /* Build an interference graph */
-    ig.v.n = env->opt.max_id;
-    ig.v.vals = malloc(sizeof(compiler_val_t *) * ig.v.n);
-    if ( NULL == ig.v.vals ) {
+    env->ig.v.n = env->opt.max_id;
+    env->ig.v.vals = malloc(sizeof(compiler_val_t *) * env->ig.v.n);
+    if ( env->ig.v.vals == NULL ) {
         c->err = COMPILER_NOMEM;
         return -1;
     }
     /* Register to ID */
     instr = env->code.head;
-    while ( NULL != instr ) {
+    while ( instr != NULL ) {
         /* Analyze instruction (step 2) */
-        ret = _analyze_instr(c, env, instr, &ig);
+        ret = _analyze_instr(c, env, instr, &env->ig);
         if ( ret < 0 ) {
             return -1;
         }
