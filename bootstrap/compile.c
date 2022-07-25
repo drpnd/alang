@@ -1626,11 +1626,16 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
 {
     compiler_instr_t *instr;
     compiler_ig_t ig;
+    int ret;
 
     /* Count the number of values (registers) */
     instr = env->code.head;
     while ( NULL != instr ) {
-        /* ToDo: Analyze instruction (step 1) */
+        /* Analyze instruction (step 1) */
+        ret = _analyze_instr(c, env, instr, NULL);
+        if ( ret < 0 ) {
+            return -1;
+        }
         instr = instr->next;
     }
 
@@ -1644,7 +1649,11 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
     /* Register to ID */
     instr = env->code.head;
     while ( NULL != instr ) {
-        /* ToDo: Analyze instruction (step 2) */
+        /* Analyze instruction (step 2) */
+        ret = _analyze_instr(c, env, instr, &ig);
+        if ( ret < 0 ) {
+            return -1;
+        }
         instr = instr->next;
     }
 
