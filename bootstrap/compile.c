@@ -1627,9 +1627,9 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
     compiler_instr_t *instr;
     int ret;
 
-    /* Count the number of values (registers) */
+    /* Count the number of values (unique registers) */
     instr = env->code.head;
-    while ( NULL != instr ) {
+    while ( instr != NULL ) {
         /* Analyze instruction (step 1) */
         ret = _analyze_instr(c, env, instr, NULL);
         if ( ret < 0 ) {

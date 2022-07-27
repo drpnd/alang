@@ -133,7 +133,7 @@ typedef struct {
  */
 typedef struct {
     opcode_t opcode;
-    void *operands[4];
+    ir_operand_t *operands[4];
 } ir_instr_t;
 
 #endif /* _IR_H */
