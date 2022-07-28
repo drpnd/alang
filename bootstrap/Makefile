@@ -22,7 +22,7 @@ lex.yy.c: minica.l
 lex.yy.o: lex.yy.c lex.yy.h minica.h
 y.tab.o: lex.yy.c minica.h
 syntax.o: syntax.c syntax.h minica.h
-compile.o: compile.c compile.h minica.h syntax.h ir.h
+compile.o: compile.c ir.c compile.h minica.h syntax.h ir.h
 
 minica: y.tab.o lex.yy.o syntax.o arch/x86-64/x86-64.o arch/x86-64/instr.o ld/mach-o.o
 	$(CC) $(CFLAGS) -o $@ $^
