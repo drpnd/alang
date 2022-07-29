@@ -24,6 +24,32 @@
 #include "ir.h"
 
 /*
+ * ir_instr_new -- allocate a new instruction
+ */
+static ir_instr_t *
+ir_instr_new(void)
+{
+    ir_instr_t *i;
+
+    i = malloc(sizeof(ir_instr_t));
+    if ( i == NULL ) {
+        return NULL;
+    }
+    memset(i, 0, sizeof(ir_instr_t));
+
+    return i;
+}
+
+/*
+ * ir_instr_delete -- delete an instruction
+ */
+static void
+ir_instr_delete(ir_instr_t *i)
+{
+    free(i);
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4
