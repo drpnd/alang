@@ -136,6 +136,19 @@ typedef struct {
     ir_operand_t *operands[4];
 } ir_instr_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+ir_instr_t *
+ir_instr_new(void);
+void
+ir_instr_delete(ir_instr_t *);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* _IR_H */
 
 /*

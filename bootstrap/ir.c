@@ -27,7 +27,7 @@
 /*
  * ir_instr_new -- allocate a new instruction
  */
-static ir_instr_t *
+ir_instr_t *
 ir_instr_new(void)
 {
     ir_instr_t *i;
@@ -44,7 +44,7 @@ ir_instr_new(void)
 /*
  * ir_instr_delete -- delete an instruction
  */
-static void
+void
 ir_instr_delete(ir_instr_t *i)
 {
     free(i);
