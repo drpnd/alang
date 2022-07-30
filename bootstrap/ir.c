@@ -22,6 +22,7 @@
  */
 
 #include "ir.h"
+#include <stdlib.h>
 
 /*
  * ir_instr_new -- allocate a new instruction
