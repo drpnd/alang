@@ -51,6 +51,32 @@ ir_instr_delete(ir_instr_t *i)
 }
 
 /*
+ * ir_operand_new -- allocate a new operand
+ */
+ir_operand_t *
+ir_operand_new(void)
+{
+    ir_operand_t *o;
+
+    o = malloc(sizeof(ir_operand_t));
+    if ( o == NULL ) {
+        return NULL;
+    }
+    memset(o, 0, sizeof(ir_operand_t));
+
+    return o;
+}
+
+/*
+ * ir_operand_delete -- delete an operand
+ */
+void
+ir_operand_delete(ir_operand_t *o)
+{
+    free(o);
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4

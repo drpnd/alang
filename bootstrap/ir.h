@@ -144,6 +144,10 @@ ir_instr_t *
 ir_instr_new(void);
 void
 ir_instr_delete(ir_instr_t *);
+ir_operand_t *
+ir_operand_new(void);
+void
+ir_operand_delete(ir_operand_t *);
 
 #ifdef __cplusplus
 }
