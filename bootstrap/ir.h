@@ -120,11 +120,12 @@ typedef struct {
  * Operand
  */
 typedef struct {
-    operand_type_t type;
+    ir_operand_type_t type;
     ir_operand_size_t size;
     union {
         ir_reg_t reg;
         ir_imm_t imm;
+        ir_ref_t ref;
     } u;
 } ir_operand_t;
 
