@@ -51,6 +51,27 @@ ir_instr_delete(ir_instr_t *i)
 }
 
 /*
+ * ir_imm_init -- initialize a new immediate value
+ */
+ir_imm_t *
+ir_imm_init(ir_imm_t *imm)
+{
+    imm->bin = NULL;
+    return imm;
+}
+
+/*
+ * ir_imm_release -- destruct an immediate value
+ */
+void
+ir_imm_release(ir_imm_t *imm)
+{
+    if ( imm->bin != NULL ) {
+        free(imm->bin);
+    }
+}
+
+/*
  * ir_operand_new -- allocate a new operand
  */
 ir_operand_t *
