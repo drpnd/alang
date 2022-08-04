@@ -66,8 +66,10 @@ ir_imm_init(ir_imm_t *imm)
 void
 ir_imm_release(ir_imm_t *imm)
 {
-    if ( imm->bin != NULL ) {
-        free(imm->bin);
+    switch ( imm->type ) {
+    default:
+        /* Do nothing */
+        break;
     }
 }
 
