@@ -97,6 +97,13 @@ typedef enum {
  */
 typedef enum {
     IR_IMM_I8,
+    IR_IMM_S8,
+    IR_IMM_I16,
+    IR_IMM_S16,
+    IR_IMM_I32,
+    IR_IMM_S32,
+    IR_IMM_I64,
+    IR_IMM_S64,
 } ir_imm_type_t;
 
 /*
@@ -112,6 +119,7 @@ typedef struct {
 typedef struct {
     ir_imm_type_t type;
     union {
+        /* Integers */
         uint8_t u8;
         int8_t s8;
         uint16_t u16;
@@ -120,7 +128,6 @@ typedef struct {
         int32_t s32;
         uint64_t u64;
         int64_t s64;
-        uint8_t *bin;
     } u;
 } ir_imm_t;
 

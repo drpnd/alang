@@ -56,7 +56,6 @@ ir_instr_delete(ir_instr_t *i)
 ir_imm_t *
 ir_imm_init(ir_imm_t *imm)
 {
-    imm->bin = NULL;
     return imm;
 }
 
