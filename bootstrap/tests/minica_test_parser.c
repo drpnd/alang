@@ -559,7 +559,7 @@ static void
 _analyze_instruction(compiler_env_t *env, compiler_instr_t *instr,
                      compiler_ig_t *ig)
 {
-    switch ( instr->opcode ) {
+    switch ( instr->ir.opcode ) {
     case OPCODE_MOV:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
@@ -645,7 +645,7 @@ _display_env(compiler_env_t *env)
     printf("code:\n");
     instr = env->code.head;
     while ( NULL != instr ) {
-        switch ( instr->opcode ) {
+        switch ( instr->ir.opcode ) {
         case OPCODE_MOV:
             printf("mov\n");
             break;
@@ -668,7 +668,7 @@ _display_env(compiler_env_t *env)
             printf("inc\n");
             break;
         default:
-            printf("opcode %d\n", instr->opcode);
+            printf("opcode %d\n", instr->ir.opcode);
         }
         instr = instr->next;
     }

@@ -65,7 +65,6 @@ typedef struct {
  */
 typedef struct _instr compiler_instr_t;
 struct _instr {
-    opcode_t opcode;
     operand_t operands[4];
     ir_instr_t ir;
     compiler_instr_t *next;

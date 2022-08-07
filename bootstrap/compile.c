@@ -427,7 +427,7 @@ _instr_mov(operand_t *op0, operand_t *op1)
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->opcode = OPCODE_MOV;
+    instr->ir.opcode = OPCODE_MOV;
     memcpy(&instr->operands[0], op0, sizeof(operand_t));
     memcpy(&instr->operands[1], op1, sizeof(operand_t));
 
@@ -447,7 +447,7 @@ _instr_infix(opcode_t opcode, operand_t *op0, operand_t *op1, operand_t *op2)
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->opcode = opcode;
+    instr->ir.opcode = opcode;
     memcpy(&instr->operands[0], op0, sizeof(operand_t));
     memcpy(&instr->operands[1], op1, sizeof(operand_t));
     memcpy(&instr->operands[2], op2, sizeof(operand_t));
@@ -708,7 +708,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->opcode = opcode;
+    instr->ir.opcode = opcode;
     instr->operands[0].type = OPERAND_VAL;
     instr->operands[0].u.val = v;
     instr->operands[1].type = OPERAND_VAL;
@@ -753,7 +753,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->opcode = opcode;
+    instr->ir.opcode = opcode;
     instr->operands[0].type = OPERAND_VAL;
     instr->operands[0].u.val = v0;
     instr->operands[1].type = OPERAND_VAL;
@@ -822,7 +822,7 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
     if ( instr == NULL ) {
         return NULL;
     }
-    instr->opcode = opcode;
+    instr->ir.opcode = opcode;
     instr->operands[0].type = OPERAND_VAL;
     instr->operands[0].u.val = val;
     ret = _append_instr(&env->code, instr);
@@ -1212,7 +1212,7 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->opcode = OPCODE_RET;
+    instr->ir.opcode = OPCODE_RET;
     instr->operands[0].type = OPERAND_VAL;
     instr->operands[0].u.val = val;
 
@@ -1593,7 +1593,7 @@ static int
 _analyze_instr(compiler_t *c, compiler_env_t *env, compiler_instr_t *instr,
                compiler_ig_t *ig)
 {
-    switch ( instr->opcode ) {
+    switch ( instr->ir.opcode ) {
     case OPCODE_MOV:
         _analyze_operand(c, env, &instr->operands[0], ig);
         _analyze_operand(c, env, &instr->operands[1], ig);
