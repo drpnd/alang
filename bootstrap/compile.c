@@ -438,7 +438,7 @@ _instr_mov(operand_t *op0, operand_t *op1)
  * _instr_infix -- allocate a new infix instruction
  */
 static compiler_instr_t *
-_instr_infix(opcode_t opcode, operand_t *op0, operand_t *op1, operand_t *op2)
+_instr_infix(ir_opcode_t opcode, operand_t *op0, operand_t *op1, operand_t *op2)
 {
     compiler_instr_t *instr;
 
@@ -629,7 +629,7 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
  * _op_infix -- parse an infix operation
  */
 static compiler_val_t *
-_op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
+_op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
           pos_t *pos)
 {
     compiler_val_t *vr;
@@ -681,7 +681,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
  * _op_prefix -- parse an prefix operation
  */
 static compiler_val_t *
-_op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
+_op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
            pos_t *pos)
 {
     compiler_val_t *vr;
@@ -725,7 +725,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
  * _divmod -- paser a divide/modulo operation
  */
 static compiler_val_t *
-_divmod(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
+_divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         pos_t *pos)
 {
     compiler_val_t *vr;
@@ -772,7 +772,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
  * _incdec -- parse an increment/decrement instruction
  */
 static compiler_val_t *
-_incdec(compiler_t *c, compiler_env_t *env, op_t *op, opcode_t opcode,
+_incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         pos_t *pos)
 {
     compiler_instr_t *instr;

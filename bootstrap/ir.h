@@ -54,7 +54,7 @@ typedef enum {
     OPCODE_CMP_GEQ, /* op1,op2,dst */
     OPCODE_CMP_LEQ, /* op1,op2,dst */
     OPCODE_RET,     /* no operands */
-} opcode_t;
+} ir_opcode_t;
 
 /*
  * Operand type
@@ -158,7 +158,7 @@ typedef struct {
  * Instruction
  */
 typedef struct {
-    opcode_t opcode;
+    ir_opcode_t opcode;
     ir_operand_t *operands[4];
 } ir_instr_t;
 
