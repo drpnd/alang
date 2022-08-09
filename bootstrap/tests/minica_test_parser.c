@@ -560,34 +560,34 @@ _analyze_instruction(compiler_env_t *env, compiler_instr_t *instr,
                      compiler_ig_t *ig)
 {
     switch ( instr->ir.opcode ) {
-    case OPCODE_MOV:
+    case IR_OPCODE_MOV:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
         break;
-    case OPCODE_ADD:
-        _analyze_operand(env, &instr->operands[0], ig);
-        _analyze_operand(env, &instr->operands[1], ig);
-        _analyze_operand(env, &instr->operands[2], ig);
-        break;
-    case OPCODE_SUB:
+    case IR_OPCODE_ADD:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
         _analyze_operand(env, &instr->operands[2], ig);
         break;
-    case OPCODE_MUL:
+    case IR_OPCODE_SUB:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
         _analyze_operand(env, &instr->operands[2], ig);
         break;
-    case OPCODE_DIV:
+    case IR_OPCODE_MUL:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
         _analyze_operand(env, &instr->operands[2], ig);
         break;
-    case OPCODE_INC:
+    case IR_OPCODE_DIV:
+        _analyze_operand(env, &instr->operands[0], ig);
+        _analyze_operand(env, &instr->operands[1], ig);
+        _analyze_operand(env, &instr->operands[2], ig);
+        break;
+    case IR_OPCODE_INC:
         _analyze_operand(env, &instr->operands[0], ig);
         break;
-    case OPCODE_DEC:
+    case IR_OPCODE_DEC:
         _analyze_operand(env, &instr->operands[0], ig);
         break;
     default:
@@ -646,25 +646,25 @@ _display_env(compiler_env_t *env)
     instr = env->code.head;
     while ( NULL != instr ) {
         switch ( instr->ir.opcode ) {
-        case OPCODE_MOV:
+        case IR_OPCODE_MOV:
             printf("mov\n");
             break;
-        case OPCODE_ADD:
+        case IR_OPCODE_ADD:
             printf("add\n");
             break;
-        case OPCODE_SUB:
+        case IR_OPCODE_SUB:
             printf("sub\n");
             break;
-        case OPCODE_MUL:
+        case IR_OPCODE_MUL:
             printf("mul\n");
             break;
-        case OPCODE_DIV:
+        case IR_OPCODE_DIV:
             printf("div\n");
             break;
-        case OPCODE_INC:
+        case IR_OPCODE_INC:
             printf("inc\n");
             break;
-        case OPCODE_DEC:
+        case IR_OPCODE_DEC:
             printf("inc\n");
             break;
         default:

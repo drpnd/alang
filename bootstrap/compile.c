@@ -427,7 +427,7 @@ _instr_mov(operand_t *op0, operand_t *op1)
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->ir.opcode = OPCODE_MOV;
+    instr->ir.opcode = IR_OPCODE_MOV;
     memcpy(&instr->operands[0], op0, sizeof(operand_t));
     memcpy(&instr->operands[1], op1, sizeof(operand_t));
 
@@ -847,70 +847,70 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
         val = _assign(c, env, op, pos);
         break;
     case OP_ADD:
-        val = _op_infix(c, env, op, OPCODE_ADD, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_ADD, pos);
         break;
     case OP_SUB:
-        val = _op_infix(c, env, op, OPCODE_SUB, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_SUB, pos);
         break;
     case OP_MUL:
-        val = _op_infix(c, env, op, OPCODE_MUL, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_MUL, pos);
         break;
     case OP_DIV:
-        val = _divmod(c, env, op, OPCODE_DIV, pos);
+        val = _divmod(c, env, op, IR_OPCODE_DIV, pos);
         break;
     case OP_MOD:
-        val = _divmod(c, env, op, OPCODE_MOD, pos);
+        val = _divmod(c, env, op, IR_OPCODE_MOD, pos);
         break;
     case OP_NOT:
-        val = _op_prefix(c, env, op, OPCODE_NOT, pos);
+        val = _op_prefix(c, env, op, IR_OPCODE_NOT, pos);
         break;
     case OP_LAND:
-        val = _op_infix(c, env, op, OPCODE_LAND, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_LAND, pos);
         break;
     case OP_LOR:
-        val = _op_infix(c, env, op, OPCODE_LOR, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_LOR, pos);
         break;
     case OP_AND:
-        val = _op_infix(c, env, op, OPCODE_AND, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_AND, pos);
         break;
     case OP_OR:
-        val = _op_infix(c, env, op, OPCODE_OR, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_OR, pos);
         break;
     case OP_XOR:
-        val = _op_infix(c, env, op, OPCODE_XOR, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_XOR, pos);
         break;
     case OP_COMP:
-        val = _op_prefix(c, env, op, OPCODE_COMP, pos);
+        val = _op_prefix(c, env, op, IR_OPCODE_COMP, pos);
         break;
     case OP_LSHIFT:
-        val = _op_infix(c, env, op, OPCODE_LSHIFT, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_LSHIFT, pos);
         break;
     case OP_RSHIFT:
-        val = _op_infix(c, env, op, OPCODE_RSHIFT, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_RSHIFT, pos);
         break;
     case OP_CMP_EQ:
-        val = _op_infix(c, env, op, OPCODE_CMP_EQ, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_EQ, pos);
         break;
     case OP_CMP_NEQ:
-        val = _op_infix(c, env, op, OPCODE_CMP_NEQ, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_NEQ, pos);
         break;
     case OP_CMP_GT:
-        val = _op_infix(c, env, op, OPCODE_CMP_GT, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_GT, pos);
         break;
     case OP_CMP_LT:
-        val = _op_infix(c, env, op, OPCODE_CMP_LT, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_LT, pos);
         break;
     case OP_CMP_GEQ:
-        val = _op_infix(c, env, op, OPCODE_CMP_GEQ, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_GEQ, pos);
         break;
     case OP_CMP_LEQ:
-        val = _op_infix(c, env, op, OPCODE_CMP_LEQ, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_LEQ, pos);
         break;
     case OP_INC:
-        val = _incdec(c, env, op, OPCODE_INC, pos);
+        val = _incdec(c, env, op, IR_OPCODE_INC, pos);
         break;
     case OP_DEC:
-        val = _incdec(c, env, op, OPCODE_DEC, pos);
+        val = _incdec(c, env, op, IR_OPCODE_DEC, pos);
         break;
     }
 
@@ -1212,7 +1212,7 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
     if ( NULL == instr ) {
         return NULL;
     }
-    instr->ir.opcode = OPCODE_RET;
+    instr->ir.opcode = IR_OPCODE_RET;
     instr->operands[0].type = OPERAND_VAL;
     instr->operands[0].u.val = val;
 
@@ -1594,21 +1594,21 @@ _analyze_instr(compiler_t *c, compiler_env_t *env, compiler_instr_t *instr,
                compiler_ig_t *ig)
 {
     switch ( instr->ir.opcode ) {
-    case OPCODE_MOV:
+    case IR_OPCODE_MOV:
         _analyze_operand(c, env, &instr->operands[0], ig);
         _analyze_operand(c, env, &instr->operands[1], ig);
         break;
-    case OPCODE_ADD:
-    case OPCODE_SUB:
-    case OPCODE_MUL:
-    case OPCODE_DIV:
-    case OPCODE_MOD:
+    case IR_OPCODE_ADD:
+    case IR_OPCODE_SUB:
+    case IR_OPCODE_MUL:
+    case IR_OPCODE_DIV:
+    case IR_OPCODE_MOD:
         _analyze_operand(c, env, &instr->operands[0], ig);
         _analyze_operand(c, env, &instr->operands[1], ig);
         _analyze_operand(c, env, &instr->operands[2], ig);
         break;
-    case OPCODE_INC:
-    case OPCODE_DEC:
+    case IR_OPCODE_INC:
+    case IR_OPCODE_DEC:
         _analyze_operand(c, env, &instr->operands[0], ig);
         break;
     default:
