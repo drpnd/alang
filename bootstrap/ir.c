@@ -118,6 +118,36 @@ ir_operand_delete(ir_operand_t *o)
 }
 
 /*
+ * ir_num_operands -- return the number of operands for the specified opcode
+ */
+int
+ir_num_operands(ir_opcode_t opcode)
+{
+    int cnt;
+
+    switch (opcode) {
+    case IR_OPCODE_INC:
+    case IR_OPCODE_DEC:
+        cnt = 1;
+        break;
+    case IR_OPCODE_MOV:
+        cnt = 2;
+        break;
+    case IR_OPCODE_ADD:
+    case IR_OPCODE_SUB:
+    case IR_OPCODE_MUL:
+    case IR_OPCODE_DIV:
+    case IR_OPCODE_MOD:
+        cnt = 3;
+        break;
+    default:
+        cnt = -1;
+    }
+
+    return cnt;
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4
