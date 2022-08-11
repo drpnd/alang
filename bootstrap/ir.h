@@ -170,6 +170,10 @@ ir_instr_t *
 ir_instr_new(void);
 void
 ir_instr_delete(ir_instr_t *);
+ir_reg_t *
+ir_reg_init(ir_reg_t *);
+void
+ir_reg_release(ir_reg_t *);
 ir_imm_t *
 ir_imm_init(ir_imm_t *);
 void
