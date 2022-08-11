@@ -178,6 +178,7 @@ ir_operand_t *
 ir_operand_new(void);
 void
 ir_operand_delete(ir_operand_t *);
+int ir_num_operands(ir_opcode_t);
 
 #ifdef __cplusplus
 }
