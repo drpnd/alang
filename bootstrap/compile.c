@@ -1593,26 +1593,16 @@ static int
 _analyze_instr(compiler_t *c, compiler_env_t *env, compiler_instr_t *instr,
                compiler_ig_t *ig)
 {
-    switch ( instr->ir.opcode ) {
-    case IR_OPCODE_MOV:
-        _analyze_operand(c, env, &instr->operands[0], ig);
-        _analyze_operand(c, env, &instr->operands[1], ig);
-        break;
-    case IR_OPCODE_ADD:
-    case IR_OPCODE_SUB:
-    case IR_OPCODE_MUL:
-    case IR_OPCODE_DIV:
-    case IR_OPCODE_MOD:
-        _analyze_operand(c, env, &instr->operands[0], ig);
-        _analyze_operand(c, env, &instr->operands[1], ig);
-        _analyze_operand(c, env, &instr->operands[2], ig);
-        break;
-    case IR_OPCODE_INC:
-    case IR_OPCODE_DEC:
-        _analyze_operand(c, env, &instr->operands[0], ig);
-        break;
-    default:
+    int i;
+    int n;
+
+    n = ir_num_operands(instr->ir.opcode);
+    if ( n < 0 ) {
         return -1;
+    }
+
+    for ( i = 0; i < n; i++ ) {
+        _analyze_operand(c, env, &instr->operands[i], ig);
     }
 
     return 0;
