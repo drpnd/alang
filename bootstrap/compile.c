@@ -1329,6 +1329,7 @@ _func(compiler_t *c, func_t *fn)
         return NULL;
     }
     block->type = BLOCK_FUNC;
+    block->instrs = NULL;
     block->env = env;
     block->next = NULL;
 
@@ -1380,6 +1381,7 @@ _coroutine(compiler_t *c, coroutine_t *cr)
         return NULL;
     }
     block->type = BLOCK_COROUTINE;
+    block->instrs = NULL;
     block->env = env;
     block->next = NULL;
 
@@ -1533,15 +1535,15 @@ _outer_block(compiler_t *c, outer_block_t *block)
     e = block->head;
     pb = NULL;
     tb = NULL;
-    while ( NULL != e ) {
+    while ( e != NULL ) {
         /* Parse an outer block entry */
         b = _outer_block_entry(c, e);
-        if ( NULL == b ) {
+        if ( b == NULL ) {
             /* FIXME: Free the compiled blocks */
             return NULL;
         }
         /* Implement the block handler */
-        if ( NULL != pb ) {
+        if ( pb != NULL ) {
             pb->next = b;
         } else {
             tb = b;
