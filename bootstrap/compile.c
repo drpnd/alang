@@ -324,14 +324,13 @@ _val_new_var(compiler_env_t *env, compiler_var_t *var)
     compiler_val_t *val;
 
     val = _val_new();
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
     val->type = VAL_VAR;
     val->u.var = var;
 
-    /* Check if the variable has already been defined */
-    //val->opt.id = ++env->opt.max_id;
+    val->opt.id = ++env->opt.max_id;
 
     return val;
 }
