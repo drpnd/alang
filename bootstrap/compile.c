@@ -319,7 +319,7 @@ _val_new_nil(void)
  * _val_new_var -- allocate a new variable value
  */
 static compiler_val_t *
-_val_new_var(compiler_var_t *var)
+_val_new_var(compiler_env_t *env, compiler_var_t *var)
 {
     compiler_val_t *val;
 
@@ -329,6 +329,9 @@ _val_new_var(compiler_var_t *var)
     }
     val->type = VAL_VAR;
     val->u.var = var;
+
+    /* Check if the variable has already been defined */
+    //val->opt.id = ++env->opt.max_id;
 
     return val;
 }
@@ -525,12 +528,7 @@ _id(compiler_t *c, compiler_env_t *env, const char *id)
         return NULL;
     }
 
-    val = _val_new();
-    if ( NULL == val ) {
-        return NULL;
-    }
-    val->type = VAL_VAR;
-    val->u.var = var;
+    val = _val_new_var(env, var);
 
     return val;
 }
@@ -566,24 +564,13 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
 
     /* Allocate a new variable */
     var = _var_new(c, decl->id, decl->type);
-    if ( NULL == var ) {
+    if ( var == NULL ) {
         c->err = COMPILER_NOMEM;
         memcpy(&c->pos, pos, sizeof(pos_t));
         return NULL;
     }
     var->arg = arg;
     var->ret = retflag;
-
-    /* Allocate a new value */
-    val = _val_new();
-    if ( NULL == val ) {
-        _var_delete(var);
-        c->err = COMPILER_NOMEM;
-        memcpy(&c->pos, pos, sizeof(pos_t));
-        return NULL;
-    }
-    val->type = VAL_VAR;
-    val->u.var = var;
 
     /* Add the variable to the table */
     ret = _var_add(env, var);
@@ -593,7 +580,14 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
         memcpy(&c->pos, pos, sizeof(pos_t));
         /* Release the variable and value */
         _var_delete(var);
-        free(val);
+        return NULL;
+    }
+
+    /* Allocate a new value */
+    val = _val_new_var(env, var);
+    if ( val == NULL ) {
+        c->err = COMPILER_NOMEM;
+        memcpy(&c->pos, pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -1624,9 +1618,9 @@ _analyze_operand(compiler_t *c, compiler_env_t *env, operand_t *op,
     }
     if ( op->type == OPERAND_VAL ) {
         if ( op->u.val->opt.id < 0 ) {
-            op->u.val->opt.id = ++env->opt.max_id;
+            //op->u.val->opt.id = ++env->opt.max_id;
         }
-        if ( ig == NULL ) {
+        if ( ig != NULL ) {
             ig->v.vals[op->u.val->opt.id] = op->u.val;
         }
     }

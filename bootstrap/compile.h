@@ -116,8 +116,8 @@ typedef enum {
 /*
  * Variable
  */
-typedef struct _var compiler_var_t;
-struct _var {
+typedef struct _compiler_var compiler_var_t;
+struct _compiler_var {
     char *id;
     type_t *type;
     size_t size;
