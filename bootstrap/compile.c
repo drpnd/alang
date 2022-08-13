@@ -166,19 +166,21 @@ _type2size(compiler_t *c, type_t *type)
     switch (type->type) {
     case TYPE_PRIMITIVE_I8:
     case TYPE_PRIMITIVE_U8:
-        sz = 1;
+        sz = 8;
         break;
     case TYPE_PRIMITIVE_I16:
     case TYPE_PRIMITIVE_U16:
-        sz = 2;
+        sz = 16;
         break;
     case TYPE_PRIMITIVE_I32:
     case TYPE_PRIMITIVE_U32:
-        sz = 4;
+    case TYPE_PRIMITIVE_FP32:
+        sz = 32;
         break;
     case TYPE_PRIMITIVE_I64:
     case TYPE_PRIMITIVE_U64:
-        sz = 4;
+    case TYPE_PRIMITIVE_FP64:
+        sz = 64;
         break;
     }
 
