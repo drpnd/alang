@@ -155,24 +155,68 @@ _env_delete(compiler_env_t *env)
 }
 
 /*
+ * _type2size -- resolve the size of the type
+ */
+static ssize_t
+_type2size(compiler_t *c, type_t *type)
+{
+    ssize_t sz;
+
+    sz = -1;
+    switch (type->type) {
+    case TYPE_PRIMITIVE_I8:
+    case TYPE_PRIMITIVE_U8:
+        sz = 1;
+        break;
+    case TYPE_PRIMITIVE_I16:
+    case TYPE_PRIMITIVE_U16:
+        sz = 2;
+        break;
+    case TYPE_PRIMITIVE_I32:
+    case TYPE_PRIMITIVE_U32:
+        sz = 4;
+        break;
+    case TYPE_PRIMITIVE_I64:
+    case TYPE_PRIMITIVE_U64:
+        sz = 4;
+        break;
+    }
+
+    return sz;
+}
+
+/*
  * _var_new -- allocate a new variable
  */
 static compiler_var_t *
-_var_new(const char *id, type_t *type)
+_var_new(compiler_t *c, const char *id, type_t *type)
 {
     compiler_var_t *var;
+    ssize_t sz;
 
+    /* Allocate a new variable */
     var = malloc(sizeof(compiler_var_t));
-    if ( NULL == var ) {
+    if ( var == NULL ) {
         return NULL;
     }
     var->id = strdup(id);
-    if ( NULL == var->id ) {
+    if ( var->id == NULL ) {
         free(var);
         return NULL;
     }
     var->type = type;
+    var->size = 0;
+    var->arg = 0;
+    var->ret = 0;
     var->next = NULL;
+
+    /* Resolve the size from the type */
+    sz = _type2size(c, type);
+    if ( sz < 0 ) {
+        free(var->id);
+        free(var);
+        return NULL;
+    }
 
     return var;
 }
@@ -518,7 +562,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     int ret;
 
     /* Allocate a new variable */
-    var = _var_new(decl->id, decl->type);
+    var = _var_new(c, decl->id, decl->type);
     if ( NULL == var ) {
         c->err = COMPILER_NOMEM;
         memcpy(&c->pos, pos, sizeof(pos_t));
@@ -541,7 +585,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     /* Add the variable to the table */
     ret = _var_add(env, var);
     if ( ret < 0 ) {
-        /* Already exists */
+        /* Already exists (duplicate declaration) */
         c->err = COMPILER_DUPLICATE_VARIABLE;
         memcpy(&c->pos, pos, sizeof(pos_t));
         /* Release the variable and value */
@@ -1243,15 +1287,14 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         env->retval = val;
         break;
     case STMT_BLOCK:
-        /* Create a new environemt */
+        /* Create a new environemt (scope) */
         nenv = _env_new(c);
-        if ( NULL == nenv ) {
+        if ( nenv == NULL ) {
             return NULL;
         }
         nenv->prev = env;
         val = _inner_block(c, nenv, stmt->u.block);
-        if ( NULL == val ) {
-
+        if ( val == NULL ) {
             return NULL;
         }
         break;
@@ -1275,7 +1318,7 @@ _inner_block(compiler_t *c, compiler_env_t *env, inner_block_t *block)
     stmt = block->stmts->head;
     while ( NULL != stmt ) {
         rv = _stmt(c, env, stmt);
-        if ( NULL == rv ) {
+        if ( rv == NULL ) {
             return NULL;
         }
         stmt = stmt->next;
