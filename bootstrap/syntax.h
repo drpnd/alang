@@ -34,7 +34,6 @@
  * Typedefs
  */
 typedef struct _decl decl_t;
-typedef struct _var var_t;
 typedef struct _expr expr_t;
 typedef struct _expr_list expr_list_t;
 typedef struct _stmt stmt_t;
