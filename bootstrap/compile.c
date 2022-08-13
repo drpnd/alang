@@ -316,6 +316,40 @@ _val_new_nil(void)
 }
 
 /*
+ * _val_new_reg -- allocate a new register value
+ */
+static compiler_val_t *
+_val_new_reg(void)
+{
+    compiler_val_t *val;
+
+    val = _val_new();
+    if ( NULL == val ) {
+        return NULL;
+    }
+    val->type = VAL_REG;
+
+    return val;
+}
+
+/*
+ * _val_new_reg_set -- allocate a new register set value
+ */
+static compiler_val_t *
+_val_new_reg_set(void)
+{
+    compiler_val_t *val;
+
+    val = _val_new();
+    if ( NULL == val ) {
+        return NULL;
+    }
+    val->type = VAL_REG_SET;
+
+    return val;
+}
+
+/*
  * _val_new_var -- allocate a new variable value
  */
 static compiler_val_t *
@@ -540,12 +574,10 @@ _literal(compiler_t *c, compiler_env_t *env, literal_t *lit)
 {
     compiler_val_t *val;
 
-    val = _val_new();
-    if ( NULL == val ) {
+    val = _val_new_literal(lit);
+    if ( val == NULL ) {
         return NULL;
     }
-    val->type = VAL_LITERAL;
-    val->u.lit = lit;
 
     return val;
 }
@@ -690,11 +722,10 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     v1 = _expr(c, env, op->e1);
 
     /* Allocate a new value */
-    vr = _val_new();
-    if ( NULL == vr ) {
+    vr = _val_new_reg();
+    if ( vr == NULL ) {
         return NULL;
     }
-    vr->type = VAL_REG;
 
     /* Prepare operands */
     op0.type = OPERAND_VAL;
@@ -737,11 +768,10 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     v = _expr(c, env, op->e0);
 
     /* Allocate a new value */
-    vr = _val_new();
-    if ( NULL == vr ) {
+    vr = _val_new_reg();
+    if ( vr == NULL ) {
         return NULL;
     }
-    vr->type = VAL_REG;
 
     /* Add an instruction */
     instr = _instr_new();
@@ -783,11 +813,10 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     v1 = _expr(c, env, op->e1);
 
     /* Allocate a new value */
-    vr = _val_new();
-    if ( NULL == vr ) {
+    vr = _val_new_reg_set();
+    if ( vr == NULL ) {
         return NULL;
     }
-    vr->type = VAL_REG_SET;
 
     instr = _instr_new();
     if ( NULL == instr ) {
@@ -831,11 +860,10 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     if ( FIX_SUFFIX == op->fix ) {
         /* Suffix: return the original value, then apply the operation to the
            variable */
-        vr = _val_new();
-        if ( NULL == vr ) {
+        vr = _val_new_reg();
+        if ( vr == NULL ) {
             return NULL;
         }
-        vr->type = VAL_REG;
 
         /* Copy the value to a register */
         op0.type = OPERAND_VAL;
