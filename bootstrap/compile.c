@@ -121,12 +121,12 @@ _env_new(compiler_t *c)
     compiler_env_t *env;
 
     env = malloc(sizeof(compiler_env_t));
-    if ( NULL == env ) {
+    if ( env == NULL ) {
         c->err = COMPILER_NOMEM;
         return NULL;
     }
     env->vars = _var_table_initialize(NULL);
-    if ( NULL == env->vars ) {
+    if ( env->vars == NULL ) {
         free(env);
         c->err = COMPILER_NOMEM;
         return NULL;
@@ -364,7 +364,8 @@ _val_new_var(compiler_env_t *env, compiler_var_t *var)
     val->type = VAL_VAR;
     val->u.var = var;
 
-    val->opt.id = ++env->opt.max_id;
+    env->opt.max_id++;
+    val->opt.id = env->opt.max_id;
 
     return val;
 }
@@ -383,6 +384,39 @@ _val_new_literal(literal_t *lit)
     }
     val->type = VAL_LITERAL;
     val->u.lit = lit;
+
+    return val;
+}
+
+/*
+ * _val_new_cond -- allocate a new value condition set
+ */
+static compiler_val_t *
+_val_new_cond(int n)
+{
+    compiler_val_t *val;
+    compiler_val_cond_t *cset;
+
+    cset = malloc(sizeof(compiler_val_cond_t));
+    if ( cset == NULL ) {
+        return NULL;
+    }
+    cset->n = n;
+    cset->vals = malloc(sizeof(compiler_val_t *) * n);
+    if ( cset->vals == NULL ) {
+        free(cset);
+        return NULL;
+    }
+    memset(cset->vals, 0, sizeof(compiler_val_t *) * n);
+
+    val = _val_new();
+    if ( val == NULL ) {
+        free(cset->vals);
+        free(cset);
+        return NULL;
+    }
+    val->type = VAL_COND;
+    val->u.conds = cset;
 
     return val;
 }
@@ -456,29 +490,6 @@ _val_list_delete(compiler_val_list_t *l)
     }
 
     free(l);
-}
-
-/*
- * _val_cond_new -- allocate a new value condition set
- */
-static compiler_val_cond_t *
-_val_cond_new(int n)
-{
-    compiler_val_cond_t *cset;
-
-    cset = malloc(sizeof(compiler_val_cond_t));
-    if ( NULL == cset ) {
-        return NULL;
-    }
-    cset->n = n;
-    cset->vals = malloc(sizeof(compiler_val_t *) * n);
-    if ( NULL == cset->vals ) {
-        free(cset);
-        return NULL;
-    }
-    memset(cset->vals, 0, sizeof(compiler_val_t *) * n);
-
-    return cset;
 }
 
 /*
@@ -663,7 +674,8 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
     compiler_instr_t *instr;
     int ret;
 
-    if ( FIX_INFIX != op->fix ) {
+    /* Syntax check */
+    if ( op->fix != FIX_INFIX ) {
         /* Syntax error */
         c->err = COMPILER_SYNTAX_ERROR;
         memcpy(&c->pos, pos, sizeof(pos_t));
@@ -996,7 +1008,6 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
     compiler_env_t *nenv;
     switch_case_t *cs;
     literal_set_t *lset;
-    compiler_val_cond_t *cset;
     ssize_t n;
 
     /* Create a new environemt */
@@ -1012,31 +1023,23 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
     /* Count the number of cases */
     n = 0;
     cs = sw->block->head;
-    while ( NULL != cs ) {
+    while ( cs != NULL ) {
         n++;
         cs = cs->next;
     }
 
-    /* Initialize the return value */
-    rv = _val_new();
-    if ( NULL == rv ) {
+    /* Initialize the return value with a n-conditional-value set value */
+    rv = _val_new_cond(n);
+    if ( rv == NULL ) {
         return NULL;
     }
-
-    /* Allocate a n-conditional-value set value */
-    cset = _val_cond_new(n);
-    if ( NULL == cset ) {
-        return NULL;
-    }
-    rv->type = VAL_COND;
-    rv->u.conds = cset;
 
     /* Parse the code block */
     n = 0;
     cs = sw->block->head;
     while ( NULL != cs ) {
         lset = cs->lset;
-        cset->vals[n] = _inner_block(c, nenv, cs->block);
+        rv->u.conds->vals[n] = _inner_block(c, nenv, cs->block);
         n++;
         cs = cs->next;
     }
@@ -1053,7 +1056,6 @@ _if(compiler_t *c, compiler_env_t *env, if_t *ife)
     compiler_val_t *cond;
     compiler_val_t *rv;
     compiler_env_t *nenv;
-    compiler_val_cond_t *cset;
 
     /* Create a new environment */
     nenv = _env_new(c);
@@ -1065,23 +1067,15 @@ _if(compiler_t *c, compiler_env_t *env, if_t *ife)
     /* Parse the condition */
     cond = _expr(c, env, ife->cond);
 
-    /* Initialize the return value */
-    rv = _val_new();
-    if ( NULL == rv ) {
+    /* Initialize the return value with a two-conditional-value set value */
+    rv = _val_new_cond(2);
+    if ( rv == NULL ) {
         return NULL;
     }
-
-    /* Allocate a two-conditional-value set value */
-    cset = _val_cond_new(2);
-    if ( NULL == cset ) {
-        return NULL;
-    }
-    rv->type = VAL_COND;
-    rv->u.conds = cset;
 
     /* Parse the code block */
-    cset->vals[0] = _inner_block(c, nenv, ife->bif);
-    cset->vals[1] = _inner_block(c, nenv, ife->belse);
+    rv->u.conds->vals[0] = _inner_block(c, nenv, ife->bif);
+    rv->u.conds->vals[1] = _inner_block(c, nenv, ife->belse);
 
     return rv;
 }

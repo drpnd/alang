@@ -226,7 +226,7 @@ struct _compiler_env {
     compiler_val_t *retval;
     /* For optimization */
     struct {
-        int max_id;
+        int max_id; /* Maximum ID for variable values */
     } opt;
     compiler_ig_t ig;
 };
