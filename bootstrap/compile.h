@@ -123,6 +123,7 @@ struct _var {
     size_t size;
     int arg;
     int ret;
+    /* For a variable table (stack) */
     compiler_var_t *next;
 };
 
