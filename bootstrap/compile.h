@@ -210,6 +210,10 @@ typedef struct {
         uint32_t d;
         uint64_t q;
     } u;
+    void *next;
+} compiler_data_entry_t;
+typedef struct {
+    compiler_data_entry_t *data;
 } compiler_data_t;
 
 /*
@@ -226,7 +230,7 @@ struct _compiler_env {
     compiler_val_t *retval;
     /* For optimization */
     struct {
-        int max_id; /* Maximum ID for variable values */
+        int max_var_id; /* Maximum ID for variable values */
     } opt;
     compiler_ig_t ig;
 };

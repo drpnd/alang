@@ -138,7 +138,7 @@ _env_new(compiler_t *c)
     env->code.head = NULL;
     env->code.tail = NULL;
 
-    env->opt.max_id = -1;
+    env->opt.max_var_id = -1;
 
     return env;
 }
@@ -364,8 +364,7 @@ _val_new_var(compiler_env_t *env, compiler_var_t *var)
     val->type = VAL_VAR;
     val->u.var = var;
 
-    env->opt.max_id++;
-    val->opt.id = env->opt.max_id;
+    val->opt.id = ++env->opt.max_var_id;
 
     return val;
 }
@@ -1692,7 +1691,7 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
     }
 
     /* Build an interference graph */
-    env->ig.v.n = env->opt.max_id;
+    env->ig.v.n = env->opt.max_var_id;
     env->ig.v.vals = malloc(sizeof(compiler_val_t *) * env->ig.v.n);
     if ( env->ig.v.vals == NULL ) {
         c->err = COMPILER_NOMEM;
