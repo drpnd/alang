@@ -339,7 +339,7 @@ _val_new_reg(compiler_env_t *env)
  * _val_new_reg_set -- allocate a new register set value
  */
 static compiler_val_t *
-_val_new_reg_set(void)
+_val_new_reg_set(compiler_env_t *env)
 {
     compiler_val_t *val;
 
@@ -348,6 +348,8 @@ _val_new_reg_set(void)
         return NULL;
     }
     val->type = VAL_REG_SET;
+
+    val->opt.id = ++env->opt.max_reg_id;
 
     return val;
 }
@@ -818,7 +820,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     compiler_instr_t *instr;
     int ret;
 
-    if ( FIX_INFIX != op->fix ) {
+    if ( op->fix != FIX_INFIX ) {
         return NULL;
     }
 
@@ -827,13 +829,13 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     v1 = _expr(c, env, op->e1);
 
     /* Allocate a new value */
-    vr = _val_new_reg_set();
+    vr = _val_new_reg_set(env);
     if ( vr == NULL ) {
         return NULL;
     }
 
     instr = _instr_new();
-    if ( NULL == instr ) {
+    if ( instr == NULL ) {
         return NULL;
     }
     instr->ir.opcode = opcode;
