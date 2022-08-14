@@ -139,6 +139,7 @@ _env_new(compiler_t *c)
     env->code.tail = NULL;
 
     env->opt.max_var_id = -1;
+    env->opt.max_reg_id = -1;
 
     return env;
 }
@@ -319,7 +320,7 @@ _val_new_nil(void)
  * _val_new_reg -- allocate a new register value
  */
 static compiler_val_t *
-_val_new_reg(void)
+_val_new_reg(compiler_env_t *env)
 {
     compiler_val_t *val;
 
@@ -328,6 +329,8 @@ _val_new_reg(void)
         return NULL;
     }
     val->type = VAL_REG;
+
+    val->opt.id = ++env->opt.max_reg_id;
 
     return val;
 }
@@ -733,7 +736,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     v1 = _expr(c, env, op->e1);
 
     /* Allocate a new value */
-    vr = _val_new_reg();
+    vr = _val_new_reg(env);
     if ( vr == NULL ) {
         return NULL;
     }
@@ -779,7 +782,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     v = _expr(c, env, op->e0);
 
     /* Allocate a new value */
-    vr = _val_new_reg();
+    vr = _val_new_reg(env);
     if ( vr == NULL ) {
         return NULL;
     }
@@ -871,7 +874,7 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     if ( FIX_SUFFIX == op->fix ) {
         /* Suffix: return the original value, then apply the operation to the
            variable */
-        vr = _val_new_reg();
+        vr = _val_new_reg(env);
         if ( vr == NULL ) {
             return NULL;
         }
