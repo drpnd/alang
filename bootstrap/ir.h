@@ -162,6 +162,21 @@ typedef struct {
     ir_operand_t *operands[4];
 } ir_instr_t;
 
+/*
+ * Data entry
+ */
+typedef struct {
+    size_t len;
+    uint8_t *d;
+} ir_data_entry_t;
+
+/*
+ * Data table
+ */
+typedef struct {
+    ir_data_entry_t *ents;
+} ir_data_table_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
