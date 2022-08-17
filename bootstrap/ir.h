@@ -179,6 +179,14 @@ typedef struct {
     ir_data_entry_t *entries;
 } ir_data_table_t;
 
+/*
+ * IR object
+ */
+typedef struct {
+    ir_instr_t *instrs;
+    ir_data_table_t data;
+} ir_object_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
