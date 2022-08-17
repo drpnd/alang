@@ -174,7 +174,9 @@ typedef struct {
  * Data table
  */
 typedef struct {
-    ir_data_entry_t *ents;
+    size_t n;
+    size_t used;
+    ir_data_entry_t *entries;
 } ir_data_table_t;
 
 #ifdef __cplusplus
