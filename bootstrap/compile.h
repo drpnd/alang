@@ -273,11 +273,21 @@ typedef struct {
 } compiler_symbol_t;
 
 /*
+ * Symbol table
+ */
+typedef struct {
+    size_t n;
+    compiler_symbol_t **symbols;
+} compiler_symbol_table_t;
+
+/*
  * Compiler
  */
 typedef struct {
     /* Compiled code blocks */
     compiler_block_t *blocks;
+    /* Symbols */
+    compiler_symbol_table_t *symbols;
     /* Assembler */
     /* Linker */
     FILE *fout;
