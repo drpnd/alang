@@ -1732,6 +1732,8 @@ compile(st_t *st)
     }
     c->fout = NULL;
     c->blocks = NULL;
+    c->symbols.n = 0;
+    c->symbols.symbols = NULL;
 
     /* Initialize the error handler */
     c->err = COMPILER_ERROR_UNKNOWN;

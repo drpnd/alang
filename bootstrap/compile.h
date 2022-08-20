@@ -287,7 +287,7 @@ typedef struct {
     /* Compiled code blocks */
     compiler_block_t *blocks;
     /* Symbols */
-    compiler_symbol_table_t *symbols;
+    compiler_symbol_table_t symbols;
     /* Assembler */
     /* Linker */
     FILE *fout;
