@@ -1717,6 +1717,41 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
 }
 
 /*
+ * _add_symbol -- add a symbol to the symbol table
+ */
+int
+_add_symbol(compiler_t *c, const char *label, ir_instr_t *code)
+{
+    compiler_symbol_t *s;
+    compiler_symbol_t **symbols;
+    size_t n;
+
+    s = malloc(sizeof(compiler_symbol_t));
+    if ( s == NULL ) {
+        return -1;
+    }
+    s->label = strdup(label);
+    if ( s->label == NULL ) {
+        free(s);
+        return -1;
+    }
+    s->code = code;
+
+    n = c->symbols.n;
+    symbols = c->symbols.symbols;
+    symbols = realloc(symbols, (n + 1) * sizeof(compiler_symbol_t *));
+    if ( symbols == NULL ) {
+        free(s);
+        return -1;
+    }
+    symbols[n] = s;
+    c->symbols.symbols = symbols;
+    c->symbols.n = n + 1;
+
+    return 0;
+}
+
+/*
  * compile -- compiile a syntax tree to the intermediate representation
  */
 compiler_t *
