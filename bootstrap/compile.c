@@ -54,6 +54,8 @@ static compiler_val_t *
 _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static compiler_val_t *
 _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
+int
+_add_symbol(compiler_t *, const char *, ir_instr_t *);
 
 /*
  * _instr_new -- allocate a new instruction
