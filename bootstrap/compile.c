@@ -1721,7 +1721,7 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
 /*
  * _code2ir -- convert the compiler code to an ir code
  */
-ir_instr_t *
+static ir_instr_t *
 _code2_ir(compiler_code_t *code)
 {
     return NULL;
@@ -1730,7 +1730,7 @@ _code2_ir(compiler_code_t *code)
 /*
  * _add_symbol -- add a symbol to the symbol table
  */
-int
+static int
 _add_symbol(compiler_t *c, const char *label, ir_instr_t *code)
 {
     compiler_symbol_t *s;
