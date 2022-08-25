@@ -1724,6 +1724,17 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
 static ir_instr_t *
 _code2_ir(compiler_code_t *code)
 {
+    compiler_instr_t *instr;
+    ssize_t i;
+
+    /* Count the number of instruction */
+    i = 0;
+    instr = code->head;
+    while ( instr != code->tail ) {
+        i++;
+        instr = instr->next;
+    }
+
     return NULL;
 }
 
