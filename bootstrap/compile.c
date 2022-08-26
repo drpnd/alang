@@ -1725,15 +1725,23 @@ static ir_instr_t *
 _code2_ir(compiler_code_t *code)
 {
     compiler_instr_t *instr;
-    ssize_t i;
+    ir_instr_t *ir;
+    ssize_t n;
 
     /* Count the number of instruction */
-    i = 0;
+    n = 0;
     instr = code->head;
     while ( instr != code->tail ) {
-        i++;
+        n++;
         instr = instr->next;
     }
+
+    ir = malloc(sizeof(ir_instr_t) * n);
+    if ( ir == NULL ) {
+        return NULL;
+    }
+
+    /* Convert the code to ir */
 
     return NULL;
 }
