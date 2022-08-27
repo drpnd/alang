@@ -55,7 +55,7 @@ _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static compiler_val_t *
 _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
 static int
-_add_symbol(compiler_t *, const char *, ir_instr_t *);
+_add_symbol(compiler_t *, const char *, ir_instr_t *, size_t);
 
 /*
  * _instr_new -- allocate a new instruction
@@ -1750,7 +1750,7 @@ _code2_ir(compiler_code_t *code)
  * _add_symbol -- add a symbol to the symbol table
  */
 static int
-_add_symbol(compiler_t *c, const char *label, ir_instr_t *code)
+_add_symbol(compiler_t *c, const char *label, ir_instr_t *code, size_t ninstrs)
 {
     compiler_symbol_t *s;
     compiler_symbol_t **symbols;
@@ -1765,6 +1765,7 @@ _add_symbol(compiler_t *c, const char *label, ir_instr_t *code)
         free(s);
         return -1;
     }
+    s->n = ninstrs;
     s->code = code;
 
     n = c->symbols.n;
