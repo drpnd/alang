@@ -1742,6 +1742,10 @@ _code2_ir(compiler_code_t *code)
     }
 
     /* Convert the code to ir */
+    instr = code->head;
+    while ( instr != NULL ) {
+        instr = instr->next;
+    }
 
     return NULL;
 }
