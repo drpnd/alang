@@ -1719,13 +1719,23 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
 }
 
 /*
+ * _instr2ir -- convert a compiler instruction to an ir instruction
+ */
+static int
+_instr2ir(compiler_instr_t *cinstr, ir_instr_t *instr)
+{
+    return -1;
+}
+
+/*
  * _code2ir -- convert the compiler code to an ir code
  */
 static ir_instr_t *
-_code2_ir(compiler_code_t *code)
+_code2ir(compiler_code_t *code)
 {
     compiler_instr_t *instr;
     ir_instr_t *ir;
+    ssize_t i;
     ssize_t n;
 
     /* Count the number of instruction */
@@ -1743,7 +1753,10 @@ _code2_ir(compiler_code_t *code)
 
     /* Convert the code to ir */
     instr = code->head;
-    while ( instr != NULL ) {
+    i = 0;
+    while (instr != NULL) {
+        _instr2ir(instr, &ir[i]);
+        i++;
         instr = instr->next;
     }
 
