@@ -265,10 +265,19 @@ typedef struct _error {
 };
 
 /*
+ * Symbol type
+ */
+typedef enum {
+    COMPILER_SYMBOL_CODE,
+    COMPILER_SYMBOL_DATA,
+} compiler_symbol_type_t;
+
+/*
  * Symbols
  */
 typedef struct {
     char *label;
+    compiler_symbol_type_t type;
     size_t n;
     ir_instr_t *code;
 } compiler_symbol_t;

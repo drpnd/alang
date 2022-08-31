@@ -1782,6 +1782,7 @@ _add_symbol(compiler_t *c, const char *label, ir_instr_t *code, size_t ninstrs)
         free(s);
         return -1;
     }
+    s->type = COMPILER_SYMBOL_CODE;
     s->n = ninstrs;
     s->code = code;
 
