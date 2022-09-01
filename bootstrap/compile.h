@@ -273,13 +273,22 @@ typedef enum {
 } compiler_symbol_type_t;
 
 /*
+ * Code symbol
+ */
+typedef struct {
+    size_t n;
+    ir_instr_t *code;
+} compiler_symbol_code_t;
+
+/*
  * Symbols
  */
 typedef struct {
     char *label;
     compiler_symbol_type_t type;
-    size_t n;
-    ir_instr_t *code;
+    union {
+        compiler_symbol_code_t code;
+    } u;
 } compiler_symbol_t;
 
 /*
