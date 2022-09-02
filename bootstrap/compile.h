@@ -281,6 +281,14 @@ typedef struct {
 } compiler_symbol_code_t;
 
 /*
+ * Data symbol
+ */
+typedef struct {
+    size_t n;
+    uint8_t *data;
+} compiler_symbol_data_t;
+
+/*
  * Symbols
  */
 typedef struct {
@@ -288,6 +296,7 @@ typedef struct {
     compiler_symbol_type_t type;
     union {
         compiler_symbol_code_t code;
+        compiler_symbol_data_t data;
     } u;
 } compiler_symbol_t;
 
