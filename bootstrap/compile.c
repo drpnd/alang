@@ -1802,6 +1802,43 @@ _add_code_symbol(compiler_t *c, const char *label, ir_instr_t *code,
 }
 
 /*
+ * _add_data_symbol -- add a data symbol to the symbol table
+ */
+static int
+_add_data_symbol(compiler_t *c, const char *label, uint8_t *data, size_t size)
+{
+    compiler_symbol_t *s;
+    compiler_symbol_t **symbols;
+    size_t n;
+
+    s = malloc(sizeof(compiler_symbol_t));
+    if ( s == NULL ) {
+        return -1;
+    }
+    s->label = strdup(label);
+    if ( s->label == NULL ) {
+        free(s);
+        return -1;
+    }
+    s->type = COMPILER_SYMBOL_DATA;
+    s->u.data.n = size;
+    s->u.data.data = data;
+
+    n = c->symbols.n;
+    symbols = c->symbols.symbols;
+    symbols = realloc(symbols, (n + 1) * sizeof(compiler_symbol_t *));
+    if ( symbols == NULL ) {
+        free(s);
+        return -1;
+    }
+    symbols[n] = s;
+    c->symbols.symbols = symbols;
+    c->symbols.n = n + 1;
+
+    return 0;
+}
+
+/*
  * compile -- compiile a syntax tree to the intermediate representation
  */
 compiler_t *
