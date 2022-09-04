@@ -320,8 +320,10 @@ typedef struct {
     /* Linker */
     FILE *fout;
     /* Error code */
-    compiler_error_code_t err;
-    pos_t pos;
+    struct {
+        compiler_error_code_t code;
+        pos_t pos;
+    } err;
 } compiler_t;
 
 #ifdef __cplusplus

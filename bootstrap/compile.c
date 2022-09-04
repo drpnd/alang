@@ -125,13 +125,13 @@ _env_new(compiler_t *c)
 
     env = malloc(sizeof(compiler_env_t));
     if ( env == NULL ) {
-        c->err = COMPILER_NOMEM;
+        c->err.code = COMPILER_NOMEM;
         return NULL;
     }
     env->vars = _var_table_initialize(NULL);
     if ( env->vars == NULL ) {
         free(env);
-        c->err = COMPILER_NOMEM;
+        c->err.code = COMPILER_NOMEM;
         return NULL;
     }
 
@@ -614,8 +614,8 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     /* Allocate a new variable */
     var = _var_new(c, decl->id, decl->type);
     if ( var == NULL ) {
-        c->err = COMPILER_NOMEM;
-        memcpy(&c->pos, pos, sizeof(pos_t));
+        c->err.code = COMPILER_NOMEM;
+        memcpy(&c->err.pos, pos, sizeof(pos_t));
         return NULL;
     }
     var->arg = arg;
@@ -625,8 +625,8 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     ret = _var_add(env, var);
     if ( ret < 0 ) {
         /* Already exists (duplicate declaration) */
-        c->err = COMPILER_DUPLICATE_VARIABLE;
-        memcpy(&c->pos, pos, sizeof(pos_t));
+        c->err.code = COMPILER_DUPLICATE_VARIABLE;
+        memcpy(&c->err.pos, pos, sizeof(pos_t));
         /* Release the variable and value */
         _var_delete(var);
         return NULL;
@@ -635,8 +635,8 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     /* Allocate a new value */
     val = _val_new_var(env, var);
     if ( val == NULL ) {
-        c->err = COMPILER_NOMEM;
-        memcpy(&c->pos, pos, sizeof(pos_t));
+        c->err.code = COMPILER_NOMEM;
+        memcpy(&c->err.pos, pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -684,8 +684,8 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
     /* Syntax check */
     if ( op->fix != FIX_INFIX ) {
         /* Syntax error */
-        c->err = COMPILER_SYNTAX_ERROR;
-        memcpy(&c->pos, pos, sizeof(pos_t));
+        c->err.code = COMPILER_SYNTAX_ERROR;
+        memcpy(&c->err.pos, pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -694,8 +694,8 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
     v1 = _expr(c, env, op->e1);
     if ( VAL_VAR != v0->type ) {
         /* Syntax error */
-        c->err = COMPILER_SYNTAX_ERROR;
-        memcpy(&c->pos, pos, sizeof(pos_t));
+        c->err.code = COMPILER_SYNTAX_ERROR;
+        memcpy(&c->err.pos, pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -1388,12 +1388,12 @@ _func(compiler_t *c, func_t *fn)
     /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
     if ( block == NULL ) {
-        c->err = COMPILER_NOMEM;
+        c->err.code = COMPILER_NOMEM;
         return NULL;
     }
     block->label = strdup(fn->id);
     if ( block->label == NULL ) {
-        c->err = COMPILER_NOMEM;
+        c->err.code = COMPILER_NOMEM;
         return NULL;
     }
     block->type = BLOCK_FUNC;
@@ -1440,12 +1440,12 @@ _coroutine(compiler_t *c, coroutine_t *cr)
     /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
     if ( block == NULL ) {
-        c->err = COMPILER_NOMEM;
+        c->err.code = COMPILER_NOMEM;
         return NULL;
     }
     block->label = strdup(cr->id);
     if ( block->label == NULL ) {
-        c->err = COMPILER_NOMEM;
+        c->err.code = COMPILER_NOMEM;
         return NULL;
     }
     block->type = BLOCK_COROUTINE;
@@ -1702,7 +1702,7 @@ _analyze_env(compiler_t *c, compiler_env_t *env)
     env->ig.v.n = env->opt.max_var_id;
     env->ig.v.vals = malloc(sizeof(compiler_val_t *) * env->ig.v.n);
     if ( env->ig.v.vals == NULL ) {
-        c->err = COMPILER_NOMEM;
+        c->err.code = COMPILER_NOMEM;
         return -1;
     }
     /* Register to ID */
@@ -1859,7 +1859,7 @@ compile(st_t *st)
     c->symbols.symbols = NULL;
 
     /* Initialize the error handler */
-    c->err = COMPILER_ERROR_UNKNOWN;
+    c->err.code = COMPILER_ERROR_UNKNOWN;
 
     /* Compile the syntax tree */
     b = _st(c, st);
