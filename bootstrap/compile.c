@@ -56,7 +56,8 @@ static compiler_val_t *
 _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
 static int
 _add_code_symbol(compiler_t *, const char *, ir_instr_t *, size_t);
-
+static int
+_add_data_symbol(compiler_t *, const char *, uint8_t *, size_t);
 /*
  * _instr_new -- allocate a new instruction
  */
