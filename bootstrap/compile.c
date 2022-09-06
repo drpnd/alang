@@ -653,13 +653,13 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args, int retvals)
     compiler_val_t *val;
 
     a = args->head;
-    while ( NULL != a ) {
+    while ( a != NULL ) {
         if ( retvals ) {
             val = _decl(c, env, a->decl, &a->pos, 0, 1);
         } else {
             val = _decl(c, env, a->decl, &a->pos, 1, 0);
         }
-        if ( NULL == val ) {
+        if ( val == NULL ) {
             return -1;
         }
         a = a->next;
@@ -692,7 +692,7 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
     /* Evaluate the expressions */
     v0 = _expr(c, env, op->e0);
     v1 = _expr(c, env, op->e1);
-    if ( VAL_VAR != v0->type ) {
+    if ( v0->type != VAL_VAR ) {
         /* Syntax error */
         c->err.code = COMPILER_SYNTAX_ERROR;
         memcpy(&c->err.pos, pos, sizeof(pos_t));
@@ -705,7 +705,7 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
     op1.type = OPERAND_VAL;
     op1.u.val = v0;
     instr = _instr_mov(&op0, &op1);
-    if ( NULL == instr ) {
+    if ( instr == NULL ) {
         return NULL;
     }
     ret = _append_instr(&env->code, instr);
