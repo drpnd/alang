@@ -732,7 +732,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     operand_t op2;
     int ret;
 
-    if ( FIX_INFIX != op->fix ) {
+    if ( op->fix != FIX_INFIX ) {
         return NULL;
     }
 
@@ -779,7 +779,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     compiler_instr_t *instr;
     int ret;
 
-    if ( FIX_PREFIX != op->fix ) {
+    if ( op->fix != FIX_PREFIX ) {
         return NULL;
     }
 
@@ -794,7 +794,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
 
     /* Add an instruction */
     instr = _instr_new();
-    if ( NULL == instr ) {
+    if ( instr == NULL ) {
         return NULL;
     }
     instr->ir.opcode = opcode;
