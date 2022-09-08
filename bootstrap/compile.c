@@ -1019,7 +1019,7 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
 
     /* Create a new environemt */
     nenv = _env_new(c);
-    if ( NULL == nenv ) {
+    if ( nenv == NULL ) {
         return NULL;
     }
     nenv->prev = env;
@@ -1044,7 +1044,7 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
     /* Parse the code block */
     n = 0;
     cs = sw->block->head;
-    while ( NULL != cs ) {
+    while ( cs != NULL ) {
         lset = cs->lset;
         rv->u.conds->vals[n] = _inner_block(c, nenv, cs->block);
         n++;
@@ -1066,7 +1066,7 @@ _if(compiler_t *c, compiler_env_t *env, if_t *ife)
 
     /* Create a new environment */
     nenv = _env_new(c);
-    if ( NULL == nenv ) {
+    if ( nenv == NULL ) {
         return NULL;
     }
     nenv->prev = env;
@@ -1098,7 +1098,7 @@ _call(compiler_t *c, compiler_env_t *env, call_t *call)
 
     /* Create a new environment */
     nenv = _env_new(c);
-    if ( NULL == nenv ) {
+    if ( nenv == NULL ) {
         return NULL;
     }
     nenv->prev = env;
@@ -1121,11 +1121,11 @@ _ref(compiler_t *c, compiler_env_t *env, ref_t *ref)
     val = _expr(c, env, ref->var);
     arg = _expr(c, env, ref->arg);
 
-    if ( NULL == val || NULL == arg  ) {
+    if ( val == NULL || arg == NULL  ) {
         return NULL;
     }
     /* Check the type of the value */
-    if ( VAL_VAR != val->type ) {
+    if ( val->type != VAL_VAR ) {
         /* Type error */
         return NULL;
     }
@@ -1145,11 +1145,11 @@ _member(compiler_t *c, compiler_env_t *env, member_t *mem)
 
     val = _expr(c, env, mem->e);
 
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
     /* Check the type of the value */
-    if ( VAL_VAR != val->type ) {
+    if ( val->type != VAL_VAR ) {
         /* Type error */
         return NULL;
     }
@@ -1220,23 +1220,23 @@ _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
     compiler_val_list_t *l;
 
     val = _val_new();
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
     l = _val_list_new(NULL);
-    if ( NULL == l ) {
+    if ( l == NULL ) {
         free(val);
         return NULL;
     }
 
     e = exprs->head;
-    while ( NULL != e ) {
+    while ( e != NULL ) {
         v = _expr(c, env, e);
-        if ( NULL == v ) {
+        if ( v == NULL ) {
             return NULL;
         }
         l = _val_list_append(l, v);
-        if ( NULL == l ) {
+        if ( l == NULL ) {
             return NULL;
         }
         e = e->next;
@@ -1266,7 +1266,7 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
     compiler_instr_t *instr;
     compiler_val_t *val;
 
-    if ( NULL == e ) {
+    if ( e == NULL ) {
         /* FIXME: Get the last statement value */
         val = NULL;
     } else {
@@ -1278,7 +1278,7 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
 
     /* return instruction */
     instr = _instr_new();
-    if ( NULL == instr ) {
+    if ( instr == NULL ) {
         return NULL;
     }
     instr->ir.opcode = IR_OPCODE_RET;
