@@ -67,7 +67,7 @@ _instr_new(void)
     compiler_instr_t *instr;
 
     instr = malloc(sizeof(compiler_instr_t));
-    if ( NULL == instr ) {
+    if ( instr == NULL ) {
         return NULL;
     }
     memset(instr, 0, sizeof(compiler_instr_t));
@@ -90,9 +90,9 @@ _instr_delete(compiler_instr_t *instr)
 static compiler_var_table_t *
 _var_table_initialize(compiler_var_table_t *t)
 {
-    if ( NULL == t ) {
+    if ( t == NULL ) {
         t = malloc(sizeof(compiler_var_table_t));
-        if ( NULL == t ) {
+        if ( t == NULL ) {
             return NULL;
         }
         t->_allocated = 1;
@@ -1271,7 +1271,7 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = NULL;
     } else {
         val = _expr(c, env, e);
-        if ( NULL == val ) {
+        if ( val == NULL ) {
             return NULL;
         }
     }
@@ -1365,7 +1365,7 @@ _func(compiler_t *c, func_t *fn)
 
     /* Allocate a new environment */
     env = _env_new(c);
-    if ( NULL == env ) {
+    if ( env == NULL ) {
         return NULL;
     }
 
@@ -1417,7 +1417,7 @@ _coroutine(compiler_t *c, coroutine_t *cr)
 
     /* Allocate a new environment */
     env = _env_new(c);
-    if ( NULL == env ) {
+    if ( env == NULL ) {
         return NULL;
     }
 
@@ -1850,7 +1850,7 @@ compile(st_t *st)
 
     /* Allocate a compiler instance */
     c = malloc(sizeof(compiler_t));
-    if ( NULL == c ) {
+    if ( c == NULL ) {
         return NULL;
     }
     c->fout = NULL;
@@ -1863,7 +1863,7 @@ compile(st_t *st)
 
     /* Compile the syntax tree */
     b = _st(c, st);
-    if ( NULL == b ) {
+    if ( b == NULL ) {
         return NULL;
     }
     c->blocks = b;
