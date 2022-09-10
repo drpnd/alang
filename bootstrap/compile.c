@@ -270,7 +270,7 @@ _var_search(compiler_env_t *env, const char *id)
     compiler_var_t *var;
 
     var = env->vars->top;
-    while ( NULL != var ) {
+    while ( var != NULL ) {
         if ( 0 == strcmp(id, var->id) ) {
             /* Found a variable with the specified identifier */
             return var;
@@ -291,7 +291,7 @@ _val_new(void)
     compiler_val_t *val;
 
     val = malloc(sizeof(compiler_val_t));
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
     memset(val, 0, sizeof(compiler_val_t));
@@ -311,7 +311,7 @@ _val_new_nil(void)
     compiler_val_t *val;
 
     val = _val_new();
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
     val->type = VAL_NIL;
@@ -328,7 +328,7 @@ _val_new_reg(compiler_env_t *env)
     compiler_val_t *val;
 
     val = _val_new();
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
     val->type = VAL_REG;
@@ -347,7 +347,7 @@ _val_new_reg_set(compiler_env_t *env)
     compiler_val_t *val;
 
     val = _val_new();
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
     val->type = VAL_REG_SET;
@@ -386,7 +386,7 @@ _val_new_literal(literal_t *lit)
     compiler_val_t *val;
 
     val = _val_new();
-    if ( NULL == val ) {
+    if ( val == NULL ) {
         return NULL;
     }
     val->type = VAL_LITERAL;
@@ -454,7 +454,7 @@ _val_list_new(compiler_val_t *val)
     compiler_val_list_t *l;
 
     l = malloc(sizeof(compiler_val_list_t));
-    if ( NULL == l ) {
+    if ( l == NULL ) {
         return NULL;
     }
     l->head = val;
@@ -469,7 +469,7 @@ _val_list_new(compiler_val_t *val)
 static compiler_val_list_t *
 _val_list_append(compiler_val_list_t *l, compiler_val_t *val)
 {
-    if ( NULL == l->head ) {
+    if ( l->head == NULL ) {
         l->head = val;
         l->tail = val;
     } else {
@@ -490,7 +490,7 @@ _val_list_delete(compiler_val_list_t *l)
     compiler_val_t *nv;
 
     v = l->head;
-    while ( NULL != v ) {
+    while ( v != NULL ) {
         nv = v->next;
         free(v);
         v = nv;
@@ -505,7 +505,7 @@ _val_list_delete(compiler_val_list_t *l)
 static int
 _append_instr(compiler_code_t *code, compiler_instr_t *instr)
 {
-    if ( NULL == code->head ) {
+    if ( code->head == NULL ) {
         code->head = instr;
         code->tail = instr;
     } else {
@@ -525,7 +525,7 @@ _instr_mov(operand_t *op0, operand_t *op1)
     compiler_instr_t *instr;
 
     instr = _instr_new();
-    if ( NULL == instr ) {
+    if ( instr == NULL ) {
         return NULL;
     }
     instr->ir.opcode = IR_OPCODE_MOV;
@@ -545,7 +545,7 @@ _instr_infix(ir_opcode_t opcode, operand_t *op0, operand_t *op1, operand_t *op2)
 
     /* Add an instruction */
     instr = _instr_new();
-    if ( NULL == instr ) {
+    if ( instr == NULL ) {
         return NULL;
     }
     instr->ir.opcode = opcode;
@@ -575,7 +575,7 @@ _id(compiler_t *c, compiler_env_t *env, const char *id)
     compiler_var_t *var;
 
     var = _var_search(env, id);
-    if ( NULL == var ) {
+    if ( var == NULL ) {
         return NULL;
     }
 
@@ -1341,7 +1341,7 @@ _inner_block(compiler_t *c, compiler_env_t *env, inner_block_t *block)
     stmt_t *stmt;
 
     stmt = block->stmts->head;
-    while ( NULL != stmt ) {
+    while ( stmt != NULL ) {
         rv = _stmt(c, env, stmt);
         if ( rv == NULL ) {
             return NULL;
