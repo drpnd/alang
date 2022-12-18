@@ -4,3 +4,5 @@
 
 * minica: Mini alang in C
   * Implement lowest level functions
+
+* DFVM: Data Flow Virtual Machine
