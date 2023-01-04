@@ -12,9 +12,20 @@
 
 ## ADD
 
+    ADD op1,op2
+
 ## SUB
+
+    SUB op1,op2
 
 ## MUL
 
+    MUL op1,op2
+
 ## DIV
 
+    DIV dividend,divisor,quotient[,remainder]
+
+## YIELD
+
+    YIELD
