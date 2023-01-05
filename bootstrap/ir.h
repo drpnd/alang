@@ -54,6 +54,7 @@ typedef enum {
     IR_OPCODE_CMP_GEQ,  /* op1,op2,dst */
     IR_OPCODE_CMP_LEQ,  /* op1,op2,dst */
     IR_OPCODE_RET,      /* no operands */
+    IR_OPCODE_YIELD,    /* no operands */
 } ir_opcode_t;
 
 /*
