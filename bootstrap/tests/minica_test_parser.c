@@ -634,20 +634,13 @@ static void
 _display_operand(ir_operand_t *op)
 {
     switch ( op->type ) {
-    case OPERAND_VAL:
-        printf("(val)");
+    case OPERAND_TYPE_REG:
+        printf("(reg)");
         break;
-    case OPERAND_REF:
+    case OPERAND_TYPE_REF:
         printf("(ref)");
         break;
-    case OPERAND_I8:
-    case OPERAND_I16:
-    case OPERAND_I32:
-    case OPERAND_I64:
-        printf("(imm)");
-        break;
-    case OPERAND_FP32:
-    case OPERAND_FP64:
+    case OPERAND_TYPE_IMM:
         printf("(imm)");
         break;
     }
@@ -689,19 +682,35 @@ _display_env(compiler_env_t *env)
             printf("\n");
             break;
         case IR_OPCODE_SUB:
-            printf("sub\n");
+            printf("sub");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            _display_operand(&instr->ir.operands[2]);
+            printf("\n");
             break;
         case IR_OPCODE_MUL:
-            printf("mul\n");
+            printf("mul");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            _display_operand(&instr->ir.operands[2]);
+            printf("\n");
             break;
         case IR_OPCODE_DIV:
-            printf("div\n");
+            printf("div");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            _display_operand(&instr->ir.operands[2]);
+            printf("\n");
             break;
         case IR_OPCODE_INC:
-            printf("inc\n");
+            printf("inc");
+            _display_operand(&instr->ir.operands[0]);
+            printf("\n");
             break;
         case IR_OPCODE_DEC:
-            printf("inc\n");
+            printf("inc");
+            _display_operand(&instr->ir.operands[0]);
+            printf("\n");
             break;
         default:
             printf("opcode %d\n", instr->ir.opcode);
