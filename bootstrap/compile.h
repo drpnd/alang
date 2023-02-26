@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019-2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019-2023 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -258,7 +258,7 @@ typedef enum {
  * Error stack
  */
 typedef struct _error compiler_error_t;
-typedef struct _error {
+struct _error {
     compiler_error_code_t err;
     pos_t pos;
     compiler_error_t *next;
