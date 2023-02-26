@@ -571,7 +571,7 @@ typedef struct {
 /*
  * File stack
  */
-typedef struct _file_Stack file_stack_t;
+typedef struct _file_stack file_stack_t;
 struct _file_stack {
     char *fname;
     FILE *fp;
