@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2021-2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2021-2023 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -721,6 +721,7 @@ main(int argc, const char *const argv[])
     /* Parse the specified file */
     code = minica_parse(fp);
     if ( NULL == code ) {
+        perror("minica_parse");
         exit(EXIT_FAILURE);
     }
 

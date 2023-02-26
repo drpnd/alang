@@ -912,7 +912,6 @@ minica_parse(FILE *fp)
     }
 
     /* Destroy the scanner */
-    free(context);
     yylex_destroy(scanner);
 
     return context->st;
