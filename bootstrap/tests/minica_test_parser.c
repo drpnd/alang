@@ -631,6 +631,29 @@ _analyze_registers(compiler_env_t *env)
 }
 
 static void
+_display_operand(ir_operand_t *op)
+{
+    switch ( op->type ) {
+    case OPERAND_VAL:
+        printf("(val)");
+        break;
+    case OPERAND_REF:
+        printf("(ref)");
+        break;
+    case OPERAND_I8:
+    case OPERAND_I16:
+    case OPERAND_I32:
+    case OPERAND_I64:
+        printf("(imm)");
+        break;
+    case OPERAND_FP32:
+    case OPERAND_FP64:
+        printf("(imm)");
+        break;
+    }
+}
+
+static void
 _display_env(compiler_env_t *env)
 {
     compiler_var_t *var;
@@ -653,10 +676,17 @@ _display_env(compiler_env_t *env)
     while ( NULL != instr ) {
         switch ( instr->ir.opcode ) {
         case IR_OPCODE_MOV:
-            printf("mov\n");
+            printf("mov");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            printf("\n");
             break;
         case IR_OPCODE_ADD:
-            printf("add\n");
+            printf("add");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            _display_operand(&instr->ir.operands[2]);
+            printf("\n");
             break;
         case IR_OPCODE_SUB:
             printf("sub\n");

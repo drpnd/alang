@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2022-2023 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -147,7 +147,7 @@ typedef struct {
  */
 typedef struct {
     ir_operand_type_t type;
-    ir_operand_size_t size;
+    //ir_operand_size_t size;
     union {
         ir_reg_t reg;
         ir_imm_t imm;
