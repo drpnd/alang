@@ -296,6 +296,12 @@ _op(op_t *op)
     case OP_DEC:
         _dec(op);
         break;
+    case OP_PTRREF:
+        printf("&\n");
+        break;
+    case OP_PTRIND:
+        printf("@\n");
+        break;
     }
     printf(")");
 }
