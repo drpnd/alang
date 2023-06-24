@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
 
 /*
  * usage -- print usage and exit
@@ -635,13 +636,38 @@ _display_operand(ir_operand_t *op)
 {
     switch ( op->type ) {
     case OPERAND_TYPE_REG:
-        printf("(reg)");
+        printf("(reg:%d)", op->u.reg.nr);
         break;
     case OPERAND_TYPE_REF:
         printf("(ref)");
         break;
     case OPERAND_TYPE_IMM:
-        printf("(imm)");
+        switch ( op->u.imm.type ) {
+        case IR_IMM_I8:
+            printf("(%" PRIu8 ")", op->u.imm.u.u8);
+            break;
+        case IR_IMM_S8:
+            printf("(%" PRId8 ")", op->u.imm.u.s8);
+            break;
+        case IR_IMM_I16:
+            printf("(%" PRIu16 ")", op->u.imm.u.u16);
+            break;
+        case IR_IMM_S16:
+            printf("(%" PRId16 ")", op->u.imm.u.s16);
+            break;
+        case IR_IMM_I32:
+            printf("(%" PRId32 ")", op->u.imm.u.u32);
+            break;
+        case IR_IMM_S32:
+            printf("(%" PRId32 ")", op->u.imm.u.s32);
+            break;
+        case IR_IMM_I64:
+            printf("(%" PRIu64 ")", op->u.imm.u.u64);
+            break;
+        case IR_IMM_S64:
+            printf("(%" PRId64 ")", op->u.imm.u.s64);
+            break;
+        }
         break;
     }
 }
