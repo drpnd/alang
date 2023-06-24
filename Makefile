@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019,2022 Hirochika Asai
+# Copyright (c) 2019,2022-2023 Hirochika Asai
 # All rights reserved.
 #
 # Authors:
@@ -18,4 +18,9 @@ test: bootstrap
 clean:
 	$(MAKE) -C bootstrap clean
 
-.PHONY: all test clean bootstrap
+x86-test:
+	arch -x86_64 clang -o x86-test mach-o-test.o test_main.c
+	arch -x86_64 ./x86-test
+
+.PHONY: all test clean bootstrap x86-test
+
