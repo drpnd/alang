@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2020,2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020,2022-2023 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,7 +37,8 @@ main(int argc, const char *const argv[])
     arch_code_t code;
     FILE *fp;
     int lus;
-    /* x86-64 */
+
+    /* x86-64 code definitions */
     uint8_t s[] = {
         0x48, 0x89, 0xf8,       /* mov %rdi, %rax */
         0x48, 0xff, 0xc0,       /* inc %rax */
@@ -56,6 +57,7 @@ main(int argc, const char *const argv[])
         0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90
     };
 
+    /* Pares options */
     lus = 0;
     if ( argc >= 2 ) {
         if ( 0 == strcmp(argv[1], "-fleading-underscore") ) {

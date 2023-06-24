@@ -18,9 +18,10 @@ test: bootstrap
 clean:
 	$(MAKE) -C bootstrap clean
 
-x86-test:
+x86-mac-test: bootstrap
+	./bootstrap/minica_test_ld -fleading-underscore
 	arch -x86_64 clang -o x86-test mach-o-test.o test_main.c
 	arch -x86_64 ./x86-test
 
-.PHONY: all test clean bootstrap x86-test
+.PHONY: all test clean bootstrap x86-mac-test
 
