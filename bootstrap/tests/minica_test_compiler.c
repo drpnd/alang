@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2021-2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2021-2023 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -60,7 +60,7 @@ _analyze_operand(compiler_env_t *env, operand_t *operand, compiler_ig_t *ig)
     }
     if ( OPERAND_VAL == operand->type ) {
         if ( operand->u.val->opt.id < 0 ) {
-            operand->u.val->opt.id = ++env->opt.max_id;
+            operand->u.val->opt.id = ++env->opt.max_var_id;
         }
         if ( NULL != ig ) {
             ig->v.vals[operand->u.val->opt.id] = operand->u.val;
@@ -72,35 +72,35 @@ static void
 _analyze_instruction(compiler_env_t *env, compiler_instr_t *instr,
                      compiler_ig_t *ig)
 {
-    switch ( instr->opcode ) {
-    case OPCODE_MOV:
+    switch ( instr->ir.opcode ) {
+    case IR_OPCODE_MOV:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
         break;
-    case OPCODE_ADD:
-        _analyze_operand(env, &instr->operands[0], ig);
-        _analyze_operand(env, &instr->operands[1], ig);
-        _analyze_operand(env, &instr->operands[2], ig);
-        break;
-    case OPCODE_SUB:
+    case IR_OPCODE_ADD:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
         _analyze_operand(env, &instr->operands[2], ig);
         break;
-    case OPCODE_MUL:
+    case IR_OPCODE_SUB:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
         _analyze_operand(env, &instr->operands[2], ig);
         break;
-    case OPCODE_DIV:
+    case IR_OPCODE_MUL:
         _analyze_operand(env, &instr->operands[0], ig);
         _analyze_operand(env, &instr->operands[1], ig);
         _analyze_operand(env, &instr->operands[2], ig);
         break;
-    case OPCODE_INC:
+    case IR_OPCODE_DIV:
+        _analyze_operand(env, &instr->operands[0], ig);
+        _analyze_operand(env, &instr->operands[1], ig);
+        _analyze_operand(env, &instr->operands[2], ig);
+        break;
+    case IR_OPCODE_INC:
         _analyze_operand(env, &instr->operands[0], ig);
         break;
-    case OPCODE_DEC:
+    case IR_OPCODE_DEC:
         _analyze_operand(env, &instr->operands[0], ig);
         break;
     default:
@@ -120,11 +120,11 @@ _analyze_registers(compiler_env_t *env)
         instr = instr->next;
     }
 
-    printf("max_id: %d\n", env->opt.max_id);
+    printf("max_var_id: %d\n", env->opt.max_var_id);
 
     /* Build an interference graph */
     compiler_ig_t ig;
-    ig.v.n = env->opt.max_id;
+    ig.v.n = env->opt.max_var_id;
     ig.v.vals = malloc(sizeof(compiler_val_t *) * ig.v.n);
     if ( NULL == ig.v.vals ) {
         return;
@@ -231,50 +231,50 @@ _display_operand(compiler_env_t *env, operand_t *operand)
 static void
 _display_instr(compiler_env_t *env, compiler_instr_t *instr)
 {
-    switch ( instr->opcode ) {
-    case OPCODE_MOV:
+    switch ( instr->ir.opcode ) {
+    case IR_OPCODE_MOV:
         printf("mov");
         _display_operand(env, &instr->operands[0]);
         _display_operand(env, &instr->operands[1]);
         break;
-    case OPCODE_ADD:
+    case IR_OPCODE_ADD:
         printf("add");
         _display_operand(env, &instr->operands[0]);
         _display_operand(env, &instr->operands[1]);
         _display_operand(env, &instr->operands[2]);
         break;
-    case OPCODE_SUB:
+    case IR_OPCODE_SUB:
         printf("sub");
         _display_operand(env, &instr->operands[0]);
         _display_operand(env, &instr->operands[1]);
         _display_operand(env, &instr->operands[2]);
         break;
-    case OPCODE_MUL:
+    case IR_OPCODE_MUL:
         printf("mul");
         _display_operand(env, &instr->operands[0]);
         _display_operand(env, &instr->operands[1]);
         _display_operand(env, &instr->operands[2]);
         break;
-    case OPCODE_DIV:
+    case IR_OPCODE_DIV:
         printf("div");
         _display_operand(env, &instr->operands[0]);
         _display_operand(env, &instr->operands[1]);
         _display_operand(env, &instr->operands[2]);
         break;
-    case OPCODE_MOD:
+    case IR_OPCODE_MOD:
         printf("mod");
         _display_operand(env, &instr->operands[0]);
         _display_operand(env, &instr->operands[1]);
         _display_operand(env, &instr->operands[2]);
         break;
-    case OPCODE_INC:
+    case IR_OPCODE_INC:
         printf("inc\n");
         break;
-    case OPCODE_DEC:
+    case IR_OPCODE_DEC:
         printf("dec\n");
         break;
     default:
-        printf("opcode %d\n", instr->opcode);
+        printf("opcode %d\n", instr->ir.opcode);
     }
     printf("\n");
 }
@@ -334,7 +334,7 @@ int
 main(int argc, const char *const argv[])
 {
     FILE *fp;
-    code_file_t *code;
+    st_t *code;
     compiler_t *c;
 
     if ( argc < 2 ) {
