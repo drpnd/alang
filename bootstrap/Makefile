@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019-2022 Hirochika Asai
+# Copyright (c) 2019-2023 Hirochika Asai
 # All rights reserved.
 #
 # Authors:
@@ -41,8 +41,9 @@ minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile
 minica_test_compiler: tests/minica_test_compiler.o y.tab.o lex.yy.o syntax.o compile.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-test: minica_test_parser
+test: minica_test_parser minica_test_compiler
 	./minica_test_parser ../examples/simple1.al
+	./minica_test_compiler ../examples/simple1.al
 
 clean:
 	rm -f minica_test_ld minica_test_asm minica_test_parser *.o minica y.y.tab.c y.tab.h lex.yy.c lex.yy.h
