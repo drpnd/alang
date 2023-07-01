@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
 
 /*
  * usage -- print usage and exit
@@ -53,10 +54,78 @@ _is_reg(operand_t *op)
 }
 
 static void
+_display_literal(literal_t *lit)
+{
+    switch ( lit->type ) {
+    case LIT_HEXINT:
+        printf("0x%s", lit->u.n);
+        break;
+    case LIT_DECINT:
+        printf("%s", lit->u.n);
+        break;
+    case LIT_OCTINT:
+        printf("0%s", lit->u.n);
+        break;
+    case LIT_FLOAT:
+        printf("%s", lit->u.n);
+        break;
+    case LIT_STRING:
+        printf("%s", lit->u.s);
+        break;
+    case LIT_BOOL:
+        printf("%s", lit->u.b == BOOL_TRUE ? "true" : "false");
+        break;
+    case LIT_NIL:
+        printf("nil");
+        break;
+    }
+}
+
+static void
+_display_val_list(compiler_env_t *env, compiler_val_list_t *list)
+{
+    compiler_val_t *cur;
+
+    cur = list->head;
+    while ( cur != NULL ) {
+        _display_val(env, cur);
+        cur = cur->next;
+    }
+}
+
+static void
+_display_val(compiler_env_t *env, compiler_val_t *val)
+{
+    switch ( val->type ) {
+    case VAL_NIL:
+        printf("nil");
+        break;
+    case VAL_VAR:
+        /* Variable */
+        printf("[var]");
+        break;
+    case VAL_LITERAL:
+        _display_literal(val->u.lit);
+        break;
+    case VAL_REG:
+        printf("%%");
+        break;
+    case VAL_REG_SET:
+        printf("(%%,%%)");
+        break;
+    case VAL_LIST:
+        _display_val_list(env, val->u.list);
+        break;
+    case VAL_COND:
+        printf("[cond]");
+        break;
+    }
+}
+
+static void
 _analyze_operand(compiler_env_t *env, operand_t *operand, compiler_ig_t *ig)
 {
     if ( _is_reg(operand) ) {
-        /* Register */
     }
     if ( OPERAND_VAL == operand->type ) {
         if ( operand->u.val->opt.id < 0 ) {
@@ -138,96 +207,47 @@ _analyze_registers(compiler_env_t *env)
 }
 
 static void
-_display_literal(literal_t *lit)
+_display_operand(ir_operand_t *op)
 {
-    switch ( lit->type ) {
-    case LIT_HEXINT:
-        printf("0x%s", lit->u.n);
+    switch ( op->type ) {
+    case OPERAND_TYPE_REG:
+        printf("(reg:%d)", op->u.reg.nr);
         break;
-    case LIT_DECINT:
-        printf("%s", lit->u.n);
+    case OPERAND_TYPE_REF:
+        printf("(ref)");
         break;
-    case LIT_OCTINT:
-        printf("0%s", lit->u.n);
-        break;
-    case LIT_FLOAT:
-        printf("%s", lit->u.n);
-        break;
-    case LIT_STRING:
-        printf("%s", lit->u.s);
-        break;
-    case LIT_BOOL:
-        printf("%s", lit->u.b == BOOL_TRUE ? "true" : "false");
-        break;
-    case LIT_NIL:
-        printf("nil");
+    case OPERAND_TYPE_IMM:
+        switch ( op->u.imm.type ) {
+        case IR_IMM_I8:
+            printf("(%" PRIu8 ")", op->u.imm.u.u8);
+            break;
+        case IR_IMM_S8:
+            printf("(%" PRId8 ")", op->u.imm.u.s8);
+            break;
+        case IR_IMM_I16:
+            printf("(%" PRIu16 ")", op->u.imm.u.u16);
+            break;
+        case IR_IMM_S16:
+            printf("(%" PRId16 ")", op->u.imm.u.s16);
+            break;
+        case IR_IMM_I32:
+            printf("(%" PRId32 ")", op->u.imm.u.u32);
+            break;
+        case IR_IMM_S32:
+            printf("(%" PRId32 ")", op->u.imm.u.s32);
+            break;
+        case IR_IMM_I64:
+            printf("(%" PRIu64 ")", op->u.imm.u.u64);
+            break;
+        case IR_IMM_S64:
+            printf("(%" PRId64 ")", op->u.imm.u.s64);
+            break;
+        }
         break;
     }
 }
 
-static void
-_display_val_list(compiler_env_t *env, compiler_val_list_t *list)
-{
-    compiler_val_t *cur;
-
-    cur = list->head;
-    while ( cur != NULL ) {
-        _display_val(env, cur);
-        cur = cur->next;
-    }
-}
-
-static void
-_display_val(compiler_env_t *env, compiler_val_t *val)
-{
-    switch ( val->type ) {
-    case VAL_NIL:
-        printf("nil");
-        break;
-    case VAL_VAR:
-        /* Variable */
-        printf("[var]");
-        break;
-    case VAL_LITERAL:
-        _display_literal(val->u.lit);
-        break;
-    case VAL_REG:
-        printf("%%");
-        break;
-    case VAL_REG_SET:
-        printf("(%%,%%)");
-        break;
-    case VAL_LIST:
-        _display_val_list(env, val->u.list);
-        break;
-    case VAL_COND:
-        printf("[cond]");
-        break;
-    }
-}
-
-static void
-_display_operand(compiler_env_t *env, operand_t *operand)
-{
-    printf(" ");
-    switch ( operand->type ) {
-    case OPERAND_VAL:
-        _display_val(env, operand->u.val);
-        break;
-    case OPERAND_REF:
-        printf("[ref]");
-        break;
-    case OPERAND_I8:
-    case OPERAND_I16:
-    case OPERAND_I32:
-    case OPERAND_I64:
-    case OPERAND_FP32:
-    case OPERAND_FP64:
-        printf("[imm]");
-        break;
-    }
-}
-
+#if 0
 static void
 _display_instr(compiler_env_t *env, compiler_instr_t *instr)
 {
@@ -278,6 +298,7 @@ _display_instr(compiler_env_t *env, compiler_instr_t *instr)
     }
     printf("\n");
 }
+#endif
 
 static void
 _display_env(compiler_env_t *env)
@@ -286,7 +307,7 @@ _display_env(compiler_env_t *env)
     compiler_instr_t *instr;
 
     /* Variables */
-    printf("Printing variables:\n");
+    printf("variables:\n");
     var = env->vars->top;
     while ( NULL != var ) {
         printf("var: %s\n", var->id);
@@ -294,14 +315,60 @@ _display_env(compiler_env_t *env)
     }
 
     /* Analyze registers */
-    printf("Analyzing registers\n");
     _analyze_registers(env);
 
     /* Code */
-    printf("Printing code:\n");
+    printf("code:\n");
     instr = env->code.head;
     while ( NULL != instr ) {
-        _display_instr(env, instr);
+        switch ( instr->ir.opcode ) {
+        case IR_OPCODE_MOV:
+            printf("mov");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            printf("\n");
+            break;
+        case IR_OPCODE_ADD:
+            printf("add");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            _display_operand(&instr->ir.operands[2]);
+            printf("\n");
+            break;
+        case IR_OPCODE_SUB:
+            printf("sub");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            _display_operand(&instr->ir.operands[2]);
+            printf("\n");
+            break;
+        case IR_OPCODE_MUL:
+            printf("mul");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            _display_operand(&instr->ir.operands[2]);
+            printf("\n");
+            break;
+        case IR_OPCODE_DIV:
+            printf("div");
+            _display_operand(&instr->ir.operands[0]);
+            _display_operand(&instr->ir.operands[1]);
+            _display_operand(&instr->ir.operands[2]);
+            printf("\n");
+            break;
+        case IR_OPCODE_INC:
+            printf("inc");
+            _display_operand(&instr->ir.operands[0]);
+            printf("\n");
+            break;
+        case IR_OPCODE_DEC:
+            printf("inc");
+            _display_operand(&instr->ir.operands[0]);
+            printf("\n");
+            break;
+        default:
+            printf("opcode %d\n", instr->ir.opcode);
+        }
         instr = instr->next;
     }
 }
