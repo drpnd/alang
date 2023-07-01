@@ -121,6 +121,7 @@ struct _compiler_var {
     char *id;
     type_t *type;
     size_t size;
+    reg_type_t regtype;
     int arg;
     int ret;
     /* For a variable table (stack) */

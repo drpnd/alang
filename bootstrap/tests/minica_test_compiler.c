@@ -300,6 +300,28 @@ _display_instr(compiler_env_t *env, compiler_instr_t *instr)
 }
 #endif
 
+
+static const char *
+_regtype(reg_type_t type)
+{
+    switch ( type ) {
+    case REG_I8:
+        return "i8";
+    case REG_I16:
+        return "i16";
+    case REG_I32:
+        return "i32";
+    case REG_I64:
+        return "i64";
+    case REG_FP32:
+        return "fp32";
+    case REG_FP64:
+        return "fp64";
+    default:
+        return "(unknown)";
+    }
+}
+
 static void
 _display_env(compiler_env_t *env)
 {
@@ -310,7 +332,8 @@ _display_env(compiler_env_t *env)
     printf("variables:\n");
     var = env->vars->top;
     while ( NULL != var ) {
-        printf("var: %s\n", var->id);
+        printf("var: %s (%s, arg:%d/ret:%d)\n", var->id, _regtype(var->regtype),
+               var->arg, var->ret);
         var = var->next;
     }
 

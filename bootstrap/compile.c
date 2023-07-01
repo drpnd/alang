@@ -211,6 +211,7 @@ _var_new(compiler_t *c, const char *id, type_t *type)
         free(var);
         return NULL;
     }
+    var->regtype = -1;
     var->type = type;
     var->size = 0;
     var->arg = 0;
