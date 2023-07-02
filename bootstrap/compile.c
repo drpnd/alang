@@ -1483,27 +1483,33 @@ _coroutine(compiler_t *c, coroutine_t *cr)
     /* Parse arguments and return values */
     ret = _args(c, env, cr->args, 0);
     if ( ret < 0 ) {
+        _env_delete(env);
         return NULL;
     }
     ret = _args(c, env, cr->rets, 1);
     if ( ret < 0 ) {
+        _env_delete(env);
         return NULL;
     }
 
     /* Parse the inner block */
     val = _inner_block(c, env, cr->block);
     if ( val == NULL ) {
+        _env_delete(env);
         return NULL;
     }
 
     /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
     if ( block == NULL ) {
+        _env_delete(env);
         c->err.code = COMPILER_NOMEM;
         return NULL;
     }
     block->label = strdup(cr->id);
     if ( block->label == NULL ) {
+        /* FIXME: Free the block */
+        _env_delete(env);
         c->err.code = COMPILER_NOMEM;
         return NULL;
     }
@@ -1659,23 +1665,10 @@ _free_instrs(compiler_t *c, compiler_instr_t *instrs)
     i = instrs;
     while ( i != NULL ) {
         ni = i->next;
+        /* Review: free values referred from this instruction */
         free(i);
         i = ni;
     }
-}
-
-/*
- * _env_release -- release the instructions
- */
-static void
-_env_release(compiler_t *c, compiler_env_t *env)
-{
-    /* To free the members */
-    //env->vars
-    //env->code
-    //env->prev
-    //env->retval
-    free(env);
 }
 
 /*
@@ -1684,12 +1677,22 @@ _env_release(compiler_t *c, compiler_env_t *env)
 static void
 _free_blocks(compiler_t *c, compiler_block_t *b)
 {
+    compiler_env_t *env;
+    compiler_env_t *penv;
+
     switch ( b->type ) {
     case BLOCK_FUNC:
     case BLOCK_COROUTINE:
         free(b->label);
         _free_instrs(c, b->instrs);
-        _env_release(c, b->env);
+        /* Release all environements */
+        env = b->env;
+        while ( env != NULL ) {
+            penv = env->prev;
+            _env_delete(env);
+            env = penv;
+        }
+        b->env = NULL;
         break;
     }
     _free_blocks(c, b->next);
