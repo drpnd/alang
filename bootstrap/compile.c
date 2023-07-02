@@ -1648,6 +1648,55 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
 }
 
 /*
+ * _free_instrs -- release the instructions
+ */
+static void
+_free_instrs(compiler_t *c, compiler_instr_t *instrs)
+{
+    compiler_instr_t *i;
+    compiler_instr_t *ni;
+
+    i = instrs;
+    while ( i != NULL ) {
+        ni = i->next;
+        free(i);
+        i = ni;
+    }
+}
+
+/*
+ * _env_release -- release the instructions
+ */
+static void
+_env_release(compiler_t *c, compiler_env_t *env)
+{
+    /* To free the members */
+    //env->vars
+    //env->code
+    //env->prev
+    //env->retval
+    free(env);
+}
+
+/*
+ * _free_blocks -- release the blocks
+ */
+static void
+_free_blocks(compiler_t *c, compiler_block_t *b)
+{
+    switch ( b->type ) {
+    case BLOCK_FUNC:
+    case BLOCK_COROUTINE:
+        free(b->label);
+        _free_instrs(c, b->instrs);
+        _env_release(c, b->env);
+        break;
+    }
+    _free_blocks(c, b->next);
+    free(b);
+}
+
+/*
  * _outer_block -- compile an outer block
  */
 static compiler_block_t *
@@ -1666,10 +1715,10 @@ _outer_block(compiler_t *c, outer_block_t *block)
         /* Parse an outer block entry */
         b = _outer_block_entry(c, e);
         if ( b == NULL ) {
-            /* FIXME: Free the compiled blocks */
+            _free_blocks(c, tb);
             return NULL;
         }
-        /* Implement the block handler */
+        /* Link to the block list */
         if ( pb != NULL ) {
             pb->next = b;
         } else {
@@ -1692,6 +1741,7 @@ _st(compiler_t *c, st_t *st)
     return _outer_block(c, st->block);
 }
 
+#if 0
 /*
  * _analyze_operand -- analyze an operand
  */
@@ -1897,6 +1947,7 @@ _add_data_symbol(compiler_t *c, const char *label, uint8_t *data, size_t size)
 
     return 0;
 }
+#endif
 
 /*
  * compile -- compiile a syntax tree to the intermediate representation
