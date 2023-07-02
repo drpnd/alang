@@ -317,6 +317,8 @@ _regtype(reg_type_t type)
         return "fp32";
     case REG_FP64:
         return "fp64";
+    case REG_BOOL:
+        return "bool";
     default:
         return "(unknown)";
     }

@@ -102,6 +102,7 @@ typedef struct {
  * Register type
  */
 typedef enum {
+    REG_TYPE_UNDEF = -1,
     REG_I8,
     REG_I16,
     REG_I32,
@@ -110,6 +111,7 @@ typedef enum {
     REG_I64_SET,
     REG_FP32,
     REG_FP64,
+    REG_BOOL,
     REG_MEM,
 } reg_type_t;
 
