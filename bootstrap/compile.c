@@ -1431,27 +1431,35 @@ _func(compiler_t *c, func_t *fn)
     /* Parse arguments and return values */
     ret = _args(c, env, fn->args, 0);
     if ( ret < 0 ) {
+        _env_delete(env);
         return NULL;
     }
     ret = _args(c, env, fn->rets, 1);
     if ( ret < 0 ) {
+        _env_delete(env);
         return NULL;
     }
 
     /* Parse the inner block */
     val = _inner_block(c, env, fn->block);
     if ( val == NULL ) {
+        _env_delete(env);
         return NULL;
     }
 
     /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
     if ( block == NULL ) {
+        /* FIXME: free val */
+        _env_delete(env);
         c->err.code = COMPILER_NOMEM;
         return NULL;
     }
     block->label = strdup(fn->id);
     if ( block->label == NULL ) {
+        /* FIXME: free val */
+        free(block);
+        _env_delete(env);
         c->err.code = COMPILER_NOMEM;
         return NULL;
     }
@@ -1502,13 +1510,15 @@ _coroutine(compiler_t *c, coroutine_t *cr)
     /* Allocate a block */
     block = malloc(sizeof(compiler_block_t));
     if ( block == NULL ) {
+        /* FIXME: free val */
         _env_delete(env);
         c->err.code = COMPILER_NOMEM;
         return NULL;
     }
     block->label = strdup(cr->id);
     if ( block->label == NULL ) {
-        /* FIXME: Free the block */
+        /* FIXME: free val */
+        free(block);
         _env_delete(env);
         c->err.code = COMPILER_NOMEM;
         return NULL;
