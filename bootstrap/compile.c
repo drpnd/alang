@@ -721,6 +721,8 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args, int retvals)
         if ( val == NULL ) {
             return -1;
         }
+        /* Release the unused value */
+        _val_delete(val);
         a = a->next;
     }
 
