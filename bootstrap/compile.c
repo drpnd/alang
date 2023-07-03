@@ -703,7 +703,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
 }
 
 /*
- * _args -- parse arguments
+ * _args -- parse function/coroutine arguments (including return values)
  */
 static int
 _args(compiler_t *c, compiler_env_t *env, arg_list_t *args, int retvals)
