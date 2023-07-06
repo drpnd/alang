@@ -755,6 +755,8 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
     v1 = _expr(c, env, op->e1);
     if ( v0->type != VAL_VAR ) {
         /* Syntax error */
+        _val_delete(v0);
+        _val_delete(v1);
         c->err.code = COMPILER_SYNTAX_ERROR;
         memcpy(&c->err.pos, pos, sizeof(pos_t));
         return NULL;
@@ -767,10 +769,13 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
     op1.u.val = v0;
     instr = _instr_mov(&op0, &op1);
     if ( instr == NULL ) {
+        _val_delete(v0);
+        _val_delete(v1);
         return NULL;
     }
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
+        /* FIXME: delete the instruction */
         return NULL;
     }
 
@@ -804,6 +809,8 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     /* Allocate a new value */
     vr = _val_new_reg(env);
     if ( vr == NULL ) {
+        _val_delete(v0);
+        _val_delete(v1);
         return NULL;
     }
 
@@ -818,10 +825,14 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     /* Add an instruction */
     instr = _instr_infix(opcode, &op0, &op1, &op2);
     if ( instr == NULL ) {
+        _val_delete(v0);
+        _val_delete(v1);
+        _val_delete(vr);
         return NULL;
     }
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
+        /* FIXME: delete the instruction */
         return NULL;
     }
 
@@ -850,12 +861,15 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     /* Allocate a new value */
     vr = _val_new_reg(env);
     if ( vr == NULL ) {
+        _val_delete(v);
         return NULL;
     }
 
     /* Add an instruction */
     instr = _instr_new();
     if ( instr == NULL ) {
+        _val_delete(v);
+        _val_delete(vr);
         return NULL;
     }
     instr->ir.opcode = opcode;
@@ -865,6 +879,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     instr->operands[1].u.val = vr;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
+        /* FIXME: delete the instruction */
         return NULL;
     }
 
@@ -895,11 +910,16 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     /* Allocate a new value */
     vr = _val_new_reg_set(env);
     if ( vr == NULL ) {
+        _val_delete(v0);
+        _val_delete(v1);
         return NULL;
     }
 
     instr = _instr_new();
     if ( instr == NULL ) {
+        _val_delete(v0);
+        _val_delete(v1);
+        _val_delete(vr);
         return NULL;
     }
     instr->ir.opcode = opcode;
@@ -911,6 +931,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     instr->operands[2].u.val = vr;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
+        /* FIXME: delete the instruction */
         return NULL;
     }
 
@@ -952,6 +973,8 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         op1.u.val = vr;
         instr = _instr_mov(&op0, &op1);
         if ( instr == NULL  ) {
+            _val_delete(val);
+            _val_delete(vr);
             return NULL;
         }
         ret = _append_instr(&env->code, instr);
@@ -968,6 +991,7 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     /* Add the inc/dec instruction */
     instr = _instr_new();
     if ( instr == NULL ) {
+        /* FIXME: delete the values */
         return NULL;
     }
     instr->ir.opcode = opcode;
@@ -975,6 +999,7 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     instr->operands[0].u.val = val;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
+        /* FIXME: delete the instruction */
         return NULL;
     }
 
