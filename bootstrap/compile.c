@@ -54,10 +54,12 @@ static compiler_val_t *
 _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static compiler_val_t *
 _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
+#if 0
 static int
 _add_code_symbol(compiler_t *, const char *, ir_instr_t *, size_t);
 static int
 _add_data_symbol(compiler_t *, const char *, uint8_t *, size_t);
+#endif
 
 /*
  * _instr_new -- allocate a new instruction
