@@ -2020,6 +2020,8 @@ compile(st_t *st)
     }
     c->blocks = b;
 
+    /* Compile to IR. */
+
     return c;
 }
 
