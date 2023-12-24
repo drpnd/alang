@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2020-2021 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020-2021,2023 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -49,6 +49,8 @@ main(int argc, const char *const argv[])
         printf(" %02x", code[i]);
     }
     printf("\n");
+
+    printf("ret=%d\n", ret);
 
     return 0;
 }
