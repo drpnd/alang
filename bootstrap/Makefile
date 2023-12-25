@@ -30,15 +30,15 @@ minica: y.tab.o lex.yy.o syntax.o arch/x86-64/x86-64.o arch/x86-64/instr.o ld/ma
 minica_test_ld: tests/minica_test_ld.o ld/mach-o/mach-o.o ld/elf/elf.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_asm: tests/minica_test_asm.o arch/x86-64/x86-64.o arch/x86-64/instr.o
+minica_test_asm: tests/minica_test_asm.o arch.o arch/x86-64/x86-64.o arch/x86-64/instr.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 tests/minica_test_parser.o: tests/minica_test_parser.c minica.h compile.h
 
-minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile.o
+minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o compile.o arch.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_compiler: tests/minica_test_compiler.o y.tab.o lex.yy.o syntax.o compile.o
+minica_test_compiler: tests/minica_test_compiler.o y.tab.o lex.yy.o syntax.o compile.o arch.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 test: minica_test_parser minica_test_compiler
