@@ -54,10 +54,12 @@ static compiler_val_t *
 _expr_list(compiler_t *, compiler_env_t *, expr_list_t *);
 static compiler_val_t *
 _inner_block(compiler_t *, compiler_env_t *, inner_block_t *);
+#if 0
 static int
 _add_code_symbol(compiler_t *, const char *, ir_instr_t *, size_t);
 static int
 _add_data_symbol(compiler_t *, const char *, uint8_t *, size_t);
+#endif
 
 /*
  * _instr_new -- allocate a new instruction
@@ -1781,214 +1783,6 @@ _st(compiler_t *c, st_t *st)
     return _outer_block(c, st->block);
 }
 
-#if 0
-/*
- * _analyze_operand -- analyze an operand
- */
-static int
-_analyze_operand(compiler_t *c, compiler_env_t *env, operand_t *op,
-                 compiler_ig_t *ig)
-{
-    /* Check if the value is a register */
-    if ( op->type == OPERAND_VAL && op->u.val->type == VAL_REG ) {
-        /* Register */
-    }
-    if ( op->type == OPERAND_VAL ) {
-        if ( op->u.val->opt.id < 0 ) {
-            //op->u.val->opt.id = ++env->opt.max_id;
-        }
-        if ( ig != NULL ) {
-            ig->v.vals[op->u.val->opt.id] = op->u.val;
-        }
-    }
-
-    return 0;
-}
-
-/*
- * _analyze_instr -- analyze an instruction
- */
-static int
-_analyze_instr(compiler_t *c, compiler_env_t *env, compiler_instr_t *instr,
-               compiler_ig_t *ig)
-{
-    int i;
-    int n;
-
-    n = ir_num_operands(instr->ir.opcode);
-    if ( n < 0 ) {
-        return -1;
-    }
-
-    for ( i = 0; i < n; i++ ) {
-        _analyze_operand(c, env, &instr->operands[i], ig);
-    }
-
-    return 0;
-}
-
-/*
- * _analyze_env -- analyze an environment
- */
-static int
-_analyze_env(compiler_t *c, compiler_env_t *env)
-{
-    compiler_instr_t *instr;
-    int ret;
-
-    /* Count the number of values (unique registers) */
-    instr = env->code.head;
-    while ( instr != NULL ) {
-        /* Analyze instruction (step 1) */
-        ret = _analyze_instr(c, env, instr, NULL);
-        if ( ret < 0 ) {
-            return -1;
-        }
-        instr = instr->next;
-    }
-
-    /* Build an interference graph */
-    env->ig.v.n = env->opt.max_var_id;
-    env->ig.v.vals = malloc(sizeof(compiler_val_t *) * env->ig.v.n);
-    if ( env->ig.v.vals == NULL ) {
-        c->err.code = COMPILER_NOMEM;
-        return -1;
-    }
-    /* Register to ID */
-    instr = env->code.head;
-    while ( instr != NULL ) {
-        /* Analyze instruction (step 2) */
-        ret = _analyze_instr(c, env, instr, &env->ig);
-        if ( ret < 0 ) {
-            return -1;
-        }
-        instr = instr->next;
-    }
-
-    return 0;
-}
-
-/*
- * _instr2ir -- convert a compiler instruction to an ir instruction
- */
-static int
-_instr2ir(compiler_instr_t *cinstr, ir_instr_t *instr)
-{
-    return -1;
-}
-
-/*
- * _code2ir -- convert the compiler code to an ir code
- */
-static ir_instr_t *
-_code2ir(compiler_code_t *code)
-{
-    compiler_instr_t *instr;
-    ir_instr_t *ir;
-    ssize_t i;
-    ssize_t n;
-
-    /* Count the number of instruction */
-    n = 0;
-    instr = code->head;
-    while ( instr != code->tail ) {
-        n++;
-        instr = instr->next;
-    }
-
-    ir = malloc(sizeof(ir_instr_t) * n);
-    if ( ir == NULL ) {
-        return NULL;
-    }
-
-    /* Convert the code to ir */
-    instr = code->head;
-    i = 0;
-    while (instr != NULL) {
-        _instr2ir(instr, &ir[i]);
-        i++;
-        instr = instr->next;
-    }
-
-    return NULL;
-}
-
-/*
- * _add_code_symbol -- add a code symbol to the symbol table
- */
-static int
-_add_code_symbol(compiler_t *c, const char *label, ir_instr_t *code,
-                 size_t ninstrs)
-{
-    compiler_symbol_t *s;
-    compiler_symbol_t **symbols;
-    size_t n;
-
-    s = malloc(sizeof(compiler_symbol_t));
-    if ( s == NULL ) {
-        return -1;
-    }
-    s->label = strdup(label);
-    if ( s->label == NULL ) {
-        free(s);
-        return -1;
-    }
-    s->type = COMPILER_SYMBOL_CODE;
-    s->u.code.n = ninstrs;
-    s->u.code.code = code;
-
-    n = c->symbols.n;
-    symbols = c->symbols.symbols;
-    symbols = realloc(symbols, (n + 1) * sizeof(compiler_symbol_t *));
-    if ( symbols == NULL ) {
-        free(s);
-        return -1;
-    }
-    symbols[n] = s;
-    c->symbols.symbols = symbols;
-    c->symbols.n = n + 1;
-
-    return 0;
-}
-
-/*
- * _add_data_symbol -- add a data symbol to the symbol table
- */
-static int
-_add_data_symbol(compiler_t *c, const char *label, uint8_t *data, size_t size)
-{
-    compiler_symbol_t *s;
-    compiler_symbol_t **symbols;
-    size_t n;
-
-    s = malloc(sizeof(compiler_symbol_t));
-    if ( s == NULL ) {
-        return -1;
-    }
-    s->label = strdup(label);
-    if ( s->label == NULL ) {
-        free(s);
-        return -1;
-    }
-    s->type = COMPILER_SYMBOL_DATA;
-    s->u.data.n = size;
-    s->u.data.data = data;
-
-    n = c->symbols.n;
-    symbols = c->symbols.symbols;
-    symbols = realloc(symbols, (n + 1) * sizeof(compiler_symbol_t *));
-    if ( symbols == NULL ) {
-        free(s);
-        return -1;
-    }
-    symbols[n] = s;
-    c->symbols.symbols = symbols;
-    c->symbols.n = n + 1;
-
-    return 0;
-}
-#endif
-
 /*
  * compile -- compiile a syntax tree to the intermediate representation
  */
@@ -2017,6 +1811,8 @@ compile(st_t *st)
         return NULL;
     }
     c->blocks = b;
+
+    /* Compile to IR. */
 
     return c;
 }
