@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2020,2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020,2022-2023 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -127,11 +127,17 @@ typedef struct {
 extern "C" {
 #endif
 
-    /* ld/mach-o.c */
-    int mach_o_export(FILE *, arch_code_t *);
+/* arch/x86-64.c */
+int
+x86_64_test(uint8_t *);
 
-    /* ld/elf.c */
-    int elf_export(FILE *, arch_code_t *);
+/* ld/mach-o.c */
+int
+mach_o_export(FILE *, arch_code_t *);
+
+/* ld/elf.c */
+int
+elf_export(FILE *, arch_code_t *);
 
 #ifdef __cplusplus
 }

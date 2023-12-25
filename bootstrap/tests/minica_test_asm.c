@@ -27,9 +27,6 @@
 #include <stdint.h>
 #include <string.h>
 
-int x86_64_test(uint8_t *);
-int x86_64_load_instr(void *);
-
 /*
  * Main routine for the linker test
  */
