@@ -21,6 +21,15 @@
  * SOFTWARE.
  */
 
+#include "arch.h"
+#include <stdlib.h>
+
+arch_t *
+arch_init(void)
+{
+    return NULL;
+}
+
 /*
  * Local variables:
  * tab-width: 4
