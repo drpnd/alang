@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2022-2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2022-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy

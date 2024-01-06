@@ -41,8 +41,10 @@ arch_init(arch_cpu_t cpu, arch_loader_t loader)
 
     switch ( cpu ) {
     case ARCH_CPU_AARCH64:
+        arch->assemble = aarch64_assemble;
         break;
     case ARCH_CPU_X86_64:
+        arch->assemble = x86_64_assemble;
         break;
     default:
         free(arch);
