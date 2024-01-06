@@ -125,6 +125,30 @@ _var_table_release(compiler_var_table_t *t)
 }
 
 /*
+ * _symbol_add -- add a symbol
+ */
+static int
+_symbol_add(compiler_t *c, compiler_symbol_t *s)
+{
+    size_t i;
+    size_t n;
+    compiler_symbol_t **symbols;
+
+    i = c->symbols.n;
+    n = i + 1;
+    symbols = realloc(c->symbols.symbols, sizeof(compiler_symbol_t *) * n);
+    if ( symbols == NULL ) {
+        return -1;
+    }
+    symbols[i] = s;
+
+    c->symbols.symbols = symbols;
+    c->symbols.n = n;
+
+    return 0;
+}
+
+/*
  * _env_new -- allocate a new environment
  */
 static compiler_env_t *
