@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2023-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,10 +24,35 @@
 #include "arch.h"
 #include <stdlib.h>
 
+/*
+ * arch_init -- initialize the architecture-specific data structure
+ */
 arch_t *
-arch_init(void)
+arch_init(arch_cpu_t cpu, arch_loader_t loader)
 {
-    return NULL;
+    arch_t *arch;
+
+    arch = malloc(sizeof(arch_t));
+    if ( arch == NULL ) {
+        return NULL;
+    }
+    arch->cpu = cpu;
+    arch->loader = loader;
+
+    switch ( cpu ) {
+    case ARCH_CPU_AARCH64:
+        break;
+    case ARCH_CPU_X86_64:
+        break;
+    default:
+        free(arch);
+        return NULL;
+    }
+
+    arch->assemble = NULL;
+    arch->export = NULL;
+
+    return arch;
 }
 
 /*

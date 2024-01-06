@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2020,2022-2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020,2022-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -118,14 +118,19 @@ typedef struct {
  * Architecture-specific function
  */
 typedef struct {
+    arch_cpu_t cpu;
     arch_loader_t loader;
-    void *assemble;
+    void (*assemble)(void);
     int (*export)(FILE *, arch_code_t *);
 } arch_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* arch.c */
+arch_t *
+arch_init(arch_cpu_t, arch_loader_t);
 
 /* arch/x86-64.c */
 int
