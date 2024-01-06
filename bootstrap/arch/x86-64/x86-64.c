@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2020-2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2020-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -507,6 +507,15 @@ x86_64_test(uint8_t *code)
     code[1] = 0x89;
 
     return ret + 2;
+}
+
+/*
+ * x86_64_assemble -- assemble from IR to x86-64 code
+ */
+int
+x86_64_assemble(uint8_t *code)
+{
+    return -1;
 }
 
 /*

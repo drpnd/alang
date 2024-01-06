@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2022-2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2022-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -35,6 +35,15 @@ aarch64_test(uint8_t *code)
     ret = -1;
 
     return ret;
+}
+
+/*
+ * aarch64_assemble -- assemble from IR to aarch64 code
+ */
+int
+aarch64_assemble(uint8_t *code)
+{
+    return -1;
 }
 
 /*

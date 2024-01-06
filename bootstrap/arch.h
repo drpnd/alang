@@ -135,6 +135,12 @@ arch_init(arch_cpu_t, arch_loader_t);
 /* arch/x86-64.c */
 int
 x86_64_test(uint8_t *);
+int
+x86_64_assemble(uint8_t *);
+
+/* arch/aarch64.c */
+int
+aarch64_assemble(uint8_t *);
 
 /* ld/mach-o.c */
 int

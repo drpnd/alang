@@ -49,6 +49,18 @@ arch_init(arch_cpu_t cpu, arch_loader_t loader)
         return NULL;
     }
 
+    switch ( loader ) {
+    case ARCH_LD_ELF:
+        arch->export = elf_export;
+        break;
+    case ARCH_LD_MACH_O:
+        arch->export = mach_o_export;
+        break;
+    default:
+        free(arch);
+        return NULL;
+    }
+
     arch->assemble = NULL;
     arch->export = NULL;
 
