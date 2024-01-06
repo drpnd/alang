@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019-2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -60,6 +60,12 @@ _add_code_symbol(compiler_t *, const char *, ir_instr_t *, size_t);
 static int
 _add_data_symbol(compiler_t *, const char *, uint8_t *, size_t);
 #endif
+static compiler_block_t *
+_outer_block_entry(compiler_t *, outer_block_entry_t *);
+static compiler_block_t *
+_outer_block(compiler_t *, outer_block_t *);
+static compiler_block_t *
+_st(compiler_t *, st_t *);
 
 /*
  * _instr_new -- allocate a new instruction

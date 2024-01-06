@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019-2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -203,6 +203,8 @@ typedef enum {
     DATA_I16,
     DATA_I32,
     DATA_I64,
+    DATA_FP32,
+    DATA_FP64,
     DATA_STRING,
 } compiler_data_type_t;
 typedef struct {
@@ -220,7 +222,7 @@ typedef struct {
 } compiler_data_t;
 
 /*
- * Environment
+ * Environment (scope)
  */
 struct _compiler_env {
     /* Variables */
