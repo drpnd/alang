@@ -214,6 +214,7 @@ typedef struct {
         uint16_t w;
         uint32_t d;
         uint64_t q;
+        double fp;
     } u;
     void *next;
 } compiler_data_entry_t;
