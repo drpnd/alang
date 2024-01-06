@@ -65,8 +65,8 @@ typedef struct {
  */
 typedef struct _instr compiler_instr_t;
 struct _instr {
-    operand_t operands[4];
     ir_instr_t ir;
+    operand_t operands[4];
     compiler_instr_t *next;
 };
 
@@ -276,6 +276,8 @@ struct _error {
 typedef enum {
     COMPILER_SYMBOL_CODE,
     COMPILER_SYMBOL_DATA,
+    COMPILER_SYMBOL_RODATA,
+    COMPILER_SYMBOL_BSS,
 } compiler_symbol_type_t;
 
 /*
@@ -287,12 +289,19 @@ typedef struct {
 } compiler_symbol_code_t;
 
 /*
- * Data symbol
+ * Data/rodata symbol
  */
 typedef struct {
     size_t n;
     uint8_t *data;
 } compiler_symbol_data_t;
+
+/*
+ * BSS symbol
+ */
+typedef struct {
+    size_t n;
+} compiler_symbol_bss_t;
 
 /*
  * Symbols
@@ -303,6 +312,8 @@ typedef struct {
     union {
         compiler_symbol_code_t code;
         compiler_symbol_data_t data;
+        compiler_symbol_data_t rodata;
+        compiler_symbol_bss_t bss;
     } u;
 } compiler_symbol_t;
 
