@@ -515,6 +515,20 @@ x86_64_test(uint8_t *code)
 int
 x86_64_assemble(uint8_t *code)
 {
+    struct x86_64_asm *arch;
+    int ret;
+
+    /* Initialize the x86_64 assembler */
+    arch = x86_64_initialize(NULL);
+    if ( NULL == arch ) {
+        return -1;
+    }
+    /* Load the instruction set */
+    ret = x86_64_load_instr(arch);
+    if ( ret < 0 ) {
+        return -1;
+    }
+
     return -1;
 }
 
