@@ -156,7 +156,6 @@ typedef struct {
  */
 typedef struct {
     ir_operand_type_t type;
-    //ir_operand_size_t size;
     union {
         ir_reg_t reg;
         ir_imm_t imm;
