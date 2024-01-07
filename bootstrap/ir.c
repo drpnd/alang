@@ -74,8 +74,9 @@ ir_reg_release(ir_reg_t *reg)
  * ir_imm_init -- initialize a new immediate value
  */
 ir_imm_t *
-ir_imm_init(ir_imm_t *imm)
+ir_imm_init(ir_imm_t *imm, ir_imm_type_t type)
 {
+    imm->type = type;
     return imm;
 }
 

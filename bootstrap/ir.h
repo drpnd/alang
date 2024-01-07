@@ -192,6 +192,7 @@ typedef struct {
  * IR object
  */
 typedef struct {
+    size_t ninstr;
     ir_instr_t *instrs;
     ir_data_table_t data;
 } ir_object_t;
@@ -209,14 +210,15 @@ ir_reg_init(ir_reg_t *);
 void
 ir_reg_release(ir_reg_t *);
 ir_imm_t *
-ir_imm_init(ir_imm_t *);
+ir_imm_init(ir_imm_t *, ir_imm_type_t type);
 void
 ir_imm_release(ir_imm_t *);
 ir_operand_t *
 ir_operand_new(void);
 void
 ir_operand_delete(ir_operand_t *);
-int ir_num_operands(ir_opcode_t);
+int
+ir_num_operands(ir_opcode_t);
 
 #ifdef __cplusplus
 }
