@@ -108,6 +108,15 @@ typedef enum {
 } ir_imm_type_t;
 
 /*
+ * Data type
+ */
+typedef enum {
+    IR_DATA_DATA,
+    IR_DATA_BSS,
+    IR_DATA_RODATA,
+} ir_data_type_t;
+
+/*
  * Register
  */
 typedef struct {

@@ -25,19 +25,6 @@
 #include <string.h>
 
 /*
- * Temporary function for testing
- */
-int
-aarch64_test(uint8_t *code)
-{
-    int ret;
-
-    ret = -1;
-
-    return ret;
-}
-
-/*
  * aarch64_assemble -- assemble from IR to aarch64 code
  */
 int
