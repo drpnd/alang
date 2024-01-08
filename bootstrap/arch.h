@@ -24,6 +24,7 @@
 #ifndef _ARCH_H
 #define _ARCH_H
 
+#include "ir.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -120,7 +121,7 @@ typedef struct {
 typedef struct {
     arch_cpu_t cpu;
     arch_loader_t loader;
-    void (*assemble)(void);
+    void (*assemble)(ir_object_t *);
     int (*export)(FILE *, arch_code_t *);
 } arch_t;
 
@@ -136,11 +137,11 @@ arch_init(arch_cpu_t, arch_loader_t);
 int
 x86_64_test(uint8_t *);
 int
-x86_64_assemble(uint8_t *);
+x86_64_assemble(ir_object_t *);
 
 /* arch/aarch64.c */
 int
-aarch64_assemble(uint8_t *);
+aarch64_assemble(ir_object_t *);
 
 /* ld/mach-o.c */
 int

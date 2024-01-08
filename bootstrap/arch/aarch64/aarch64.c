@@ -21,6 +21,7 @@
  * SOFTWARE.
  */
 
+#include "ir.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -28,7 +29,7 @@
  * aarch64_assemble -- assemble from IR to aarch64 code
  */
 int
-aarch64_assemble(uint8_t *code)
+aarch64_assemble(ir_object_t *obj)
 {
     return -1;
 }

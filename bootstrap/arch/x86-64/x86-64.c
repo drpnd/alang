@@ -26,6 +26,7 @@
 
 #include "reg.h"
 #include "instr.h"
+#include "ir.h"
 
 /*     return (1<<6) | (w<<3) | (r<<2) | (x<<1) | b; */
 #define REX             (1<<6)
@@ -513,7 +514,7 @@ x86_64_test(uint8_t *code)
  * x86_64_assemble -- assemble from IR to x86-64 code
  */
 int
-x86_64_assemble(uint8_t *code)
+x86_64_assemble(ir_object_t *obj)
 {
     struct x86_64_asm *arch;
     int ret;

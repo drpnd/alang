@@ -25,6 +25,7 @@
 #define _IR_H
 
 #include <stdint.h>
+#include <unistd.h>
 
 /*
  * Opcode
