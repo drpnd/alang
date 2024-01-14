@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2021-2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2021-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -40,7 +40,10 @@ usage(const char *prog)
 }
 
 /* Declarations */
-static void _display_val(compiler_env_t *, compiler_val_t *);
+static void
+_display_literal(literal_t *);
+static void
+_display_val(compiler_env_t *, compiler_val_t *);
 
 static int
 _is_reg(operand_t *op)
@@ -53,6 +56,9 @@ _is_reg(operand_t *op)
     return 0;
 }
 
+/*
+ * _display_literal -- display a literal value
+ */
 static void
 _display_literal(literal_t *lit)
 {
