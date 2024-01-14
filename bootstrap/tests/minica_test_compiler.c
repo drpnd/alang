@@ -189,6 +189,9 @@ _analyze_instruction(compiler_env_t *env, compiler_instr_t *instr,
     }
 }
 
+/*
+ * _analyze_registers -- analyze registers
+ */
 static void
 _analyze_registers(compiler_env_t *env)
 {
