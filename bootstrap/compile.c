@@ -1817,7 +1817,7 @@ _st(compiler_t *c, st_t *st)
  * compile -- compiile a syntax tree to the intermediate representation
  */
 compiler_t *
-compile(st_t *st)
+minica_compile(st_t *st)
 {
     compiler_t *c;
     compiler_block_t *b;

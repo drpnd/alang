@@ -475,7 +475,7 @@ main(int argc, const char *const argv[])
     }
 
     /* Try to compile the code */
-    c = compile(code);
+    c = minica_compile(code);
     if ( NULL == c ) {
         fprintf(stderr, "Failed to compile the code.\n");
         return EXIT_FAILURE;

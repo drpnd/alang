@@ -347,7 +347,7 @@ typedef struct {
 extern "C" {
 #endif
 
-    compiler_t * compile(st_t *);
+    compiler_t * minica_compile(st_t *);
 
 #ifdef __cplusplus
 }
