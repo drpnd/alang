@@ -35,7 +35,7 @@
 void
 usage(const char *prog)
 {
-    fprintf(stderr, "Usage: %s <file>\n", prog);
+    fprintf(stderr, "Usage: %s <alang-file>\n", prog);
     exit(EXIT_FAILURE);
 }
 
