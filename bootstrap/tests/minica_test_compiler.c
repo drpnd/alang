@@ -87,6 +87,9 @@ _display_literal(literal_t *lit)
     }
 }
 
+/*
+ * _display_val_list -- display a list of values
+ */
 static void
 _display_val_list(compiler_env_t *env, compiler_val_list_t *list)
 {
@@ -99,6 +102,9 @@ _display_val_list(compiler_env_t *env, compiler_val_list_t *list)
     }
 }
 
+/*
+ * _display_val -- display a value
+ */
 static void
 _display_val(compiler_env_t *env, compiler_val_t *val)
 {
