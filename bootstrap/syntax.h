@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019,2021-2023 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019,2021-2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -637,67 +637,127 @@ typedef struct {
 extern "C" {
 #endif
 
-    literal_t * literal_new_int(void *, const char *, int);
-    literal_t * literal_new_float(void *, const char *);
-    literal_t * literal_new_string(void *, const char *);
-    literal_t * literal_new_bool(void *, bool_t);
-    literal_t * literal_new_nil(void *);
-    literal_set_t * literal_set_new(void);
-    literal_set_t * literal_set_add(literal_set_t *, literal_t *);
-    type_t * type_new_primitive(type_type_t);
-    type_t * type_new_struct(const char *);
-    type_t * type_new_union(const char *);
-    type_t * type_new_enum(const char *);
-    type_t * type_new_id(const char *);
-    decl_t * decl_new(const char *, type_t *);
-    decl_list_t * decl_list_new(decl_t *);
-    decl_list_t * decl_list_append(decl_list_t *, decl_t *);
-    arg_t * arg_new(void *, decl_t *);
-    arg_list_t * arg_list_new(arg_t *);
-    arg_list_t * arg_list_append(arg_list_t *, arg_t *);
-    directive_t * directive_struct_new(void *, const char *, decl_list_t *);
-    directive_t * directive_union_new(void *, const char *, decl_list_t *);
-    directive_t * directive_enum_new(void *, const char *, enum_elem_t *);
-    directive_t * directive_typedef_new(void *, type_t *, const char *);
-    directive_t * directive_use_new(void *, const char *);
-    enum_elem_t * enum_elem_new(const char *);
-    enum_elem_t * enum_elem_prepend(enum_elem_t *, enum_elem_t *);
-    func_t *
-    func_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
-    coroutine_t *
-    coroutine_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
-    module_t * module_new(const char *, outer_block_t *);
-    outer_block_entry_t * outer_block_entry_new(outer_block_entry_type_t);
-    outer_block_t * outer_block_new(outer_block_entry_t *);
-    inner_block_t * inner_block_new(stmt_list_t *);
-    stmt_t * stmt_new_while(expr_t *, inner_block_t *);
-    stmt_t * stmt_new_expr(expr_t *);
-    stmt_t * stmt_new_expr_list(expr_list_t *);
-    stmt_t * stmt_new_return(expr_t *);
-    stmt_t * stmt_new_block(inner_block_t *);
-    stmt_list_t * stmt_list_new(stmt_t *);
-    stmt_list_t * stmt_list_append(stmt_list_t *, stmt_t *);
-    op_t * op_new_infix(expr_t *, expr_t *, op_type_t);
-    op_t * op_new_prefix(expr_t *, op_type_t);
-    op_t * op_new_suffix(expr_t *, op_type_t);
-    expr_t * expr_new_id(void *, const char *);
-    expr_t * expr_new_decl(void *, decl_t *);
-    expr_t * expr_new_literal(void *, literal_t *);
-    expr_t * expr_op_new_infix(void *, expr_t *, expr_t *, op_type_t);
-    expr_t * expr_op_new_prefix(void *, expr_t *, op_type_t);
-    expr_t * expr_op_new_suffix(void *, expr_t *, op_type_t);
-    expr_t * expr_new_member(void *, expr_t *, const char *);
-    expr_t * expr_new_call(void *, expr_t *, expr_list_t *);
-    expr_t * expr_new_ref(void *, expr_t *, expr_t *);
-    expr_t * expr_new_switch(void *, expr_t *, switch_block_t *);
-    expr_t * expr_new_if(void *, expr_t *, inner_block_t *, inner_block_t *);
-    expr_t * expr_new_list(expr_list_t *);
-    expr_list_t * expr_list_new(void);
-    expr_list_t * expr_list_append(expr_list_t *, expr_t *);
-    switch_case_t * switch_case_new(literal_set_t *, inner_block_t *);
-    switch_block_t * switch_block_new(void);
-    switch_block_t * switch_block_append(switch_block_t *, switch_case_t *);
-    st_t * st_new(outer_block_t *);
+/* syntax.c */
+literal_t *
+literal_new_int(void *, const char *, int);
+literal_t *
+literal_new_float(void *, const char *);
+literal_t *
+literal_new_string(void *, const char *);
+literal_t *
+literal_new_bool(void *, bool_t);
+literal_t *
+literal_new_nil(void *);
+literal_set_t *
+literal_set_new(void);
+literal_set_t *
+literal_set_add(literal_set_t *, literal_t *);
+type_t *type_new_primitive(type_type_t);
+type_t *
+type_new_struct(const char *);
+type_t *
+type_new_union(const char *);
+type_t *
+type_new_enum(const char *);
+type_t *
+type_new_id(const char *);
+decl_t *
+decl_new(const char *, type_t *);
+decl_list_t *
+decl_list_new(decl_t *);
+decl_list_t *
+decl_list_append(decl_list_t *, decl_t *);
+arg_t *
+arg_new(void *, decl_t *);
+arg_list_t *
+arg_list_new(arg_t *);
+arg_list_t *
+arg_list_append(arg_list_t *, arg_t *);
+directive_t *
+directive_struct_new(void *, const char *, decl_list_t *);
+directive_t *
+directive_union_new(void *, const char *, decl_list_t *);
+directive_t *
+directive_enum_new(void *, const char *, enum_elem_t *);
+directive_t *
+directive_typedef_new(void *, type_t *, const char *);
+directive_t *
+directive_use_new(void *, const char *);
+enum_elem_t *
+enum_elem_new(const char *);
+enum_elem_t *
+enum_elem_prepend(enum_elem_t *, enum_elem_t *);
+func_t *
+func_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
+coroutine_t *
+coroutine_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
+module_t *
+module_new(const char *, outer_block_t *);
+outer_block_entry_t *outer_block_entry_new(outer_block_entry_type_t);
+outer_block_t *
+outer_block_new(outer_block_entry_t *);
+inner_block_t *
+inner_block_new(stmt_list_t *);
+stmt_t *
+stmt_new_while(expr_t *, inner_block_t *);
+stmt_t *
+stmt_new_expr(expr_t *);
+stmt_t *
+stmt_new_expr_list(expr_list_t *);
+stmt_t *
+stmt_new_return(expr_t *);
+stmt_t *
+stmt_new_block(inner_block_t *);
+stmt_list_t *
+stmt_list_new(stmt_t *);
+stmt_list_t *
+stmt_list_append(stmt_list_t *, stmt_t *);
+op_t *
+op_new_infix(expr_t *, expr_t *, op_type_t);
+op_t *
+op_new_prefix(expr_t *, op_type_t);
+op_t *
+op_new_suffix(expr_t *, op_type_t);
+expr_t *
+expr_new_id(void *, const char *);
+expr_t *
+expr_new_decl(void *, decl_t *);
+expr_t *
+expr_new_literal(void *, literal_t *);
+expr_t *
+expr_op_new_infix(void *, expr_t *, expr_t *, op_type_t);
+expr_t *
+expr_op_new_prefix(void *, expr_t *, op_type_t);
+expr_t *
+expr_op_new_suffix(void *, expr_t *, op_type_t);
+expr_t *
+expr_new_member(void *, expr_t *, const char *);
+expr_t *
+expr_new_call(void *, expr_t *, expr_list_t *);
+expr_t *
+expr_new_ref(void *, expr_t *, expr_t *);
+expr_t *
+expr_new_switch(void *, expr_t *, switch_block_t *);
+expr_t *
+expr_new_if(void *, expr_t *, inner_block_t *, inner_block_t *);
+expr_t *
+expr_new_list(expr_list_t *);
+expr_list_t *
+expr_list_new(void);
+expr_list_t *
+expr_list_append(expr_list_t *, expr_t *);
+switch_case_t *
+switch_case_new(literal_set_t *, inner_block_t *);
+switch_block_t *
+switch_block_new(void);
+switch_block_t *
+switch_block_append(switch_block_t *, switch_case_t *);
+st_t *
+st_new(outer_block_t *);
+
+/* syntax_debug.c */
+int
+syntax_print_ast(st_t *);
 
 #ifdef __cplusplus
 }
