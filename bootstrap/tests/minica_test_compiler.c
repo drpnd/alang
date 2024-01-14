@@ -470,13 +470,14 @@ main(int argc, const char *const argv[])
 
     /* Parse the specified file */
     code = minica_parse(fp);
-    if ( NULL == code ) {
+    if ( code == NULL ) {
+        perror("minica_parse");
         exit(EXIT_FAILURE);
     }
 
     /* Try to compile the code */
     c = minica_compile(code);
-    if ( NULL == c ) {
+    if ( c == NULL ) {
         fprintf(stderr, "Failed to compile the code.\n");
         return EXIT_FAILURE;
     }
