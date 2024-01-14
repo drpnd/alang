@@ -202,6 +202,7 @@ typedef struct {
 extern "C" {
 #endif
 
+/* ir.c */
 ir_instr_t *
 ir_instr_new(void);
 void
@@ -220,6 +221,10 @@ void
 ir_operand_delete(ir_operand_t *);
 int
 ir_num_operands(ir_opcode_t);
+
+/* ir_debug.c */
+int
+ir_print_code(ir_object_t *);
 
 #ifdef __cplusplus
 }
