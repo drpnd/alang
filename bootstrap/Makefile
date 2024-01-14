@@ -50,6 +50,6 @@ test: minica_test_parser minica_test_compiler
 	./minica_test_compiler ../examples/simple1.al
 
 clean:
-	rm -f minica_test_ld minica_test_asm minica_test_parser *.o minica y.y.tab.c y.tab.h lex.yy.c lex.yy.h
+	rm -f minica_test_ld minica_test_asm minica_test_parser minica_test_compiler *.o minica y.y.tab.c y.tab.h lex.yy.c lex.yy.h
 
 .PHONY: all test clean
