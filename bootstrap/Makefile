@@ -42,7 +42,7 @@ tests/minica_test_parser.o: tests/minica_test_parser.c minica.h compile.h syntax
 minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o syntax_debug.o compile.o arch.o ld/mach-o/mach-o.o ld/elf/elf.o $(ARCH_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_compiler: tests/minica_test_compiler.o y.tab.o lex.yy.o syntax.o syntax_debug.o compile.o arch.o ld/mach-o/mach-o.o ld/elf/elf.o $(ARCH_OBJS)
+minica_test_compiler: tests/minica_test_compiler.o y.tab.o lex.yy.o syntax.o syntax_debug.o compile.o ir.o ir_debug.o arch.o ld/mach-o/mach-o.o ld/elf/elf.o $(ARCH_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 test: minica_test_parser minica_test_compiler
