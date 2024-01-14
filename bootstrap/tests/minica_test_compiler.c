@@ -206,6 +206,9 @@ _analyze_registers(compiler_env_t *env)
     }
 }
 
+/*
+ * _display_operand -- display an operand
+ */
 static void
 _display_operand(ir_operand_t *op)
 {
@@ -300,7 +303,9 @@ _display_instr(compiler_env_t *env, compiler_instr_t *instr)
 }
 #endif
 
-
+/*
+ * _regtype -- display the register type
+ */
 static const char *
 _regtype(reg_type_t type)
 {
@@ -324,6 +329,9 @@ _regtype(reg_type_t type)
     }
 }
 
+/*
+ * _display_env -- display the environment
+ */
 static void
 _display_env(compiler_env_t *env)
 {
@@ -398,6 +406,9 @@ _display_env(compiler_env_t *env)
     }
 }
 
+/*
+ * _display_code -- display the compiled syntax tree
+ */
 static void
 _display_code(compiler_block_t *blocks)
 {

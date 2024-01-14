@@ -10,6 +10,7 @@ BASEDIR=$(shell pwd)
 CFLAGS=-g -Wall -DBASEDIR=\"$(BASEDIR)\"
 
 ARCH_OBJS=arch/x86-64/x86-64.o arch/x86-64/instr.o arch/aarch64/aarch64.o
+HEADERS=arch.h
 
 all:
 	$(MAKE) minica_test_ld minica_test_asm minica_test_parser minica_test_compiler
@@ -24,6 +25,7 @@ lex.yy.c: minica.l
 lex.yy.o: lex.yy.c lex.yy.h minica.h
 y.tab.o: lex.yy.c minica.h
 syntax.o: syntax.c syntax.h minica.h
+arch.o: arch.h ir.h
 compile.o: compile.c ir.c compile.h minica.h syntax.h ir.h
 
 minica: y.tab.o lex.yy.o syntax.o ld/mach-o.o $(ARCH_OBJS)

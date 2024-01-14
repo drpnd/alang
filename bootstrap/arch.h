@@ -121,7 +121,7 @@ typedef struct {
 typedef struct {
     arch_cpu_t cpu;
     arch_loader_t loader;
-    void (*assemble)(ir_object_t *);
+    int (*assemble)(ir_object_t *);
     int (*export)(FILE *, arch_code_t *);
 } arch_t;
 
