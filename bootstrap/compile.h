@@ -342,6 +342,7 @@ typedef struct {
         compiler_error_code_t code;
         pos_t pos;
     } err;
+    compiler_error_t last_err;
 } compiler_t;
 
 #ifdef __cplusplus
