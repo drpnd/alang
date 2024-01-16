@@ -36,6 +36,8 @@
     } while ( 0 )
 
 /* Declarations */
+static compiler_error_t *
+_error_new(void);
 static compiler_instr_t *
 _instr_new(void);
 static void
@@ -66,6 +68,24 @@ static compiler_block_t *
 _outer_block(compiler_t *, outer_block_t *);
 static compiler_block_t *
 _st(compiler_t *, st_t *);
+
+/*
+ * _error_new -- allocate a new error
+ */
+static compiler_error_t *
+_error_new(void)
+{
+    compiler_error_t *err;
+
+    err = malloc(sizeof(compiler_error_t));
+    if ( err == NULL ) {
+        return NULL;
+    }
+    memset(err, 0, sizeof(compiler_error_t));
+    err->err = COMPILER_ERROR_UNKNOWN;
+
+    return err;
+}
 
 /*
  * _instr_new -- allocate a new instruction
