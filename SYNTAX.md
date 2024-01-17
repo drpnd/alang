@@ -295,7 +295,7 @@ All the data are carried a packet.
             | crdef
 
     outer_block ::=
-            outer_block_entry
+            outer_block_entry*
 
     input ::=
             outer_block EOF
