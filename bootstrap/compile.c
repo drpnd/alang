@@ -1855,6 +1855,10 @@ minica_compile(st_t *st)
     /* Initialize the error handler */
     c->err.code = COMPILER_ERROR_UNKNOWN;
 
+    /* Initialize the error stack */
+    memset(&c->last_err, 0, sizeof(compiler_error_t));
+    c->last_err.err = COMPILER_ERROR_UNKNOWN;
+
     /* Compile the syntax tree */
     b = _st(c, st);
     if ( b == NULL ) {

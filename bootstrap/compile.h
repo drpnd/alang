@@ -79,7 +79,7 @@ typedef enum {
 } compiler_block_type_t;
 
 /*
- * Block
+ * Block (entry)
  */
 typedef struct _compiler_block compiler_block_t;
 struct _compiler_block {

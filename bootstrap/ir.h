@@ -173,6 +173,13 @@ typedef struct {
 } ir_instr_t;
 
 /*
+ * Symbol
+ */
+typedef struct {
+    char *name;
+} ir_symbol_t;
+
+/*
  * Data entry
  */
 typedef struct {
