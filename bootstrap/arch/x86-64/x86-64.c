@@ -26,7 +26,7 @@
 
 #include "reg.h"
 #include "instr.h"
-#include "ir.h"
+#include "../../ir.h"
 
 /*     return (1<<6) | (w<<3) | (r<<2) | (x<<1) | b; */
 #define REX             (1<<6)
