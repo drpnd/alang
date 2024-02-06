@@ -21,7 +21,7 @@
  * SOFTWARE.
  */
 
-#include "ir.h"
+#include "../../ir.h"
 #include <stdint.h>
 #include <string.h>
 
