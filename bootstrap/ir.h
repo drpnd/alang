@@ -177,6 +177,8 @@ typedef struct {
  */
 typedef struct {
     char *name;
+    /* Pointer to the insstruction */
+    ir_instr_t *instr;
 } ir_symbol_t;
 
 /*
