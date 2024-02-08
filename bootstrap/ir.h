@@ -118,9 +118,24 @@ typedef enum {
 } ir_data_type_t;
 
 /*
+ * Register type
+ */
+typedef struct {
+    IR_REG_PTR,
+    IR_REG_I8,
+    IR_REG_I16,
+    IR_REG_I32,
+    IR_REG_I64,
+    IR_REG_FP32,
+    IR_REG_FP64,
+    IR_REG_BOOL,
+} ir_reg_type_t;
+
+/*
  * Register
  */
 typedef struct {
+    ir_reg_type_t type;
     int nr;
 } ir_reg_t;
 
