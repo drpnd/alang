@@ -120,7 +120,7 @@ typedef enum {
 /*
  * Register type
  */
-typedef struct {
+typedef enum {
     IR_REG_PTR,
     IR_REG_I8,
     IR_REG_I16,
@@ -187,14 +187,41 @@ typedef struct {
     ir_operand_t operands[4];
 } ir_instr_t;
 
+typedef struct _instr_ent ir_instr_ent_t;
+typedef struct _block ir_block_t;
 /*
- * Symbol
+ * Instruction entry
+ */
+struct _instr_ent {
+    ir_instr_t inst;
+    ir_instr_ent_t *next;
+};
+
+/*
+ * Label
  */
 typedef struct {
-    char *name;
+    char *label;
+    ir_block_t *block;
+} ir_label_t;
+
+/*
+ * Block
+ */
+struct _block {
+    ir_label_t *label;
+    size_t ninstr;
     /* Pointer to the insstruction */
-    ir_instr_t *instr;
-} ir_symbol_t;
+    ir_instr_ent_t *instrs;
+};
+
+/*
+ * Function
+ */
+typedef struct {
+    size_t nblocks;
+    ir_block_t *blocks;
+} ir_func_t;
 
 /*
  * Data entry
@@ -205,7 +232,7 @@ typedef struct {
 } ir_data_entry_t;
 
 /*
- * Data table
+ * Data table (global)
  */
 typedef struct {
     size_t n;
@@ -218,7 +245,7 @@ typedef struct {
  */
 typedef struct {
     size_t ninstr;
-    ir_instr_t *instrs;
+    ir_instr_ent_t *instrs;
     ir_data_table_t data;
 } ir_object_t;
 
