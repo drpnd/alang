@@ -26,6 +26,23 @@
 #include <string.h>
 
 /*
+ * ir_object_new -- allocate a new object
+ */
+ir_object_t *
+ir_object_new(void)
+{
+    ir_object_t *obj;
+
+    obj = malloc(sizeof(ir_object_t));
+    if ( obj == NULL ) {
+        return NULL;
+    }
+    memset(obj, 0, sizeof(ir_object_t));
+
+    return obj;
+}
+
+/*
  * ir_instr_new -- allocate a new instruction
  */
 ir_instr_t *

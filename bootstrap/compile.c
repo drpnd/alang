@@ -1847,6 +1847,7 @@ minica_compile(st_t *st)
     if ( c == NULL ) {
         return NULL;
     }
+    c->irobj = NULL;
     c->fout = NULL;
     c->blocks = NULL;
     c->symbols.n = 0;

@@ -216,9 +216,10 @@ struct _block {
 };
 
 /*
- * Function
+ * Function / Coroutine
  */
 typedef struct {
+    char *name;
     size_t nblocks;
     ir_block_t *blocks;
 } ir_func_t;
@@ -244,8 +245,8 @@ typedef struct {
  * IR object
  */
 typedef struct {
-    size_t ninstr;
-    ir_instr_ent_t *instrs;
+    size_t nfunc;
+    ir_func_t *funcs;
     ir_data_table_t data;
 } ir_object_t;
 
@@ -254,6 +255,8 @@ extern "C" {
 #endif
 
 /* ir.c */
+ir_object_t *
+ir_object_new(void);
 ir_instr_t *
 ir_instr_new(void);
 void

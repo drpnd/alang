@@ -88,7 +88,6 @@ struct _compiler_block {
     compiler_instr_t *instrs;
     compiler_env_t *env;
     compiler_block_t *next;
-    ir_object_t *irobj;
 };
 
 /*
@@ -330,6 +329,9 @@ typedef struct {
  * Compiler
  */
 typedef struct {
+    /* IR */
+    ir_object_t *irobj;
+
     /* Compiled code blocks */
     compiler_block_t *blocks;
     /* Symbols */
