@@ -245,7 +245,7 @@ typedef struct {
  * IR object
  */
 typedef struct {
-    size_t nfunc;
+    size_t nfuncs;
     ir_func_t *funcs;
     ir_data_table_t data;
 } ir_object_t;
