@@ -333,6 +333,9 @@ _var_new(compiler_t *c, const char *id, type_t *type)
 static void
 _var_delete(compiler_var_t *var)
 {
+    if ( var->irreg.named ) {
+        free(var->irreg.u.id);
+    }
     free(var);
 }
 
