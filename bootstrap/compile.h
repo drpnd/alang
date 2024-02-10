@@ -121,12 +121,11 @@ typedef enum {
  */
 typedef struct _compiler_var compiler_var_t;
 struct _compiler_var {
-    char *id;
     type_t *type;
     size_t size;
-    reg_type_t regtype;
     int arg;
     int ret;
+    ir_reg_t irreg;
     /* For a variable table (stack) */
     compiler_var_t *next;
 };

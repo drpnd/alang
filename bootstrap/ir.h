@@ -121,6 +121,7 @@ typedef enum {
  * Register type
  */
 typedef enum {
+    IR_REG_UNDEF = -1,
     IR_REG_PTR,
     IR_REG_I8,
     IR_REG_I16,
@@ -137,8 +138,9 @@ typedef enum {
 typedef struct {
     ir_reg_type_t type;
     int named;
+    int assigned;
     union {
-        char *label;
+        char *id;
         int nr;
     } u;
 } ir_reg_t;

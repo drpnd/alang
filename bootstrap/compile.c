@@ -249,44 +249,44 @@ _type2size(compiler_t *c, type_t *type)
 /*
  * _type2reg -- resolve the corresponding register to the type
  */
-static reg_type_t
+static ir_reg_type_t
 _type2reg(compiler_t *c, type_t *type)
 {
-    reg_type_t rtype;
+    ir_reg_type_t rtype;
 
-    rtype = REG_TYPE_UNDEF;
+    rtype = IR_REG_UNDEF;
     switch ( type->type ) {
     case TYPE_PRIMITIVE_I8:
     case TYPE_PRIMITIVE_U8:
-        rtype = REG_I8;
+        rtype = IR_REG_I8;
         break;
     case TYPE_PRIMITIVE_I16:
     case TYPE_PRIMITIVE_U16:
-        rtype = REG_I16;
+        rtype = IR_REG_I16;
         break;
     case TYPE_PRIMITIVE_I32:
     case TYPE_PRIMITIVE_U32:
-        rtype = REG_I32;
+        rtype = IR_REG_I32;
         break;
 
     case TYPE_PRIMITIVE_I64:
     case TYPE_PRIMITIVE_U64:
-        rtype = REG_I64;
+        rtype = IR_REG_I64;
         break;
     case TYPE_PRIMITIVE_FP32:
-        rtype = REG_FP32;
+        rtype = IR_REG_FP32;
         break;
     case TYPE_PRIMITIVE_FP64:
-        rtype = REG_FP64;
+        rtype = IR_REG_FP64;
         break;
     case TYPE_PRIMITIVE_STRING:
-        rtype = REG_MEM;
+        rtype = IR_REG_PTR;
         break;
     case TYPE_PRIMITIVE_BOOL:
-        rtype = REG_BOOL;
+        rtype = IR_REG_BOOL;
         break;
     case TYPE_ENUM:
-        rtype = REG_I64;
+        rtype = IR_REG_I64;
         break;
     }
 
@@ -301,19 +301,24 @@ _var_new(compiler_t *c, const char *id, type_t *type)
 {
     compiler_var_t *var;
     ssize_t sz;
-    reg_type_t rtype;
+    ir_reg_type_t rtype;
 
     /* Allocate a new variable */
     var = malloc(sizeof(compiler_var_t));
     if ( var == NULL ) {
         return NULL;
     }
-    var->id = strdup(id);
-    if ( var->id == NULL ) {
-        free(var);
+
+    /* Resolve the register type from the specified type */
+    rtype = _type2reg(c, type);
+    if ( rtype == IR_REG_UNDEF ) {
         return NULL;
     }
-    var->regtype = REG_TYPE_UNDEF;
+    var->irreg.type = rtype;
+    var->irreg.named = 1;
+    var->irreg.assigned = 1;
+    var->irreg.u.id = strdup(id);
+
     var->type = type;
     var->size = 0;
     var->arg = 0;
@@ -323,7 +328,6 @@ _var_new(compiler_t *c, const char *id, type_t *type)
     /* Resolve the size from the type */
     sz = _type2size(c, type);
     if ( sz < 0 ) {
-        free(var->id);
         free(var);
         return NULL;
     }
@@ -332,11 +336,9 @@ _var_new(compiler_t *c, const char *id, type_t *type)
     /* Resolve the register from the type */
     rtype = _type2reg(c, type);
     if ( rtype == REG_TYPE_UNDEF ) {
-        free(var->id);
         free(var);
         return NULL;
     }
-    var->regtype = rtype;
 
     return var;
 }
@@ -347,7 +349,6 @@ _var_new(compiler_t *c, const char *id, type_t *type)
 static void
 _var_delete(compiler_var_t *var)
 {
-    free(var->id);
     free(var);
 }
 
@@ -362,8 +363,15 @@ _var_add(compiler_env_t *env, compiler_var_t *var)
     /* Duplicate check */
     v = env->vars->top;
     while ( v != NULL ) {
-        if ( strcmp(var->id, v->id) == 0 ) {
-            return -1;
+        /* Duplication check */
+        if ( var->irreg.named && v->irreg.named ) {
+            if ( strcmp(var->irreg.u.id, v->irreg.u.id) == 0 ) {
+                return -1;
+            }
+        } else if ( !var->irreg.named && !v->irreg.named ) {
+            if ( var->irreg.u.id == v->irreg.u.id ) {
+                return -1;
+            }
         }
         v = v->next;
     }
@@ -384,7 +392,7 @@ _var_search(compiler_env_t *env, const char *id)
 
     var = env->vars->top;
     while ( var != NULL ) {
-        if ( 0 == strcmp(id, var->id) ) {
+        if ( var->irreg.named && strcmp(id, var->irreg.u.id) == 0 ) {
             /* Found a variable with the specified identifier */
             return var;
         }
