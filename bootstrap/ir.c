@@ -43,6 +43,23 @@ ir_object_new(void)
 }
 
 /*
+ * ir_func_new -- allocate a new function
+ */
+ir_func_t *
+ir_func_new(void)
+{
+    ir_func_t *func;
+
+    func = malloc(sizeof(ir_func_t));
+    if ( func == NULL ) {
+        return NULL;
+    }
+    memset(func, 0, sizeof(ir_func_t));
+
+    return func;
+}
+
+/*
  * ir_instr_new -- allocate a new instruction
  */
 ir_instr_t *

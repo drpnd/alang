@@ -259,6 +259,8 @@ extern "C" {
 /* ir.c */
 ir_object_t *
 ir_object_new(void);
+ir_func_t *
+ir_func_new(void);
 ir_instr_t *
 ir_instr_new(void);
 void
