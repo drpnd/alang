@@ -717,6 +717,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
 {
     compiler_val_t *val;
     compiler_var_t *var;
+    compiler_error_t *err;
     int ret;
 
     /* Allocate a new variable */
@@ -728,13 +729,24 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     }
     var->arg = arg;
     var->ret = retflag;
+    if ( arg ) {
+        var->irreg.assigned = 1;
+    }
 
     /* Add the variable to the table */
     ret = _var_add(env, var);
     if ( ret < 0 ) {
         /* Already exists (duplicate declaration) */
-        c->err.code = COMPILER_DUPLICATE_VARIABLE;
-        memcpy(&c->err.pos, pos, sizeof(pos_t));
+        /* Add to the error stack */
+        err = _error_new(COMPILER_DUPLICATE_VARIABLE, *pos);
+        if ( err == NULL ) {
+            /* Failed to allocate an error */
+            c->err_pool.err = COMPILER_NOMEM;
+            c->err_pool.pos = *pos;
+        } else {
+            err->next = c->err_stack;
+            c->err_stack = err;
+        }
         /* Release the variable and value */
         _var_delete(var);
         return NULL;
@@ -1875,13 +1887,14 @@ minica_compile(st_t *st)
     c->blocks = NULL;
     c->symbols.n = 0;
     c->symbols.symbols = NULL;
+    c->err_stack = NULL;
 
     /* Initialize the error handler */
     c->err.code = COMPILER_ERROR_UNKNOWN;
 
     /* Initialize the error stack */
-    memset(&c->last_err, 0, sizeof(compiler_error_t));
-    c->last_err.err = COMPILER_ERROR_UNKNOWN;
+    memset(&c->err_pool, 0, sizeof(compiler_error_t));
+    c->err_pool.err = COMPILER_ERROR_UNKNOWN;
 
     /* Compile the syntax tree */
     b = _st(c, st);

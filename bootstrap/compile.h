@@ -121,10 +121,10 @@ typedef enum {
  */
 typedef struct _compiler_var compiler_var_t;
 struct _compiler_var {
+    ir_reg_t irreg;
     type_t *type;
     int arg;
     int ret;
-    ir_reg_t irreg;
     /* For a variable table (stack) */
     compiler_var_t *next;
 };
@@ -343,7 +343,8 @@ typedef struct {
         compiler_error_code_t code;
         pos_t pos;
     } err;
-    compiler_error_t last_err;
+    compiler_error_t *err_stack;
+    compiler_error_t err_pool;
 } compiler_t;
 
 #ifdef __cplusplus
