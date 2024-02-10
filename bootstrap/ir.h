@@ -218,11 +218,13 @@ struct _block {
 /*
  * Function / Coroutine
  */
-typedef struct {
+typedef struct _func ir_func_t;
+struct _func {
     char *name;
     size_t nblocks;
     ir_block_t *blocks;
-} ir_func_t;
+    ir_func_t *next;
+};
 
 /*
  * Data entry
