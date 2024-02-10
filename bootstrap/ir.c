@@ -91,7 +91,6 @@ ir_instr_delete(ir_instr_t *i)
 ir_reg_t *
 ir_reg_init(ir_reg_t *reg)
 {
-    reg->nr = -1;
     return reg;
 }
 
@@ -101,7 +100,6 @@ ir_reg_init(ir_reg_t *reg)
 void
 ir_reg_release(ir_reg_t *reg)
 {
-    reg->nr = -1;
 }
 
 /*

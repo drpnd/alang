@@ -1502,13 +1502,14 @@ _func(compiler_t *c, func_t *fn)
     compiler_env_t *env;
     compiler_block_t *block;
     compiler_val_t *val;
-    ir_func_t *func;
+    ir_func_t *irfunc;
 
     /* Allocate a new function IR */
-    func = ir_func_new();
-    if ( func == NULL ) {
+    irfunc = ir_func_new();
+    if ( irfunc == NULL ) {
         return NULL;
     }
+    irfunc->type = IR_FUNC_FUNC;
 
     /* Allocate a new environment */
     env = _env_new(c);
@@ -1551,10 +1552,15 @@ _func(compiler_t *c, func_t *fn)
         c->err.code = COMPILER_NOMEM;
         return NULL;
     }
+    irfunc->name = strdup(fn->id);
+    if ( irfunc->name == NULL ) {
+        return NULL;
+    }
     block->type = BLOCK_FUNC;
     block->instrs = NULL;
     block->env = env;
     block->next = NULL;
+    block->func = irfunc;
 
     return block;
 }
@@ -1569,13 +1575,14 @@ _coroutine(compiler_t *c, coroutine_t *cr)
     compiler_env_t *env;
     compiler_block_t *block;
     compiler_val_t *val;
-    ir_func_t *func;
+    ir_func_t *irfunc;
 
     /* Allocate a new function IR */
-    func = ir_func_new();
-    if ( func == NULL ) {
+    irfunc = ir_func_new();
+    if ( irfunc == NULL ) {
         return NULL;
     }
+    irfunc->type = IR_FUNC_COROUTINE;
 
     /* Allocate a new environment */
     env = _env_new(c);
@@ -1618,10 +1625,15 @@ _coroutine(compiler_t *c, coroutine_t *cr)
         c->err.code = COMPILER_NOMEM;
         return NULL;
     }
+    irfunc->name = strdup(cr->id);
+    if ( irfunc->name == NULL ) {
+        return NULL;
+    }
     block->type = BLOCK_COROUTINE;
     block->instrs = NULL;
     block->env = env;
     block->next = NULL;
+    block->func = irfunc;
 
     return block;
 }
