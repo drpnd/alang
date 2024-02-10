@@ -136,7 +136,11 @@ typedef enum {
  */
 typedef struct {
     ir_reg_type_t type;
-    int nr;
+    int named;
+    union {
+        char *label;
+        int nr;
+    } u;
 } ir_reg_t;
 
 /*
