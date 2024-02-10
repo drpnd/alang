@@ -1551,14 +1551,6 @@ _func(compiler_t *c, func_t *fn)
         c->err.code = COMPILER_NOMEM;
         return NULL;
     }
-    block->label = strdup(fn->id);
-    if ( block->label == NULL ) {
-        /* FIXME: free val */
-        free(block);
-        _env_delete(env);
-        c->err.code = COMPILER_NOMEM;
-        return NULL;
-    }
     irfunc->name = strdup(fn->id);
     if ( irfunc->name == NULL ) {
         return NULL;
@@ -1619,14 +1611,6 @@ _coroutine(compiler_t *c, coroutine_t *cr)
     block = malloc(sizeof(compiler_block_t));
     if ( block == NULL ) {
         /* FIXME: free val */
-        _env_delete(env);
-        c->err.code = COMPILER_NOMEM;
-        return NULL;
-    }
-    block->label = strdup(cr->id);
-    if ( block->label == NULL ) {
-        /* FIXME: free val */
-        free(block);
         _env_delete(env);
         c->err.code = COMPILER_NOMEM;
         return NULL;
@@ -1805,7 +1789,6 @@ _free_blocks(compiler_t *c, compiler_block_t *b)
     switch ( b->type ) {
     case BLOCK_FUNC:
     case BLOCK_COROUTINE:
-        free(b->label);
         /* Release all environements */
         env = b->env;
         while ( env != NULL ) {
