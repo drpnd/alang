@@ -86,7 +86,6 @@ struct _compiler_block {
     compiler_block_type_t type;
     char *label;
     ir_func_t *func;
-    compiler_instr_t *instrs;
     compiler_env_t *env;
     compiler_block_t *next;
 };

@@ -1564,7 +1564,6 @@ _func(compiler_t *c, func_t *fn)
         return NULL;
     }
     block->type = BLOCK_FUNC;
-    block->instrs = NULL;
     block->env = env;
     block->next = NULL;
     block->func = irfunc;
@@ -1637,7 +1636,6 @@ _coroutine(compiler_t *c, coroutine_t *cr)
         return NULL;
     }
     block->type = BLOCK_COROUTINE;
-    block->instrs = NULL;
     block->env = env;
     block->next = NULL;
     block->func = irfunc;
@@ -1808,7 +1806,6 @@ _free_blocks(compiler_t *c, compiler_block_t *b)
     case BLOCK_FUNC:
     case BLOCK_COROUTINE:
         free(b->label);
-        _free_instrs(c, b->instrs);
         /* Release all environements */
         env = b->env;
         while ( env != NULL ) {
