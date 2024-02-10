@@ -216,11 +216,20 @@ struct _block {
 };
 
 /*
+ * Type of function
+ */
+typedef enum {
+    IR_FUNC_FUNC,
+    IR_FUNC_COROUTINE,
+} ir_func_type_t;
+
+/*
  * Function / Coroutine
  */
 typedef struct _func ir_func_t;
 struct _func {
     char *name;
+    ir_func_type_t type;
     size_t nblocks;
     ir_block_t *blocks;
     ir_func_t *next;

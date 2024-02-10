@@ -37,7 +37,7 @@
 
 /* Declarations */
 static compiler_error_t *
-_error_new(void);
+_error_new(compiler_error_code_t, pos_t);
 static compiler_instr_t *
 _instr_new(void);
 static void
@@ -73,7 +73,7 @@ _st(compiler_t *, st_t *);
  * _error_new -- allocate a new error
  */
 static compiler_error_t *
-_error_new(void)
+_error_new(compiler_error_code_t code, pos_t pos)
 {
     compiler_error_t *err;
 
@@ -82,7 +82,9 @@ _error_new(void)
         return NULL;
     }
     memset(err, 0, sizeof(compiler_error_t));
-    err->err = COMPILER_ERROR_UNKNOWN;
+    err->err = code;
+    err->pos = pos;
+    err->next = NULL;
 
     return err;
 }
@@ -1500,6 +1502,13 @@ _func(compiler_t *c, func_t *fn)
     compiler_env_t *env;
     compiler_block_t *block;
     compiler_val_t *val;
+    ir_func_t *func;
+
+    /* Allocate a new function IR */
+    func = ir_func_new();
+    if ( func == NULL ) {
+        return NULL;
+    }
 
     /* Allocate a new environment */
     env = _env_new(c);
@@ -1560,6 +1569,13 @@ _coroutine(compiler_t *c, coroutine_t *cr)
     compiler_env_t *env;
     compiler_block_t *block;
     compiler_val_t *val;
+    ir_func_t *func;
+
+    /* Allocate a new function IR */
+    func = ir_func_new();
+    if ( func == NULL ) {
+        return NULL;
+    }
 
     /* Allocate a new environment */
     env = _env_new(c);
@@ -1866,8 +1882,6 @@ minica_compile(st_t *st)
         return NULL;
     }
     c->blocks = b;
-
-    /* Compile to IR. */
 
     return c;
 }
