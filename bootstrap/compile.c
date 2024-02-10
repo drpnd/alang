@@ -320,25 +320,9 @@ _var_new(compiler_t *c, const char *id, type_t *type)
     var->irreg.u.id = strdup(id);
 
     var->type = type;
-    var->size = 0;
     var->arg = 0;
     var->ret = 0;
     var->next = NULL;
-
-    /* Resolve the size from the type */
-    sz = _type2size(c, type);
-    if ( sz < 0 ) {
-        free(var);
-        return NULL;
-    }
-    var->size = sz;
-
-    /* Resolve the register from the type */
-    rtype = _type2reg(c, type);
-    if ( rtype == REG_TYPE_UNDEF ) {
-        free(var);
-        return NULL;
-    }
 
     return var;
 }
