@@ -196,7 +196,6 @@ _env_new(compiler_t *c)
     env->code.head = NULL;
     env->code.tail = NULL;
 
-    env->opt.max_var_id = -1;
     env->opt.max_reg_id = -1;
 
     return env;
