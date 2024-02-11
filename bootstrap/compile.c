@@ -736,14 +736,14 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t pos, int arg,
     /* Add the variable to the table */
     ret = _var_add(env, var);
     if ( ret < 0 ) {
-        /* Already exists (duplicate declaration) */
-        /* Add to the error stack */
+        /* Already exists (duplicate declaration), then raise an error */
         err = _error_new(COMPILER_DUPLICATE_VARIABLE, pos);
         if ( err == NULL ) {
             /* Failed to allocate an error */
             c->err_pool.err = COMPILER_NOMEM;
             c->err_pool.pos = pos;
         } else {
+            /* Push the error to the stack */
             err->next = c->err_stack;
             c->err_stack = err;
         }
