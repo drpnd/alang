@@ -29,8 +29,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
+typedef struct _var compiler_var_t;
 typedef struct _val compiler_val_t;
-typedef struct _compiler_env compiler_env_t;
+typedef struct _env compiler_env_t;
 
 /*
  * Reference operand
@@ -117,8 +118,7 @@ typedef enum {
 /*
  * Variable
  */
-typedef struct _compiler_var compiler_var_t;
-struct _compiler_var {
+struct _var {
     ir_reg_t irreg;
     type_t *type;
     int arg;
@@ -217,7 +217,7 @@ typedef struct {
 /*
  * Environment (scope)
  */
-struct _compiler_env {
+struct _env {
     /* Variables */
     compiler_var_table_t *vars;
     /* Instructions */
