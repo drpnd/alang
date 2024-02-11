@@ -712,7 +712,7 @@ _literal(compiler_t *c, compiler_env_t *env, literal_t *lit)
  * _decl -- parse a declaration
  */
 static compiler_val_t *
-_decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
+_decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t pos, int arg,
       int retflag)
 {
     compiler_val_t *val;
@@ -724,7 +724,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     var = _var_new(c, decl->id, decl->type);
     if ( var == NULL ) {
         c->err.code = COMPILER_NOMEM;
-        memcpy(&c->err.pos, pos, sizeof(pos_t));
+        memcpy(&c->err.pos, &pos, sizeof(pos_t));
         return NULL;
     }
     var->arg = arg;
@@ -738,11 +738,11 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     if ( ret < 0 ) {
         /* Already exists (duplicate declaration) */
         /* Add to the error stack */
-        err = _error_new(COMPILER_DUPLICATE_VARIABLE, *pos);
+        err = _error_new(COMPILER_DUPLICATE_VARIABLE, pos);
         if ( err == NULL ) {
             /* Failed to allocate an error */
             c->err_pool.err = COMPILER_NOMEM;
-            c->err_pool.pos = *pos;
+            c->err_pool.pos = pos;
         } else {
             err->next = c->err_stack;
             c->err_stack = err;
@@ -756,7 +756,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t *pos, int arg,
     val = _val_new_var(env, var);
     if ( val == NULL ) {
         c->err.code = COMPILER_NOMEM;
-        memcpy(&c->err.pos, pos, sizeof(pos_t));
+        memcpy(&c->err.pos, &pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -775,9 +775,9 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args, int retvals)
     a = args->head;
     while ( a != NULL ) {
         if ( retvals ) {
-            val = _decl(c, env, a->decl, &a->pos, 0, 1);
+            val = _decl(c, env, a->decl, a->pos, 0, 1);
         } else {
-            val = _decl(c, env, a->decl, &a->pos, 1, 0);
+            val = _decl(c, env, a->decl, a->pos, 1, 0);
         }
         if ( val == NULL ) {
             return -1;
@@ -794,7 +794,7 @@ _args(compiler_t *c, compiler_env_t *env, arg_list_t *args, int retvals)
  * _assign -- parse an assignment instruction
  */
 static compiler_val_t *
-_assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
+_assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t pos)
 {
     compiler_val_t *v0;
     compiler_val_t *v1;
@@ -807,7 +807,7 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
     if ( op->fix != FIX_INFIX ) {
         /* Syntax error */
         c->err.code = COMPILER_SYNTAX_ERROR;
-        memcpy(&c->err.pos, pos, sizeof(pos_t));
+        memcpy(&c->err.pos, &pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -819,7 +819,7 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
         _val_delete(v0);
         _val_delete(v1);
         c->err.code = COMPILER_SYNTAX_ERROR;
-        memcpy(&c->err.pos, pos, sizeof(pos_t));
+        memcpy(&c->err.pos, &pos, sizeof(pos_t));
         return NULL;
     }
 
@@ -848,7 +848,7 @@ _assign(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
  */
 static compiler_val_t *
 _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
-          pos_t *pos)
+          pos_t pos)
 {
     compiler_val_t *vr;
     compiler_val_t *v0;
@@ -905,7 +905,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
  */
 static compiler_val_t *
 _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
-           pos_t *pos)
+           pos_t pos)
 {
     compiler_val_t *vr;
     compiler_val_t *v;
@@ -952,7 +952,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
  */
 static compiler_val_t *
 _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
-        pos_t *pos)
+        pos_t pos)
 {
     compiler_val_t *vr;
     compiler_val_t *v0;
@@ -1004,7 +1004,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
  */
 static compiler_val_t *
 _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
-        pos_t *pos)
+        pos_t pos)
 {
     compiler_instr_t *instr;
     compiler_val_t *val;
@@ -1071,7 +1071,7 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
  * _op -- parse an operator
  */
 static compiler_val_t *
-_op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t *pos)
+_op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t pos)
 {
     compiler_val_t *val;
 
@@ -1324,13 +1324,13 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
         val = _id(c, env, e->u.id);
         break;
     case EXPR_DECL:
-        val = _decl(c, env, e->u.decl, &e->pos, 0, 0);
+        val = _decl(c, env, e->u.decl, e->pos, 0, 0);
         break;
     case EXPR_LITERAL:
         val = _literal(c, env, e->u.lit);
         break;
     case EXPR_OP:
-        val = _op(c, env, e->u.op, &e->pos);
+        val = _op(c, env, e->u.op, e->pos);
         break;
     case EXPR_SWITCH:
         val = _switch(c, env, &e->u.sw);
