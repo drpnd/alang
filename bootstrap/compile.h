@@ -169,11 +169,6 @@ struct _val {
     } u;
     /* Linked list */
     compiler_val_t *next;
-    /* For compiler use */
-    struct {
-        int id;
-        type_t *type;
-    } opt;
 };
 
 /*

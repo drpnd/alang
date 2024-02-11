@@ -404,8 +404,6 @@ _val_new(void)
     }
     memset(val, 0, sizeof(compiler_val_t));
     val->type = VAL_NIL;
-    val->opt.id = -1;
-    val->opt.type = NULL;
 
     return val;
 }
@@ -441,8 +439,6 @@ _val_new_reg(compiler_env_t *env)
     }
     val->type = VAL_REG;
 
-    val->opt.id = ++env->opt.max_reg_id;
-
     return val;
 }
 
@@ -459,8 +455,6 @@ _val_new_reg_set(compiler_env_t *env)
         return NULL;
     }
     val->type = VAL_REG_SET;
-
-    val->opt.id = ++env->opt.max_reg_id;
 
     return val;
 }
@@ -479,8 +473,6 @@ _val_new_var(compiler_env_t *env, compiler_var_t *var)
     }
     val->type = VAL_VAR;
     val->u.var = var;
-
-    val->opt.id = ++env->opt.max_var_id;
 
     return val;
 }
