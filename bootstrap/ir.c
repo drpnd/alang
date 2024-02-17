@@ -152,6 +152,29 @@ ir_operand_delete(ir_operand_t *o)
 }
 
 /*
+ * ir_num_results -- return the number of results of the specified opcode
+ */
+int
+ir_num_results(ir_opcode_t opcode)
+{
+    int cnt;
+
+    switch ( opcode ) {
+    case IR_OPCODE_STORE:
+        cnt = 0;
+        break;
+    case IR_OPCODE_ALLOCA:
+    case IR_OPCODE_LOAD:
+        cnt = 1;
+        break;
+    default:
+        cnt = -1;
+    }
+
+    return cnt;
+}
+
+/*
  * ir_num_operands -- return the number of operands for the specified opcode
  */
 int
@@ -159,7 +182,7 @@ ir_num_operands(ir_opcode_t opcode)
 {
     int cnt;
 
-    switch (opcode) {
+    switch ( opcode ) {
     case IR_OPCODE_INC:
     case IR_OPCODE_DEC:
         cnt = 1;
