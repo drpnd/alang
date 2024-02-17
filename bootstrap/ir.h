@@ -190,6 +190,7 @@ typedef struct {
  */
 typedef struct {
     ir_opcode_t opcode;
+    ir_reg_t results[2];
     ir_operand_t operands[4];
 } ir_instr_t;
 
