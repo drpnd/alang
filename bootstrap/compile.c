@@ -635,6 +635,25 @@ _instr_mov(operand_t *op0, operand_t *op1)
 }
 
 /*
+ * _instr_alloca -- allocate a new alloca instruction
+ */
+static ir_instr_t *
+_instr_alloca(ir_operand_t *op0)
+{
+    ir_instr_t *instr;
+
+    instr = ir_instr_new();
+    if ( instr == NULL ) {
+        return NULL;
+    }
+    instr->opcode = IR_OPCODE_ALLOCA;
+    // instr->results[0];
+    // instr->operands[0];
+
+    return instr;
+}
+
+/*
  * _instr_add -- allocate a new add insruction
  */
 static ir_instr_t *
