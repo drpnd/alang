@@ -31,6 +31,9 @@
  * Opcode
  */
 typedef enum {
+    IR_OPCODE_ALLOCA,   /* %reg = alloca <type> */
+    IR_OPCODE_LOAD,     /* %reg = load <type>* <ptr> */
+    IR_OPCODE_STORE,    /* store <type> <value> <type>* <ptr> */
     IR_OPCODE_MOV,      /* src,dst */
     IR_OPCODE_ADD,      /* op1,op2,dst */
     IR_OPCODE_SUB,      /* op1,op2,dst */
