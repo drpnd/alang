@@ -658,7 +658,7 @@ _instr_add(ir_operand_t *op0, ir_operand_t *op1)
  */
 static ir_instr_t *
 _instr_infix(ir_opcode_t opcode, ir_operand_t *op0, ir_operand_t *op1,
-             ir_operand_t *op2)
+             ir_reg_t *results)
 {
     ir_instr_t *instr;
 
@@ -891,11 +891,11 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     op0.u.val = v0;
     op1.type = OPERAND_VAL;
     op1.u.val = v1;
-    op2.type = OPERAND_VAL;
-    op2.u.val = vr;
+    //op2.type = OPERAND_VAL;
+    //op2.u.val = vr;
 
     /* Add an instruction */
-    instr = _instr_infix(opcode, &op0, &op1, &op2);
+    instr = _instr_infix(opcode, &op0, &op1, NULL);
     if ( instr == NULL ) {
         _val_delete(v0);
         _val_delete(v1);
