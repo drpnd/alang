@@ -314,9 +314,8 @@ _var_new(compiler_t *c, const char *id, type_t *type)
         return NULL;
     }
     var->irreg.type = rtype;
-    var->irreg.named = 1;
     var->irreg.assigned = 1;
-    var->irreg.u.id = strdup(id);
+    var->irreg.id = strdup(id);
 
     var->type = type;
     var->arg = 0;
@@ -332,9 +331,7 @@ _var_new(compiler_t *c, const char *id, type_t *type)
 static void
 _var_delete(compiler_var_t *var)
 {
-    if ( var->irreg.named ) {
-        free(var->irreg.u.id);
-    }
+    free(var->irreg.id);
     free(var);
 }
 
@@ -350,14 +347,8 @@ _var_add(compiler_env_t *env, compiler_var_t *var)
     v = env->vars->top;
     while ( v != NULL ) {
         /* Duplication check */
-        if ( var->irreg.named && v->irreg.named ) {
-            if ( strcmp(var->irreg.u.id, v->irreg.u.id) == 0 ) {
-                return -1;
-            }
-        } else if ( !var->irreg.named && !v->irreg.named ) {
-            if ( var->irreg.u.id == v->irreg.u.id ) {
-                return -1;
-            }
+        if ( strcmp(var->irreg.id, v->irreg.id) == 0 ) {
+            return -1;
         }
         v = v->next;
     }
@@ -378,7 +369,7 @@ _var_search(compiler_env_t *env, const char *id)
 
     var = env->vars->top;
     while ( var != NULL ) {
-        if ( var->irreg.named && strcmp(id, var->irreg.u.id) == 0 ) {
+        if ( strcmp(id, var->irreg.id) == 0 ) {
             /* Found a variable with the specified identifier */
             return var;
         }

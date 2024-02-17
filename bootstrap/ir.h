@@ -145,12 +145,8 @@ typedef enum {
  */
 typedef struct {
     ir_reg_type_t type;
-    int named;
     int assigned;
-    union {
-        char *id;
-        int nr;
-    } u;
+    char *id;
 } ir_reg_t;
 
 /*
