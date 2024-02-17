@@ -31,10 +31,12 @@
  * Opcode
  */
 typedef enum {
+    /* Memory operations */
     IR_OPCODE_ALLOCA,   /* %reg = alloca <type> */
     IR_OPCODE_LOAD,     /* %reg = load <type>* <ptr> */
     IR_OPCODE_STORE,    /* store <type> <value> <type>* <ptr> */
     IR_OPCODE_MOV,      /* src,dst */
+    /* Arithmetic operations */
     IR_OPCODE_ADD,      /* op1,op2,dst */
     IR_OPCODE_SUB,      /* op1,op2,dst */
     IR_OPCODE_MUL,      /* op1,op2,dst */
@@ -42,15 +44,18 @@ typedef enum {
     IR_OPCODE_MOD,      /* op1,op2,{r,q} */
     IR_OPCODE_INC,      /* op */
     IR_OPCODE_DEC,      /* op */
+    /* Logical operations */
     IR_OPCODE_NOT,      /* op,dst */
     IR_OPCODE_COMP,     /* op,dst */
     IR_OPCODE_LAND,     /* op1,op2,dst */
     IR_OPCODE_LOR,      /* op1,op2,dst */
+    /* Bit-wise operations */
     IR_OPCODE_AND,      /* op1,op2,dst */
     IR_OPCODE_OR,       /* op1,op2,dst */
     IR_OPCODE_XOR,      /* op1,op2,dst */
     IR_OPCODE_LSHIFT,   /* op1,op2,dst */
     IR_OPCODE_RSHIFT,   /* op1,op2,dst */
+    /* Controls */
     IR_OPCODE_CMP_EQ,   /* op1,op2,dst */
     IR_OPCODE_CMP_NEQ,  /* op1,op2,dst */
     IR_OPCODE_CMP_GT,   /* op1,op2,dst */
