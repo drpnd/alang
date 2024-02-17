@@ -635,6 +635,15 @@ _instr_mov(operand_t *op0, operand_t *op1)
 }
 
 /*
+ * _instr_add -- allocate a new add insruction
+ */
+static ir_instr_t *
+_instr_add(ir_operand_t *op0, ir_operand_t *op1)
+{
+    return NULL;
+}
+
+/*
  * _instr_infix -- allocate a new infix instruction
  */
 static compiler_instr_t *
