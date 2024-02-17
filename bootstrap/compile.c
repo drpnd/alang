@@ -657,7 +657,8 @@ _instr_add(ir_operand_t *op0, ir_operand_t *op1)
  * _instr_infix -- allocate a new infix instruction
  */
 static ir_instr_t *
-_instr_infix(ir_opcode_t opcode, operand_t *op0, operand_t *op1, operand_t *op2)
+_instr_infix(ir_opcode_t opcode, ir_operand_t *op0, ir_operand_t *op1,
+             ir_operand_t *op2)
 {
     ir_instr_t *instr;
 
