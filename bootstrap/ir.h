@@ -190,11 +190,19 @@ typedef struct {
 } ir_operand_t;
 
 /*
+ * Result
+ */
+typedef struct {
+    int n;
+    ir_reg_t reg[2];
+} ir_result_t;
+
+/*
  * Instruction
  */
 typedef struct {
     ir_opcode_t opcode;
-    ir_reg_t results[2];
+    ir_result_t result;
     ir_operand_t operands[4];
 } ir_instr_t;
 

@@ -891,11 +891,14 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     op0.u.val = v0;
     op1.type = OPERAND_VAL;
     op1.u.val = v1;
-    //op2.type = OPERAND_VAL;
-    //op2.u.val = vr;
+    op2.type = OPERAND_VAL;
+    op2.u.val = vr;
+
+    ir_operand_t irop0;
+    ir_operand_t irop1;
 
     /* Add an instruction */
-    instr = _instr_infix(opcode, &op0, &op1, NULL);
+    instr = _instr_infix(opcode, &irop0, &irop1, NULL);
     if ( instr == NULL ) {
         _val_delete(v0);
         _val_delete(v1);
