@@ -968,7 +968,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     compiler_val_t *vr;
     compiler_val_t *v0;
     compiler_val_t *v1;
-    compiler_instr_t *instr;
+    ir_instr_t *instr;
     int ret;
 
     if ( op->fix != FIX_INFIX ) {
@@ -987,25 +987,25 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         return NULL;
     }
 
-    instr = _instr_new();
+    instr = ir_instr_new();
     if ( instr == NULL ) {
         _val_delete(v0);
         _val_delete(v1);
         _val_delete(vr);
         return NULL;
     }
-    instr->ir.opcode = opcode;
-    instr->operands[0].type = OPERAND_VAL;
-    instr->operands[0].u.val = v0;
-    instr->operands[1].type = OPERAND_VAL;
-    instr->operands[1].u.val = v1;
-    instr->operands[2].type = OPERAND_VAL;
-    instr->operands[2].u.val = vr;
-    ret = _append_instr(&env->code, instr);
-    if ( ret < 0 ) {
-        /* FIXME: delete the instruction */
-        return NULL;
-    }
+    instr->opcode = opcode;
+    //instr->operands[0].type = OPERAND_VAL;
+    //instr->operands[0].u.val = v0;
+    //instr->operands[1].type = OPERAND_VAL;
+    //instr->operands[1].u.val = v1;
+    //instr->operands[2].type = OPERAND_VAL;
+    //instr->operands[2].u.val = vr;
+    //ret = _append_instr(&env->code, instr);
+    //if ( ret < 0 ) {
+    //    /* FIXME: delete the instruction */
+    //    return NULL;
+    //}
 
     return vr;
 }
