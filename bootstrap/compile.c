@@ -885,6 +885,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         _val_delete(v1);
         return NULL;
     }
+    /* FIXME: val to reg */
 
     /* Prepare operands */
     op0.type = OPERAND_VAL;
@@ -940,6 +941,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         _val_delete(v);
         return NULL;
     }
+    /* FIXME: val to reg */
 
     /* Add an instruction */
     instr = _instr_new();
@@ -990,6 +992,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         _val_delete(v1);
         return NULL;
     }
+    /* FIXME: val to reg */
 
     instr = ir_instr_new();
     if ( instr == NULL ) {
@@ -999,7 +1002,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         return NULL;
     }
     instr->opcode = opcode;
-    //instr->operands[0].type = OPERAND_VAL;
+    instr->operands[0].type = OPERAND_TYPE_REG;
     //instr->operands[0].u.val = v0;
     //instr->operands[1].type = OPERAND_VAL;
     //instr->operands[1].u.val = v1;
