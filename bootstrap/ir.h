@@ -37,11 +37,11 @@ typedef enum {
     IR_OPCODE_STORE,    /* store <type> <value> <type>* <ptr> */
     IR_OPCODE_MOV,      /* src,dst */
     /* Arithmetic operations */
-    IR_OPCODE_ADD,      /* op1,op2,dst */
-    IR_OPCODE_SUB,      /* op1,op2,dst */
-    IR_OPCODE_MUL,      /* op1,op2,dst */
-    IR_OPCODE_DIV,      /* op1,op2,{q,r} */
-    IR_OPCODE_MOD,      /* op1,op2,{r,q} */
+    IR_OPCODE_ADD,      /* %reg = %op1,%op2 */
+    IR_OPCODE_SUB,      /* %reg = op1,op2 */
+    IR_OPCODE_MUL,      /* %reg = op1,op2 */
+    IR_OPCODE_DIV,      /* %q,%r = op1,op2 */
+    IR_OPCODE_MOD,      /* %r,%q = op1,op2 */
     IR_OPCODE_INC,      /* op */
     IR_OPCODE_DEC,      /* op */
     /* Logical operations */
