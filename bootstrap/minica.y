@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2018-2019,2021-2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2018-2019,2021-2022,2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -139,7 +139,7 @@ void yyerror(YYLTYPE *, yyscan_t, const char *);
 
 %nonassoc ELSENOP RETNOP
 
-%pure-parser
+%define api.pure
 %locations
 
 %lex-param { void *scanner }
@@ -695,7 +695,7 @@ p_expr:         p_expr TOK_INC
                 {
                     $$ = expr_new_member(scanner, $1, $3);
                 }
-        |       p_expr TOK_LPAREN expr_list TOK_RPAREN
+        |       identifier TOK_LPAREN expr_list TOK_RPAREN
                 {
                     $$ = expr_new_call(scanner, $1, $3);
                 }

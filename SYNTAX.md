@@ -6,9 +6,11 @@ All the data are carried a packet.
 
 ## Local variables
 
+A variable is an identifier starting with an alphabet character or an underscore `_` followed by 0+ characters of alphabets, digits, or underscores:  [A-Za-z_][A-Za-z0-9_]*.
+The type of a variable is annotated following a `:`.
+
     x: i32
     y: i32 = 1
-
 
 ## Pointer
 

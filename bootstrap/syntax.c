@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019,2021-2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019,2021-2022,2024 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,23 +28,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Prototype declarations */
+static literal_t *
+_literal_new(void *scanner);
+static expr_t *
+_expr_new(void *);
+
 /*
- * literal_new_int -- allocate an integer literal
+ * _literal_new -- allocate a new literal
  */
-literal_t *
-literal_new_int(void *scanner, const char *v, int type)
+static literal_t *
+_literal_new(void *scanner)
 {
     literal_t *lit;
     YYLTYPE *loc;
 
     lit = malloc(sizeof(literal_t));
-    if ( NULL == lit ) {
-        return NULL;
-    }
-    lit->type = type;
-    lit->u.n = strdup(v);
-    if ( NULL == lit->u.n ) {
-        free(lit);
+    if ( lit == NULL ) {
         return NULL;
     }
     lit->next = NULL;
@@ -54,6 +54,54 @@ literal_new_int(void *scanner, const char *v, int type)
     lit->pos.first_column = loc->first_column;
     lit->pos.last_line = loc->last_line;
     lit->pos.last_column = loc->last_column;
+
+    return lit;
+}
+
+/*
+ * _expr_new -- allocate a new expression
+ */
+static expr_t *
+_expr_new(void *scanner)
+{
+    expr_t *e;
+    YYLTYPE *loc;
+
+    /* Allocate an expression */
+    e = malloc(sizeof(expr_t));
+    if ( e == NULL ) {
+        return NULL;
+    }
+    e->next = NULL;
+
+    /* Save the scanner location */
+    loc = yyget_lloc(scanner);
+    e->pos.first_line = loc->first_line;
+    e->pos.first_column = loc->first_column;
+    e->pos.last_line = loc->last_line;
+    e->pos.last_column = loc->last_column;
+
+    return e;
+}
+
+/*
+ * literal_new_int -- allocate an integer literal
+ */
+literal_t *
+literal_new_int(void *scanner, const char *v, int type)
+{
+    literal_t *lit;
+
+    lit = _literal_new(scanner);
+    if ( lit == NULL ) {
+        return NULL;
+    }
+    lit->type = type;
+    lit->u.n = strdup(v);
+    if ( lit->u.n == NULL ) {
+        free(lit);
+        return NULL;
+    }
 
     return lit;
 }
@@ -65,10 +113,9 @@ literal_t *
 literal_new_float(void *scanner, const char *v)
 {
     literal_t *lit;
-    YYLTYPE *loc;
 
-    lit = malloc(sizeof(literal_t));
-    if ( NULL == lit ) {
+    lit = _literal_new(scanner);
+    if ( lit == NULL ) {
         return NULL;
     }
     lit->type = LIT_FLOAT;
@@ -77,13 +124,6 @@ literal_new_float(void *scanner, const char *v)
         free(lit);
         return NULL;
     }
-    lit->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    lit->pos.first_line = loc->first_line;
-    lit->pos.first_column = loc->first_column;
-    lit->pos.last_line = loc->last_line;
-    lit->pos.last_column = loc->last_column;
 
     return lit;
 }
@@ -95,25 +135,17 @@ literal_t *
 literal_new_string(void *scanner, const char *v)
 {
     literal_t *lit;
-    YYLTYPE *loc;
 
-    lit = malloc(sizeof(literal_t));
-    if ( NULL == lit ) {
+    lit = _literal_new(scanner);
+    if ( lit == NULL ) {
         return NULL;
     }
     lit->type = LIT_STRING;
     lit->u.s = strdup(v);;
-    if ( NULL == lit->u.s ) {
+    if ( lit->u.s == NULL ) {
         free(lit);
         return NULL;
     }
-    lit->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    lit->pos.first_line = loc->first_line;
-    lit->pos.first_column = loc->first_column;
-    lit->pos.last_line = loc->last_line;
-    lit->pos.last_column = loc->last_column;
 
     return lit;
 }
@@ -125,21 +157,13 @@ literal_t *
 literal_new_bool(void *scanner, bool_t bool)
 {
     literal_t *lit;
-    YYLTYPE *loc;
 
-    lit = malloc(sizeof(literal_t));
-    if ( NULL == lit ) {
+    lit = _literal_new(scanner);
+    if ( lit == NULL ) {
         return NULL;
     }
     lit->type = LIT_BOOL;
     lit->u.b = bool;
-    lit->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    lit->pos.first_line = loc->first_line;
-    lit->pos.first_column = loc->first_column;
-    lit->pos.last_line = loc->last_line;
-    lit->pos.last_column = loc->last_column;
 
     return lit;
 }
@@ -151,20 +175,12 @@ literal_t *
 literal_new_nil(void *scanner)
 {
     literal_t *lit;
-    YYLTYPE *loc;
 
-    lit = malloc(sizeof(literal_t));
-    if ( NULL == lit ) {
+    lit = _literal_new(scanner);
+    if ( lit == NULL ) {
         return NULL;
     }
     lit->type = LIT_NIL;
-    lit->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    lit->pos.first_line = loc->first_line;
-    lit->pos.first_column = loc->first_column;
-    lit->pos.last_line = loc->last_line;
-    lit->pos.last_column = loc->last_column;
 
     return lit;
 }
@@ -650,25 +666,17 @@ expr_t *
 expr_new_id(void *scanner, const char *id)
 {
     expr_t *e;
-    YYLTYPE *loc;
 
-    e = malloc(sizeof(expr_t));
-    if ( NULL == e ) {
+    e = _expr_new(scanner);
+    if ( e == NULL ) {
         return NULL;
     }
     e->type = EXPR_ID;
     e->u.id = strdup(id);
-    if ( NULL == e->u.id ) {
+    if ( e->u.id == NULL ) {
         free(e);
         return NULL;
     }
-    e->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    e->pos.first_line = loc->first_line;
-    e->pos.first_column = loc->first_column;
-    e->pos.last_line = loc->last_line;
-    e->pos.last_column = loc->last_column;
 
     return e;
 }
@@ -680,21 +688,13 @@ expr_t *
 expr_new_decl(void *scanner, decl_t *decl)
 {
     expr_t *e;
-    YYLTYPE *loc;
 
-    e = malloc(sizeof(expr_t));
-    if ( NULL == e ) {
+    e = _expr_new(scanner);
+    if ( e == NULL ) {
         return NULL;
     }
     e->type = EXPR_DECL;
     e->u.decl = decl;
-    e->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    e->pos.first_line = loc->first_line;
-    e->pos.first_column = loc->first_column;
-    e->pos.last_line = loc->last_line;
-    e->pos.last_column = loc->last_column;
 
     return e;
 }
@@ -706,21 +706,13 @@ expr_t *
 expr_new_literal(void *scanner, literal_t *lit)
 {
     expr_t *e;
-    YYLTYPE *loc;
 
-    e = malloc(sizeof(expr_t));
-    if ( NULL == e ) {
+    e = _expr_new(scanner);
+    if ( e == NULL ) {
         return NULL;
     }
     e->type = EXPR_LITERAL;
     e->u.lit = lit;
-    e->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    e->pos.first_line = loc->first_line;
-    e->pos.first_column = loc->first_column;
-    e->pos.last_line = loc->last_line;
-    e->pos.last_column = loc->last_column;
 
     return e;
 }
@@ -732,10 +724,9 @@ expr_t *
 expr_new_member(void *scanner, expr_t *pe, const char *id)
 {
     expr_t *e;
-    YYLTYPE *loc;
 
-    e = malloc(sizeof(expr_t));
-    if ( NULL == e ) {
+    e = _expr_new(scanner);
+    if ( e == NULL ) {
         return NULL;
     }
     e->type = EXPR_MEMBER;
@@ -745,13 +736,6 @@ expr_new_member(void *scanner, expr_t *pe, const char *id)
         free(e);
         return NULL;
     }
-    e->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    e->pos.first_line = loc->first_line;
-    e->pos.first_column = loc->first_column;
-    e->pos.last_line = loc->last_line;
-    e->pos.last_column = loc->last_column;
 
     return e;
 }
@@ -760,13 +744,12 @@ expr_new_member(void *scanner, expr_t *pe, const char *id)
  * expr_new_call -- allocate a call expression
  */
 expr_t *
-expr_new_call(void *scanner, expr_t *callee, expr_list_t *exprs)
+expr_new_call(void *scanner, const char *callee, expr_list_t *exprs)
 {
     expr_t *e;
-    YYLTYPE *loc;
 
-    e = malloc(sizeof(expr_t));
-    if ( NULL == e ) {
+    e = _expr_new(scanner);
+    if ( e == NULL ) {
         return NULL;
     }
     e->u.call = malloc(sizeof(call_t));
@@ -775,15 +758,13 @@ expr_new_call(void *scanner, expr_t *callee, expr_list_t *exprs)
         return NULL;
     }
     e->type = EXPR_CALL;
-    e->u.call->callee = callee;
+    e->u.call->callee = strdup(callee);
+    if ( e->u.call->callee == NULL ) {
+        free(e);
+        free(e->u.call);
+        return NULL;
+    }
     e->u.call->exprs = exprs;
-    e->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    e->pos.first_line = loc->first_line;
-    e->pos.first_column = loc->first_column;
-    e->pos.last_line = loc->last_line;
-    e->pos.last_column = loc->last_column;
 
     return e;
 }
@@ -795,10 +776,9 @@ expr_t *
 expr_new_ref(void *scanner, expr_t *var, expr_t *expr)
 {
     expr_t *e;
-    YYLTYPE *loc;
 
-    e = malloc(sizeof(expr_t));
-    if ( NULL == e ) {
+    e = _expr_new(scanner);
+    if ( e == NULL ) {
         return NULL;
     }
     e->u.ref = malloc(sizeof(ref_t));
@@ -809,13 +789,6 @@ expr_new_ref(void *scanner, expr_t *var, expr_t *expr)
     e->type = EXPR_REF;
     e->u.ref->var = var;
     e->u.ref->arg = expr;
-    e->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    e->pos.first_line = loc->first_line;
-    e->pos.first_column = loc->first_column;
-    e->pos.last_line = loc->last_line;
-    e->pos.last_column = loc->last_column;
 
     return e;
 }
@@ -827,22 +800,14 @@ expr_t *
 expr_new_switch(void *scanner, expr_t *cond, switch_block_t *block)
 {
     expr_t *e;
-    YYLTYPE *loc;
 
-    e = malloc(sizeof(expr_t));
-    if ( NULL == e ) {
+    e = _expr_new(scanner);
+    if ( e == NULL ) {
         return NULL;
     }
     e->type = EXPR_SWITCH;
     e->u.sw.cond = cond;
     e->u.sw.block = block;
-    e->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    e->pos.first_line = loc->first_line;
-    e->pos.first_column = loc->first_column;
-    e->pos.last_line = loc->last_line;
-    e->pos.last_column = loc->last_column;
 
     return e;
 }
@@ -855,23 +820,15 @@ expr_new_if(void *scanner, expr_t *cond, inner_block_t *bif,
             inner_block_t *belse)
 {
     expr_t *e;
-    YYLTYPE *loc;
 
-    e = malloc(sizeof(expr_t));
-    if ( NULL == e ) {
+    e = _expr_new(scanner);
+    if ( e == NULL ) {
         return NULL;
     }
     e->type = EXPR_IF;
     e->u.ife.cond = cond;
     e->u.ife.bif = bif;
     e->u.ife.belse = belse;
-    e->next = NULL;
-
-    loc = yyget_lloc(scanner);
-    e->pos.first_line = loc->first_line;
-    e->pos.first_column = loc->first_column;
-    e->pos.last_line = loc->last_line;
-    e->pos.last_column = loc->last_column;
 
     return e;
 }

@@ -164,7 +164,7 @@ typedef struct {
  * Function call
  */
 typedef struct {
-    expr_t *callee;
+    char *callee;
     expr_list_t *exprs;
 } call_t;
 
@@ -733,7 +733,7 @@ expr_op_new_suffix(void *, expr_t *, op_type_t);
 expr_t *
 expr_new_member(void *, expr_t *, const char *);
 expr_t *
-expr_new_call(void *, expr_t *, expr_list_t *);
+expr_new_call(void *, const char *, expr_list_t *);
 expr_t *
 expr_new_ref(void *, expr_t *, expr_t *);
 expr_t *
