@@ -212,9 +212,14 @@
     match_expr =
             "match" expression "{" match_arm ( "," match_arm )* [ "," ] "}"
 
+    yield_expr =
+            "yield" expression
+            | "yield" identifier "<-" expression
+
     control_expr =
             if_expr
             | match_expr
+            | yield_expr
             | assign_expr
 
     expression =
@@ -384,6 +389,30 @@ the `=` vs `==` bug class.
 ## DATA FLOW PROCESSING
 
 All the data are carried a packet.
+
+### Multi-port coroutines (bifurcation)
+
+Coroutines can have multiple named output ports. Use
+`yield port <- value` to route data to a specific port:
+
+    coro classifier(input: stream<Packet>) (tcp: stream<Packet>, udp: stream<Packet>, other: stream<Packet>) {
+        for p in input {
+            match p.protocol {
+                "tcp" => yield tcp <- p,
+                "udp" => yield udp <- p,
+                _     => yield other <- p,
+            }
+        }
+    }
+
+Single-port coroutines use `yield value` (implicit port).
+
+### Standard library operations
+
+- `split(p)`: Split a stream into two by predicate
+- `route(f, n)`: Route to N output streams by index function
+- `broadcast(n)`: Duplicate data to N output streams
+- `merge(...)`: Merge multiple streams into one
 
 
 ## References and Pointers
