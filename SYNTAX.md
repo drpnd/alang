@@ -139,8 +139,11 @@
     u_expr =
             p_expr | "-" u_expr | "+" u_expr  | "!" u_expr | "~" u_expr
 
+    cast_expr =
+            u_expr ( "as" type )*
+
     m_expr =
-            u_expr ( ( "*" | "/" | "%" ) u_expr )*
+            cast_expr ( ( "*" | "/" | "%" ) cast_expr )*
 
     a_expr =
             m_expr ( ( "+" | "-" ) m_expr )*
@@ -396,6 +399,7 @@ All the data are carried a packet.
 
 1. `()`, `[]`, `.`
 1. `!`, `~`, unary `+` `-`
+1. `as` (type cast)
 1. `*`, `/`, `%`
 1. `+` `-`
 1. `<<` `>>`
