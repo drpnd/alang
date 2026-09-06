@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2022,2026 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,48 +24,23 @@
 #ifndef _MINICA_H
 #define _MINICA_H
 
-/*
- * Compiler
- */
-typedef struct {
-    int (*compile)(void *);
-} minica_compiler_t;
-
-/*
- * Assembler operations
- */
-typedef struct {
-    int (*assemble)(void *);
-} assembler_ops_t;
-
-/*
- * Assembler
- */
-typedef struct {
-    void *spec;
-    assembler_ops_t ops;
-} assembler_t;
-
-/*
- * Loader operations
- */
-typedef struct {
-    int (*export)(void *);
-} ld_ops_t;
-
-/*
- * Linker
- */
-typedef struct {
-    void *spec;
-    ld_ops_t ops;
-} linker_t;
+#include <stdio.h>
+#include "syntax.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    st_t * minica_parse(FILE *);
+/*
+ * minica_parse - Parse the specified file and return the abstract syntax tree.
+ *
+ * Arguments:
+ *   fp    File pointer to the source file to parse.
+ *
+ * Returns:
+ *   Pointer to the root of the abstract syntax tree (st_t), or NULL on error.
+ */
+st_t * minica_parse(FILE *);
 
 #ifdef __cplusplus
 }
