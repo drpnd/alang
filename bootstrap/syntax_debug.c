@@ -71,22 +71,32 @@ _type(type_t *t)
         return "i64";
     case TYPE_PRIMITIVE_U64:
         return "u64";
-    case TYPE_PRIMITIVE_FP32:
-        return "fp32";
-    case TYPE_PRIMITIVE_FP64:
-        return "fp64";
+    case TYPE_PRIMITIVE_F16:
+        return "f16";
+    case TYPE_PRIMITIVE_F32:
+        return "f32";
+    case TYPE_PRIMITIVE_F64:
+        return "f64";
+    case TYPE_PRIMITIVE_FP4:
+        return "fp4";
+    case TYPE_PRIMITIVE_FP8:
+        return "fp8";
     case TYPE_PRIMITIVE_STRING:
         return "string";
     case TYPE_PRIMITIVE_BOOL:
         return "bool";
     case TYPE_STRUCT:
         return "struct";
-    case TYPE_UNION:
-        return "union";
     case TYPE_ENUM:
         return "enum";
     case TYPE_ID:
-        return t->u.id;
+        return t->id;
+    case TYPE_REFERENCE:
+        return t->is_mut ? "&mut T" : "&T";
+    case TYPE_STREAM:
+        return "stream<T>";
+    case TYPE_CHAN:
+        return "chan<T>";
     }
     return "(unknown type)";
 }
@@ -116,7 +126,7 @@ _assign(op_t *op)
         printf("error\n");
         return;
     }
-    _infix(":=", op->e0, op->e1);
+    _infix("=", op->e0, op->e1);
 }
 
 static void
@@ -179,32 +189,6 @@ _mod(op_t *op)
         return;
     }
     _infix("%%", op->e0, op->e1);
-}
-
-static void
-_inc(op_t *op)
-{
-    if ( FIX_PREFIX == op->fix ) {
-        _prefix("++", op->e0);
-    } else if ( FIX_SUFFIX == op->fix ) {
-        _suffix("++", op->e0);
-    } else {
-        printf("Error\n");
-        return;
-    }
-}
-
-static void
-_dec(op_t *op)
-{
-    if ( FIX_PREFIX == op->fix ) {
-        _prefix("--", op->e0);
-    } else if ( FIX_SUFFIX == op->fix ) {
-        _suffix("--", op->e0);
-    } else {
-        printf("Error\n");
-        return;
-    }
 }
 
 static void
@@ -275,17 +259,11 @@ _op(op_t *op)
     case OP_CMP_LEQ:
         printf("<=\n");
         break;
-    case OP_INC:
-        _inc(op);
-        break;
-    case OP_DEC:
-        _dec(op);
-        break;
     case OP_PTRREF:
         printf("&\n");
         break;
     case OP_PTRIND:
-        printf("@\n");
+        printf("*\n");
         break;
     }
     printf(")");
@@ -301,7 +279,6 @@ _literal(literal_t *lit)
     case LIT_DECINT:
         printf("%s", lit->u.n);
         break;
-    case LIT_OCTINT:
         printf("0%s", lit->u.n);
         break;
     case LIT_FLOAT:
@@ -312,9 +289,6 @@ _literal(literal_t *lit)
         break;
     case LIT_BOOL:
         printf("%s", lit->u.b == BOOL_TRUE ? "true" : "false");
-        break;
-    case LIT_NIL:
-        printf("nil");
         break;
     }
 }
@@ -341,23 +315,41 @@ _expr(expr_t *e)
     case EXPR_OP:
         _op(e->u.op);
         break;
-    case EXPR_SWITCH:
-        printf("SWITCH\n");
+    case EXPR_MATCH:
+        printf("match ");
+        _expr(e->u.match.cond);
+        printf(" { ... }\n");
         break;
     case EXPR_IF:
-        printf("IF\n");
+        printf("if ...\n");
         break;
     case EXPR_CALL:
-        printf("CALL\n");
+        printf("CALL %s(...)\n", e->u.call->callee);
         break;
     case EXPR_REF:
         printf("REF\n");
         break;
     case EXPR_MEMBER:
-        printf("MEMBER\n");
+        _expr(e->u.mem.e);
+        printf(".%s", e->u.mem.id);
         break;
     case EXPR_LIST:
         _expr_list(e->u.list);
+        break;
+    case EXPR_LET:
+        printf("let\n");
+        break;
+    case EXPR_YIELD:
+        printf("yield\n");
+        break;
+    case EXPR_CAST:
+        printf("cast\n");
+        break;
+    case EXPR_RANGE:
+        printf("range\n");
+        break;
+    case EXPR_BLOCK:
+        _inner_block(e->u.block);
         break;
     }
 }
@@ -396,8 +388,29 @@ static void
 _stmt(stmt_t *stmt)
 {
     switch ( stmt->type ) {
+    case STMT_LET:
+        printf("let ");
+        _decl(stmt->u.let_decl);
+        if ( stmt->u.let_decl->init ) {
+            printf(" = ");
+            _expr(stmt->u.let_decl->init);
+        }
+        break;
+    case STMT_REASSIGN:
+        printf("mut ");
+        _op(stmt->u.reassign);
+        break;
     case STMT_WHILE:
         _while(&stmt->u.whilestmt);
+        break;
+    case STMT_FOR:
+        printf("for ...\n");
+        break;
+    case STMT_LOOP:
+        printf("loop\n");
+        break;
+    case STMT_BREAK:
+        printf("break");
         break;
     case STMT_EXPR:
         _expr(stmt->u.expr);
@@ -443,7 +456,7 @@ _func(func_t *fn)
 static void
 _coroutine(coroutine_t *cr)
 {
-    printf("coroutine %s(", cr->id);
+    printf("coro %s(", cr->id);
     _args(cr->args);
     printf(") (");
     _args(cr->rets);
@@ -453,31 +466,18 @@ _coroutine(coroutine_t *cr)
     printf("}\n");
 }
 
-static void
-_module(module_t *md)
-{
-    printf("module %s {\n", md->id);
-    _print_outer_block(md->block);
-    printf("}\n");
-}
 
 static void
 _directive(directive_t *dr)
 {
     switch ( dr->type ) {
-    case DIRECTIVE_USE:
-        printf("use %s\n", dr->u.use.id);
-        break;
     case DIRECTIVE_STRUCT:
         printf("struct %s\n", dr->u.st.id);
-        break;
-    case DIRECTIVE_UNION:
-        printf("union %s\n", dr->u.un.id);
         break;
     case DIRECTIVE_ENUM:
         printf("enum %s\n", dr->u.en.id);
         break;
-    case DIRECTIVE_TYPEDEF:
+    case DIRECTIVE_TYPE_ALIAS:
         printf("typedef\n");
         break;
     }
@@ -492,9 +492,6 @@ _outer_block_entry(outer_block_entry_t *e)
         break;
     case OUTER_BLOCK_COROUTINE:
         _coroutine(e->u.cr);
-        break;
-    case OUTER_BLOCK_MODULE:
-        _module(e->u.md);
         break;
     case OUTER_BLOCK_DIRECTIVE:
         _directive(e->u.dr);

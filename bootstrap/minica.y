@@ -44,7 +44,7 @@ void yyerror(YYLTYPE *, yyscan_t, const char *);
 
 %union {
     st_t *file;
-    module_t *module;
+
     outer_block_t *oblock;
     outer_block_entry_t *obent;
     inner_block_t *iblock;
@@ -57,8 +57,8 @@ void yyerror(YYLTYPE *, yyscan_t, const char *);
     decl_list_t *decl_list;
     expr_list_t *exprs;
     expr_t *expr;
-    switch_case_t *swcase;
-    switch_block_t *swblock;
+    match_arm_t *match_arm;
+    match_block_t *match_block;
     literal_t *lit;
     literal_set_t *lset;
     arg_list_t *args;
@@ -131,8 +131,8 @@ void yyerror(YYLTYPE *, yyscan_t, const char *);
 %type <expr> primary a_expr m_expr cast_expr u_expr p_expr atom
 %type <expr> match_expr if_expr yield_expr range
 %type <expr> pattern
-%type <swblock> match_block
-%type <swcase> match_arm
+%type <match_block> match_block
+%type <match_arm> match_arm
 %type <func> fndef
 %type <coroutine> crdef
 %type <stmt> statement
@@ -240,7 +240,7 @@ directive:      struct_def
 
 type_alias:     TOK_TYPE identifier TOK_EQ type
                 {
-                    $$ = directive_typedef_new(scanner, $4, $2);
+                    $$ = directive_type_alias_new(scanner, $4, $2);
                 }
                 ;
 struct_def:     TOK_STRUCT identifier TOK_LBRACE field_list TOK_RBRACE
@@ -345,15 +345,11 @@ type:           primitive_type
                 ;
 reference_type: TOK_BIT_AND type
                 {
-                    /* &T -- shared reference */
-                    /* TODO: proper reference type */
-                    $$ = $2;
+                    $$ = type_new_reference($2, 0);
                 }
         |       TOK_BIT_AND TOK_MUT type
                 {
-                    /* &mut T -- mutable reference */
-                    /* TODO: proper mutable reference type */
-                    $$ = $3;
+                    $$ = type_new_reference($3, 1);
                 }
                 ;
 primitive_type: TOK_TYPE_I8
@@ -390,26 +386,23 @@ primitive_type: TOK_TYPE_I8
                 }
         |       TOK_TYPE_F16
                 {
-                    /* TODO: add TYPE_PRIMITIVE_F16 */
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_F16);
                 }
         |       TOK_TYPE_F32
                 {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_F32);
                 }
         |       TOK_TYPE_F64
                 {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP64);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_F64);
                 }
         |       TOK_TYPE_FP4
                 {
-                    /* TODO: add TYPE_PRIMITIVE_FP4 */
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP4);
                 }
         |       TOK_TYPE_FP8
                 {
-                    /* TODO: add TYPE_PRIMITIVE_FP8 */
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP8);
                 }
         |       TOK_TYPE_STRING
                 {
@@ -573,9 +566,8 @@ statements:     statement
 /* Statements */
 statement:      declaration
                 {
-                    $$ = stmt_new_expr_list(expr_list_new());
+                    $$ = stmt_new_let($1);
                     ERROR_ON_NULL($$, "Memory error: declaration stmt");
-                    /* TODO: proper let statement */
                 }
         |       expression
                 {
@@ -594,8 +586,7 @@ statement:      declaration
                 }
         |       TOK_BREAK
                 {
-                    /* TODO: break statement */
-                    $$ = stmt_new_return(NULL);
+                    $$ = stmt_new_break();
                 }
         |       TOK_WHILE expression block
                 {
@@ -603,13 +594,11 @@ statement:      declaration
                 }
         |       TOK_FOR pattern TOK_IN expression block
                 {
-                    /* TODO: for statement */
-                    $$ = stmt_new_while($4, $5);
+                    $$ = stmt_new_for($2, $4, $5);
                 }
         |       TOK_LOOP block
                 {
-                    /* TODO: loop statement (infinite) */
-                    $$ = stmt_new_while(NULL, $2);
+                    $$ = stmt_new_loop($2);
                 }
         |       block
                 {
@@ -630,23 +619,19 @@ statement:      declaration
 /* Declaration (let binding) */
 declaration:    TOK_LET identifier TOK_COLON type TOK_EQ expression
                 {
-                    $$ = decl_new($2, $4);
-                    /* TODO: store initializer expression */
+                    $$ = decl_new_init($2, $4, $6, 0);
                 }
         |       TOK_LET identifier TOK_EQ expression
                 {
-                    $$ = decl_new($2, NULL);
-                    /* TODO: type inference + store initializer */
+                    $$ = decl_new_init($2, NULL, $4, 0);
                 }
         |       TOK_LET TOK_MUT identifier TOK_COLON type TOK_EQ expression
                 {
-                    $$ = decl_new($3, $5);
-                    /* TODO: store mut flag + initializer */
+                    $$ = decl_new_init($3, $5, $7, 1);
                 }
         |       TOK_LET TOK_MUT identifier TOK_EQ expression
                 {
-                    $$ = decl_new($3, NULL);
-                    /* TODO: store mut flag + type inference + initializer */
+                    $$ = decl_new_init($3, NULL, $5, 1);
                 }
                 ;
 
@@ -713,34 +698,31 @@ else_block:     TOK_ELSE block
 /* Match expression (replaces switch) */
 match_expr:     TOK_MATCH expression TOK_LBRACE match_block TOK_RBRACE
                 {
-                    $$ = expr_new_switch(scanner, $2, $4);
+                    $$ = expr_new_match(scanner, $2, $4);
                 }
                 ;
 match_block:    match_block match_arm
                 {
-                    $$ = switch_block_append($1, $2);
+                    $$ = match_block_append($1, $2);
                 }
         |       match_arm
                 {
-                    switch_block_t *block;
-                    block = switch_block_new();
+                    match_block_t *block;
+                    block = match_block_new();
                     ERROR_ON_NULL(block, "Parse error: match");
-                    $$ = switch_block_append(block, $1);
+                    $$ = match_block_append(block, $1);
                 }
         |
                 {
-                    switch_block_t *block;
-                    block = switch_block_new();
+                    match_block_t *block;
+                    block = match_block_new();
                     ERROR_ON_NULL(block, "Parse error: empty match");
                     $$ = block;
                 }
                 ;
 match_arm:      pattern TOK_FATARROW expression
                 {
-                    /* TODO: proper match arm with pattern */
-                    literal_set_t *lset;
-                    lset = literal_set_new();
-                    $$ = switch_case_new(lset, inner_block_new(
+                    $$ = match_arm_new($1, inner_block_new(
                         stmt_list_new(stmt_new_expr($3))));
                 }
         |       match_arm TOK_COMMA
@@ -752,13 +734,11 @@ match_arm:      pattern TOK_FATARROW expression
 /* Yield expression */
 yield_expr:     TOK_YIELD expression
                 {
-                    /* TODO: proper yield expression */
-                    $$ = $2;
+                    $$ = expr_new_yield(scanner, NULL, $2);
                 }
         |       TOK_YIELD identifier TOK_LARROW expression
                 {
-                    /* TODO: multi-port yield */
-                    $$ = $4;
+                    $$ = expr_new_yield(scanner, $2, $4);
                 }
         |       TOK_YIELD
                 {
@@ -840,32 +820,31 @@ assign_expr:    TOK_MUT identifier TOK_EQ expression
 /* Range expression */
 range:          expression TOK_DOTS expression
                 {
-                    /* TODO: proper range expression */
-                    $$ = $1;
+                    $$ = expr_new_range(scanner, $1, $3, RANGE_HALF_OPEN);
                 }
         |       expression TOK_DOTS_EQ expression
                 {
-                    $$ = $1;
+                    $$ = expr_new_range(scanner, $1, $3, RANGE_CLOSED);
                 }
         |       expression TOK_BANG_DOTS expression
                 {
-                    $$ = $1;
+                    $$ = expr_new_range(scanner, $1, $3, RANGE_OPEN);
                 }
         |       expression TOK_BANG_DOTS_EQ expression
                 {
-                    $$ = $1;
+                    $$ = expr_new_range(scanner, $1, $3, RANGE_HALF_OPEN_LEFT);
                 }
         |       expression TOK_DOTS
                 {
-                    $$ = $1;
+                    $$ = expr_new_range(scanner, $1, NULL, RANGE_HALF_OPEN);
                 }
         |       TOK_DOTS expression
                 {
-                    $$ = $2;
+                    $$ = expr_new_range(scanner, NULL, $2, RANGE_HALF_OPEN);
                 }
         |       TOK_DOTS
                 {
-                    $$ = NULL;
+                    $$ = expr_new_range(scanner, NULL, NULL, RANGE_HALF_OPEN);
                 }
                 ;
 
@@ -999,8 +978,7 @@ m_expr:         m_expr TOK_MUL m_expr
                 ;
 cast_expr:      cast_expr TOK_AS type
                 {
-                    /* TODO: proper cast expression */
-                    $$ = $1;
+                    $$ = expr_new_cast(scanner, $1, $3);
                 }
         |       u_expr
                 {
@@ -1145,7 +1123,7 @@ minica_parse(FILE *fp)
 {
     yyscan_t scanner;
     context_t *context;
-    module_t *module;
+
 
     /* Allocate space for context */
     context = malloc(sizeof(context_t));
@@ -1154,13 +1132,6 @@ minica_parse(FILE *fp)
     }
     memset(context, 0, sizeof(context_t));
 
-    /* New module */
-    module = module_new("", NULL);
-    if ( NULL == module ) {
-        free(context);
-        return NULL;
-    }
-    context->cur = module;
 
     /* Initialize the scanner with the extra data context */
     yylex_init_extra(context, &scanner);

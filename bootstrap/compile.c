@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019-2024 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019-2024,2026 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -232,12 +232,12 @@ _type2size(compiler_t *c, type_t *type)
         break;
     case TYPE_PRIMITIVE_I32:
     case TYPE_PRIMITIVE_U32:
-    case TYPE_PRIMITIVE_FP32:
+    case TYPE_PRIMITIVE_F32:
         sz = 32;
         break;
     case TYPE_PRIMITIVE_I64:
     case TYPE_PRIMITIVE_U64:
-    case TYPE_PRIMITIVE_FP64:
+    case TYPE_PRIMITIVE_F64:
         sz = 64;
         break;
     }
@@ -272,10 +272,10 @@ _type2reg(compiler_t *c, type_t *type)
     case TYPE_PRIMITIVE_U64:
         rtype = IR_REG_I64;
         break;
-    case TYPE_PRIMITIVE_FP32:
+    case TYPE_PRIMITIVE_F32:
         rtype = IR_REG_FP32;
         break;
-    case TYPE_PRIMITIVE_FP64:
+    case TYPE_PRIMITIVE_F64:
         rtype = IR_REG_FP64;
         break;
     case TYPE_PRIMITIVE_STRING:
@@ -1158,12 +1158,6 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t pos)
     case OP_CMP_LEQ:
         val = _op_infix(c, env, op, IR_OPCODE_CMP_LEQ, pos);
         break;
-    case OP_INC:
-        val = _incdec(c, env, op, IR_OPCODE_INC, pos);
-        break;
-    case OP_DEC:
-        val = _incdec(c, env, op, IR_OPCODE_DEC, pos);
-        break;
     }
 
     return val;
@@ -1173,12 +1167,12 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t pos)
  * _switch -- parse a switch expression
  */
 static compiler_val_t *
-_switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
+_match(compiler_t *c, compiler_env_t *env, match_t *m)
 {
     compiler_val_t *cond;
     compiler_val_t *rv;
     compiler_env_t *nenv;
-    switch_case_t *cs;
+    match_arm_t *cs;
     literal_set_t *lset;
     ssize_t n;
 
@@ -1190,11 +1184,11 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
     nenv->prev = env;
 
     /* Parse the condition */
-    cond = _expr(c, env, sw->cond);
+    cond = _expr(c, env, m->cond);
 
     /* Count the number of cases */
     n = 0;
-    cs = sw->block->head;
+    cs = m->block->head;
     while ( cs != NULL ) {
         n++;
         cs = cs->next;
@@ -1208,9 +1202,9 @@ _switch(compiler_t *c, compiler_env_t *env, switch_t *sw)
 
     /* Parse the code block */
     n = 0;
-    cs = sw->block->head;
+    cs = m->block->head;
     while ( cs != NULL ) {
-        lset = cs->lset;
+        lset = cs->pattern;
         rv->u.conds->vals[n] = _inner_block(c, nenv, cs->block);
         n++;
         cs = cs->next;
@@ -1350,8 +1344,8 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
     case EXPR_OP:
         val = _op(c, env, e->u.op, e->pos);
         break;
-    case EXPR_SWITCH:
-        val = _switch(c, env, &e->u.sw);
+    case EXPR_MATCH:
+        val = _match(c, env, &e->u.match);
         break;
     case EXPR_IF:
         val = _if(c, env, &e->u.ife);
@@ -1645,24 +1639,6 @@ _coroutine(compiler_t *c, coroutine_t *cr)
     return block;
 }
 
-/*
- * _module -- parse a module
- */
-static int
-_module(compiler_t *c, module_t *md)
-{
-    return -1;
-}
-
-/*
- * _use -- parse a use directive
- */
-static int
-_use(compiler_t *c, use_t *use)
-{
-    //use->id;
-    return -1;
-}
 
 /*
  * _struct -- parse a struct directive
@@ -1671,16 +1647,6 @@ static int
 _struct(compiler_t *c, struct_t *st)
 {
     //st->id;
-    return -1;
-}
-
-/*
- * _union -- parse a union directive
- */
-static int
-_union(compiler_t *c, union_t *un)
-{
-    //un->id;
     return -1;
 }
 
@@ -1695,10 +1661,10 @@ _enum(compiler_t *c, enum_t *en)
 }
 
 /*
- * _typedef -- parse a typedef directive
+ * _type_alias -- parse a type alias directive
  */
 static int
-_typedef(compiler_t *c, typedef_t *td)
+_type_alias(compiler_t *c, type_alias_t *td)
 {
     //td->src;
     //td->dst;
@@ -1714,20 +1680,14 @@ _directive(compiler_t *c, directive_t *dr)
     int ret;
 
     switch ( dr->type ) {
-    case DIRECTIVE_USE:
-        ret = _use(c, &dr->u.use);
-        break;
     case DIRECTIVE_STRUCT:
         ret = _struct(c, &dr->u.st);
-        break;
-    case DIRECTIVE_UNION:
-        ret = _union(c, &dr->u.un);
         break;
     case DIRECTIVE_ENUM:
         ret = _enum(c, &dr->u.en);
         break;
-    case DIRECTIVE_TYPEDEF:
-        ret = _typedef(c, &dr->u.td);
+    case DIRECTIVE_TYPE_ALIAS:
+        ret = _type_alias(c, &dr->u.type_alias);
         break;
     }
     COMPILE_ERROR_RETURN(c, "invalid directive");
@@ -1758,10 +1718,6 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
         if ( block != NULL ) {
             ret = 0;
         }
-        break;
-    case OUTER_BLOCK_MODULE:
-        /* Module */
-        ret = _module(c, e->u.md);
         break;
     case OUTER_BLOCK_DIRECTIVE:
         /* Directive */

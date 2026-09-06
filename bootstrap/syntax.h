@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019,2021-2024 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019,2021-2026 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,10 +38,10 @@ typedef struct _expr expr_t;
 typedef struct _expr_list expr_list_t;
 typedef struct _stmt stmt_t;
 typedef struct _stmt_list stmt_list_t;
-typedef struct _module module_t;
 typedef struct _outer_block outer_block_t;
 typedef struct _outer_block_entry outer_block_entry_t;
 typedef struct _inner_block inner_block_t;
+typedef struct _type type_t;
 
 /*
  * Position
@@ -57,13 +57,12 @@ typedef struct {
  * Literal types
  */
 typedef enum {
+    LIT_BININT,
     LIT_HEXINT,
     LIT_DECINT,
-    LIT_OCTINT,
     LIT_FLOAT,
     LIT_STRING,
     LIT_BOOL,
-    LIT_NIL,
 } literal_type_t;
 
 /*
@@ -90,7 +89,7 @@ struct _literal {
 };
 
 /*
- * Literal sets
+ * Literal sets (legacy, used by match arms)
  */
 typedef struct {
     literal_t *head;
@@ -109,25 +108,30 @@ typedef enum {
     TYPE_PRIMITIVE_U32,
     TYPE_PRIMITIVE_I64,
     TYPE_PRIMITIVE_U64,
-    TYPE_PRIMITIVE_FP32,
-    TYPE_PRIMITIVE_FP64,
+    TYPE_PRIMITIVE_F16,
+    TYPE_PRIMITIVE_F32,
+    TYPE_PRIMITIVE_F64,
+    TYPE_PRIMITIVE_FP4,
+    TYPE_PRIMITIVE_FP8,
     TYPE_PRIMITIVE_STRING,
     TYPE_PRIMITIVE_BOOL,
     TYPE_STRUCT,
-    TYPE_UNION,
     TYPE_ENUM,
     TYPE_ID,
+    TYPE_REFERENCE,     /* &T or &mut T */
+    TYPE_STREAM,        /* stream<T> */
+    TYPE_CHAN,          /* chan<T> */
 } type_type_t;
 
 /*
  * Types
  */
-typedef struct {
+struct _type {
     type_type_t type;
-    union {
-        char *id;
-    } u;
-} type_t;
+    int is_mut;         /* for &mut T */
+    type_t *inner;      /* inner type for reference/stream/chan */
+    char *id;           /* for TYPE_ID, TYPE_STRUCT, TYPE_ENUM */
+};
 
 /*
  * Type definition
@@ -138,17 +142,19 @@ typedef struct {
 } type_def_t;
 
 /*
- * Type table
+ * Type table (placeholder)
  */
 typedef struct {
 } type_def_table_t;
 
 /*
- * Declarations
+ * Declarations (let bindings and struct fields)
  */
 struct _decl {
     char *id;
     type_t *type;
+    expr_t *init;       /* initializer expression (for let bindings) */
+    int is_mut;         /* mut flag */
     decl_t *next;
 };
 
@@ -177,22 +183,6 @@ typedef struct {
 } ref_t;
 
 /*
- * Pointer type
- */
-typedef enum {
-    PTR_INDIRECTION,
-    PTR_REFERENCE,
-} ptr_type_t;
-
-/*
- * Pointer indirection, reference
- */
-typedef struct {
-    ptr_type_t type;
-    expr_t *e;
-} ptr_t;
-
-/*
  * Arguments
  */
 typedef struct _arg arg_t;
@@ -219,24 +209,20 @@ typedef struct {
 } struct_t;
 
 /*
- * Union data structure
- */
-typedef struct {
-    char *id;
-    decl_list_t *list;
-} union_t;
-
-/*
- * Enumerates
+ * Enum element (variant)
  */
 typedef struct _enum_elem enum_elem_t;
 struct _enum_elem {
     char *id;
+    /* Variant data */
+    decl_list_t *fields;    /* struct variant fields (NULL if not struct) */
+    type_t **types;         /* tuple variant types (NULL if not tuple) */
+    size_t ntypes;          /* number of tuple types */
     enum_elem_t *next;
 };
 
 /*
- * Enumerate
+ * Enum
  */
 typedef struct {
     char *id;
@@ -244,12 +230,12 @@ typedef struct {
 } enum_t;
 
 /*
- * Typedef
+ * Type alias
  */
 typedef struct {
     type_t *src;
     char *dst;
-} typedef_t;
+} type_alias_t;
 
 /*
  * Function
@@ -296,10 +282,8 @@ typedef enum {
     OP_CMP_LT,
     OP_CMP_GEQ,
     OP_CMP_LEQ,
-    OP_INC,
-    OP_DEC,
-    OP_PTRREF,
-    OP_PTRIND
+    OP_PTRREF,       /* & (borrow) */
+    OP_PTRIND        /* * (dereference) */
 } op_type_t;
 
 /*
@@ -319,12 +303,17 @@ typedef enum {
     EXPR_DECL,
     EXPR_LITERAL,
     EXPR_OP,
-    EXPR_SWITCH,
+    EXPR_MATCH,          /* match expression (was EXPR_SWITCH) */
     EXPR_IF,
     EXPR_CALL,
     EXPR_REF,
     EXPR_MEMBER,
     EXPR_LIST,
+    EXPR_LET,            /* let binding as expression */
+    EXPR_YIELD,          /* yield expression */
+    EXPR_CAST,           /* as type cast */
+    EXPR_RANGE,          /* range a..b */
+    EXPR_BLOCK,          /* block with trailing expression */
 } expr_type_t;
 
 /*
@@ -338,30 +327,62 @@ typedef struct {
 } op_t;
 
 /*
- * Case
+ * Yield expression
  */
-typedef struct _switch_case switch_case_t;
-struct _switch_case {
-    literal_set_t *lset;
+typedef struct {
+    char *port;          /* port name (NULL for single-port) */
+    expr_t *expr;        /* yielded expression (NULL for yield;) */
+} yield_t;
+
+/*
+ * Cast expression
+ */
+typedef struct {
+    expr_t *expr;
+    type_t *type;
+} cast_t;
+
+/*
+ * Range expression
+ */
+typedef enum {
+    RANGE_HALF_OPEN,     /* a..b   = [a, b) */
+    RANGE_CLOSED,        /* a..=b  = [a, b] */
+    RANGE_OPEN,          /* a!..b  = (a, b) */
+    RANGE_HALF_OPEN_LEFT,/* a!..=b = (a, b] */
+} range_limits_t;
+
+typedef struct {
+    expr_t *start;       /* NULL for ..b */
+    expr_t *end;         /* NULL for a.. */
+    range_limits_t limits;
+} range_t;
+
+/*
+ * Match arm (was switch_case_t)
+ */
+typedef struct _match_arm match_arm_t;
+struct _match_arm {
+    expr_t *pattern;     /* pattern (was literal_set_t *lset) */
     inner_block_t *block;
-    switch_case_t *next;
+    match_arm_t *next;
 };
 
 /*
- * Switch block
+ * Match block (was switch_block_t)
  */
 typedef struct {
-    switch_case_t *head;
-    switch_case_t *tail;
-} switch_block_t;
+    match_arm_t *head;
+    match_arm_t *tail;
+} match_block_t;
 
 /*
- * Switch expression
+ * Match expression (was switch_t)
  */
 typedef struct {
     expr_t *cond;
-    switch_block_t *block;
-} switch_t;
+    match_block_t *block;
+} match_t;
 
 /*
  * If expression
@@ -390,12 +411,16 @@ struct _expr {
         decl_t *decl;
         literal_t *lit;
         op_t *op;
-        switch_t sw;
+        match_t match;          /* was switch_t sw */
         if_t ife;
         member_t mem;
         call_t *call;
         ref_t *ref;
         expr_list_t *list;
+        yield_t *yield_expr;    /* for EXPR_YIELD */
+        cast_t *cast;           /* for EXPR_CAST */
+        range_t *range;         /* for EXPR_RANGE */
+        inner_block_t *block;   /* for EXPR_BLOCK */
     } u;
     expr_t *next;
     pos_t pos;
@@ -413,7 +438,12 @@ struct _expr_list {
  * Statement type
  */
 typedef enum {
+    STMT_LET,            /* let binding */
+    STMT_REASSIGN,       /* mut x = expr */
     STMT_WHILE,
+    STMT_FOR,            /* for pat in expr block */
+    STMT_LOOP,           /* loop block */
+    STMT_BREAK,
     STMT_EXPR,
     STMT_EXPR_LIST,
     STMT_BLOCK,
@@ -429,16 +459,29 @@ typedef struct {
 } stmt_while_t;
 
 /*
+ * For statement
+ */
+typedef struct {
+    expr_t *pattern;
+    expr_t *iter;
+    inner_block_t *block;
+} stmt_for_t;
+
+/*
  * Statement
  */
 struct _stmt {
     stmt_type_t type;
     union {
-        stmt_while_t whilestmt;
-        expr_t *expr;
-        expr_list_t *exprs;
-        inner_block_t *block;
-        expr_t *ret;
+        decl_t *let_decl;        /* for STMT_LET */
+        op_t *reassign;          /* for STMT_REASSIGN */
+        stmt_while_t whilestmt;  /* for STMT_WHILE */
+        stmt_for_t forstmt;      /* for STMT_FOR */
+        inner_block_t *loopblock;/* for STMT_LOOP */
+        expr_t *expr;            /* for STMT_EXPR */
+        expr_list_t *exprs;      /* for STMT_EXPR_LIST */
+        inner_block_t *block;    /* for STMT_BLOCK */
+        expr_t *ret;             /* for STMT_RETURN */
     } u;
     stmt_t *next;
 };
@@ -450,13 +493,6 @@ struct _stmt_list {
     stmt_t *head;
     stmt_t *tail;
 };
-
-/*
- * Use
- */
-typedef struct {
-    char *id;
-} use_t;
 
 /*
  * Functions
@@ -480,11 +516,9 @@ typedef struct {
  * Directive type
  */
 typedef enum {
-    DIRECTIVE_USE,
     DIRECTIVE_STRUCT,
-    DIRECTIVE_UNION,
     DIRECTIVE_ENUM,
-    DIRECTIVE_TYPEDEF,
+    DIRECTIVE_TYPE_ALIAS,    /* was DIRECTIVE_TYPEDEF */
 } directive_type_t;
 
 /*
@@ -493,29 +527,19 @@ typedef enum {
 typedef struct {
     directive_type_t type;
     union {
-        use_t use;
         struct_t st;
-        union_t un;
         enum_t en;
-        typedef_t td;
+        type_alias_t type_alias;  /* was typedef_t td */
     } u;
     pos_t pos;
 } directive_t;
-
-/*
- * Modules
- */
-typedef struct {
-    size_t n;
-    size_t size;
-    module_t **vec;
-} module_vec_t;
 
 /*
  * Inner block
  */
 struct _inner_block {
     stmt_list_t *stmts;  /* statements */
+    expr_t *expr;        /* trailing expression (NULL if none) */
     inner_block_t *next;
 };
 
@@ -525,18 +549,8 @@ struct _inner_block {
 typedef enum {
     OUTER_BLOCK_FUNC,
     OUTER_BLOCK_COROUTINE,
-    OUTER_BLOCK_MODULE,
     OUTER_BLOCK_DIRECTIVE,
 } outer_block_entry_type_t;
-
-/*
- * Module
- */
-struct _module {
-    char *id;
-    outer_block_t *block;
-    module_t *parent;           /* Stack */
-};
 
 /*
  * Outer block entry
@@ -546,7 +560,6 @@ struct _outer_block_entry {
     union {
         func_t *fn;
         coroutine_t *cr;
-        module_t *md;
         directive_t *dr;
     } u;
     outer_block_entry_t *next;
@@ -625,7 +638,6 @@ typedef struct {
     string_t buffer;
     /* Parser's context */
     st_t *st;
-    module_t *cur;
 } context_t;
 
 #define COMPILER_ERROR(err)    do {                             \
@@ -646,23 +658,28 @@ literal_t *
 literal_new_string(void *, const char *);
 literal_t *
 literal_new_bool(void *, bool_t);
-literal_t *
-literal_new_nil(void *);
 literal_set_t *
 literal_set_new(void);
 literal_set_t *
 literal_set_add(literal_set_t *, literal_t *);
-type_t *type_new_primitive(type_type_t);
+type_t *
+type_new_primitive(type_type_t);
 type_t *
 type_new_struct(const char *);
-type_t *
-type_new_union(const char *);
 type_t *
 type_new_enum(const char *);
 type_t *
 type_new_id(const char *);
+type_t *
+type_new_reference(type_t *, int);
+type_t *
+type_new_stream(type_t *);
+type_t *
+type_new_chan(type_t *);
 decl_t *
 decl_new(const char *, type_t *);
+decl_t *
+decl_new_init(const char *, type_t *, expr_t *, int);
 decl_list_t *
 decl_list_new(decl_t *);
 decl_list_t *
@@ -676,13 +693,9 @@ arg_list_append(arg_list_t *, arg_t *);
 directive_t *
 directive_struct_new(void *, const char *, decl_list_t *);
 directive_t *
-directive_union_new(void *, const char *, decl_list_t *);
-directive_t *
 directive_enum_new(void *, const char *, enum_elem_t *);
 directive_t *
-directive_typedef_new(void *, type_t *, const char *);
-directive_t *
-directive_use_new(void *, const char *);
+directive_type_alias_new(void *, type_t *, const char *);
 enum_elem_t *
 enum_elem_new(const char *);
 enum_elem_t *
@@ -691,15 +704,26 @@ func_t *
 func_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
 coroutine_t *
 coroutine_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
-module_t *
-module_new(const char *, outer_block_t *);
-outer_block_entry_t *outer_block_entry_new(outer_block_entry_type_t);
+outer_block_entry_t *
+outer_block_entry_new(outer_block_entry_type_t);
 outer_block_t *
 outer_block_new(outer_block_entry_t *);
 inner_block_t *
 inner_block_new(stmt_list_t *);
+inner_block_t *
+inner_block_new_expr(stmt_list_t *, expr_t *);
+stmt_t *
+stmt_new_let(decl_t *);
+stmt_t *
+stmt_new_reassign(op_t *);
 stmt_t *
 stmt_new_while(expr_t *, inner_block_t *);
+stmt_t *
+stmt_new_for(expr_t *, expr_t *, inner_block_t *);
+stmt_t *
+stmt_new_loop(inner_block_t *);
+stmt_t *
+stmt_new_break(void);
 stmt_t *
 stmt_new_expr(expr_t *);
 stmt_t *
@@ -737,21 +761,29 @@ expr_new_call(void *, const char *, expr_list_t *);
 expr_t *
 expr_new_ref(void *, expr_t *, expr_t *);
 expr_t *
-expr_new_switch(void *, expr_t *, switch_block_t *);
+expr_new_match(void *, expr_t *, match_block_t *);
 expr_t *
 expr_new_if(void *, expr_t *, inner_block_t *, inner_block_t *);
 expr_t *
 expr_new_list(expr_list_t *);
+expr_t *
+expr_new_yield(void *, const char *, expr_t *);
+expr_t *
+expr_new_cast(void *, expr_t *, type_t *);
+expr_t *
+expr_new_range(void *, expr_t *, expr_t *, range_limits_t);
+expr_t *
+expr_new_block(void *, inner_block_t *);
 expr_list_t *
 expr_list_new(void);
 expr_list_t *
 expr_list_append(expr_list_t *, expr_t *);
-switch_case_t *
-switch_case_new(literal_set_t *, inner_block_t *);
-switch_block_t *
-switch_block_new(void);
-switch_block_t *
-switch_block_append(switch_block_t *, switch_case_t *);
+match_arm_t *
+match_arm_new(expr_t *, inner_block_t *);
+match_block_t *
+match_block_new(void);
+match_block_t *
+match_block_append(match_block_t *, match_arm_t *);
 st_t *
 st_new(outer_block_t *);
 

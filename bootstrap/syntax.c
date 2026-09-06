@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2019,2021-2022,2024 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2019,2021-2022,2024,2026 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -168,22 +168,6 @@ literal_new_bool(void *scanner, bool_t bool)
     return lit;
 }
 
-/*
- * literal_new_nil -- allocate a nil literal
- */
-literal_t *
-literal_new_nil(void *scanner)
-{
-    literal_t *lit;
-
-    lit = _literal_new(scanner);
-    if ( lit == NULL ) {
-        return NULL;
-    }
-    lit->type = LIT_NIL;
-
-    return lit;
-}
 
 /*
  * literal_release -- free a literal
@@ -192,7 +176,8 @@ void
 literal_release(literal_t *lit)
 {
     switch ( lit->type ) {
-    case LIT_OCTINT:
+
+    case LIT_BININT:
     case LIT_DECINT:
     case LIT_HEXINT:
     case LIT_FLOAT:
@@ -202,7 +187,6 @@ literal_release(literal_t *lit)
         free(lit->u.s);
         break;
     case LIT_BOOL:
-    case LIT_NIL:
         break;
     }
     free(lit);
@@ -273,8 +257,8 @@ type_new_struct(const char *id)
         return NULL;
     }
     t->type = TYPE_STRUCT;
-    t->u.id = strdup(id);
-    if ( NULL == t->u.id ) {
+    t->id = strdup(id);
+    if ( NULL == t->id ) {
         free(t);
         return NULL;
     }
@@ -282,27 +266,6 @@ type_new_struct(const char *id)
     return t;
 }
 
-/*
- * type_new_union -- allocate a new union type
- */
-type_t *
-type_new_union(const char *id)
-{
-    type_t *t;
-
-    t = malloc(sizeof(type_t));
-    if ( NULL == t ) {
-        return NULL;
-    }
-    t->type = TYPE_UNION;
-    t->u.id = strdup(id);
-    if ( NULL == t->u.id ) {
-        free(t);
-        return NULL;
-    }
-
-    return t;
-}
 
 /*
  * type_new_enum -- allocate a new enum type
@@ -317,8 +280,8 @@ type_new_enum(const char *id)
         return NULL;
     }
     t->type = TYPE_ENUM;
-    t->u.id = strdup(id);
-    if ( NULL == t->u.id ) {
+    t->id = strdup(id);
+    if ( NULL == t->id ) {
         free(t);
         return NULL;
     }
@@ -339,8 +302,8 @@ type_new_id(const char *id)
         return NULL;
     }
     t->type = TYPE_ID;
-    t->u.id = strdup(id);
-    if ( NULL == t->u.id ) {
+    t->id = strdup(id);
+    if ( NULL == t->id ) {
         free(t);
         return NULL;
     }
@@ -504,39 +467,6 @@ directive_struct_new(void *scanner, const char *id, decl_list_t *list)
     return dir;
 }
 
-/*
- * directive_union_new -- allocate a union data structure
- */
-directive_t *
-directive_union_new(void *scanner, const char *id, decl_list_t *list)
-{
-    directive_t *dir;
-    YYLTYPE *loc;
-
-    dir = malloc(sizeof(directive_t));
-    if ( NULL == dir ) {
-        return NULL;
-    }
-    dir->type = DIRECTIVE_UNION;
-    if ( NULL != id ) {
-        dir->u.un.id = strdup(id);
-        if ( NULL == dir->u.un.id ) {
-            free(dir);
-            return NULL;
-        }
-    } else {
-        dir->u.un.id = NULL;
-    }
-    dir->u.un.list = list;
-
-    loc = yyget_lloc(scanner);
-    dir->pos.first_line = loc->first_line;
-    dir->pos.first_column = loc->first_column;
-    dir->pos.last_line = loc->last_line;
-    dir->pos.last_column = loc->last_column;
-
-    return dir;
-}
 
 /*
  * directive_enum_new -- allocate an enum data structure
@@ -569,10 +499,10 @@ directive_enum_new(void *scanner, const char *id, enum_elem_t *list)
 }
 
 /*
- * directive_typedef_new -- allocate a new use statement
+ * directive_type_alias_new -- allocate a new use statement
  */
 directive_t *
-directive_typedef_new(void *scanner, type_t *src, const char *dst)
+directive_type_alias_new(void *scanner, type_t *src, const char *dst)
 {
     directive_t *dir;
     YYLTYPE *loc;
@@ -581,10 +511,10 @@ directive_typedef_new(void *scanner, type_t *src, const char *dst)
     if ( NULL == dir ) {
         return NULL;
     }
-    dir->type = DIRECTIVE_TYPEDEF;
-    dir->u.td.src = src;
-    dir->u.td.dst = strdup(dst);
-    if ( NULL == dir->u.td.dst ) {
+    dir->type = DIRECTIVE_TYPE_ALIAS;
+    dir->u.type_alias.src = src;
+    dir->u.type_alias.dst = strdup(dst);
+    if ( NULL == dir->u.type_alias.dst ) {
         free(dir);
         return NULL;
     }
@@ -598,34 +528,6 @@ directive_typedef_new(void *scanner, type_t *src, const char *dst)
     return dir;
 }
 
-/*
- * directive_use_new -- allocate a new use statement
- */
-directive_t *
-directive_use_new(void *scanner, const char *id)
-{
-    directive_t *dir;
-    YYLTYPE *loc;
-
-    dir = malloc(sizeof(directive_t));
-    if ( NULL == dir ) {
-        return NULL;
-    }
-    dir->type = DIRECTIVE_USE;
-    dir->u.use.id = strdup(id);
-    if ( NULL == dir->u.use.id ) {
-        free(dir);
-        return NULL;
-    }
-
-    loc = yyget_lloc(scanner);
-    dir->pos.first_line = loc->first_line;
-    dir->pos.first_column = loc->first_column;
-    dir->pos.last_line = loc->last_line;
-    dir->pos.last_column = loc->last_column;
-
-    return dir;
-}
 
 /*
  * enum_elem_new -- allocate a new enumerate element
@@ -753,7 +655,7 @@ expr_new_call(void *scanner, const char *callee, expr_list_t *exprs)
         return NULL;
     }
     e->u.call = malloc(sizeof(call_t));
-    if ( e->u.call ) {
+    if ( NULL == e->u.call ) {
         free(e);
         return NULL;
     }
@@ -782,7 +684,7 @@ expr_new_ref(void *scanner, expr_t *var, expr_t *expr)
         return NULL;
     }
     e->u.ref = malloc(sizeof(ref_t));
-    if ( e->u.call ) {
+    if ( NULL == e->u.ref ) {
         free(e);
         return NULL;
     }
@@ -793,24 +695,6 @@ expr_new_ref(void *scanner, expr_t *var, expr_t *expr)
     return e;
 }
 
-/*
- * expr_new_switch -- allocate a switch expression
- */
-expr_t *
-expr_new_switch(void *scanner, expr_t *cond, switch_block_t *block)
-{
-    expr_t *e;
-
-    e = _expr_new(scanner);
-    if ( e == NULL ) {
-        return NULL;
-    }
-    e->type = EXPR_SWITCH;
-    e->u.sw.cond = cond;
-    e->u.sw.block = block;
-
-    return e;
-}
 
 /*
  * expr_new_if
@@ -1093,27 +977,6 @@ coroutine_new(const char *id, arg_list_t *args, arg_list_t *rets,
     return cr;
 }
 
-/*
- * module_new -- allocate a module
- */
-module_t *
-module_new(const char *id, outer_block_t *block)
-{
-    module_t *m;
-
-    m = malloc(sizeof(module_t));
-    if ( NULL == m ) {
-        return NULL;
-    }
-    m->id = strdup(id);
-    if ( NULL == m->id ) {
-        free(m);
-        return NULL;
-    }
-    m->block = block;
-
-    return m;
-}
 
 /*
  * outer_block_entry_new -- allocate an outer block entry with the specified
@@ -1174,6 +1037,7 @@ inner_block_new(stmt_list_t *stmts)
         return NULL;
     }
     block->stmts = stmts;
+    block->expr = NULL;
     block->next = NULL;
 
     return block;
@@ -1311,18 +1175,18 @@ stmt_list_append(stmt_list_t *block, stmt_t *stmt)
 }
 
 /*
- * switch_case_new -- allocate a new case block
+ * match_arm_new -- allocate a new case block
  */
-switch_case_t *
-switch_case_new(literal_set_t *set, inner_block_t *block)
+match_arm_t *
+match_arm_new(expr_t *pattern, inner_block_t *block)
 {
-    switch_case_t *c;
+    match_arm_t *c;
 
-    c = malloc(sizeof(switch_case_t));
+    c = malloc(sizeof(match_arm_t));
     if ( NULL == c ) {
         return NULL;
     }
-    c->lset = set;
+    c->pattern = pattern;
     c->block = block;
     c->next = NULL;
 
@@ -1330,14 +1194,14 @@ switch_case_new(literal_set_t *set, inner_block_t *block)
 }
 
 /*
- * switch_block_new -- allocate a new switch block
+ * match_block_new -- allocate a new switch block
  */
-switch_block_t *
-switch_block_new(void)
+match_block_t *
+match_block_new(void)
 {
-    switch_block_t *block;
+    match_block_t *block;
 
-    block = malloc(sizeof(switch_block_t));
+    block = malloc(sizeof(match_block_t));
     if ( NULL == block ) {
         return NULL;
     }
@@ -1348,10 +1212,10 @@ switch_block_new(void)
 }
 
 /*
- * switch_block_append -- append a switch case block to the switch block
+ * match_block_append -- append a switch case block to the switch block
  */
-switch_block_t *
-switch_block_append(switch_block_t *block, switch_case_t *c)
+match_block_t *
+match_block_append(match_block_t *block, match_arm_t *c)
 {
     if ( NULL == block->head ) {
         block->head = c;
@@ -1362,31 +1226,6 @@ switch_block_append(switch_block_t *block, switch_case_t *c)
     }
 
     return block;
-}
-
-/*
- * module_vec_add -- add a module block to the module vector
- */
-int
-module_vec_add(module_vec_t *vec, module_t *module)
-{
-    module_t **nvec;
-    size_t resized;
-
-    if ( vec->n >= vec->size ) {
-        /* Resize */
-        resized = vec->size + VECTOR_DELTA;
-        nvec = realloc(vec->vec, resized * sizeof(module_t *));
-        if ( NULL == nvec ) {
-            return -1;
-        }
-        vec->vec = nvec;
-        vec->size = resized;
-    }
-    vec->vec[vec->n] = module;
-    vec->n++;
-
-    return 0;
 }
 
 /*
@@ -1414,3 +1253,286 @@ st_new(outer_block_t *block)
  * vim600: sw=4 ts=4 fdm=marker
  * vim<600: sw=4 ts=4
  */
+
+/*
+ * decl_new_init -- allocate a new declaration with initializer and mut flag
+ */
+decl_t *
+decl_new_init(const char *id, type_t *type, expr_t *init, int is_mut)
+{
+    decl_t *decl;
+    decl = decl_new(id, type);
+    if ( NULL == decl ) {
+        return NULL;
+    }
+    decl->init = init;
+    decl->is_mut = is_mut;
+    return decl;
+}
+
+/*
+ * type_new_reference -- create a reference type (&T or &mut T)
+ */
+type_t *
+type_new_reference(type_t *inner, int is_mut)
+{
+    type_t *type;
+    type = malloc(sizeof(type_t));
+    if ( NULL == type ) {
+        return NULL;
+    }
+    type->type = TYPE_REFERENCE;
+    type->is_mut = is_mut;
+    type->inner = inner;
+    type->id = NULL;
+    return type;
+}
+
+/*
+ * type_new_stream -- create a stream type (stream<T>)
+ */
+type_t *
+type_new_stream(type_t *inner)
+{
+    type_t *type;
+    type = malloc(sizeof(type_t));
+    if ( NULL == type ) {
+        return NULL;
+    }
+    type->type = TYPE_STREAM;
+    type->is_mut = 0;
+    type->inner = inner;
+    type->id = NULL;
+    return type;
+}
+
+/*
+ * type_new_chan -- create a channel type (chan<T>)
+ */
+type_t *
+type_new_chan(type_t *inner)
+{
+    type_t *type;
+    type = malloc(sizeof(type_t));
+    if ( NULL == type ) {
+        return NULL;
+    }
+    type->type = TYPE_CHAN;
+    type->is_mut = 0;
+    type->inner = inner;
+    type->id = NULL;
+    return type;
+}
+
+/*
+ * inner_block_new_expr -- create inner block with trailing expression
+ */
+inner_block_t *
+inner_block_new_expr(stmt_list_t *stmts, expr_t *expr)
+{
+    inner_block_t *block;
+    block = inner_block_new(stmts);
+    if ( NULL == block ) {
+        return NULL;
+    }
+    block->expr = expr;
+    return block;
+}
+
+/*
+ * stmt_new_let -- create a let statement
+ */
+stmt_t *
+stmt_new_let(decl_t *decl)
+{
+    stmt_t *stmt;
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_LET;
+    stmt->u.let_decl = decl;
+    stmt->next = NULL;
+    return stmt;
+}
+
+/*
+ * stmt_new_reassign -- create a reassignment statement
+ */
+stmt_t *
+stmt_new_reassign(op_t *op)
+{
+    stmt_t *stmt;
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_REASSIGN;
+    stmt->u.reassign = op;
+    stmt->next = NULL;
+    return stmt;
+}
+
+/*
+ * stmt_new_for -- create a for statement
+ */
+stmt_t *
+stmt_new_for(expr_t *pattern, expr_t *iter, inner_block_t *block)
+{
+    stmt_t *stmt;
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_FOR;
+    stmt->u.forstmt.pattern = pattern;
+    stmt->u.forstmt.iter = iter;
+    stmt->u.forstmt.block = block;
+    stmt->next = NULL;
+    return stmt;
+}
+
+/*
+ * stmt_new_loop -- create a loop statement
+ */
+stmt_t *
+stmt_new_loop(inner_block_t *block)
+{
+    stmt_t *stmt;
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_LOOP;
+    stmt->u.loopblock = block;
+    stmt->next = NULL;
+    return stmt;
+}
+
+/*
+ * stmt_new_break -- create a break statement
+ */
+stmt_t *
+stmt_new_break(void)
+{
+    stmt_t *stmt;
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_BREAK;
+    stmt->next = NULL;
+    return stmt;
+}
+
+/*
+ * expr_new_match -- create a match expression (replaces expr_new_switch)
+ */
+expr_t *
+expr_new_match(void *scanner, expr_t *cond, match_block_t *block)
+{
+    expr_t *expr;
+    expr = _expr_new(scanner);
+    if ( NULL == expr ) {
+        return NULL;
+    }
+    expr->type = EXPR_MATCH;
+    expr->u.match.cond = cond;
+    expr->u.match.block = block;
+    return expr;
+}
+
+/*
+ * expr_new_yield -- create a yield expression
+ */
+expr_t *
+expr_new_yield(void *scanner, const char *port, expr_t *e)
+{
+    expr_t *expr;
+    yield_t *y;
+
+    y = malloc(sizeof(yield_t));
+    if ( NULL == y ) {
+        return NULL;
+    }
+    y->port = NULL == port ? NULL : strdup(port);
+    y->expr = e;
+
+    expr = _expr_new(scanner);
+    if ( NULL == expr ) {
+        free(y);
+        return NULL;
+    }
+    expr->type = EXPR_YIELD;
+    expr->u.yield_expr = y;
+    return expr;
+}
+
+/*
+ * expr_new_cast -- create a cast expression
+ */
+expr_t *
+expr_new_cast(void *scanner, expr_t *e, type_t *type)
+{
+    expr_t *expr;
+    cast_t *c;
+
+    c = malloc(sizeof(cast_t));
+    if ( NULL == c ) {
+        return NULL;
+    }
+    c->expr = e;
+    c->type = type;
+
+    expr = _expr_new(scanner);
+    if ( NULL == expr ) {
+        free(c);
+        return NULL;
+    }
+    expr->type = EXPR_CAST;
+    expr->u.cast = c;
+    return expr;
+}
+
+/*
+ * expr_new_range -- create a range expression
+ */
+expr_t *
+expr_new_range(void *scanner, expr_t *start, expr_t *end, range_limits_t limits)
+{
+    expr_t *expr;
+    range_t *r;
+
+    r = malloc(sizeof(range_t));
+    if ( NULL == r ) {
+        return NULL;
+    }
+    r->start = start;
+    r->end = end;
+    r->limits = limits;
+
+    expr = _expr_new(scanner);
+    if ( NULL == expr ) {
+        free(r);
+        return NULL;
+    }
+    expr->type = EXPR_RANGE;
+    expr->u.range = r;
+    return expr;
+}
+
+/*
+ * expr_new_block -- create a block expression
+ */
+expr_t *
+expr_new_block(void *scanner, inner_block_t *block)
+{
+    expr_t *expr;
+    expr = _expr_new(scanner);
+    if ( NULL == expr ) {
+        return NULL;
+    }
+    expr->type = EXPR_BLOCK;
+    expr->u.block = block;
+    return expr;
+}
