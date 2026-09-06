@@ -101,8 +101,11 @@
             integer_type | fp_type | string_type | boolean_type
             | struct_type | enum_type | stream_type | chan_type
 
+    field =
+            [ "mut" ] identifier ":" type
+
     member =
-            declaration [ ";" ]
+            field [ ";" ]
 
     member_list =
             member ( "," member )*
