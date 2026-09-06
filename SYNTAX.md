@@ -93,8 +93,15 @@
     enum_type =
             "enum" enum_name
 
+    stream_type =
+            "stream" "<" type ">"
+
+    chan_type =
+            "chan" "<" type ">"
+
     type =
-            integer_type | fp_type | string_type | boolean_type | struct_type | enum_type
+            integer_type | fp_type | string_type | boolean_type
+            | struct_type | enum_type | stream_type | chan_type
 
     member =
             declaration [ ";" ]
