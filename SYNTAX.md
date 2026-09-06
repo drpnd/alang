@@ -4,7 +4,7 @@
 
     token ::=
             "nil" | "true" | "false"
-             | "fn" | "coro" | "return" | "continue" | "break"
+             | "fn" | "coro" | "return" | "break"
              | "if" | "else" | "while" | "for" | "loop" | "match" | "in"
              | "let" | "mut" | "yield" | "await" | "node" | "source" | "sink" | "graph"
              | "-" | "+" | "*" | "/" | "%" | "&" | "|" | "~" | "^"
