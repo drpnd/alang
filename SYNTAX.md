@@ -9,7 +9,7 @@
              | "let" | "mut" | "yield" | "await" | "node" | "source" | "sink" | "graph"
              | "struct" | "enum" | "type" | "as"
              | "-" | "+" | "*" | "/" | "%" | "&" | "|" | "~" | "^"
-             | "," | "." | "!" | "!=" | "@"
+             | "," | "." | "!" | "!="
              | "<" | "<<" | "<=" | ">" | ">>" | ">=" | "=" | "==" 
              | "->" | "=>" | "|>"
              | "[" | "]" | "{" | "}" | "(" | ")" | ":" | ";"
@@ -137,7 +137,7 @@
                       | "(" expression_list ")" )*
 
     u_expr =
-            p_expr | "-" u_expr | "+" u_expr  | "!" u_expr | "~" u_expr
+            p_expr | "*" u_expr | "-" u_expr | "+" u_expr  | "!" u_expr | "~" u_expr
 
     cast_expr =
             u_expr ( "as" type )*
@@ -362,7 +362,7 @@ All the data are carried a packet.
 
     let x: i32 = 0
     let y: i32* = &x
-    let z: i32 = @y
+    let z: i32 = *y
 
 ## Div/Mod operation
 
