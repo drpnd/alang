@@ -139,14 +139,13 @@
     (* EXPRESSIONS *)
 
     p_expr ::=
-            primary | p_expr "++" | p_expr "--"
+            primary
             | p_expr ( "." identifier
                       | "[" expression_list "]"
                       | "(" expression_list ")" )*
 
     u_expr ::=
             p_expr | "-" u_expr | "+" u_expr  | "!" u_expr | "~" u_expr
-            | "++" u_expr | "--" u_expr
 
     m_expr ::=
             u_expr ( ( "*" | "/" | "%" ) u_expr )*
@@ -403,8 +402,8 @@ All the data are carried a packet.
 
 ## Precedence of operators
 
-1. suffix `++` `--`, `()`
-1. `!`, `~`, unary `+` `-`, `++` (prefix), `--` (prefix)
+1. `()`, `[]`, `.`
+1. `!`, `~`, unary `+` `-`
 1. `*`, `/`, `%`
 1. `+` `-`
 1. `<<` `>>`
