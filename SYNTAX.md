@@ -7,6 +7,7 @@
              | "fn" | "coro" | "return" | "break"
              | "if" | "else" | "while" | "for" | "loop" | "match" | "in"
              | "let" | "mut" | "yield" | "await" | "node" | "source" | "sink" | "graph"
+             | "struct" | "enum" | "type"
              | "-" | "+" | "*" | "/" | "%" | "&" | "|" | "~" | "^"
              | "," | "." | "!" | "!=" | "@"
              | "<" | "<<" | "<=" | ">" | ">>" | ">=" | "=" | "==" 
