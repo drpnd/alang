@@ -1,8 +1,8 @@
 # Syntax
 
-## BNF Grammar
+## EBNF Grammar (ISO/IEC 14977)
 
-    token ::=
+    token =
             "nil" | "true" | "false"
              | "fn" | "coro" | "return" | "break"
              | "if" | "else" | "while" | "for" | "loop" | "match" | "in"
@@ -15,196 +15,196 @@
              | ".." | "..=" | "!.." | "!..="
              | string | integer | float | NEWLINE
 
-    identifier ::=
+    identifier =
             (letter | "_") (letter | digit | "_")*
 
-    letter ::=
+    letter =
             lowercase | uppercase
 
-    lowercase ::=
+    lowercase =
             "a"..."z"
 
-    uppercase ::=
+    uppercase =
             "A"..."Z"
 
-    digit ::=
+    digit =
             "0"..."9"
 
     (* LITERALS *)
 
-    string ::=
+    string =
             '"' stringitem* '"'
 
-    stringitem ::=
+    stringitem =
             <ascii character except for \> | escapeseq
 
-    escapeseq ::=
+    escapeseq =
             "\x" [0-9a-fA-F]{2} | "\" [0-9]{1,3} | "\" <any ascii char>
 
-    binint ::=
+    binint =
             0b ("0" | "1")*
 
-    octint ::=
+    octint =
             0 ("0"..."7")*
 
-    hexint ::=
+    hexint =
             0x (digit | "a"..."f" | "A"..."F")*
 
-    decint ::=
+    decint =
             digit*
 
-    integer ::=
+    integer =
             octint | hexint | decint
 
-    float ::=
+    float =
             digit+ "." digit* | "." digit+
 
-    literal_list ::=
+    literal_list =
             literal ("," literal)*
 
-    literal ::=
+    literal =
             string | integer | float
 
     (* DATA TYPES *)
 
-    integer_type ::=
+    integer_type =
             "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64" | "u64"
 
-    fp_type ::=
+    fp_type =
             "fp4" | "fp8" | "f16" | "f32" | "f64"
 
-    string_type ::=
+    string_type =
             "string"
 
-    boolean_type ::=
+    boolean_type =
             "bool"
 
-    struct_name ::=
+    struct_name =
             identifier
 
-    struct_type ::=
+    struct_type =
             "struct" struct_name
 
-    union_name ::=
+    union_name =
             identifier
 
-    union_type ::=
+    union_type =
             "union" union_name
 
-    enum_name ::=
+    enum_name =
             identifier
 
-    enum_type ::=
+    enum_type =
             "enum" enum_name
 
-    type ::=
+    type =
             integer_type | fp_type | string_type | boolean_type | struct_type | union_type | enum_type
 
-    member ::=
+    member =
             declaration [ ";" ]
 
-    member_list ::=
+    member_list =
             member ( "," member )*
 
-    struct_def ::=
+    struct_def =
             struct_type "{" member_list "}"
 
-    union_def ::=
+    union_def =
             union_type "{" member_list "}"
 
-    enum_def ::=
+    enum_def =
             enum_type "{" identifier ( "," identifier )* "}"
 
-    typedef ::=
+    typedef =
             "typedef" type identifier
 
     (* PRIMITIVES *)
 
-    declaration ::=
+    declaration =
             "let" [ "mut" ] identifier [ ":" type ] "=" expression
 
-    reassign ::=
+    reassign =
             "mut" identifier assign_op expression
 
-    assign_op ::=
+    assign_op =
             "=" | "+=" | "-=" | "*=" | "/=" | "%="
             | "&=" | "|=" | "^=" | "<<=" | ">>="
 
-    atom ::=
+    atom =
             literal | identifier
 
-    primary ::=
+    primary =
             atom | "(" expression_list ")"
 
     (* EXPRESSIONS *)
 
-    p_expr ::=
+    p_expr =
             primary
             | p_expr ( "." identifier
                       | "[" expression_list "]"
                       | "(" expression_list ")" )*
 
-    u_expr ::=
+    u_expr =
             p_expr | "-" u_expr | "+" u_expr  | "!" u_expr | "~" u_expr
 
-    m_expr ::=
+    m_expr =
             u_expr ( ( "*" | "/" | "%" ) u_expr )*
 
-    a_expr ::=
+    a_expr =
             m_expr ( ( "+" | "-" ) m_expr )*
 
-    shift_expr ::=
+    shift_expr =
             a_expr ( ( "<<" | ">>" ) a_expr )*
 
-    comparison ::=
+    comparison =
             shift_expr ( ("<" | ">" | "<=" | ">=") shift_expr )*
 
-    comparison_eq ::=
+    comparison_eq =
             comparison ( ("==" | "!=") comparison )*
 
-    and_expr ::=
+    and_expr =
             comparison_eq ( "&" comparison_eq )*
 
-    xor_expr ::=
+    xor_expr =
             and_expr ( "^" and_expr )*
 
-    or_expr ::=
+    or_expr =
             xor_expr ( "|" xor_expr )*
 
-    and_test ::=
+    and_test =
             or_expr ( "&&" or_expr )*
 
-    or_test ::=
+    or_test =
             and_test ( "||" and_test )*
 
-    assign_expr ::=
+    assign_expr =
             reassign | or_test
 
-    else_block ::=
+    else_block =
             "else" block
             | "else" if_expr
 
-    if_expr ::=
+    if_expr =
             "if" expression block [ else_block ]
 
-    match_arm ::=
+    match_arm =
             pattern [ "if" expression ] "=>" expression
 
-    match_expr ::=
+    match_expr =
             "match" expression "{" match_arm ( "," match_arm )* [ "," ] "}"
 
-    control_expr ::=
+    control_expr =
             if_expr
             | match_expr
             | assign_expr
 
-    expression ::=
+    expression =
             control_expr
 
-    expression_list ::=
+    expression_list =
             expression ( "," expression )*
 
-    range ::=
+    range =
             expression ( ".." | "..=" | "!.." | "!..=" ) expression
             | expression ".."
             | ".." expression
@@ -212,30 +212,30 @@
 
     (* PATTERNS *)
 
-    pattern ::=
+    pattern =
             literal | identifier | "_"
             | "(" pattern_list ")"
             | "[" pattern_list "]"
 
-    pattern_list ::=
+    pattern_list =
             [ pattern ( "," pattern )* ]
 
     (* STATEMENTS *)
 
-    return_stmt ::=
+    return_stmt =
             "return" expression
             | "return" ";"
 
-    while_expr ::=
+    while_expr =
             "while" expression block
 
-    for_expr ::=
+    for_expr =
             "for" pattern "in" ( range | expression ) block
 
-    loop_expr ::=
+    loop_expr =
             "loop" block
 
-    statement ::=
+    statement =
             declaration
             | reassign
             | expression_list
@@ -246,32 +246,32 @@
             | fndef
             | crdef
 
-    statements ::=
+    statements =
             statement*
 
     (* BLOCKS *)
 
-    block ::=
+    block =
             "{" statement* [ expression ] "}"
 
-    suite ::=
+    suite =
             block
 
-    graphsuite ::=
+    graphsuite =
             "{" statement* "}"
 
     (* FUNCTION / COROUTINE *)
 
-    funcarg ::=
+    funcarg =
             [ "mut" ] identifier ":" type
 
-    funcargs ::=
+    funcargs =
             "(" [ funcarg ( "," funcarg )* ] ")"
 
-    retval ::=
+    retval =
             type
 
-    generic_params ::=
+    generic_params =
             "<" identifier ( "," identifier )* ">"
 
     (* DIRECTIVES *)
@@ -279,28 +279,28 @@
 
     (* Top-level declaration *)
 
-    nodedef ::=
+    nodedef =
             "node" identifier funcargs [ "->" retval ] suite
 
-    graphdef ::=
+    graphdef =
             "graph" identifier [ funcargs ] [ "->" retval ] graphsuite
 
-    fndef ::=
+    fndef =
             "fn" identifier [ generic_params ] funcargs [ "->" retval ] suite
 
-    crdef ::=
+    crdef =
             "coro" identifier [ generic_params ] funcargs [ "->" retval ] suite
 
-    top_level_decl ::=
+    top_level_decl =
             nodedef
             | graphdef
             | fndef
             | crdef
 
-    top_level ::=
+    top_level =
             top_level_decl*
 
-    input ::=
+    input =
             top_level EOF
 
 
@@ -420,4 +420,4 @@ All the data are carried a packet.
 1. `let` / `mut`
 1. `,`
 
-## Grammar (BNF)
+## Grammar (EBNF)
