@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2018-2019,2021-2022 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2018-2024,2026 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -152,25 +152,47 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
 %x comment
 %x blockcomment
 %%
+    /* Range operators (must come before single-char operators) */
+"!..="      return TOK_BANG_DOTS_EQ;
+"!.."       return TOK_BANG_DOTS;
+"..="       return TOK_DOTS_EQ;
+".."        return TOK_DOTS;
+
+    /* Arrow and pipe operators */
+"->"        return TOK_ARROW;
+"=>"        return TOK_FATARROW;
+"|>"        return TOK_PIPE;
+"<-"        return TOK_LARROW;
+
+    /* Assignment compound operators */
+"+="        return TOK_PLUS_EQ;
+"-="        return TOK_MINUS_EQ;
+"*="        return TOK_MUL_EQ;
+"/="        return TOK_DIV_EQ;
+"%="        return TOK_MOD_EQ;
+"&="        return TOK_AND_EQ;
+"|="        return TOK_OR_EQ;
+"^="        return TOK_XOR_EQ;
+"<<="       return TOK_LSHIFT_EQ;
+">>="       return TOK_RSHIFT_EQ;
+
     /* Arithmetic operations */
 "+"         return TOK_ADD;
 "-"         return TOK_SUB;
 "*"         return TOK_MUL;
 "/"         return TOK_DIV;
 "%"         return TOK_MOD;
-"++"        return TOK_INC;
-"--"        return TOK_DEC;
+
     /* Bitwise operations */
-"|"         return TOK_BIT_OR;
-"&"         return TOK_BIT_AND;
-"^"         return TOK_BIT_XOR;
 "<<"        return TOK_BIT_LSHIFT;
 ">>"        return TOK_BIT_RSHIFT;
 "~"         return TOK_BIT_NOT;
+
     /* Logical operations */
 "||"        return TOK_LOR;
 "&&"        return TOK_LAND;
 "!"         return TOK_NOT;
+
     /* Parentheses, brackets, etc... */
 "("         return TOK_LPAREN;
 ")"         return TOK_RPAREN;
@@ -180,21 +202,26 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
 "]"         return TOK_RBRACKET;
 ","         return TOK_COMMA;
 "."         return TOK_DOT;
-"@"         return TOK_ATMARK;
-"<"         return TOK_LCHEVRON;
-">"         return TOK_RCHEVRON;
-"="         return TOK_EQ;
 ":"         return TOK_COLON;
 ";"         return TOK_SEMICOLON;
+
     /* Comparison */
 "=="        return TOK_EQ_EQ;
 "!="        return TOK_NEQ;
 "<="        return TOK_LEQ;
 ">="        return TOK_GEQ;
-    /* Definition */
-":="        return TOK_DEF;
+"<"         return TOK_LT;
+">"         return TOK_GT;
+"="         return TOK_EQ;
+
+    /* Bitwise (single-char, must come after compound) */
+"|"         return TOK_BIT_OR;
+"&"         return TOK_BIT_AND;
+"^"         return TOK_BIT_XOR;
+
     /* Control sequences */
 [\r\n\t ]   ;                       /* ignore whitespaces */
+
     /* Primitive types */
 "i8"        return TOK_TYPE_I8;
 "i16"       return TOK_TYPE_I16;
@@ -204,31 +231,43 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
 "u16"       return TOK_TYPE_U16;
 "u32"       return TOK_TYPE_U32;
 "u64"       return TOK_TYPE_U64;
-"fp32"      return TOK_TYPE_FP32;
-"fp64"      return TOK_TYPE_FP64;
+"f16"       return TOK_TYPE_F16;
+"f32"       return TOK_TYPE_F32;
+"f64"       return TOK_TYPE_F64;
+"fp4"       return TOK_TYPE_FP4;
+"fp8"       return TOK_TYPE_FP8;
 "string"    return TOK_TYPE_STRING;
 "bool"      return TOK_TYPE_BOOL;
+
     /* Reserved keywords */
-"mod"       return TOK_MODULE;
-"use"       return TOK_USE;
-"include"   return TOK_INCLUDE;
 "fn"        return TOK_FN;
-"coroutine" return TOK_COROUTINE;
-"return"    return TOK_RETURN;
-"type"      return TOK_TYPE;
-"typedef"   return TOK_TYPEDEF;
-"struct"    return TOK_STRUCT;
-"union"     return TOK_UNION;
-"enum"      return TOK_ENUM;
+"coro"      return TOK_CORO;
+"let"       return TOK_LET;
+"mut"       return TOK_MUT;
 "if"        return TOK_IF;
 "else"      return TOK_ELSE;
+"match"     return TOK_MATCH;
+"for"       return TOK_FOR;
+"in"        return TOK_IN;
 "while"     return TOK_WHILE;
-"switch"    return TOK_SWITCH;
-"case"      return TOK_CASE;
-"default"   return TOK_DEFAULT;
-"nil"       return TOK_NIL;
+"loop"      return TOK_LOOP;
+"break"     return TOK_BREAK;
+"return"    return TOK_RETURN;
+"yield"     return TOK_YIELD;
+"await"     return TOK_AWAIT;
+"node"      return TOK_NODE;
+"source"    return TOK_SOURCE;
+"sink"      return TOK_SINK;
+"graph"     return TOK_GRAPH;
+"struct"    return TOK_STRUCT;
+"enum"      return TOK_ENUM;
+"type"      return TOK_TYPE;
+"as"        return TOK_AS;
 "true"      return TOK_TRUE;
 "false"     return TOK_FALSE;
+"pub"       return TOK_PUB;
+"mod"       return TOK_MOD_KW;
+"use"       return TOK_USE;
 
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {
@@ -241,15 +280,15 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
     return TOK_ID;
 }
 
-    /* Decimal numbers */
-[1-9][0-9]* {
+    /* Binary numbers */
+0b[01]+ {
     char *val;
-    val = strdup(yytext);
+    val = strdup(yytext + 2);
     if ( NULL == val ) {
         return *yytext;
     }
     yylval->numval = val;
-    return TOK_LIT_DECINT;
+    return TOK_LIT_BININT;
 }
     /* Hexadecimal numbers */
 0x[0-9a-fA-F]+ {
@@ -261,15 +300,15 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
     yylval->numval = val;
     return TOK_LIT_HEXINT;
 }
-    /* Octal numbers */
-0[0-7]* {
+    /* Decimal numbers */
+[0-9]+ {
     char *val;
-    val = strdup(yytext + 1);
+    val = strdup(yytext);
     if ( NULL == val ) {
         return *yytext;
     }
     yylval->numval = val;
-    return TOK_LIT_OCTINT;
+    return TOK_LIT_DECINT;
 }
 
     /* Floating point */

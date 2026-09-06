@@ -1,5 +1,5 @@
 /*_
- * Copyright (c) 2018-2019,2021-2022,2024 Hirochika Asai <asai@jar.jp>
+ * Copyright (c) 2018-2024,2026 Hirochika Asai <asai@jar.jp>
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -71,70 +71,95 @@ void yyerror(YYLTYPE *, yyscan_t, const char *);
 }
 
 %token <numval>         TOK_LIT_FLOAT
-%token <numval>         TOK_LIT_HEXINT TOK_LIT_DECINT TOK_LIT_OCTINT
+%token <numval>         TOK_LIT_HEXINT TOK_LIT_DECINT TOK_LIT_BININT
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR
-%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD TOK_INC TOK_DEC
-%token TOK_DEF
-%token TOK_LAND TOK_LOR TOK_NOT
-%token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
-%token TOK_LCHEVRON TOK_RCHEVRON
-%token TOK_IF TOK_ELSE TOK_WHILE TOK_SWITCH TOK_CASE TOK_DEFAULT
-%token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ
-%token TOK_EQ TOK_COMMA TOK_DOT TOK_ATMARK
-%token TOK_MODULE TOK_USE TOK_INCLUDE TOK_FN TOK_COROUTINE TOK_RETURN
+
+    /* Arithmetic operations */
+%token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD
+    /* Compound assignment */
+%token TOK_PLUS_EQ TOK_MINUS_EQ TOK_MUL_EQ TOK_DIV_EQ TOK_MOD_EQ
+%token TOK_AND_EQ TOK_OR_EQ TOK_XOR_EQ TOK_LSHIFT_EQ TOK_RSHIFT_EQ
+    /* Bitwise operations */
 %token TOK_BIT_OR TOK_BIT_AND TOK_BIT_XOR TOK_BIT_LSHIFT TOK_BIT_RSHIFT
 %token TOK_BIT_NOT
+    /* Logical operations */
+%token TOK_LAND TOK_LOR TOK_NOT
+    /* Range operators */
+%token TOK_DOTS TOK_DOTS_EQ TOK_BANG_DOTS TOK_BANG_DOTS_EQ
+    /* Arrow and pipe operators */
+%token TOK_ARROW TOK_FATARROW TOK_PIPE TOK_LARROW
+    /* Parentheses, brackets, etc... */
+%token TOK_LPAREN TOK_RPAREN TOK_LBRACE TOK_RBRACE TOK_LBRACKET TOK_RBRACKET
+%token TOK_COMMA TOK_DOT TOK_COLON TOK_SEMICOLON
+    /* Comparison */
+%token TOK_EQ_EQ TOK_NEQ TOK_LEQ TOK_GEQ TOK_LT TOK_GT
+%token TOK_EQ
+    /* Primitive types */
 %token TOK_TYPE_I8 TOK_TYPE_I16 TOK_TYPE_I32 TOK_TYPE_I64
 %token TOK_TYPE_U8 TOK_TYPE_U16 TOK_TYPE_U32 TOK_TYPE_U64
-%token TOK_TYPE TOK_TYPEDEF TOK_STRUCT TOK_UNION TOK_ENUM
-%token TOK_TYPE_FP32 TOK_TYPE_FP64 TOK_TYPE_STRING TOK_TYPE_BOOL
-%token TOK_NIL TOK_TRUE TOK_FALSE
-%token TOK_COLON TOK_SEMICOLON
+%token TOK_TYPE_F16 TOK_TYPE_F32 TOK_TYPE_F64
+%token TOK_TYPE_FP4 TOK_TYPE_FP8
+%token TOK_TYPE_STRING TOK_TYPE_BOOL
+    /* Reserved keywords */
+%token TOK_LET TOK_MUT
+%token TOK_FN TOK_CORO TOK_RETURN TOK_BREAK
+%token TOK_IF TOK_ELSE TOK_WHILE TOK_FOR TOK_LOOP TOK_MATCH TOK_IN
+%token TOK_YIELD TOK_AWAIT
+%token TOK_NODE TOK_SOURCE TOK_SINK TOK_GRAPH
+%token TOK_STRUCT TOK_ENUM TOK_TYPE TOK_AS
+%token TOK_TRUE TOK_FALSE
+%token TOK_PUB TOK_MOD_KW TOK_USE
 
 %type <file> file
-%type <module> module
-%type <iblock> inner_block suite else_block
+%type <iblock> inner_block block suite else_block
 %type <oblock> outer_block
 %type <obent> outer_entry
 %type <idval> identifier
 %type <decl> declaration
-%type <args> args funcargs retvals
-%type <arg> arg
-%type <directive> directive struct_def union_def enum_def use typedef
-%type <decl_list> decl_list
-%type <enum_elem> enum_list enum_elem
-%type <type> primitive_type type
-%type <exprs> expr_list
-%type <expr> expression control_expr switch_expr if_expr
+%type <args> args funcargs retvals retval_named_list
+%type <arg> arg retval_named
+%type <directive> directive struct_def enum_def type_alias
+%type <decl_list> decl_list field_list
+%type <decl> field
+%type <enum_elem> enum_variant_list enum_variant
+%type <type> primitive_type type reference_type
+%type <exprs> expr_list pattern_list type_list
+%type <expr> expression control_expr
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
-%type <expr> primary a_expr m_expr u_expr p_expr atom
-%type <swblock> switch_block
-%type <swcase> switch_case
+%type <expr> primary a_expr m_expr cast_expr u_expr p_expr atom
+%type <expr> match_expr if_expr yield_expr range
+%type <expr> pattern
+%type <swblock> match_block
+%type <swcase> match_arm
 %type <func> fndef
 %type <coroutine> crdef
-%type <stmt> statement stmt_while stmt_expr_list stmt_return
+%type <stmt> statement
 %type <stmts> statements
 %type <lit> literal
 %type <lset> literal_set
 
+    /* Precedence (decreasing) */
 %nonassoc TOK_LPAREN
 %right SNOP
-%left TOK_DOT TOK_INC TOK_DEC
+%left TOK_DOT
 %left UNOP
-%right TOK_NOT TOK_BIT_NOT TOK_ATMARK
+%right TOK_NOT TOK_BIT_NOT
+%left TOK_AS
 %left TOK_MUL TOK_DIV TOK_MOD
 %left TOK_ADD TOK_SUB
 %left TOK_BIT_LSHIFT TOK_BIT_RSHIFT
-%left TOK_LCHEVRON TOK_RCHEVRON TOK_LEQ TOK_GEQ
+%left TOK_LT TOK_GT TOK_LEQ TOK_GEQ
 %left TOK_EQ_EQ TOK_NEQ
 %left TOK_BIT_AND
 %left TOK_BIT_XOR
 %left TOK_BIT_OR
 %left TOK_LAND
 %left TOK_LOR
-%right TOK_DEF TOK_EQ
+%nonassoc RANGE
+%left TOK_PIPE
+%right TOK_LET TOK_MUT
 %left TOK_COMMA
 
 %nonassoc ELSENOP RETNOP
@@ -196,29 +221,10 @@ outer_entry:    directive
                     block->u.fn = $1;
                     $$ = block;
                 }
-        |       module
-                {
-                    outer_block_entry_t *block;
-                    block = outer_block_entry_new(OUTER_BLOCK_MODULE);
-                    block->u.md = $1;
-                    $$ = block;
-                }
                 ;
 
 /* Directives */
-directive:      include
-                {
-                    $$ = NULL;
-                }
-        |       use
-                {
-                    $$ = $1;
-                }
-        |       struct_def
-                {
-                    $$ = $1;
-                }
-        |       union_def
+directive:      struct_def
                 {
                     $$ = $1;
                 }
@@ -226,101 +232,213 @@ directive:      include
                 {
                     $$ = $1;
                 }
-        |       typedef
+        |       type_alias
                 {
                     $$ = $1;
                 }
                 ;
 
-include:        TOK_INCLUDE TOK_LIT_STR
+type_alias:     TOK_TYPE identifier TOK_EQ type
                 {
-                    yyerror(&yylloc, scanner,
-                            "The include directive is not implemented.");
+                    $$ = directive_typedef_new(scanner, $4, $2);
                 }
                 ;
-use:            TOK_USE identifier
-                {
-                    $$ = directive_use_new(scanner, $2);
-                }
-                ;
-typedef:        TOK_TYPEDEF type identifier
-                {
-                    $$ = directive_typedef_new(scanner, $2, $3);
-                }
-        |       TOK_TYPE type TOK_DEF identifier
-                {
-                    $$ = directive_typedef_new(scanner, $2, $4);
-                }
-                ;
-struct_def:     TOK_STRUCT identifier TOK_LBRACE decl_list TOK_RBRACE
+struct_def:     TOK_STRUCT identifier TOK_LBRACE field_list TOK_RBRACE
                 {
                     $$ = directive_struct_new(scanner, $2, $4);
                 }
-        |       TOK_STRUCT TOK_LBRACE decl_list TOK_RBRACE
+        |       TOK_STRUCT identifier TOK_LBRACE TOK_RBRACE
                 {
-                    $$ = directive_struct_new(scanner, NULL, $3);
+                    $$ = directive_struct_new(scanner, $2, NULL);
                 }
                 ;
-union_def:      TOK_UNION identifier TOK_LBRACE decl_list TOK_RBRACE
+field_list:     field_list TOK_COMMA field
                 {
-                    $$ = directive_union_new(scanner, $2, $4);
+                    $$ = decl_list_append($1, $3);
                 }
-        |       TOK_UNION TOK_LBRACE decl_list TOK_RBRACE
-                {
-                    $$ = directive_union_new(scanner, NULL, $3);
-                }
-                ;
-decl_list:      decl_list declaration
-                {
-                    $$ = decl_list_append($1, $2);
-                }
-        |       declaration TOK_SEMICOLON
+        |       field
                 {
                     $$ = decl_list_new($1);
                 }
-        |       declaration
+        |       field TOK_SEMICOLON
                 {
                     $$ = decl_list_new($1);
                 }
-                ;
-enum_def:       TOK_ENUM identifier TOK_LBRACE enum_list TOK_RBRACE
-                {
-                    $$ = directive_enum_new(scanner, $2, $4);
-                }
-                ;
-enum_list:      enum_elem TOK_COMMA enum_list
-                {
-                    $$ = enum_elem_prepend($1, $3);
-                }
-        |       enum_elem
+        |       field_list TOK_COMMA
                 {
                     $$ = $1;
                 }
                 ;
-enum_elem:      identifier
+field:          identifier TOK_COLON type
                 {
+                    $$ = decl_new($1, $3);
+                }
+        |       TOK_MUT identifier TOK_COLON type
+                {
+                    $$ = decl_new($2, $4);
+                }
+                ;
+
+/* Enum with variant data */
+enum_def:       TOK_ENUM identifier TOK_LBRACE enum_variant_list TOK_RBRACE
+                {
+                    /* TODO: Update to support variant data */
+                    $$ = directive_enum_new(scanner, $2, $4);
+                }
+        |       TOK_ENUM identifier TOK_LBRACE TOK_RBRACE
+                {
+                    $$ = directive_enum_new(scanner, $2, NULL);
+                }
+                ;
+enum_variant_list:
+                enum_variant
+                {
+                    $$ = $1;
+                }
+        |       enum_variant_list TOK_COMMA enum_variant
+                {
+                    $$ = enum_elem_prepend($3, $1);
+                }
+        |       enum_variant_list TOK_COMMA
+                {
+                    $$ = $1;
+                }
+                ;
+enum_variant:   identifier
+                {
+                    /* Unit variant */
+                    $$ = enum_elem_new($1);
+                }
+        |       identifier TOK_LPAREN type_list TOK_RPAREN
+                {
+                    /* Tuple variant -- TODO: store type list */
+                    $$ = enum_elem_new($1);
+                }
+        |       identifier TOK_LBRACE field_list TOK_RBRACE
+                {
+                    /* Struct variant -- TODO: store field list */
                     $$ = enum_elem_new($1);
                 }
                 ;
 
-/* Module */
-module:         TOK_MODULE identifier TOK_LBRACE outer_block TOK_RBRACE
+/* Types */
+type:           primitive_type
                 {
-                    context_t *context;
-                    module_t *module;
-                    module_t *cur;
-                    module = module_new($2, $4);
-                    ERROR_ON_NULL(module, "Cannot initialize a new module.");
-                    context = yyget_extra(scanner);
-                    cur = context->cur;
-                    context->cur = module;
-                    module->parent = cur;
-                    $$ = module;
+                    $$ = $1;
+                }
+        |       reference_type
+                {
+                    $$ = $1;
+                }
+        |       TOK_STRUCT identifier
+                {
+                    $$ = type_new_struct($2);
+                }
+        |       TOK_ENUM identifier
+                {
+                    $$ = type_new_enum($2);
+                }
+        |       identifier
+                {
+                    $$ = type_new_id($1);
+                }
+                ;
+reference_type: TOK_BIT_AND type
+                {
+                    /* &T -- shared reference */
+                    /* TODO: proper reference type */
+                    $$ = $2;
+                }
+        |       TOK_BIT_AND TOK_MUT type
+                {
+                    /* &mut T -- mutable reference */
+                    /* TODO: proper mutable reference type */
+                    $$ = $3;
+                }
+                ;
+primitive_type: TOK_TYPE_I8
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_I8);
+                }
+        |       TOK_TYPE_U8
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_U8);
+                }
+        |       TOK_TYPE_I16
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_I16);
+                }
+        |       TOK_TYPE_U16
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_U16);
+                }
+        |       TOK_TYPE_I32
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_I32);
+                }
+        |       TOK_TYPE_U32
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_U32);
+                }
+        |       TOK_TYPE_I64
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_I64);
+                }
+        |       TOK_TYPE_U64
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_U64);
+                }
+        |       TOK_TYPE_F16
+                {
+                    /* TODO: add TYPE_PRIMITIVE_F16 */
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
+                }
+        |       TOK_TYPE_F32
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
+                }
+        |       TOK_TYPE_F64
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP64);
+                }
+        |       TOK_TYPE_FP4
+                {
+                    /* TODO: add TYPE_PRIMITIVE_FP4 */
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
+                }
+        |       TOK_TYPE_FP8
+                {
+                    /* TODO: add TYPE_PRIMITIVE_FP8 */
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
+                }
+        |       TOK_TYPE_STRING
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_STRING);
+                }
+        |       TOK_TYPE_BOOL
+                {
+                    $$ = type_new_primitive(TYPE_PRIMITIVE_BOOL);
+                }
+                ;
+
+/* Type list (for enum tuple variants) */
+type_list:      type
+                {
+                    expr_list_t *list;
+                    list = expr_list_new();
+                    ERROR_ON_NULL(list, "Memory error: type_list");
+                    /* TODO: proper type list */
+                    $$ = list;
+                }
+        |       type_list TOK_COMMA type
+                {
+                    /* TODO: append type */
+                    $$ = $1;
                 }
                 ;
 
 /* Coroutine & function */
-crdef:          TOK_COROUTINE identifier funcargs retvals suite
+crdef:          TOK_CORO identifier funcargs retvals suite
                 {
                     $$ = coroutine_new($2, $3, $4, $5);
                 }
@@ -335,14 +453,44 @@ funcargs:       TOK_LPAREN args TOK_RPAREN
                     $$ = $2;
                 }
                 ;
-retvals:        TOK_LPAREN args TOK_RPAREN
+retvals:        TOK_LPAREN retval_named_list TOK_RPAREN
                 {
                     $$ = $2;
+                }
+        |       TOK_LPAREN TOK_RPAREN
+                {
+                    $$ = arg_list_new(NULL);
                 }
         |       %prec RETNOP
                 {
                     $$ = NULL;
                 }
+                ;
+retval_named_list:
+                retval_named
+                {
+                    $$ = arg_list_new($1);
+                }
+        |       retval_named_list TOK_COMMA retval_named
+                {
+                    $$ = arg_list_append($1, $3);
+                }
+        |       retval_named_list TOK_COMMA
+                {
+                    $$ = $1;
+                }
+                ;
+retval_named:   type
+                {
+                    /* Unnamed return: just a type */
+                    $$ = arg_new(scanner, decl_new(NULL, $1));
+                }
+        |       identifier TOK_COLON type
+                {
+                    /* Named return: name: type */
+                    $$ = arg_new(scanner, decl_new($1, $3));
+                }
+                ;
 args:           arg
                 {
                     $$ = arg_list_new($1);
@@ -356,18 +504,52 @@ args:           arg
                     $$ = arg_list_new(NULL);
                 }
                 ;
-arg:            declaration
+arg:            identifier TOK_COLON type
                 {
-                    $$ = arg_new(scanner, $1);
+                    $$ = arg_new(scanner, decl_new($1, $3));
+                }
+        |       TOK_MUT identifier TOK_COLON type
+                {
+                    $$ = arg_new(scanner, decl_new($2, $4));
                 }
                 ;
 
-/* Suite */
-suite:          TOK_LBRACE inner_block TOK_RBRACE
+/* Blocks */
+block:          TOK_LBRACE statements TOK_RBRACE
                 {
-                    $$ = $2;
+                    $$ = inner_block_new($2);
+                }
+        |       TOK_LBRACE statements expression TOK_RBRACE
+                {
+                    /* Block with trailing expression */
+                    stmt_t *expr_stmt;
+                    stmt_list_t *stmts;
+                    expr_stmt = stmt_new_expr_list(expr_list_new());
+                    ERROR_ON_NULL(expr_stmt, "Memory error: block expr");
+                    stmts = stmt_list_append($2, expr_stmt);
+                    $$ = inner_block_new(stmts);
+                }
+        |       TOK_LBRACE expression TOK_RBRACE
+                {
+                    /* Block with only trailing expression */
+                    stmt_t *expr_stmt;
+                    stmt_list_t *stmts;
+                    expr_stmt = stmt_new_expr_list(expr_list_new());
+                    ERROR_ON_NULL(expr_stmt, "Memory error: block expr");
+                    stmts = stmt_list_new(expr_stmt);
+                    $$ = inner_block_new(stmts);
+                }
+        |       TOK_LBRACE TOK_RBRACE
+                {
+                    $$ = inner_block_new(NULL);
                 }
                 ;
+suite:          block
+                {
+                    $$ = $1;
+                }
+                ;
+
 /* Inner block */
 inner_block:    statements
                 {
@@ -389,40 +571,82 @@ statements:     statement
                 ;
 
 /* Statements */
-statement:      stmt_while
+statement:      declaration
                 {
-                    $$ = $1;
+                    $$ = stmt_new_expr_list(expr_list_new());
+                    ERROR_ON_NULL($$, "Memory error: declaration stmt");
+                    /* TODO: proper let statement */
                 }
-        |       stmt_expr_list
+        |       expression
                 {
-                    $$ = $1;
+                    expr_list_t *list;
+                    list = expr_list_new();
+                    ERROR_ON_NULL(list, "Memory error: expr stmt");
+                    $$ = stmt_new_expr_list(expr_list_append(list, $1));
                 }
-        |       stmt_return
-                {
-                    $$ = $1;
-                }
-        |       suite
-                {
-                    $$ = stmt_new_block($1);
-                }
-                ;
-stmt_while:     TOK_WHILE expression TOK_LBRACE inner_block TOK_RBRACE
-                {
-                    $$ = stmt_new_while($2, $4);
-                }
-                ;
-stmt_expr_list: expr_list
-                {
-                    $$ = stmt_new_expr_list($1);
-                }
-                ;
-stmt_return:    TOK_RETURN expression
+        |       TOK_RETURN expression
                 {
                     $$ = stmt_new_return($2);
                 }
-        |       TOK_RETURN TOK_SEMICOLON
+        |       TOK_RETURN
                 {
                     $$ = stmt_new_return(NULL);
+                }
+        |       TOK_BREAK
+                {
+                    /* TODO: break statement */
+                    $$ = stmt_new_return(NULL);
+                }
+        |       TOK_WHILE expression block
+                {
+                    $$ = stmt_new_while($2, $3);
+                }
+        |       TOK_FOR pattern TOK_IN expression block
+                {
+                    /* TODO: for statement */
+                    $$ = stmt_new_while($4, $5);
+                }
+        |       TOK_LOOP block
+                {
+                    /* TODO: loop statement (infinite) */
+                    $$ = stmt_new_while(NULL, $2);
+                }
+        |       block
+                {
+                    $$ = stmt_new_block($1);
+                }
+        |       fndef
+                {
+                    /* TODO: nested function definition */
+                    $$ = stmt_new_expr_list(expr_list_new());
+                }
+        |       crdef
+                {
+                    /* TODO: nested coroutine definition */
+                    $$ = stmt_new_expr_list(expr_list_new());
+                }
+                ;
+
+/* Declaration (let binding) */
+declaration:    TOK_LET identifier TOK_COLON type TOK_EQ expression
+                {
+                    $$ = decl_new($2, $4);
+                    /* TODO: store initializer expression */
+                }
+        |       TOK_LET identifier TOK_EQ expression
+                {
+                    $$ = decl_new($2, NULL);
+                    /* TODO: type inference + store initializer */
+                }
+        |       TOK_LET TOK_MUT identifier TOK_COLON type TOK_EQ expression
+                {
+                    $$ = decl_new($3, $5);
+                    /* TODO: store mut flag + initializer */
+                }
+        |       TOK_LET TOK_MUT identifier TOK_EQ expression
+                {
+                    $$ = decl_new($3, NULL);
+                    /* TODO: store mut flag + type inference + initializer */
                 }
                 ;
 
@@ -438,6 +662,10 @@ expr_list:      expression
                 {
                     $$ = expr_list_append($1, $3);
                 }
+        |
+                {
+                    $$ = expr_list_new();
+                }
                 ;
 
 expression:     control_expr
@@ -450,7 +678,11 @@ control_expr:   if_expr
                 {
                     $$ = $1;
                 }
-        |       switch_expr
+        |       match_expr
+                {
+                    $$ = $1;
+                }
+        |       yield_expr
                 {
                     $$ = $1;
                 }
@@ -459,12 +691,12 @@ control_expr:   if_expr
                     $$ = $1;
                 }
                 ;
-if_expr:        TOK_IF expression suite else_block
+if_expr:        TOK_IF expression block else_block
                 {
                     $$ = expr_new_if(scanner, $2, $3, $4);
                 }
                 ;
-else_block:     TOK_ELSE suite
+else_block:     TOK_ELSE block
                 {
                     $$ = $2;
                 }
@@ -477,47 +709,166 @@ else_block:     TOK_ELSE suite
                     $$ = NULL;
                 }
                 ;
-switch_expr:    TOK_SWITCH expression TOK_LBRACE switch_block TOK_RBRACE
+
+/* Match expression (replaces switch) */
+match_expr:     TOK_MATCH expression TOK_LBRACE match_block TOK_RBRACE
                 {
                     $$ = expr_new_switch(scanner, $2, $4);
                 }
                 ;
-switch_block:   switch_block switch_case
+match_block:    match_block match_arm
                 {
                     $$ = switch_block_append($1, $2);
                 }
-        |       switch_case
+        |       match_arm
                 {
                     switch_block_t *block;
                     block = switch_block_new();
-                    ERROR_ON_NULL(block, "Parse error: switch");
+                    ERROR_ON_NULL(block, "Parse error: match");
                     $$ = switch_block_append(block, $1);
                 }
-                ;
-switch_case:    TOK_CASE literal_set TOK_COLON inner_block
+        |
                 {
-                    ERROR_ON_NULL($2, "Parse error: case");
-                    $$ = switch_case_new($2, $4);
-                }
-        |       TOK_DEFAULT TOK_COLON inner_block
-                {
-                    $$ = switch_case_new(NULL, $3);
+                    switch_block_t *block;
+                    block = switch_block_new();
+                    ERROR_ON_NULL(block, "Parse error: empty match");
+                    $$ = block;
                 }
                 ;
-assign_expr:    primary TOK_DEF assign_expr
+match_arm:      pattern TOK_FATARROW expression
                 {
-                    $$ = expr_op_new_infix(scanner, $1, $3, OP_ASSIGN);
+                    /* TODO: proper match arm with pattern */
+                    literal_set_t *lset;
+                    lset = literal_set_new();
+                    $$ = switch_case_new(lset, inner_block_new(
+                        stmt_list_new(stmt_new_expr($3))));
                 }
-        |       primary TOK_EQ assign_expr
+        |       match_arm TOK_COMMA
                 {
-                    fprintf(stderr, "Warning: \"=\" is not recommended.\n");
-                    $$ = expr_op_new_infix(scanner, $1, $3, OP_ASSIGN);
+                    $$ = $1;
+                }
+                ;
+
+/* Yield expression */
+yield_expr:     TOK_YIELD expression
+                {
+                    /* TODO: proper yield expression */
+                    $$ = $2;
+                }
+        |       TOK_YIELD identifier TOK_LARROW expression
+                {
+                    /* TODO: multi-port yield */
+                    $$ = $4;
+                }
+        |       TOK_YIELD
+                {
+                    /* yield unit */
+                    $$ = expr_new_literal(scanner,
+                        literal_new_bool(scanner, BOOL_FALSE));
+                }
+                ;
+
+/* Patterns (for match arms) */
+pattern:        literal
+                {
+                    /* Literal pattern */
+                    $$ = expr_new_literal(scanner, $1);
+                }
+        |       identifier
+                {
+                    $$ = expr_new_id(scanner, $1);
+                }
+        |       TOK_MUT identifier
+                {
+                    $$ = expr_new_id(scanner, $2);
+                }
+                ;
+pattern_list:   pattern
+                {
+                    expr_list_t *list;
+                    list = expr_list_new();
+                    $$ = expr_list_append(list, $1);
+                }
+        |       pattern_list TOK_COMMA pattern
+                {
+                    $$ = expr_list_append($1, $3);
+                }
+        |
+                {
+                    $$ = expr_list_new();
+                }
+                ;
+
+/* Assignment and reassignment */
+assign_expr:    TOK_MUT identifier TOK_EQ expression
+                {
+                    /* mut x = expr (reassignment) */
+                    $$ = expr_op_new_infix(scanner,
+                        expr_new_id(scanner, $2), $4, OP_ASSIGN);
+                }
+        |       TOK_MUT identifier TOK_PLUS_EQ expression
+                {
+                    $$ = expr_op_new_infix(scanner,
+                        expr_new_id(scanner, $2), $4, OP_ADD);
+                }
+        |       TOK_MUT identifier TOK_MINUS_EQ expression
+                {
+                    $$ = expr_op_new_infix(scanner,
+                        expr_new_id(scanner, $2), $4, OP_SUB);
+                }
+        |       TOK_MUT identifier TOK_MUL_EQ expression
+                {
+                    $$ = expr_op_new_infix(scanner,
+                        expr_new_id(scanner, $2), $4, OP_MUL);
+                }
+        |       TOK_MUT identifier TOK_DIV_EQ expression
+                {
+                    $$ = expr_op_new_infix(scanner,
+                        expr_new_id(scanner, $2), $4, OP_DIV);
+                }
+        |       TOK_MUT identifier TOK_MOD_EQ expression
+                {
+                    $$ = expr_op_new_infix(scanner,
+                        expr_new_id(scanner, $2), $4, OP_MOD);
                 }
         |       or_test
                 {
                     $$ = $1;
                 }
                 ;
+
+/* Range expression */
+range:          expression TOK_DOTS expression
+                {
+                    /* TODO: proper range expression */
+                    $$ = $1;
+                }
+        |       expression TOK_DOTS_EQ expression
+                {
+                    $$ = $1;
+                }
+        |       expression TOK_BANG_DOTS expression
+                {
+                    $$ = $1;
+                }
+        |       expression TOK_BANG_DOTS_EQ expression
+                {
+                    $$ = $1;
+                }
+        |       expression TOK_DOTS
+                {
+                    $$ = $1;
+                }
+        |       TOK_DOTS expression
+                {
+                    $$ = $2;
+                }
+        |       TOK_DOTS
+                {
+                    $$ = NULL;
+                }
+                ;
+
 or_test:        or_test TOK_LOR or_test
                 {
                     $$ = expr_op_new_infix(scanner, $1, $3, OP_LOR);
@@ -541,7 +892,7 @@ and_test:       and_test TOK_LAND and_test
 or_expr:        or_expr TOK_BIT_OR or_expr
                 {
                     $$ = expr_op_new_infix(scanner, $1, $3, OP_OR);
-                    ERROR_ON_NULL($$, "Parse error: ||");
+                    ERROR_ON_NULL($$, "Parse error: |");
                 }
         |       xor_expr
                 {
@@ -582,11 +933,11 @@ comparison_eq:  comparison_eq TOK_EQ_EQ comparison_eq
                     $$ = $1;
                 }
                 ;
-comparison:     comparison TOK_LCHEVRON comparison
+comparison:     comparison TOK_LT comparison
                 {
                     $$ = expr_op_new_infix(scanner, $1, $3, OP_CMP_LT);
                 }
-        |       comparison TOK_RCHEVRON comparison
+        |       comparison TOK_GT comparison
                 {
                     $$ = expr_op_new_infix(scanner, $1, $3, OP_CMP_GT);
                 }
@@ -641,6 +992,16 @@ m_expr:         m_expr TOK_MUL m_expr
                 {
                     $$ = expr_op_new_infix(scanner, $1, $3, OP_MOD);
                 }
+        |       cast_expr
+                {
+                    $$ = $1;
+                }
+                ;
+cast_expr:      cast_expr TOK_AS type
+                {
+                    /* TODO: proper cast expression */
+                    $$ = $1;
+                }
         |       u_expr
                 {
                     $$ = $1;
@@ -662,36 +1023,22 @@ u_expr:         TOK_SUB u_expr
                 {
                     $$ = expr_op_new_prefix(scanner, $2, OP_COMP);
                 }
-        |       TOK_INC u_expr
+        |       TOK_MUL u_expr
                 {
-                    $$ = expr_op_new_prefix(scanner, $2, OP_INC);
-                }
-        |       TOK_DEC u_expr
-                {
-                    $$ = expr_op_new_prefix(scanner, $2, OP_DEC);
+                    /* Dereference: *expr */
+                    $$ = expr_op_new_prefix(scanner, $2, OP_PTRIND);
                 }
         |       TOK_BIT_AND u_expr
                 {
+                    /* Borrow: &expr */
                     $$ = expr_op_new_prefix(scanner, $2, OP_PTRREF);
-                }
-        |       TOK_ATMARK u_expr
-                {
-                    $$ = expr_op_new_prefix(scanner, $2, OP_PTRIND);
                 }
         |       p_expr %prec SNOP
                 {
                     $$ = $1;
                 }
                 ;
-p_expr:         p_expr TOK_INC
-                {
-                    $$ = expr_op_new_suffix(scanner, $1, OP_INC);
-                }
-        |       p_expr TOK_DEC
-                {
-                    $$ = expr_op_new_suffix(scanner, $1, OP_DEC);
-                }
-        |       p_expr TOK_DOT identifier
+p_expr:         p_expr TOK_DOT identifier
                 {
                     $$ = expr_new_member(scanner, $1, $3);
                 }
@@ -726,92 +1073,6 @@ atom:           literal
                 {
                     $$ = expr_new_id(scanner, $1);
                 }
-        |       declaration
-                {
-                    $$ = expr_new_decl(scanner, $1);
-                }
-                ;
-declaration:    identifier TOK_COLON type
-                {
-                    $$ = decl_new($1, $3);
-                }
-                ;
-identifier:     TOK_ID
-                {
-                    $$ = $1;
-                }
-                ;
-
-/* Types */
-type:           primitive_type
-                {
-                    $$ = $1;
-                }
-        |       TOK_STRUCT identifier
-                {
-                    $$ = type_new_struct($2);
-                }
-        |       TOK_UNION identifier
-                {
-                    $$ = type_new_union($2);
-                }
-        |       TOK_ENUM identifier
-                {
-                    $$ = type_new_enum($2);
-                }
-        |       identifier
-                {
-                    $$ = type_new_id($1);
-                }
-                ;
-primitive_type: TOK_TYPE_I8
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_I8);
-                }
-        |       TOK_TYPE_U8
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_U8);
-                }
-        |       TOK_TYPE_I16
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_I16);
-                }
-        |       TOK_TYPE_U16
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_U16);
-                }
-        |       TOK_TYPE_I32
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_I32);
-                }
-        |       TOK_TYPE_U32
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_U32);
-                }
-        |       TOK_TYPE_I64
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_I64);
-                }
-        |       TOK_TYPE_U64
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_U64);
-                }
-        |       TOK_TYPE_FP32
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP32);
-                }
-        |       TOK_TYPE_FP64
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_FP64);
-                }
-        |       TOK_TYPE_STRING
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_STRING);
-                }
-        |       TOK_TYPE_BOOL
-                {
-                    $$ = type_new_primitive(TYPE_PRIMITIVE_BOOL);
-                }
                 ;
 
 /* Literal set */
@@ -827,17 +1088,17 @@ literal_set:    literal_set TOK_COMMA literal
                 ;
 
 /* Literal values */
-literal:        TOK_LIT_HEXINT
+literal:        TOK_LIT_BININT
+                {
+                    $$ = literal_new_int(scanner, $1, LIT_HEXINT);
+                }
+        |       TOK_LIT_HEXINT
                 {
                     $$ = literal_new_int(scanner, $1, LIT_HEXINT);
                 }
         |       TOK_LIT_DECINT
                 {
                     $$ = literal_new_int(scanner, $1, LIT_DECINT);
-                }
-        |       TOK_LIT_OCTINT
-                {
-                    $$ = literal_new_int(scanner, $1, LIT_OCTINT);
                 }
         |       TOK_LIT_FLOAT
                 {
@@ -855,9 +1116,11 @@ literal:        TOK_LIT_HEXINT
                 {
                     $$ = literal_new_bool(scanner, BOOL_FALSE);
                 }
-        |       TOK_NIL
+                ;
+
+identifier:     TOK_ID
                 {
-                    $$ = literal_new_nil(scanner);
+                    $$ = $1;
                 }
                 ;
 
