@@ -85,12 +85,6 @@
     struct_type =
             "struct" struct_name
 
-    union_name =
-            identifier
-
-    union_type =
-            "union" union_name
-
     enum_name =
             identifier
 
@@ -98,7 +92,7 @@
             "enum" enum_name
 
     type =
-            integer_type | fp_type | string_type | boolean_type | struct_type | union_type | enum_type
+            integer_type | fp_type | string_type | boolean_type | struct_type | enum_type
 
     member =
             declaration [ ";" ]
@@ -108,9 +102,6 @@
 
     struct_def =
             struct_type "{" member_list "}"
-
-    union_def =
-            union_type "{" member_list "}"
 
     enum_def =
             enum_type "{" identifier ( "," identifier )* "}"
