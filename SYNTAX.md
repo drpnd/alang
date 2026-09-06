@@ -110,8 +110,19 @@
     struct_def =
             struct_type "{" member_list "}"
 
+    type_list =
+            type ( "," type )*
+
+    enum_variant =
+            identifier
+            | identifier "(" [ type_list ] ")"
+            | identifier "{" member_list "}"
+
+    enum_variant_list =
+            enum_variant ( "," enum_variant )* [ "," ]
+
     enum_def =
-            enum_type "{" identifier ( "," identifier )* "}"
+            enum_type "{" [ enum_variant_list ] "}"
 
     type_alias =
             "type" identifier "=" type
