@@ -517,7 +517,11 @@ block:          TOK_LBRACE statements TOK_RBRACE
                     /* Block with trailing expression */
                     stmt_t *expr_stmt;
                     stmt_list_t *stmts;
-                    expr_stmt = stmt_new_expr_list(expr_list_new());
+                    expr_list_t *elist;
+                    elist = expr_list_new();
+                    ERROR_ON_NULL(elist, "Memory error: block expr list");
+                    elist = expr_list_append(elist, $3);
+                    expr_stmt = stmt_new_expr_list(elist);
                     ERROR_ON_NULL(expr_stmt, "Memory error: block expr");
                     stmts = stmt_list_append($2, expr_stmt);
                     $$ = inner_block_new(stmts);
@@ -527,7 +531,11 @@ block:          TOK_LBRACE statements TOK_RBRACE
                     /* Block with only trailing expression */
                     stmt_t *expr_stmt;
                     stmt_list_t *stmts;
-                    expr_stmt = stmt_new_expr_list(expr_list_new());
+                    expr_list_t *elist;
+                    elist = expr_list_new();
+                    ERROR_ON_NULL(elist, "Memory error: block expr list");
+                    elist = expr_list_append(elist, $2);
+                    expr_stmt = stmt_new_expr_list(elist);
                     ERROR_ON_NULL(expr_stmt, "Memory error: block expr");
                     stmts = stmt_list_new(expr_stmt);
                     $$ = inner_block_new(stmts);
