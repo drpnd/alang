@@ -115,8 +115,8 @@
     enum_def =
             enum_type "{" identifier ( "," identifier )* "}"
 
-    typedef =
-            "typedef" type identifier
+    type_alias =
+            "type" identifier "=" type
 
     (* PRIMITIVES *)
 
