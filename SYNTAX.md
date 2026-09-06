@@ -1,75 +1,18 @@
 # Syntax
 
-## DATA FLOW PROCESSING
-
-All the data are carried a packet.
-
-## Local variables
-
-A variable is an identifier starting with an alphabet character or an underscore `_` followed by 0+ characters of alphabets, digits, or underscores:  [A-Za-z_][A-Za-z0-9_]*.
-The type of a variable is annotated following a `:`.
-
-    x: i32
-    y: i32 = 1
-
-## Pointer
-
-    x: i32*
-    y: i32
-    y = @x
-
-    x: i32
-    y: i32*
-    y = &x
-
-## Div/Mod operation
-
-    q = x / y
-    r = x % y
-
-    q, r = x / y
-    r, q = x % y
-
-## List expression
-
-    a, b = x + y, x + z
-
-## if-else and switch expressions
-
-    r = if condition { true } else { false }
-
-    r = switch ternary { case 0, nil: false; case 1: true }
-
-## Precedence of operators
-
-1. suffix `++` `--`, `()`
-1. `!`, `~`, unary `+` `-`, `++` (prefix), `--` (prefix)
-1. `*`, `/`, `%`
-1. `+` `-`
-1. `<<` `>>`
-1. `<` `<=` `>` `>=`
-1. `==` `!=`
-1. `&`
-1. `^`
-1. `|`
-1. `&&`
-1. `||`
-1. `:=`
-1. `,`
-
-## Grammar (BNF)
-
-    EOS ::=
-            NEWLINE | ";"
+## BNF Grammar
 
     token ::=
             "nil" | "true" | "false"
-             | "fn" | "coroutine" | "return" | "continue" | "break"
-             | "if" | "else" | "while" | "for" | "switch" | "case"
+             | "fn" | "coro" | "return" | "continue" | "break"
+             | "if" | "else" | "while" | "for" | "loop" | "match" | "in"
+             | "let" | "mut" | "yield" | "await" | "node" | "source" | "sink" | "graph"
              | "-" | "+" | "*" | "/" | "%" | "&" | "|" | "~" | "^"
              | "," | "." | "!" | "!=" | "@"
-             | "<" | "<<" | "<=" | ">" | ">>" | ">=" | "=" | "==" | ":="
+             | "<" | "<<" | "<=" | ">" | ">>" | ">=" | "=" | "==" 
+             | "->" | "=>" | "|>"
              | "[" | "]" | "{" | "}" | "(" | ")" | ":" | ";"
+             | ".." | "..=" | "!.." | "!..="
              | string | integer | float | NEWLINE
 
     identifier ::=
@@ -87,7 +30,7 @@ The type of a variable is annotated following a `:`.
     digit ::=
             "0"..."9"
 
-### Literals
+    (* LITERALS *)
 
     string ::=
             '"' stringitem* '"'
@@ -97,6 +40,9 @@ The type of a variable is annotated following a `:`.
 
     escapeseq ::=
             "\x" [0-9a-fA-F]{2} | "\" [0-9]{1,3} | "\" <any ascii char>
+
+    binint ::=
+            0b ("0" | "1")*
 
     octint ::=
             0 ("0"..."7")*
@@ -119,13 +65,13 @@ The type of a variable is annotated following a `:`.
     literal ::=
             string | integer | float
 
-### Datq types
+    (* DATA TYPES *)
 
     integer_type ::=
             "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64" | "u64"
 
     fp_type ::=
-            "fp32" | "fp64"
+            "fp4" | "fp8" | "f16" | "f32" | "f64"
 
     string_type ::=
             "string"
@@ -145,8 +91,14 @@ The type of a variable is annotated following a `:`.
     union_type ::=
             "union" union_name
 
+    enum_name ::=
+            identifier
+
+    enum_type ::=
+            "enum" enum_name
+
     type ::=
-            integer_type | fp_type | "string" | struct_type | union_type
+            integer_type | fp_type | string_type | boolean_type | struct_type | union_type | enum_type
 
     member ::=
             declaration [ ";" ]
@@ -157,44 +109,34 @@ The type of a variable is annotated following a `:`.
     struct_def ::=
             struct_type "{" member_list "}"
 
-    uniond_def ::=
+    union_def ::=
             union_type "{" member_list "}"
+
+    enum_def ::=
+            enum_type "{" identifier ( "," identifier )* "}"
 
     typedef ::=
             "typedef" type identifier
 
-## Primitives
+    (* PRIMITIVES *)
 
     declaration ::=
-            identifer ":" type
+            "let" [ "mut" ] identifier [ ":" type ] "=" expression
+
+    reassign ::=
+            "mut" identifier assign_op expression
+
+    assign_op ::=
+            "=" | "+=" | "-=" | "*=" | "/=" | "%="
+            | "&=" | "|=" | "^=" | "<<=" | ">>="
 
     atom ::=
-            literal | identifier | declaration
+            literal | identifier
 
     primary ::=
             atom | "(" expression_list ")"
 
-### Function / Coroutine
-
-    funcarg ::=
-            identifier ":" type
-
-    funcargs ::=
-            "(" [ funcarg ( "," funcarg )* ] ")"
-
-    retval ::=
-            [ identifier ":" ] type
-
-    retvals ::=
-            "(" [ retval ( "," retval )* ] ")"
-
-    fndef ::=
-            "fn" identifier funcargs [ retvals ] suite
-
-    crdef ::=
-            "coroutine" identifer funcargs [ retvals ] suite
-
-### Expressions
+    (* EXPRESSIONS *)
 
     p_expr ::=
             primary | p_expr "++" | p_expr "--"
@@ -215,7 +157,7 @@ The type of a variable is annotated following a `:`.
     shift_expr ::=
             a_expr ( ( "<<" | ">>" ) a_expr )*
 
-    compariosn ::=
+    comparison ::=
             shift_expr ( ("<" | ">" | "<=" | ">=") shift_expr )*
 
     comparison_eq ::=
@@ -237,29 +179,24 @@ The type of a variable is annotated following a `:`.
             and_test ( "||" and_test )*
 
     assign_expr ::=
-            primary ":=" assign_expr
-            | or_test
+            reassign | or_test
 
     else_block ::=
-            "else" suite
+            "else" block
             | "else" if_expr
 
     if_expr ::=
-            "if" expression suite [ else_block ]
+            "if" expression block [ else_block ]
 
-    switch_case ::=
-            "case" literal_list ":" statements
-            | "default" ":" statements
+    match_arm ::=
+            pattern [ "if" expression ] "=>" expression
 
-    switch_cases ::=
-            [ switch_case* ]
-
-    switch_expr ::=
-            "switch" expression "{" switch_cases "}"
+    match_expr ::=
+            "match" expression "{" match_arm ( "," match_arm )* [ "," ] "}"
 
     control_expr ::=
             if_expr
-            | switch_expr
+            | match_expr
             | assign_expr
 
     expression ::=
@@ -268,37 +205,220 @@ The type of a variable is annotated following a `:`.
     expression_list ::=
             expression ( "," expression )*
 
-### Statements
+    range ::=
+            expression ( ".." | "..=" | "!.." | "!..=" ) expression
+            | expression ".."
+            | ".." expression
+            | ".."
+
+    (* PATTERNS *)
+
+    pattern ::=
+            literal | identifier | "_"
+            | "(" pattern_list ")"
+            | "[" pattern_list "]"
+
+    pattern_list ::=
+            [ pattern ( "," pattern )* ]
+
+    (* STATEMENTS *)
 
     return_stmt ::=
             "return" expression
             | "return" ";"
 
-    while_stmt ::=
-            "while" expression suite
+    while_expr ::=
+            "while" expression block
+
+    for_expr ::=
+            "for" pattern "in" ( range | expression ) block
+
+    loop_expr ::=
+            "loop" block
 
     statement ::=
-            expression_list
+            declaration
+            | reassign
+            | expression_list
             | return_stmt
-            | while_stmt
+            | while_expr
+            | for_expr
+            | loop_expr
             | fndef
             | crdef
 
     statements ::=
             statement*
 
+    (* BLOCKS *)
+
+    block ::=
+            "{" statement* [ expression ] "}"
+
     suite ::=
+            block
+
+    graphsuite ::=
             "{" statement* "}"
 
-### File
+    (* FUNCTION / COROUTINE *)
 
-    outer_block_entry ::=
-            fndef
+    funcarg ::=
+            [ "mut" ] identifier ":" type
+
+    funcargs ::=
+            "(" [ funcarg ( "," funcarg )* ] ")"
+
+    retval ::=
+            type
+
+    generic_params ::=
+            "<" identifier ( "," identifier )* ">"
+
+    (* DIRECTIVES *)
+    (* Module system deferred for initial implementation *)
+
+    (* Top-level declaration *)
+
+    nodedef ::=
+            "node" identifier funcargs [ "->" retval ] suite
+
+    graphdef ::=
+            "graph" identifier [ funcargs ] [ "->" retval ] graphsuite
+
+    fndef ::=
+            "fn" identifier [ generic_params ] funcargs [ "->" retval ] suite
+
+    crdef ::=
+            "coro" identifier [ generic_params ] funcargs [ "->" retval ] suite
+
+    top_level_decl ::=
+            nodedef
+            | graphdef
+            | fndef
             | crdef
 
-    outer_block ::=
-            outer_block_entry*
+    top_level ::=
+            top_level_decl*
 
     input ::=
-            outer_block EOF
+            top_level EOF
 
+
+## Fundamental features
+
+- Pre-defined types
+- User-defined types
+- Variables
+
+### Pre-defined types
+
+Unsigned and signed integers:
+- i8: signed 8-bit integer
+- u8: unsigned 8-bit integer
+- i16: signed 16-bit integer
+- u16: unsigned 16-bit integer
+- i32: signed 32-bit integer
+- u32: unsigned 32-bit integer
+- i64: signed 64-bit integer
+- u64: unsigned 64-bit integer
+
+Floating points:
+- f16: 16-bit half-precision float (IEEE 754 binary16)
+- f32: 32-bit floating point (IEEE 754 binary32)
+- f64: 64-bit floating point (IEEE 754 binary64)
+- fp4: 4-bit low-precision float (E2M1)
+- fp8: 8-bit low-precision float (E4M3 / E5M2)
+
+String:
+- string: string
+
+Boolean
+- bool: boolean
+
+
+### User-defined types
+
+In addition to the pre-defined types, custom types can be defined.
+
+
+### Variables
+
+A variable is declared with `let`, optionally with `mut` for mutability.
+The type of a variable is annotated following a `:`.
+
+    let x: i32 = 0
+    let mut y: i32 = 1
+    mut y = 2
+    mut y += 1
+
+Bare `=` (without `let` or `mut`) is a compile error, eliminating
+the `=` vs `==` bug class.
+
+
+## Advanced features
+
+
+## DATA FLOW PROCESSING
+
+All the data are carried a packet.
+
+
+## Pointer
+
+    let x: i32 = 0
+    let y: i32* = &x
+    let z: i32 = @y
+
+## Div/Mod operation
+
+    let q = x / y
+    let r = x % y
+    let q, r = x / y
+    let _, r = x / y
+
+## List expression
+
+    let a, b = x + y, x + z
+
+## if-else and match expressions
+
+    let r = if condition { true } else { false }
+
+    let r = match x {
+        0 => "zero",
+        1 => "one",
+        _ => "many",
+    }
+
+## Range operators
+
+    0..10       # [0, 10)  half-open (default)
+    0..=10      # [0, 10]  inclusive
+    0!..10      # (0, 10)  open
+    0!..=10     # (0, 10]  half-open-left
+    0..         # [0, inf)
+    ..10        # (-inf, 10)
+    ..          # (-inf, inf)
+
+## Precedence of operators
+
+1. suffix `++` `--`, `()`
+1. `!`, `~`, unary `+` `-`, `++` (prefix), `--` (prefix)
+1. `*`, `/`, `%`
+1. `+` `-`
+1. `<<` `>>`
+1. `<` `<=` `>` `>=`
+1. `==` `!=`
+1. `&`
+1. `^`
+1. `|`
+1. `&&`
+1. `||`
+1. range (`..` `..=` `!..` `!..=`; non-associative)
+1. pipe `|>` (left-associative)
+1. `return` / `yield` / keyword constructs
+1. `let` / `mut`
+1. `,`
+
+## Grammar (BNF)
