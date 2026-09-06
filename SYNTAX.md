@@ -288,7 +288,11 @@
             "(" [ funcarg ( "," funcarg )* ] ")"
 
     retval =
-            type
+            "(" retval_named ( "," retval_named )* ")"
+            | type
+
+    retval_named =
+            [ identifier ":" ] type
 
     generic_params =
             "<" identifier ( "," identifier )* ">"
@@ -305,10 +309,10 @@
             "graph" identifier [ funcargs ] [ "->" retval ] graphsuite
 
     fndef =
-            "fn" identifier [ generic_params ] funcargs [ "->" retval ] suite
+            "fn" identifier [ generic_params ] funcargs [ retval ] suite
 
     crdef =
-            "coro" identifier [ generic_params ] funcargs [ "->" retval ] suite
+            "coro" identifier [ generic_params ] funcargs [ retval ] suite
 
     top_level_decl =
             nodedef
