@@ -3,8 +3,6 @@
 > **Version:** 0.1 (draft)
 >
 > **Status:** Work in progress
->
-> **Related:** [lang-design-doc Step 8 — Code Generation & Runtime](https://github.com/asai/lang-design-doc/blob/main/docs/design/08-codegen-runtime.md)
 
 ## 1. Overview
 
