@@ -47,9 +47,6 @@
     binint =
             0b ("0" | "1")*
 
-    octint =
-            0 ("0"..."7")*
-
     hexint =
             0x (digit | "a"..."f" | "A"..."F")*
 
@@ -57,7 +54,7 @@
             digit*
 
     integer =
-            octint | hexint | decint
+            hexint | decint
 
     float =
             digit+ "." digit* | "." digit+
