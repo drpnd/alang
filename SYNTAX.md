@@ -97,9 +97,13 @@
     chan_type =
             "chan" "<" type ">"
 
+    reference_type =
+            "&" [ "mut" ] type
+
     type =
             integer_type | fp_type | string_type | boolean_type
             | struct_type | enum_type | stream_type | chan_type
+            | reference_type
 
     field =
             [ "mut" ] identifier ":" type
@@ -378,11 +382,20 @@ the `=` vs `==` bug class.
 All the data are carried a packet.
 
 
-## Pointer
+## References and Pointers
+
+The language uses Rust-style references for borrowed values. Raw
+pointers (C-style `*T`) are not supported (no `unsafe` mode, no FFI).
 
     let x: i32 = 0
-    let y: i32* = &x
-    let z: i32 = *y
+    let y: &i32 = &x          // shared reference (borrow)
+    let z: i32 = *y           // dereference
+
+    let mut w: i32 = 0
+    let r: &mut i32 = &mut w  // mutable reference
+    mut *r = 42               // dereference and assign
+
+Heap allocation uses `Box<T>` (owned, future implementation).
 
 ## Div/Mod operation
 
