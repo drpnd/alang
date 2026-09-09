@@ -388,6 +388,7 @@ enum {
  * Calculatet the hash value
  */
 static unsigned long
+__attribute__((unused))
 elf64_hash(const unsigned char *name)
 {
     unsigned long h = 0, g;

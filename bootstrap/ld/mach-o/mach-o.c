@@ -25,10 +25,13 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <alloca.h>
 
 #define MH_MAGIC_64             0xfeedfacfUL
 #define CPUTYPE_X86_64          0x01000007UL
 #define CPUSUBTYPE_X86_64       0x00000003UL
+#define CPUTYPE_ARM64            0x0100000CUL
+#define CPUSUBTYPE_ARM64_ALL     0x00000000UL
 
 #define FILETYPE_OBJECT         1
 #define FILETYPE_EXECUTE        2
@@ -290,8 +293,8 @@ _export(FILE *fp, arch_code_t *code)
     bsssize = ((bsssize + 15) / 16) * 16;
 
     /* Relocation info */
-    relocinfo = alloca(sizeof(struct relocation_info) * code->rel.n);
-    if ( NULL == relocinfo ) {
+    relocinfo = code->rel.n > 0 ? alloca(sizeof(struct relocation_info) * code->rel.n) : NULL;
+    if ( code->rel.n > 0 && NULL == relocinfo ) {
         return -1;
     }
     for ( i = 0; i < code->rel.n; i++ ) {
@@ -305,6 +308,16 @@ _export(FILE *fp, arch_code_t *code)
             relocinfo[i].r_type = X86_64_RELOC_SIGNED;
             break;
         case ARCH_REL_BRANCH:
+            if ( code->cpu == ARCH_CPU_AARCH64 ) {
+                relocinfo[i].r_pcrel = 1;
+                relocinfo[i].r_length = 2;
+                relocinfo[i].r_type = 2; /* ARM64_RELOC_BRANCH26 */
+            } else {
+                relocinfo[i].r_pcrel = 1;
+                relocinfo[i].r_length = 2;
+                relocinfo[i].r_type = 2; /* X86_64_RELOC_BRANCH */
+            }
+            break;
         default:
             fprintf(stderr, "Unknown relocation type (%d).\n",
                     code->rel.rels[i].type);
@@ -366,8 +379,13 @@ _export(FILE *fp, arch_code_t *code)
 
     /* Header */
     hdr.magic = MH_MAGIC_64;
-    hdr.cputype = CPUTYPE_X86_64;
-    hdr.cpusubtype = CPUSUBTYPE_X86_64;
+    if ( code->cpu == ARCH_CPU_AARCH64 ) {
+        hdr.cputype = CPUTYPE_ARM64;
+        hdr.cpusubtype = CPUSUBTYPE_ARM64_ALL;
+    } else {
+        hdr.cputype = CPUTYPE_X86_64;
+        hdr.cpusubtype = CPUSUBTYPE_X86_64;
+    }
     hdr.filetype = FILETYPE_OBJECT;
     hdr.ncmds = ncmds;
     hdr.sizeofcmds = sizeofcmds;
@@ -499,9 +517,11 @@ _export(FILE *fp, arch_code_t *code)
     fseeko(fp, codepoint + codesize + datasize + bsssize, SEEK_SET);
 
     /* Write the relocation info */
-    nw = fwrite(relocinfo, sizeof(struct relocation_info), code->rel.n, fp);
-    if ( nw != 1 ) {
-        return -1;
+    if ( code->rel.n > 0 ) {
+        nw = fwrite(relocinfo, sizeof(struct relocation_info), code->rel.n, fp);
+        if ( nw != (ssize_t)code->rel.n ) {
+            return -1;
+        }
     }
 
     /* Write the symbol table */
