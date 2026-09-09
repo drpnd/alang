@@ -80,3 +80,4 @@ run_test "for_nested.al" 6
 run_test "break_test.al" 10
 run_test "continue_test.al" 9
 run_test "while_break.al" 5
+run_test "div_mod.al" 5

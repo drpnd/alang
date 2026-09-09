@@ -452,6 +452,62 @@ emit_mul_reg(textbuf_t *tb, int rd, int rn, int rm, int sf)
 }
 
 /*
+ * SDIV: sf 0 0 0 1 1 0 1 0 1 1 0 0 0 1 1 Rm 0 0 0 0 1 1 Rn Rd
+ */
+static int
+emit_sdiv_reg(textbuf_t *tb, int rd, int rn, int rm, int sf)
+{
+    uint32_t insn = ((uint32_t)sf << 31) | (0x1AC00C00U) |
+                    ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31);
+    return emit32(tb, insn);
+}
+
+/*
+ * UDIV: sf 0 0 0 1 1 0 1 0 1 1 0 0 0 1 0 Rm 0 0 0 0 1 1 Rn Rd
+ */
+static int
+emit_udiv_reg(textbuf_t *tb, int rd, int rn, int rm, int sf)
+{
+    uint32_t insn = ((uint32_t)sf << 31) | (0x1AC00800U) |
+                    ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31);
+    return emit32(tb, insn);
+}
+
+/*
+ * MSUB: sf 1 0 0 1 1 0 1 1 0 0 0 1 Ra Rm 0 0 0 0 1 1 Rn Rd  (Rd = Ra - Rn * Rm)
+ */
+static int
+emit_msub_reg(textbuf_t *tb, int rd, int rn, int rm, int ra, int sf)
+{
+    uint32_t insn = ((uint32_t)sf << 31) | (0x1B008000U) |
+                    ((rm & 31) << 16) | ((ra & 31) << 10) |
+                    ((rn & 31) << 5) | (rd & 31);
+    return emit32(tb, insn);
+}
+
+/*
+ * LSLV: sf 0 0 0 1 1 0 1 0 1 1 0 0 1 0 0 Rm 0 0 1 0 0 0 Rn Rd
+ */
+static int
+emit_lsl_reg(textbuf_t *tb, int rd, int rn, int rm, int sf)
+{
+    uint32_t insn = ((uint32_t)sf << 31) | (0x1AC02000U) |
+                    ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31);
+    return emit32(tb, insn);
+}
+
+/*
+ * LSRV: sf 0 0 0 1 1 0 1 0 1 1 0 0 1 0 1 Rm 0 0 1 0 0 0 Rn Rd
+ */
+static int
+emit_lsr_reg(textbuf_t *tb, int rd, int rn, int rm, int sf)
+{
+    uint32_t insn = ((uint32_t)sf << 31) | (0x1AC02400U) |
+                    ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31);
+    return emit32(tb, insn);
+}
+
+/*
  * AND: sf 0 0 0 1 0 1 0 0 0 0 Rm 0 0 0 0 0 0 Rn Rd
  */
 static int
@@ -740,6 +796,34 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_mul_reg(&ctx->tb, dst, src0, src1, 1);
 
+    case IR_OPCODE_DIV:
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        return emit_sdiv_reg(&ctx->tb, dst, src0, src1, 1);
+
+    case IR_OPCODE_UDIV:
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        return emit_udiv_reg(&ctx->tb, dst, src0, src1, 1);
+
+    case IR_OPCODE_MOD: {
+        /* mod a, b = a - (a / b) * b  =>  MSUB Rd=Ra-Rn*Rm */
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        emit_sdiv_reg(&ctx->tb, dst, src0, src1, 1);
+        return emit_msub_reg(&ctx->tb, dst, dst, src1, src0, 1);
+    }
+
+    case IR_OPCODE_SHL:
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        return emit_lsl_reg(&ctx->tb, dst, src0, src1, 1);
+
+    case IR_OPCODE_SHR:
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        return emit_lsr_reg(&ctx->tb, dst, src0, src1, 1);
+
     case IR_OPCODE_NEG:
         src0 = operand_reg(&inst->operands[0]);
         return emit_sub_reg(&ctx->tb, dst, 31, src0, 1);  /* sub rd, xzr, src0 */
@@ -1027,11 +1111,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_PHI:
     case IR_OPCODE_SWITCH:
     case IR_OPCODE_MEMCPY:
-    case IR_OPCODE_UDIV:
-    case IR_OPCODE_MOD:
     case IR_OPCODE_UREM:
-    case IR_OPCODE_SHL:
-    case IR_OPCODE_SHR:
     case IR_OPCODE_CAST:
     case IR_OPCODE_MAKE_STRUCT:
     case IR_OPCODE_GET_FIELD:
