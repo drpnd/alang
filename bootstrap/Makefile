@@ -111,7 +111,7 @@ test_dfir: minica_test_dfir
 tests/minica_test_build.o: tests/minica_test_build.c minica.h syntax.h ir.h arch.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-minica_test_build: tests/minica_test_build.o compiler.o optimize.o ir.o y.tab.o lex.yy.o syntax.o syntax_debug.o arch.o arch/x86-64/x86-64.o arch/x86-64/instr.o arch/aarch64/aarch64.o ld/mach-o/mach-o.o ld/elf/elf.o
+minica_test_build: tests/minica_test_build.o compiler.o optimize.o ir.o ir_debug.o y.tab.o lex.yy.o syntax.o syntax_debug.o arch.o arch/x86-64/x86-64.o arch/x86-64/instr.o arch/aarch64/aarch64.o ld/mach-o/mach-o.o ld/elf/elf.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 test_build: minica_test_build

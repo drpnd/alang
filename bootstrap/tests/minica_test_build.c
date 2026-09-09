@@ -155,6 +155,10 @@ main(int argc, const char *const argv[])
     int opt_changes = ir_optimize(ir);
     printf("Optimizer: %d changes\n", opt_changes);
 
+    /* Print optimized DFIR */
+    printf("\n");
+    ir_print_code(ir);
+
     /* 4. Assemble to native code */
     memset(&code, 0, sizeof(code));
     arch_t *arch = arch_init(cpu, loader);
