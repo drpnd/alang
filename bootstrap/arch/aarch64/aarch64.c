@@ -615,18 +615,23 @@ add_rel(arch_code_t *code, arch_rel_type_t type, off_t pos, int sym)
  *======================================================================*/
 
 static int
-operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
+operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, int scratch)
 {
     if (op->type == IR_OPERAND_IMM) {
         int ok;
         int64_t val = operand_imm(op, &ok);
         if (ok) {
-            int scratch = 17;
             emit_load_imm64(&ctx->tb, scratch, val);
             return scratch;
         }
     }
     return operand_reg(op);
+}
+
+static int
+operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
+{
+    return operand_reg_or_imm_scratch(ctx, op, 17);
 }
 
 static int
@@ -654,18 +659,18 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return emit_orr_reg(&ctx->tb, dst, 31, src0, 1);  /* mov = orr rd, xzr, rm */
 
     case IR_OPCODE_ADD:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_add_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_SUB:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_sub_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_MUL:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_mul_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_NEG:
@@ -677,53 +682,53 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return emit_orn_reg(&ctx->tb, dst, 31, src0, 1);  /* orn rd, xzr, src0 */
 
     case IR_OPCODE_AND:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_and_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_OR:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_orr_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_XOR:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         return emit_eor_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_CMP_EQ:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_EQ, 1);
 
     case IR_OPCODE_CMP_NE:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_NE, 1);
 
     case IR_OPCODE_CMP_LT:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_LT, 1);
 
     case IR_OPCODE_CMP_LE:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_LE, 1);
 
     case IR_OPCODE_CMP_GT:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_GT, 1);
 
     case IR_OPCODE_CMP_GE:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_GE, 1);
 
@@ -788,10 +793,9 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
             /* Move arguments to argument registers X0-X7 */
             for (int i = 0; i < nargs && i < 8; i++) {
-                int src_reg = operand_reg(&inst->operands[i]);
+                int src_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[i], arg_regs[i]);
                 int dst_reg = arg_regs[i];
                 if (src_reg != dst_reg) {
-                    /* mov xN, xM = orr xN, xzr, xM */
                     emit_orr_reg(&ctx->tb, dst_reg, 31, src_reg, 1);
                 }
             }

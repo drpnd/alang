@@ -173,6 +173,9 @@ int ir_opcode_is_coro_only(ir_opcode_t opcode);
 
 int ir_print_code(ir_object_t *);
 
+/* optimize.c */
+int ir_optimize(ir_object_t *);
+
 #ifdef __cplusplus
 }
 #endif

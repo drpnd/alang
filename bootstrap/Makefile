@@ -39,6 +39,8 @@ syntax_debug.o: syntax_debug.c syntax.h minica.h
 arch.o: arch.c arch.h ir.h
 compile.o: compile.c ir.c compile.h minica.h syntax.h ir.h
 ir.o: ir.c ir.h
+optimize.o: optimize.c ir.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 ir_debug.o: ir_debug.c ir.h
 tests/minica_test_parser.o: tests/minica_test_parser.c minica.h compile.h syntax.h
 tests/minica_test_compiler.o: tests/minica_test_compiler.c minica.h compile.h syntax.h
@@ -55,7 +57,7 @@ minica_test_ld: tests/minica_test_ld.o $(LD_OBJS)
 minica_test_asm: tests/minica_test_asm.o arch.o $(ARCH_OBJS) $(LD_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o syntax_debug.o compile.o ir.o arch.o $(LD_OBJS) $(ARCH_OBJS)
+minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o syntax_debug.o compile.o optimize.o ir.o arch.o $(LD_OBJS) $(ARCH_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 minica_test_compiler: tests/minica_test_compiler.o y.tab.o lex.yy.o syntax.o syntax_debug.o compile.o ir.o ir_debug.o arch.o $(LD_OBJS) $(ARCH_OBJS)
@@ -97,7 +99,7 @@ compiler.o: compiler.c syntax.h ir.h compile.h
 tests/minica_test_dfir.o: tests/minica_test_dfir.c minica.h syntax.h ir.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-minica_test_dfir: tests/minica_test_dfir.o compiler.o ir.o y.tab.o lex.yy.o syntax.o syntax_debug.o arch.o $(LD_OBJS) $(ARCH_OBJS)
+minica_test_dfir: tests/minica_test_dfir.o compiler.o optimize.o ir.o y.tab.o lex.yy.o syntax.o syntax_debug.o arch.o $(LD_OBJS) $(ARCH_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # DFIR test target
@@ -109,7 +111,7 @@ test_dfir: minica_test_dfir
 tests/minica_test_build.o: tests/minica_test_build.c minica.h syntax.h ir.h arch.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-minica_test_build: tests/minica_test_build.o compiler.o ir.o y.tab.o lex.yy.o syntax.o syntax_debug.o arch.o arch/x86-64/x86-64.o arch/x86-64/instr.o arch/aarch64/aarch64.o ld/mach-o/mach-o.o ld/elf/elf.o
+minica_test_build: tests/minica_test_build.o compiler.o optimize.o ir.o y.tab.o lex.yy.o syntax.o syntax_debug.o arch.o arch/x86-64/x86-64.o arch/x86-64/instr.o arch/aarch64/aarch64.o ld/mach-o/mach-o.o ld/elf/elf.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 test_build: minica_test_build

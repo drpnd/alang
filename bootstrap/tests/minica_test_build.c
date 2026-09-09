@@ -151,7 +151,11 @@ main(int argc, const char *const argv[])
 
     print_dfir(ir);
 
-    /* 3. Assemble to native code */
+    /* 3. Optimize DFIR */
+    int opt_changes = ir_optimize(ir);
+    printf("Optimizer: %d changes\n", opt_changes);
+
+    /* 4. Assemble to native code */
     memset(&code, 0, sizeof(code));
     arch_t *arch = arch_init(cpu, loader);
     if (!arch || !arch->assemble) {
@@ -167,7 +171,7 @@ main(int argc, const char *const argv[])
 
     print_native(&code);
 
-    /* 4. Mangle symbol names for Mach-O (Apple convention: _prefix) */
+    /* 5. Mangle symbol names for Mach-O (Apple convention: _prefix) */
     if (loader == ARCH_LD_MACH_O) {
         for (int i = 0; i < code.sym.n; i++) {
             size_t len = strlen(code.sym.syms[i].label);
@@ -179,7 +183,7 @@ main(int argc, const char *const argv[])
         }
     }
 
-    /* 5. Export to object file */
+    /* 6. Export to object file */
     if (arch->export) {
         FILE *out = fopen(outfile, "wb");
         if (!out) { perror("fopen output"); return 1; }

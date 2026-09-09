@@ -759,21 +759,6 @@ operand_reg(ir_operand_t *op)
  */
 static int64_t operand_imm(ir_operand_t *op, int *ok);
 static int emit_mov_imm(textbuf_t *tb, x86_64_reg_t reg, int64_t val);
-static x86_64_reg_t
-operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
-{
-    if (op->type == IR_OPERAND_IMM) {
-        int ok;
-        int64_t val = operand_imm(op, &ok);
-        if (ok) {
-            /* Use R10 as a scratch register */
-            x86_64_reg_t scratch = REG_R10;
-            emit_mov_imm(&ctx->tb, scratch, val);
-            return scratch;
-        }
-    }
-    return operand_reg(op);
-}
 
 /*
  * Get immediate value from an operand.
@@ -796,7 +781,28 @@ operand_imm(ir_operand_t *op, int *ok)
 /*
  * Compile a single DFIR instruction to x86-64 machine code.
  */
+static x86_64_reg_t operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, x86_64_reg_t scratch);
 static x86_64_reg_t operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op);
+
+static x86_64_reg_t
+operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, x86_64_reg_t scratch)
+{
+    if (op->type == IR_OPERAND_IMM) {
+        int ok;
+        int64_t val = operand_imm(op, &ok);
+        if (ok) {
+            emit_mov_imm(&ctx->tb, scratch, val);
+            return scratch;
+        }
+    }
+    return operand_reg(op);
+}
+
+static x86_64_reg_t
+operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
+{
+    return operand_reg_or_imm_scratch(ctx, op, REG_R10);
+}
 
 static int
 compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
@@ -824,23 +830,23 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return emit_mov_rr(&ctx->tb, dst, src0);
 
     case IR_OPCODE_ADD:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         /* add src0, src1 => result in src0, then mov to dst if different */
         emit_rr(&ctx->tb, 0x01, src0, src1, 1);  /* add src0, src1 */
         if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_SUB:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_rr(&ctx->tb, 0x29, src0, src1, 1);
         if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_MUL:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         /* imul dst, src0, src1 — REX.W 0x0F AF /r */
         {
             uint8_t buf[4];
@@ -900,22 +906,22 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         }
 
     case IR_OPCODE_AND:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_rr(&ctx->tb, 0x21, src0, src1, 1);
         if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_OR:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_rr(&ctx->tb, 0x09, src0, src1, 1);
         if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_XOR:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_rr(&ctx->tb, 0x31, src0, src1, 1);
         if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
@@ -950,38 +956,38 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         }
 
     case IR_OPCODE_CMP_EQ:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x04, dst);  /* sete */
 
     case IR_OPCODE_CMP_NE:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x05, dst);  /* setne */
 
     case IR_OPCODE_CMP_LT:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x0C, dst);  /* setl */
 
     case IR_OPCODE_CMP_LE:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x0E, dst);  /* setle */
 
     case IR_OPCODE_CMP_GT:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x0F, dst);  /* setg */
 
     case IR_OPCODE_CMP_GE:
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x0D, dst);  /* setge */
 
