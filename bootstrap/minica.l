@@ -90,6 +90,8 @@ _clear_buffer(YYLTYPE *loc, yyscan_t scanner)
         }
         context->buffer.size = STRING_CHUNK;
     }
+    /* Null-terminate to prevent stale data from leaking */
+    context->buffer.buf[0] = '\0';
 }
 
 /*
@@ -120,6 +122,10 @@ _append_buffer_str(YYLTYPE *loc, yyscan_t scanner, const char *s)
     }
     memcpy(context->buffer.buf + context->buffer.len, s, len);
     context->buffer.len += len;
+    /* Null-terminate */
+    if ( context->buffer.len < context->buffer.size ) {
+        context->buffer.buf[context->buffer.len] = '\0';
+    }
 }
 
 /*
@@ -146,6 +152,10 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
     }
     context->buffer.buf[context->buffer.len] = c;
     context->buffer.len++;
+    /* Null-terminate */
+    if ( context->buffer.len < context->buffer.size ) {
+        context->buffer.buf[context->buffer.len] = '\0';
+    }
 }
 
 %}
