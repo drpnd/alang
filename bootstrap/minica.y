@@ -105,7 +105,7 @@ void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
 %token TOK_TYPE_STRING TOK_TYPE_BOOL
     /* Reserved keywords */
 %token TOK_LET TOK_MUT
-%token TOK_FN TOK_CORO TOK_RETURN TOK_BREAK
+%token TOK_FN TOK_CORO TOK_RETURN TOK_BREAK TOK_CONTINUE
 %token TOK_IF TOK_ELSE TOK_WHILE TOK_FOR TOK_LOOP TOK_MATCH TOK_IN
 %token TOK_YIELD TOK_AWAIT
 %token TOK_NODE TOK_SOURCE TOK_SINK TOK_GRAPH
@@ -649,6 +649,10 @@ statement:      declaration
         |       TOK_BREAK
                 {
                     $$ = stmt_new_break();
+                }
+        |       TOK_CONTINUE
+                {
+                    $$ = stmt_new_continue();
                 }
         |       TOK_WHILE expression block
                 {

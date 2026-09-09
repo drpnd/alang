@@ -86,6 +86,15 @@ typedef struct _fnb {
 } fnb_t;
 
 /*
+ * Loop context for break/continue.
+ */
+#define MAX_LOOP_DEPTH 64
+typedef struct {
+    char continue_label[64];   /* label to jump to for continue */
+    char break_label[64];      /* label to jump to for break */
+} loop_ctx_t;
+
+/*
  * Compiler state.
  */
 typedef struct {
@@ -93,6 +102,8 @@ typedef struct {
     fnb_t *fn;              /* current function builder (NULL at top level) */
     scope_t *scope;         /* current scope */
     int error;              /* error flag */
+    loop_ctx_t loops[MAX_LOOP_DEPTH];  /* loop context stack */
+    int loop_depth;         /* current loop nesting depth */
 } dfir_compiler_t;
 
 /*======================================================================
@@ -989,6 +1000,13 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
         snprintf(body_label, sizeof(body_label), "$while_body_%d", id);
         snprintf(end_label, sizeof(end_label), "$while_end_%d", id);
 
+        /* Push loop context (continue -> condition, break -> end) */
+        if (c->loop_depth < MAX_LOOP_DEPTH) {
+            snprintf(c->loops[c->loop_depth].continue_label, 64, "%s", cond_label);
+            snprintf(c->loops[c->loop_depth].break_label, 64, "%s", end_label);
+            c->loop_depth++;
+        }
+
         /* Jump to condition */
         ir_operand_t br_op = _op_label(cond_label);
         _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
@@ -1010,6 +1028,9 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
 
         /* End block */
         _fnb_add_block(c->fn, end_label);
+
+        /* Pop loop context */
+        c->loop_depth--;
         break;
     }
 
@@ -1064,11 +1085,19 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
             _emit(c, IR_OPCODE_MOV, NULL, 2, mov_ops);
 
             /* Create labels */
-            char cond_label[64], body_label[64], end_label[64];
+            char cond_label[64], body_label[64], inc_label[64], end_label[64];
             int id = c->fn->ssa_counter;
             snprintf(cond_label, sizeof(cond_label), "$for_cond_%d", id);
             snprintf(body_label, sizeof(body_label), "$for_body_%d", id);
+            snprintf(inc_label, sizeof(inc_label), "$for_inc_%d", id);
             snprintf(end_label, sizeof(end_label), "$for_end_%d", id);
+
+            /* Push loop context (continue -> increment, break -> end) */
+            if (c->loop_depth < MAX_LOOP_DEPTH) {
+                snprintf(c->loops[c->loop_depth].continue_label, 64, "%s", inc_label);
+                snprintf(c->loops[c->loop_depth].break_label, 64, "%s", end_label);
+                c->loop_depth++;
+            }
 
             /* Jump to condition */
             ir_operand_t br_op = _op_label(cond_label);
@@ -1106,6 +1135,9 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
             c->scope = child->parent;
             _scope_free(child);
 
+            /* Increment block (continue jumps here) */
+            _fnb_add_block(c->fn, inc_label);
+
             /* Increment counter: %next = add %i, 1 */
             ir_reg_t one = _ssa(c, IR_REG_I32);
             ir_operand_t one_op = _op_imm_i32(1);
@@ -1129,6 +1161,9 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
 
             /* End block */
             _fnb_add_block(c->fn, end_label);
+
+            /* Pop loop context */
+            c->loop_depth--;
         } else {
             /* Non-range iterator: not supported, just compile body once */
             if (f->block) _inner_block(c, f->block);
@@ -1141,6 +1176,13 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
         snprintf(loop_label, sizeof(loop_label), "$loop_%d", id);
         snprintf(end_label, sizeof(end_label), "$loop_end_%d", id);
 
+        /* Push loop context (continue -> loop start, break -> end) */
+        if (c->loop_depth < MAX_LOOP_DEPTH) {
+            snprintf(c->loops[c->loop_depth].continue_label, 64, "%s", loop_label);
+            snprintf(c->loops[c->loop_depth].break_label, 64, "%s", end_label);
+            c->loop_depth++;
+        }
+
         ir_operand_t br_op = _op_label(loop_label);
         _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
 
@@ -1150,11 +1192,24 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
         _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
 
         _fnb_add_block(c->fn, end_label);
+
+        /* Pop loop context */
+        c->loop_depth--;
         break;
     }
 
     case STMT_BREAK:
-        /* FIXME: emit br to loop end (need loop context) */
+        if (c->loop_depth > 0) {
+            ir_operand_t brk = _op_label(c->loops[c->loop_depth - 1].break_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &brk);
+        }
+        break;
+
+    case STMT_CONTINUE:
+        if (c->loop_depth > 0) {
+            ir_operand_t cnt = _op_label(c->loops[c->loop_depth - 1].continue_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &cnt);
+        }
         break;
 
     case STMT_BLOCK: {

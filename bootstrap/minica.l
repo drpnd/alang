@@ -253,6 +253,7 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
 "while"     return TOK_WHILE;
 "loop"      return TOK_LOOP;
 "break"     return TOK_BREAK;
+"continue"  return TOK_CONTINUE;
 "return"    return TOK_RETURN;
 "yield"     return TOK_YIELD;
 "await"     return TOK_AWAIT;

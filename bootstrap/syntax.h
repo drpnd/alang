@@ -462,6 +462,7 @@ typedef enum {
     STMT_FOR,            /* for pat in expr block */
     STMT_LOOP,           /* loop block */
     STMT_BREAK,
+    STMT_CONTINUE,
     STMT_EXPR,
     STMT_EXPR_LIST,
     STMT_BLOCK,
@@ -750,6 +751,7 @@ stmt_t *
 stmt_new_loop(inner_block_t *);
 stmt_t *
 stmt_new_break(void);
+stmt_t *stmt_new_continue(void);
 stmt_t *
 stmt_new_expr(expr_t *);
 stmt_t *

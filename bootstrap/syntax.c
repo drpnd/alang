@@ -1426,6 +1426,22 @@ stmt_new_break(void)
 }
 
 /*
+ * stmt_new_continue -- create a continue statement
+ */
+stmt_t *
+stmt_new_continue(void)
+{
+    stmt_t *stmt;
+    stmt = malloc(sizeof(stmt_t));
+    if ( NULL == stmt ) {
+        return NULL;
+    }
+    stmt->type = STMT_CONTINUE;
+    stmt->next = NULL;
+    return stmt;
+}
+
+/*
  * expr_new_match -- create a match expression (replaces expr_new_switch)
  */
 expr_t *
