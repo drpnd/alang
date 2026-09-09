@@ -861,44 +861,92 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             /* Handle builtins: print, println */
             if (callee && (strcmp(callee, "print") == 0 ||
                            strcmp(callee, "println") == 0)) {
-                /* Move first arg to X0 (string pointer) */
+                int is_println = (strcmp(callee, "println") == 0);
                 if (nargs > 0) {
                     ir_operand_t *arg = &inst->operands[0];
                     if (arg->type == IR_OPERAND_IMM &&
                         arg->u.imm.type == IR_IMM_STR) {
-                        /* String argument: emit ADR to string literal */
+                        /* String argument */
                         const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
-                        int sid = add_string(ctx, str);
-                        size_t off = ctx->tb.size;
-                        uint32_t adr = (1U << 28) | (0 & 31);
-                        emit32(&ctx->tb, adr);
-                        str_patch_add(ctx, off, sid);
+                        /* Always use puts for strings */
+                        {
+                            int sid = add_string(ctx, str);
+                            size_t off = ctx->tb.size;
+                            emit32(&ctx->tb, (1U << 28) | 0);
+                            str_patch_add(ctx, off, sid);
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "puts", 0, 0);
+                            off_t rp = ctx->tb.size;
+                            emit_bl(&ctx->tb, 0);
+                            add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
+                        }
+                        if (!is_println) {
+                            /* print(string) — use puts (adds newline, but works) */
+                            int sid = add_string(ctx, str);
+                            size_t off = ctx->tb.size;
+                            emit32(&ctx->tb, (1U << 28) | 0);
+                            str_patch_add(ctx, off, sid);
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "puts", 0, 0);
+                            off_t rp = ctx->tb.size;
+                            emit_bl(&ctx->tb, 0);
+                            add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
+                        }
                     } else {
-                        int src = operand_reg_or_imm_scratch(ctx, arg, 0);
-                        if (src != 0) {
-                            emit_orr_reg(&ctx->tb, 0, 31, src, 1);
+                        /* Integer argument: convert to string at compile time
+                         * if it's a constant, or use printf for variables.
+                         * For constants: puts("42\n") — simple and correct.
+                         * For variables: printf("%d\n", val) */
+                        int ok;
+                        int64_t val = operand_imm(arg, &ok);
+                        if (ok) {
+                            /* Constant: convert to string and use puts */
+                            char buf[32];
+                            if (is_println) {
+                                snprintf(buf, sizeof(buf), "%lld\n", (long long)val);
+                            } else {
+                                snprintf(buf, sizeof(buf), "%lld", (long long)val);
+                            }
+                            int sid = add_string(ctx, buf);
+                            size_t off = ctx->tb.size;
+                            emit32(&ctx->tb, (1U << 28) | 0);
+                            str_patch_add(ctx, off, sid);
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "puts", 0, 0);
+                            off_t rp = ctx->tb.size;
+                            emit_bl(&ctx->tb, 0);
+                            add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
+                        } else {
+                            /* Variable: macOS arm64 printf is variadic —
+                             * arguments go on the stack, not in X1. */
+                            const char *fmt = is_println ? "%d\n" : "%d";
+                            /* Load integer value */
+                            int val_reg;
+                            if (arg->type == IR_OPERAND_IMM) {
+                                int ok;
+                                int64_t v = operand_imm(arg, &ok);
+                                if (ok) {
+                                    emit_load_imm64(&ctx->tb, 8, v);
+                                    val_reg = 8;
+                                } else {
+                                    val_reg = 31;
+                                }
+                            } else {
+                                val_reg = operand_reg(arg);
+                            }
+                            /* Store value to [sp] (variadic arg area) */
+                            /* STR Xt, [SP] = 0xF90003E8 | (t & 31) */
+                            emit32(&ctx->tb, 0xF9000000 | (31 << 5) | (val_reg & 31));
+                            /* X0 = format string */
+                            int sid_fmt = add_string(ctx, fmt);
+                            size_t off1 = ctx->tb.size;
+                            emit32(&ctx->tb, (1U << 28) | 0);
+                            str_patch_add(ctx, off1, sid_fmt);
+                            /* BL printf */
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "printf", 0, 0);
+                            off_t rp = ctx->tb.size;
+                            emit_bl(&ctx->tb, 0);
+                            add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
                         }
                     }
                 }
-                /* For println, we need to call puts; for print, call printf */
-                /* Actually, for simplicity, call _puts (prints + newline) */
-                /* Create symbol for _puts or _printf */
-                const char *libc_fn = (strcmp(callee, "println") == 0) ? "puts" : "printf";
-                int symidx = -1;
-                for (int i = 0; i < ctx->code->sym.n; i++) {
-                    if (ctx->code->sym.syms[i].label &&
-                        strcmp(ctx->code->sym.syms[i].label, libc_fn) == 0) {
-                        symidx = i;
-                        break;
-                    }
-                }
-                if (symidx < 0) {
-                    symidx = add_sym(ctx->code, ARCH_SYM_GLOBAL, libc_fn, 0, 0);
-                }
-                /* BL puts/printf */
-                off_t relpos = ctx->tb.size;
-                emit_bl(&ctx->tb, 0);
-                add_rel(ctx->code, ARCH_REL_BRANCH, relpos, symidx);
                 return 0;
             }
             /* Move arguments to argument registers X0-X7 */

@@ -352,14 +352,19 @@ pass_copy_prop_block(ir_block_t *blk)
     while (ent) {
         ir_instr_t *inst = &ent->inst;
 
-        /* Skip MOV and CALL instructions — handle specially */
-        if (inst->opcode == IR_OPCODE_MOV || inst->opcode == IR_OPCODE_CALL) {
+        /* Skip MOV instructions — their sources will be resolved when
+         * the destinations are replaced in other instructions.
+         * For CALL: propagate arguments but not the callee name (last operand). */
+        if (inst->opcode == IR_OPCODE_MOV) {
             ent = ent->next;
             continue;
         }
 
         /* Replace register operands with their sources */
-        for (int i = 0; i < inst->noperands && i < IR_MAX_OPERANDS; i++) {
+        int max_op = inst->noperands;
+        /* For CALL: don't replace the last operand (callee name) */
+        if (inst->opcode == IR_OPCODE_CALL) max_op = inst->noperands - 1;
+        for (int i = 0; i < max_op && i < IR_MAX_OPERANDS; i++) {
             if (inst->operands[i].type == IR_OPERAND_REG &&
                 inst->operands[i].u.reg.id) {
                 const char *reg_id = inst->operands[i].u.reg.id;
@@ -399,10 +404,8 @@ pass_copy_prop_block(ir_block_t *blk)
                                    pinst->noperands >= 1 &&
                                    pinst->operands[0].type == IR_OPERAND_IMM) {
                             /* const %dst, imm → replace uses of %dst with imm */
-                            ir_imm_type_t imm_type = pinst->operands[0].u.imm.type;
                             inst->operands[i].type = IR_OPERAND_IMM;
-                            ir_imm_init(&inst->operands[i].u.imm, imm_type);
-                            inst->operands[i].u.imm.u = pinst->operands[0].u.imm.u;
+                            inst->operands[i].u.imm = pinst->operands[0].u.imm;
                             changed = 1;
                         }
                         break;
@@ -518,10 +521,8 @@ pass_dce_func(ir_func_t *func)
                 if (inst->operands[i].type == IR_OPERAND_LABEL) {
                     free(inst->operands[i].u.label);
                 }
-                if (inst->operands[i].type == IR_OPERAND_IMM &&
-                    inst->operands[i].u.imm.type == IR_IMM_STR) {
-                    free(inst->operands[i].u.imm.u.str);
-                }
+                /* Don't free string immediates — they may be shared
+                 * by other instructions after copy propagation */
             }
             for (int i = 0; i < inst->result.n && i < 2; i++) {
                 ir_reg_release(&inst->result.reg[i]);
