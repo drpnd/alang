@@ -72,3 +72,6 @@ echo "=== Results: $PASS passed, $FAIL failed ==="
 run_test "if_test.al" 1
 run_test "if_else.al" 2
 run_test "while_test.al" 5
+run_test "func_call.al" 7
+run_test "func_call2.al" 14
+run_test "func_if.al" 7

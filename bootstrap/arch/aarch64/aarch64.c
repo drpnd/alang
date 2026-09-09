@@ -100,6 +100,7 @@ typedef struct {
     arch_code_t *code;
     label_map_t labels;
     patch_list_t patches;
+    int max_ssa;  /* max SSA id in current function */
 } asm_ctx_t;
 
 static void
@@ -183,6 +184,24 @@ ssa_id(const char *id)
 }
 
 /*
+ * AArch64 calling convention:
+ *   Arguments: X0-X7 (first 8 args)
+ *   Return: X0
+ *   Caller-saved (temporaries): X0-X18
+ *   Callee-saved: X19-X28, X29 (FP), X30 (LR)
+ *
+ * SSA register allocation:
+ *   %0-%7   → X0-X7 (argument registers, reused as temps)
+ *   %8-%18  → X8-X18 (temporary registers)
+ *   %19-%28 → X19-X28 (callee-saved, need save/restore)
+ */
+
+/*
+ * Argument registers (AArch64 ABI)
+ */
+static const int arg_regs[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+/*
  * Map SSA id to AArch64 register (0-28).
  */
 static int
@@ -190,6 +209,117 @@ ssa_to_reg(int id)
 {
     if (id < 0 || id >= AARCH64_MAX_REGS) return 31;  /* XZR as fallback */
     return id;
+}
+
+/*
+ * Check if a register is callee-saved (X19-X28)
+ */
+static int is_callee_saved(int reg)
+{
+    return reg >= 19 && reg <= 28;
+}
+
+/*
+ * Emit function prologue:
+ *   stp x29, x30, [sp, #-16]!   ; save FP and LR
+ *   mov x29, sp                   ; set up frame pointer
+ *   stp x19, x20, [sp, #-16]!    ; save callee-saved regs (as needed)
+ *   ...
+ */
+/* Forward declarations */
+static int emit_ret(textbuf_t *tb);
+static int emit_nop(textbuf_t *tb);
+static int emit_orr_reg(textbuf_t *tb, int rd, int rn, int rm, int sf);
+static int emit_bl(textbuf_t *tb, int32_t offset);
+
+static int
+emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
+{
+    (void)nargs;
+    /* Save FP (X29) and LR (X30) */
+    /* stp x29, x30, [sp, #-16]! = 0xA9BF7BFD */
+    emit32(&ctx->tb, 0xA9BF7BFD);
+    /* mov x29, sp = add x29, sp, #0 = 0x910003FD */
+    emit32(&ctx->tb, 0x910003FD);
+
+    /* Save callee-saved registers that are used */
+    int saved_count = 0;
+    for (int i = 19; i <= 28 && i <= max_ssa; i++) {
+        saved_count++;
+    }
+    /* Round up to even for STP */
+    if (saved_count % 2 != 0) saved_count++;
+
+    /* Save pairs: stp x19, x20, [sp, #-16]! etc. */
+    for (int i = 0; i < saved_count; i += 2) {
+        int reg2 = 19 + i + 1;
+        if (reg2 > 28) reg2 = 31;  /* XZR padding */
+        /* stp xN, xM, [sp, #-16]! */
+        /* STP encoding not used — using STR instead below */
+        /* stp x29, x30, [sp, #-16]! encoding: 0xA9BF7BFD
+           = 10101001_10111111_01111011_11111101
+           op=10, V=0, L=0(Store), 0, imm7=0x3F(-16/8=-2... wait) */
+        /* Let me just use a simpler approach: sub sp, sp, #N then str */
+        /* sub sp, sp, #(saved_count/2 * 16) */
+        int alloc_size = (saved_count / 2) * 16;
+        if (alloc_size > 0) {
+            /* SUB (immediate): sf 1 0 0 1 0 0 0 1 0 0 sh imm12 Rn Rd */
+            uint32_t sub = (1U << 31) | (0x22U << 24) |
+                          ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
+            emit32(&ctx->tb, sub);
+        }
+        for (int j = 0; j < saved_count; j++) {
+            int reg = 19 + j;
+            int offset = j * 8;
+            /* STR Xt, [sp, #offset] */
+            /* 1 1 1 1 1 0 0 1 0 0 imm12 Rn Rt */
+            uint32_t str = (0xF9U << 24) | (((offset / 8) & 0xFFF) << 10) |
+                          (31U << 5) | reg;
+            emit32(&ctx->tb, str);
+        }
+        break;  /* only one loop iteration needed */
+    }
+
+    return 0;
+}
+
+/*
+ * Emit function epilogue:
+ *   restore callee-saved regs
+ *   ldp x29, x30, [sp], #16
+ *   ret
+ */
+static int
+emit_epilogue(asm_ctx_t *ctx, int max_ssa)
+{
+    int saved_count = 0;
+    for (int i = 19; i <= 28 && i <= max_ssa; i++) {
+        saved_count++;
+    }
+    if (saved_count % 2 != 0) saved_count++;
+
+    /* Restore callee-saved registers */
+    int alloc_size = (saved_count / 2) * 16;
+    if (alloc_size > 0) {
+        for (int j = 0; j < saved_count; j++) {
+            int reg = 19 + j;
+            int offset = j * 8;
+            /* LDR Xt, [sp, #offset] */
+            uint32_t ldr = (0xF9U << 24) | (((offset / 8) & 0xFFF) << 10) |
+                          (31U << 5) | reg;
+            emit32(&ctx->tb, ldr);
+        }
+        /* add sp, sp, #alloc_size */
+        uint32_t add = (1U << 31) | (0x02U << 24) |
+                       ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
+        emit32(&ctx->tb, add);
+    }
+
+    /* ldp x29, x30, [sp], #16 = 0xA8C17BFD */
+    emit32(&ctx->tb, 0xA8C17BFD);
+    /* ret */
+    emit_ret(&ctx->tb);
+    return 0;
 }
 
 /*
@@ -607,15 +737,39 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     }
 
     case IR_OPCODE_RET:
-        return emit_ret(&ctx->tb);
+        /* Move return value to X0 if needed */
+        if (inst->noperands > 0) {
+            src0 = operand_reg(&inst->operands[0]);
+            if (src0 != 0) {
+                emit_orr_reg(&ctx->tb, 0, 31, src0, 1);  /* mov x0, src0 */
+            }
+        }
+        /* Emit full epilogue: restore callee-saved + ldp x29,x30 + ret */
+        emit_epilogue(ctx, ctx->max_ssa);
+        return 0;
 
     case IR_OPCODE_CALL:
         {
+            /* Last operand is callee name, preceding operands are args */
+            int nargs = inst->noperands - 1;
             const char *callee = NULL;
-            if (inst->operands[0].type == IR_OPERAND_IMM &&
-                inst->operands[0].u.imm.type == IR_IMM_STR) {
-                callee = inst->operands[0].u.imm.u.str;
+            if (inst->noperands > 0 &&
+                inst->operands[inst->noperands - 1].type == IR_OPERAND_IMM &&
+                inst->operands[inst->noperands - 1].u.imm.type == IR_IMM_STR) {
+                callee = inst->operands[inst->noperands - 1].u.imm.u.str;
             }
+
+            /* Move arguments to argument registers X0-X7 */
+            for (int i = 0; i < nargs && i < 8; i++) {
+                int src_reg = operand_reg(&inst->operands[i]);
+                int dst_reg = arg_regs[i];
+                if (src_reg != dst_reg) {
+                    /* mov xN, xM = orr xN, xzr, xM */
+                    emit_orr_reg(&ctx->tb, dst_reg, 31, src_reg, 1);
+                }
+            }
+
+            /* Find or create symbol */
             int symidx = -1;
             if (callee) {
                 for (int i = 0; i < ctx->code->sym.n; i++) {
@@ -629,10 +783,17 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                     symidx = add_sym(ctx->code, ARCH_SYM_FUNC, callee, 0, 0);
                 }
             }
+
+            /* BL (branch with link) */
             off_t relpos = ctx->tb.size;
-            emit_bl(&ctx->tb, 0);  /* placeholder */
+            emit_bl(&ctx->tb, 0);  /* placeholder, resolved by relocation */
             if (symidx >= 0) {
                 add_rel(ctx->code, ARCH_REL_BRANCH, relpos, symidx);
+            }
+
+            /* Move return value (X0) to result register */
+            if (dst != 31 && dst != 0) {
+                emit_orr_reg(&ctx->tb, dst, 31, 0, 1);  /* mov dst, x0 */
             }
             return 0;
         }
@@ -713,6 +874,32 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
         off_t func_start = ctx.tb.size;
         int symidx = add_sym(code, ARCH_SYM_FUNC, func->name, func_start, 0);
 
+        /* Compute max SSA id used in this function */
+        int max_ssa = 0;
+        for (size_t bi = 0; bi < func->nblocks; bi++) {
+            ir_instr_ent_t *e = func->blocks[bi].instrs;
+            while (e) {
+                if (e->inst.result.n > 0 && e->inst.result.reg[0].id) {
+                    int id = ssa_id(e->inst.result.reg[0].id);
+                    if (id > max_ssa) max_ssa = id;
+                }
+                for (int j = 0; j < e->inst.noperands; j++) {
+                    if (e->inst.operands[j].type == IR_OPERAND_REG &&
+                        e->inst.operands[j].u.reg.id) {
+                        int id = ssa_id(e->inst.operands[j].u.reg.id);
+                        if (id > max_ssa) max_ssa = id;
+                    }
+                }
+                e = e->next;
+            }
+        }
+
+        /* Store max_ssa for RET epilogue */
+        ctx.max_ssa = max_ssa;
+
+        /* Emit prologue */
+        emit_prologue(&ctx, func->nargs, max_ssa);
+
         for (size_t bi = 0; bi < func->nblocks; bi++) {
             ir_block_t *blk = &func->blocks[bi];
 
@@ -732,6 +919,9 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
                 ent = ent->next;
             }
         }
+
+        /* Emit epilogue (in case function doesn't end with RET) */
+        emit_epilogue(&ctx, max_ssa);
 
         code->sym.syms[symidx].size = ctx.tb.size - func_start;
         func = func->next;

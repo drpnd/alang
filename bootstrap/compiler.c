@@ -77,6 +77,7 @@ typedef struct _fnb {
     bb_t *cur;              /* current block being built */
     int ssa_counter;        /* SSA value counter */
     int state_counter;      /* coroutine state counter */
+    int nargs;              /* number of arguments */
 } fnb_t;
 
 /*
@@ -657,19 +658,24 @@ _expr(dfir_compiler_t *c, expr_t *e)
 
     case EXPR_CALL: {
         call_t *call = e->u.call;
-        /* Evaluate arguments */
+        /* Evaluate arguments and collect as operands */
+        ir_operand_t ops[IR_MAX_OPERANDS];
+        int nargs = 0;
         if (call->exprs) {
             expr_t *arg = call->exprs->head;
-            while (arg) {
-                (void)_expr(c, arg);
+            while (arg && nargs < IR_MAX_OPERANDS - 1) {
+                ir_reg_t argval = _expr(c, arg);
+                ops[nargs] = _op_reg(argval);
+                nargs++;
                 arg = arg->next;
             }
         }
-        /* Emit call instruction */
-        ir_reg_t result = _ssa(c, IR_REG_NONE);
-        ir_operand_t ops[1];
-        ops[0] = _op_imm_str(call->callee);
-        _emit(c, IR_OPCODE_CALL, &result, 1, ops);
+        /* Add callee name as last operand */
+        ops[nargs] = _op_imm_str(call->callee);
+        nargs++;
+        /* Emit call instruction: result = call @callee %arg0 %arg1 ... */
+        ir_reg_t result = _ssa(c, IR_REG_I64);
+        _emit(c, IR_OPCODE_CALL, &result, nargs, ops);
         return result;
     }
 
@@ -1072,11 +1078,27 @@ _func(dfir_compiler_t *c, func_t *fn)
     }
 
     /* Ensure a ret at the end */
-    if (fb->cur && fb->cur->count == 0) {
-        _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
-    } else if (fb->cur && fb->cur->tail &&
-               !ir_opcode_is_terminator(fb->cur->tail->inst.opcode)) {
-        _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
+    if (fb->cur && (fb->cur->count == 0 ||
+                    (fb->cur->tail &&
+                     !ir_opcode_is_terminator(fb->cur->tail->inst.opcode)))) {
+        /* If function has named return values, return the first one */
+        if (fn->rets && fn->rets->head && fn->rets->head->decl &&
+            fn->rets->head->decl->id) {
+            cvar_t *rv = _scope_lookup(s, fn->rets->head->decl->id);
+            if (rv) {
+                ir_operand_t ops[1];
+                ir_reg_t reg;
+                char buf[64];
+                snprintf(buf, sizeof(buf), "%%%d", rv->ssa_id);
+                ir_reg_init(&reg, rv->type, buf);
+                ops[0] = _op_reg(reg);
+                _emit(c, IR_OPCODE_RET, NULL, 1, ops);
+            } else {
+                _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
+            }
+        } else {
+            _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
+        }
     }
 
     /* Transfer blocks to ir_func_t */
@@ -1171,7 +1193,23 @@ _coroutine(dfir_compiler_t *c, coroutine_t *cr)
     /* Ensure ret at the end */
     if (fb->cur && (!fb->cur->tail ||
                     !ir_opcode_is_terminator(fb->cur->tail->inst.opcode))) {
-        _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
+        if (cr->rets && cr->rets->head && cr->rets->head->decl &&
+            cr->rets->head->decl->id) {
+            cvar_t *rv = _scope_lookup(s, cr->rets->head->decl->id);
+            if (rv) {
+                ir_operand_t ops[1];
+                ir_reg_t reg;
+                char buf[64];
+                snprintf(buf, sizeof(buf), "%%%d", rv->ssa_id);
+                ir_reg_init(&reg, rv->type, buf);
+                ops[0] = _op_reg(reg);
+                _emit(c, IR_OPCODE_RET, NULL, 1, ops);
+            } else {
+                _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
+            }
+        } else {
+            _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
+        }
     }
 
     /* Transfer to ir_func_t */

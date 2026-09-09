@@ -296,6 +296,7 @@ typedef struct {
     arch_code_t *code;
     label_map_t labels;
     patch_list_t patches;
+    int max_ssa;
 } asm_ctx_t;
 
 static void
@@ -630,6 +631,117 @@ add_rel(arch_code_t *code, arch_rel_type_t type, off_t pos, int sym)
 }
 
 /*
+ * x86-64 calling convention (System V AMD64):
+ *   Arguments: RDI, RSI, RDX, RCX, R8, R9 (first 6 integer args)
+ *   Return: RAX
+ *   Caller-saved: RAX, RCX, RDX, RSI, RDI, R8-R11
+ *   Callee-saved: RBX, RBP, R12-R15
+ *
+ * Our SSA register mapping already uses:
+ *   %0=RAX, %1=RCX, %2=RDX, %3=RSI, %4=RDI,
+ *   %5=R8, %6=R9, %7=R10, %8=R11, %9=R12,
+ *   %10=R13, %11=R14, %12=R15, %13=RBX
+ */
+
+/* Argument registers in order */
+static const x86_64_reg_t arg_regs[6] = {
+    REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9
+};
+
+/*
+ * Emit function prologue:
+ *   push rbp
+ *   mov rbp, rsp
+ *   sub rsp, <stack_size>
+ */
+static int
+emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
+{
+    (void)nargs;
+    /* push rbp */
+    tb_byte(&ctx->tb, 0x55);
+    /* mov rbp, rsp (REX.W + 0x8B + ModR/M) */
+    uint8_t buf[4];
+    int rex = REX_W;
+    buf[0] = rex | REX;
+    buf[1] = 0x8B;
+    buf[2] = _modrm(REG_CODE(REG_RBP), 3, REG_CODE(REG_RSP));
+    tb_emit(&ctx->tb, buf, 3);
+
+    /* Allocate stack space if we need to spill (approximate: 16 bytes alignment) */
+    /* For now, allocate space for callee-saved regs that might be used */
+    int stack_size = 0;
+    /* %9-%13 are callee-saved (R12,R13,R14,R15,RBX) */
+    if (max_ssa >= 9) {
+        int saved = max_ssa - 8;
+        if (saved > 5) saved = 5;
+        stack_size = ((saved * 8 + 15) / 16) * 16;
+    }
+    if (stack_size > 0) {
+        /* sub rsp, stack_size */
+        buf[0] = REX | REX_W;
+        buf[1] = 0x81;
+        buf[2] = _modrm(5, 3, REG_CODE(REG_RSP));
+        int32_t sz = stack_size;
+        tb_emit(&ctx->tb, buf, 3);
+        tb_emit(&ctx->tb, (uint8_t*)&sz, 4);
+    }
+
+    /* Save callee-saved registers to stack */
+    /* %9=R12, %10=R13, %11=R14, %12=R15, %13=RBX */
+    int slot = 0;
+    for (int i = 9; i <= 13 && i <= max_ssa; i++) {
+        x86_64_reg_t reg = ssa_to_reg(i);
+        /* mov [rbp - offset], reg */
+        int offset = -((slot + 1) * 8);
+        int rex2 = REX_W | (REG_REX(reg) ? REX_R : 0) | REX;
+        buf[0] = rex2;
+        buf[1] = 0x89;
+        buf[2] = _modrm(REG_CODE(reg), 1, REG_CODE(REG_RBP));  /* mod=1: disp8 */
+        tb_emit(&ctx->tb, buf, 3);
+        int8_t disp8 = (int8_t)offset;
+        tb_emit(&ctx->tb, (uint8_t*)&disp8, 1);
+        slot++;
+    }
+
+    return 0;
+}
+
+/*
+ * Emit function epilogue:
+ *   restore callee-saved registers
+ *   mov rsp, rbp (or leave)
+ *   pop rbp
+ *   ret
+ */
+static int
+emit_epilogue(asm_ctx_t *ctx, int max_ssa)
+{
+    /* Restore callee-saved registers */
+    int slot = 0;
+    for (int i = 9; i <= 13 && i <= max_ssa; i++) {
+        x86_64_reg_t reg = ssa_to_reg(i);
+        int offset = -((slot + 1) * 8);
+        /* mov reg, [rbp - offset] */
+        int rex2 = REX_W | (REG_REX(reg) ? REX_R : 0) | REX;
+        uint8_t buf[4];
+        buf[0] = rex2;
+        buf[1] = 0x8B;
+        buf[2] = _modrm(REG_CODE(reg), 1, REG_CODE(REG_RBP));
+        tb_emit(&ctx->tb, buf, 3);
+        int8_t disp8 = (int8_t)offset;
+        tb_emit(&ctx->tb, (uint8_t*)&disp8, 1);
+        slot++;
+    }
+
+    /* leave = mov rsp, rbp; pop rbp */
+    tb_byte(&ctx->tb, 0xC9);
+    /* ret */
+    tb_byte(&ctx->tb, 0xC3);
+    return 0;
+}
+
+/*
  * Get the register from an operand (assuming it's a register operand).
  */
 static x86_64_reg_t
@@ -877,7 +989,16 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     }
 
     case IR_OPCODE_RET:
-        return emit_ret(&ctx->tb);
+        /* Move return value to RAX if needed */
+        if (inst->noperands > 0) {
+            src0 = operand_reg(&inst->operands[0]);
+            if (src0 != REG_RAX) {
+                emit_mov_rr(&ctx->tb, REG_RAX, src0);
+            }
+        }
+        /* Emit full epilogue */
+        emit_epilogue(ctx, ctx->max_ssa);
+        return 0;
 
     case IR_OPCODE_CALL:
         /* call func — needs symbol lookup + relocation */
@@ -975,6 +1096,32 @@ x86_64_assemble(ir_object_t *obj, arch_code_t *code)
         off_t func_start = ctx.tb.size;
         int symidx = add_sym(code, ARCH_SYM_FUNC, func->name, func_start, 0);
 
+        /* Compute max SSA id used in this function */
+        int max_ssa = 0;
+        for (size_t bi = 0; bi < func->nblocks; bi++) {
+            ir_instr_ent_t *e = func->blocks[bi].instrs;
+            while (e) {
+                if (e->inst.result.n > 0 && e->inst.result.reg[0].id) {
+                    int id = ssa_id(e->inst.result.reg[0].id);
+                    if (id > max_ssa) max_ssa = id;
+                }
+                for (int j = 0; j < e->inst.noperands; j++) {
+                    if (e->inst.operands[j].type == IR_OPERAND_REG &&
+                        e->inst.operands[j].u.reg.id) {
+                        int id = ssa_id(e->inst.operands[j].u.reg.id);
+                        if (id > max_ssa) max_ssa = id;
+                    }
+                }
+                e = e->next;
+            }
+        }
+
+        /* Store max_ssa for RET epilogue */
+        ctx.max_ssa = max_ssa;
+
+        /* Emit prologue */
+        emit_prologue(&ctx, func->nargs, max_ssa);
+
         for (size_t bi = 0; bi < func->nblocks; bi++) {
             ir_block_t *blk = &func->blocks[bi];
 
@@ -993,6 +1140,9 @@ x86_64_assemble(ir_object_t *obj, arch_code_t *code)
                 ent = ent->next;
             }
         }
+
+        /* Emit epilogue (in case function doesn't end with RET) */
+        emit_epilogue(&ctx, max_ssa);
 
         code->sym.syms[symidx].size = ctx.tb.size - func_start;
         func = func->next;

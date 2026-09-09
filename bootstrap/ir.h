@@ -109,6 +109,8 @@ typedef enum { IR_FUNC_FUNC, IR_FUNC_COROUTINE, } ir_func_type_t;
 struct _func {
     char *name; ir_func_type_t type; size_t nblocks;
     ir_block_t *blocks; ir_func_t *next;
+    int nargs;              /* number of arguments (for ABI) */
+    int nrets;              /* number of return values (for ABI) */
 };
 
 typedef struct { ir_data_type_t type; size_t len; uint8_t *d; } ir_data_entry_t;
