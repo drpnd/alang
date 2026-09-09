@@ -75,3 +75,5 @@ run_test "while_test.al" 5
 run_test "func_call.al" 7
 run_test "func_call2.al" 14
 run_test "func_if.al" 7
+run_test "for_test.al" 10
+run_test "for_nested.al" 6

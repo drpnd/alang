@@ -332,6 +332,18 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
     yylval->numval = val;
     return TOK_LIT_FLOAT;
 }
+    /* Integer followed by .. (range) - return integer, push back .. */
+[0-9]+\.\. {
+    /* e.g. 0..5 -> return "0" as integer, re-scan "..5" */
+    yyless(yyleng - 2);
+    char *val;
+    val = strdup(yytext);
+    if ( NULL == val ) {
+        return *yytext;
+    }
+    yylval->numval = val;
+    return TOK_LIT_DECINT;
+}
     /* Floating point (d.0) */
 [0-9]+\. {
     char *val;

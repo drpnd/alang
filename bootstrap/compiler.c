@@ -1015,11 +1015,126 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
 
     case STMT_FOR: {
         stmt_for_t *f = &stmt->u.forstmt;
-        /* FIXME: implement for-in with iterator protocol */
-        if (f->block) _inner_block(c, f->block);
+        /* for var in start..end { body }
+         * Compiles to:
+         *   %start = eval(start_expr)
+         *   %end   = eval(end_expr)
+         *   %i     = mov %start          (loop counter)
+         *   br $for_cond
+         * $for_cond:
+         *   %cmp   = cmp_lt %i, %end
+         *   br_cond %cmp, $for_body, $for_end
+         * $for_body:
+         *   (child scope: var -> %i)
+         *   <compile body>
+         *   %one   = const 1
+         *   %next  = add %i, %one
+         *   mov %next, %i                 (update counter in place)
+         *   br $for_cond
+         * $for_end:
+         */
+
+        if (f->iter && f->iter->type == EXPR_RANGE) {
+            range_t *r = f->iter->u.range;
+            ir_reg_t start_val, end_val;
+
+            /* Evaluate start and end of range */
+            if (r->start) {
+                start_val = _expr(c, r->start);
+            } else {
+                start_val = _ssa(c, IR_REG_I32);
+                ir_operand_t op = _op_imm_i32(0);
+                _emit(c, IR_OPCODE_CONST, &start_val, 1, &op);
+            }
+            if (r->end) {
+                end_val = _expr(c, r->end);
+            } else {
+                /* Open-ended range -- not supported, default to 0 */
+                end_val = _ssa(c, IR_REG_I32);
+                ir_operand_t op = _op_imm_i32(0);
+                _emit(c, IR_OPCODE_CONST, &end_val, 1, &op);
+            }
+
+            /* Create loop counter: %i = mov %start */
+            ir_reg_t counter = _ssa(c, IR_REG_I32);
+            int counter_ssa = c->fn->ssa_counter - 1;  /* save SSA id */
+            ir_operand_t mov_ops[2];
+            mov_ops[0] = _op_reg(start_val);
+            mov_ops[1] = _op_reg(counter);
+            _emit(c, IR_OPCODE_MOV, NULL, 2, mov_ops);
+
+            /* Create labels */
+            char cond_label[64], body_label[64], end_label[64];
+            int id = c->fn->ssa_counter;
+            snprintf(cond_label, sizeof(cond_label), "$for_cond_%d", id);
+            snprintf(body_label, sizeof(body_label), "$for_body_%d", id);
+            snprintf(end_label, sizeof(end_label), "$for_end_%d", id);
+
+            /* Jump to condition */
+            ir_operand_t br_op = _op_label(cond_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
+
+            /* Condition block */
+            _fnb_add_block(c->fn, cond_label);
+            ir_reg_t cmp_result = _ssa(c, IR_REG_BOOL);
+            ir_operand_t cmp_ops[2];
+            cmp_ops[0] = _op_reg(counter);
+            cmp_ops[1] = _op_reg(end_val);
+            _emit(c, IR_OPCODE_CMP_LT, &cmp_result, 2, cmp_ops);
+
+            ir_operand_t br_ops[3];
+            br_ops[0] = _op_reg(cmp_result);
+            br_ops[1] = _op_label(body_label);
+            br_ops[2] = _op_label(end_label);
+            _emit(c, IR_OPCODE_BR_COND, NULL, 3, br_ops);
+
+            /* Body block */
+            _fnb_add_block(c->fn, body_label);
+
+            /* Create child scope and bind loop variable to counter */
+            scope_t *child = _scope_new(c->scope);
+            c->scope = child;
+            if (f->pattern && f->pattern->type == EXPR_ID) {
+                _scope_bind(c->scope, f->pattern->u.id, IR_REG_I32,
+                            counter_ssa);
+            }
+
+            /* Compile body */
+            if (f->block) _inner_block(c, f->block);
+
+            /* Restore parent scope */
+            c->scope = child->parent;
+            _scope_free(child);
+
+            /* Increment counter: %next = add %i, 1 */
+            ir_reg_t one = _ssa(c, IR_REG_I32);
+            ir_operand_t one_op = _op_imm_i32(1);
+            _emit(c, IR_OPCODE_CONST, &one, 1, &one_op);
+
+            ir_reg_t next_val = _ssa(c, IR_REG_I32);
+            ir_operand_t add_ops[2];
+            add_ops[0] = _op_reg(counter);
+            add_ops[1] = _op_reg(one);
+            _emit(c, IR_OPCODE_ADD, &next_val, 2, add_ops);
+
+            /* Update counter in place: mov %next, %i */
+            ir_operand_t inc_ops[2];
+            inc_ops[0] = _op_reg(next_val);
+            inc_ops[1] = _op_reg(counter);
+            _emit(c, IR_OPCODE_MOV, NULL, 2, inc_ops);
+
+            /* Loop back to condition */
+            br_op = _op_label(cond_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
+
+            /* End block */
+            _fnb_add_block(c->fn, end_label);
+        } else {
+            /* Non-range iterator: not supported, just compile body once */
+            if (f->block) _inner_block(c, f->block);
+        }
         break;
     }
-
     case STMT_LOOP: {
         char loop_label[64], end_label[64];
         int id = c->fn->ssa_counter;

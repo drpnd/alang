@@ -163,6 +163,7 @@ void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
 %left TOK_LAND
 %left TOK_LOR
 %nonassoc RANGE
+%nonassoc TOK_DOTS TOK_DOTS_EQ TOK_BANG_DOTS TOK_BANG_DOTS_EQ
 %left TOK_PIPE
 %right TOK_LET TOK_MUT
 %left TOK_COMMA
@@ -653,7 +654,7 @@ statement:      declaration
                 {
                     $$ = stmt_new_while($2, $3);
                 }
-        |       TOK_FOR pattern TOK_IN expression block
+        |       TOK_FOR pattern TOK_IN range block
                 {
                     $$ = stmt_new_for($2, $4, $5);
                 }
@@ -733,6 +734,10 @@ control_expr:   if_expr
                     $$ = $1;
                 }
         |       assign_expr
+                {
+                    $$ = $1;
+                }
+        |       range
                 {
                     $$ = $1;
                 }
@@ -879,27 +884,27 @@ assign_expr:    TOK_MUT identifier TOK_EQ expression
                 ;
 
 /* Range expression */
-range:          expression TOK_DOTS expression
+range:          a_expr TOK_DOTS a_expr %prec RANGE
                 {
                     $$ = expr_new_range(scanner, $1, $3, RANGE_HALF_OPEN);
                 }
-        |       expression TOK_DOTS_EQ expression
+        |       a_expr TOK_DOTS_EQ a_expr %prec RANGE
                 {
                     $$ = expr_new_range(scanner, $1, $3, RANGE_CLOSED);
                 }
-        |       expression TOK_BANG_DOTS expression
+        |       a_expr TOK_BANG_DOTS a_expr %prec RANGE
                 {
                     $$ = expr_new_range(scanner, $1, $3, RANGE_OPEN);
                 }
-        |       expression TOK_BANG_DOTS_EQ expression
+        |       a_expr TOK_BANG_DOTS_EQ a_expr %prec RANGE
                 {
                     $$ = expr_new_range(scanner, $1, $3, RANGE_HALF_OPEN_LEFT);
                 }
-        |       expression TOK_DOTS
+        |       a_expr TOK_DOTS %prec RANGE
                 {
                     $$ = expr_new_range(scanner, $1, NULL, RANGE_HALF_OPEN);
                 }
-        |       TOK_DOTS expression
+        |       TOK_DOTS a_expr
                 {
                     $$ = expr_new_range(scanner, NULL, $2, RANGE_HALF_OPEN);
                 }
