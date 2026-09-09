@@ -331,6 +331,7 @@ _ishexdigit(int c)
  * _check_size
  */
 static int
+__attribute__((unused))
 _check_size(int64_t val)
 {
     if ( 0 == val ) {
@@ -339,7 +340,7 @@ _check_size(int64_t val)
         return 1;
     } else if ( val >= -0x8000 && val < 0x8000 ) {
         return 2;
-    } else if ( val >= -0x80000000 && val < 0x80000000 ) {
+    } else if ( val >= (int64_t)(-2147483647LL - 1) && val < 2147483647LL ) {
         return 4;
     } else {
         return 8;
@@ -800,6 +801,7 @@ _instr_parse_file(const char *m, const char *fname)
  * _is_operand_mem
  */
 static int
+__attribute__((unused))
 _is_operand_mem(x86_64_operand_t *op)
 {
     if ( op->type == X86_64_OPERAND_MEM ) {
@@ -847,9 +849,9 @@ _operand_imm(x86_64_operand_t *op)
 
     if ( op->u.imm == 0 ) {
         return 0;
-    } else if ( op->u.imm >= -0x80 && op->u.imm < 0x80 ) {
+    } else if ( (int32_t)op->u.imm >= -128 && (int32_t)op->u.imm < 127 ) {
         return 1;
-    } else if ( op->u.imm >= -0x8000 && op->u.imm < 0x8000 ) {
+    } else if ( (int32_t)op->u.imm >= -32768 && (int32_t)op->u.imm < 32768 ) {
         return 2;
     } else {
         return 4;
@@ -862,7 +864,7 @@ _operand_imm(x86_64_operand_t *op)
 static int
 _search_encode_m(struct rule *rule, int n, x86_64_operand_t *ops)
 {
-    int scale;
+    int scale __attribute__((unused)) = 0;
 
     /* Assertion */
     if ( rule->encode.type != ENCODE_M ) {
@@ -999,6 +1001,7 @@ _search_encode_mi(struct rule *rule, int n, x86_64_operand_t *ops)
  * _search_encode_d
  */
 static int
+__attribute__((unused))
 _search_encode_d(struct rule *rule, int n, x86_64_operand_t *ops)
 {
     /* Assertion */
