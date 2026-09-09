@@ -69,3 +69,6 @@ run_test "large_num.al" 3000
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
+run_test "if_test.al" 1
+run_test "if_else.al" 2
+run_test "while_test.al" 5

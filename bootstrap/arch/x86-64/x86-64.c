@@ -264,6 +264,96 @@ tb_u32(textbuf_t *tb, uint32_t val)
     return tb_emit(tb, (uint8_t*)&val, 4);
 }
 
+/*======================================================================
+ * Label resolution system
+ *======================================================================*/
+
+typedef struct {
+    char *name;
+    size_t offset;
+} label_entry_t;
+
+typedef struct {
+    label_entry_t *items;
+    int count;
+    int cap;
+} label_map_t;
+
+typedef struct {
+    size_t off;       /* offset of rel32 field in text */
+    char *target;     /* target label name */
+    int size;         /* instruction size (5 for jmp, 6 for jcc) */
+} branch_patch_t;
+
+typedef struct {
+    branch_patch_t *items;
+    int count;
+    int cap;
+} patch_list_t;
+
+typedef struct {
+    textbuf_t tb;
+    arch_code_t *code;
+    label_map_t labels;
+    patch_list_t patches;
+} asm_ctx_t;
+
+static void
+label_map_add(label_map_t *m, const char *name, size_t off)
+{
+    if (m->count >= m->cap) {
+        m->cap = m->cap ? m->cap * 2 : 16;
+        m->items = realloc(m->items, m->cap * sizeof(label_entry_t));
+    }
+    m->items[m->count].name = strdup(name);
+    m->items[m->count].offset = off;
+    m->count++;
+}
+
+static size_t
+label_map_lookup(label_map_t *m, const char *name)
+{
+    for (int i = 0; i < m->count; i++) {
+        if (strcmp(m->items[i].name, name) == 0) return m->items[i].offset;
+    }
+    return (size_t)-1;
+}
+
+static void
+patch_list_add(patch_list_t *p, size_t off, const char *target, int size)
+{
+    if (p->count >= p->cap) {
+        p->cap = p->cap ? p->cap * 2 : 16;
+        p->items = realloc(p->items, p->cap * sizeof(branch_patch_t));
+    }
+    p->items[p->count].off = off;
+    p->items[p->count].target = strdup(target);
+    p->items[p->count].size = size;
+    p->count++;
+}
+
+static void
+resolve_patches(asm_ctx_t *ctx)
+{
+    for (int i = 0; i < ctx->patches.count; i++) {
+        branch_patch_t *p = &ctx->patches.items[i];
+        size_t target = label_map_lookup(&ctx->labels, p->target);
+        if (target == (size_t)-1) continue;
+        /* rel32 = target - (instruction_end) = target - (off + 4) */
+        int32_t disp = (int32_t)(target - (p->off + 4));
+        memcpy(ctx->tb.buf + p->off, &disp, 4);
+    }
+}
+
+static void
+asm_ctx_free(asm_ctx_t *ctx)
+{
+    for (int i = 0; i < ctx->labels.count; i++) free(ctx->labels.items[i].name);
+    free(ctx->labels.items);
+    for (int i = 0; i < ctx->patches.count; i++) free(ctx->patches.items[i].target);
+    free(ctx->patches.items);
+}
+
 /*
  * SSA register allocator
  * Maps SSA value IDs ("%0", "%1", ...) to x86-64 registers.
@@ -574,7 +664,7 @@ operand_imm(ir_operand_t *op, int *ok)
  * Compile a single DFIR instruction to x86-64 machine code.
  */
 static int
-compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
+compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 {
     x86_64_reg_t dst, src0, src1;
     int ok;
@@ -590,27 +680,27 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
     case IR_OPCODE_CONST:
         imm = operand_imm(&inst->operands[0], &ok);
         if (!ok) return -1;
-        return emit_mov_imm(tb, dst, imm);
+        return emit_mov_imm(&ctx->tb, dst, imm);
 
     case IR_OPCODE_MOV:
         /* operands[0] = source, operands[1] = destination */
         src0 = operand_reg(&inst->operands[0]);
         dst = operand_reg(&inst->operands[1]);
-        return emit_mov_rr(tb, dst, src0);
+        return emit_mov_rr(&ctx->tb, dst, src0);
 
     case IR_OPCODE_ADD:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
         /* add src0, src1 => result in src0, then mov to dst if different */
-        emit_rr(tb, 0x01, src0, src1, 1);  /* add src0, src1 */
-        if (dst != src0) emit_mov_rr(tb, dst, src0);
+        emit_rr(&ctx->tb, 0x01, src0, src1, 1);  /* add src0, src1 */
+        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_SUB:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_rr(tb, 0x29, src0, src1, 1);
-        if (dst != src0) emit_mov_rr(tb, dst, src0);
+        emit_rr(&ctx->tb, 0x29, src0, src1, 1);
+        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_MUL:
@@ -631,7 +721,7 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
             (void)src1;  /* imul only uses dst and src0 in this encoding */
             /* Actually: imul dst, src0 — but we need src1 too */
             /* Use: mov dst, src0; imul dst, src1 */
-            emit_mov_rr(tb, dst, src0);
+            emit_mov_rr(&ctx->tb, dst, src0);
             rex = REX_W;
             modrm = _modrm(REG_CODE(dst), 3, REG_CODE(src1));
             rex |= REG_REX(dst) ? REX_R : 0;
@@ -641,7 +731,7 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
             buf[pos++] = 0x0F;
             buf[pos++] = 0xAF;
             buf[pos++] = modrm;
-            return tb_emit(tb, buf, pos);
+            return tb_emit(&ctx->tb, buf, pos);
         }
 
     case IR_OPCODE_NEG:
@@ -655,8 +745,8 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
             buf[pos++] = rex;
             buf[pos++] = 0xF7;
             buf[pos++] = modrm;
-            if (dst != src0) emit_mov_rr(tb, dst, src0);
-            return tb_emit(tb, buf, pos);
+            if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
+            return tb_emit(&ctx->tb, buf, pos);
         }
 
     case IR_OPCODE_NOT:
@@ -670,29 +760,29 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
             buf[pos++] = rex;
             buf[pos++] = 0xF7;
             buf[pos++] = modrm;
-            if (dst != src0) emit_mov_rr(tb, dst, src0);
-            return tb_emit(tb, buf, pos);
+            if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
+            return tb_emit(&ctx->tb, buf, pos);
         }
 
     case IR_OPCODE_AND:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_rr(tb, 0x21, src0, src1, 1);
-        if (dst != src0) emit_mov_rr(tb, dst, src0);
+        emit_rr(&ctx->tb, 0x21, src0, src1, 1);
+        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_OR:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_rr(tb, 0x09, src0, src1, 1);
-        if (dst != src0) emit_mov_rr(tb, dst, src0);
+        emit_rr(&ctx->tb, 0x09, src0, src1, 1);
+        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_XOR:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_rr(tb, 0x31, src0, src1, 1);
-        if (dst != src0) emit_mov_rr(tb, dst, src0);
+        emit_rr(&ctx->tb, 0x31, src0, src1, 1);
+        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
         return 0;
 
     case IR_OPCODE_SHL:
@@ -700,85 +790,94 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
         /* shl r/m, cl — D3 /4 */
         {
             /* mov dst, src0; shl dst, cl */
-            emit_mov_rr(tb, dst, src0);
+            emit_mov_rr(&ctx->tb, dst, src0);
             uint8_t buf[4];
             int pos = 0;
             int rex = REX_W | (REG_REX(dst) ? REX_B : 0) | REX;
             buf[pos++] = rex;
             buf[pos++] = 0xD3;
             buf[pos++] = _modrm(4, 3, REG_CODE(dst));
-            return tb_emit(tb, buf, pos);
+            return tb_emit(&ctx->tb, buf, pos);
         }
 
     case IR_OPCODE_SHR:
         src0 = operand_reg(&inst->operands[0]);
         /* sar r/m, cl — D3 /7 */
         {
-            emit_mov_rr(tb, dst, src0);
+            emit_mov_rr(&ctx->tb, dst, src0);
             uint8_t buf[4];
             int pos = 0;
             int rex = REX_W | (REG_REX(dst) ? REX_B : 0) | REX;
             buf[pos++] = rex;
             buf[pos++] = 0xD3;
             buf[pos++] = _modrm(7, 3, REG_CODE(dst));
-            return tb_emit(tb, buf, pos);
+            return tb_emit(&ctx->tb, buf, pos);
         }
 
     case IR_OPCODE_CMP_EQ:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_rr(tb, src0, src1);
-        return emit_setcc_movzx(tb, 0x04, dst);  /* sete */
+        emit_cmp_rr(&ctx->tb, src0, src1);
+        return emit_setcc_movzx(&ctx->tb, 0x04, dst);  /* sete */
 
     case IR_OPCODE_CMP_NE:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_rr(tb, src0, src1);
-        return emit_setcc_movzx(tb, 0x05, dst);  /* setne */
+        emit_cmp_rr(&ctx->tb, src0, src1);
+        return emit_setcc_movzx(&ctx->tb, 0x05, dst);  /* setne */
 
     case IR_OPCODE_CMP_LT:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_rr(tb, src0, src1);
-        return emit_setcc_movzx(tb, 0x0C, dst);  /* setl */
+        emit_cmp_rr(&ctx->tb, src0, src1);
+        return emit_setcc_movzx(&ctx->tb, 0x0C, dst);  /* setl */
 
     case IR_OPCODE_CMP_LE:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_rr(tb, src0, src1);
-        return emit_setcc_movzx(tb, 0x0E, dst);  /* setle */
+        emit_cmp_rr(&ctx->tb, src0, src1);
+        return emit_setcc_movzx(&ctx->tb, 0x0E, dst);  /* setle */
 
     case IR_OPCODE_CMP_GT:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_rr(tb, src0, src1);
-        return emit_setcc_movzx(tb, 0x0F, dst);  /* setg */
+        emit_cmp_rr(&ctx->tb, src0, src1);
+        return emit_setcc_movzx(&ctx->tb, 0x0F, dst);  /* setg */
 
     case IR_OPCODE_CMP_GE:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_rr(tb, src0, src1);
-        return emit_setcc_movzx(tb, 0x0D, dst);  /* setge */
+        emit_cmp_rr(&ctx->tb, src0, src1);
+        return emit_setcc_movzx(&ctx->tb, 0x0D, dst);  /* setge */
 
-    case IR_OPCODE_BR:
-        /* jmp label — placeholder, needs relocation */
-        return emit_jmp(tb, &reloff);
-
-    case IR_OPCODE_BR_COND:
-        /* test src0, src0; jnz then; jmp else */
-        src0 = operand_reg(&inst->operands[0]);
-        {
-            /* test reg, reg — 85 /r */
-            emit_rr(tb, 0x85, src0, src0, 1);
-            /* jnz (then) */
-            emit_jcc(tb, JCC_NE, &reloff);
-            /* jmp (else) */
-            emit_jmp(tb, &reloff);
-            return 0;
+    case IR_OPCODE_BR: {
+        /* jmp label — emit placeholder, save patch */
+        tb_byte(&ctx->tb, 0xE9);  /* jmp rel32 */
+        size_t patch_off = ctx->tb.size;
+        tb_u32(&ctx->tb, 0);  /* placeholder */
+        if (inst->noperands > 0 && inst->operands[0].type == IR_OPERAND_LABEL) {
+            patch_list_add(&ctx->patches, patch_off, inst->operands[0].u.label, 5);
         }
+        return 0;
+    }
+
+    case IR_OPCODE_BR_COND: {
+        /* test reg, reg; jz $else — if cond==0, jump to else; then falls through */
+        src0 = operand_reg(&inst->operands[0]);
+        emit_rr(&ctx->tb, 0x85, src0, src0, 1);  /* test reg, reg */
+        /* jz rel32: 0F 84 cd */
+        tb_byte(&ctx->tb, 0x0F);
+        tb_byte(&ctx->tb, 0x84);
+        size_t patch_off = ctx->tb.size;
+        tb_u32(&ctx->tb, 0);  /* placeholder */
+        if (inst->noperands > 2 && inst->operands[2].type == IR_OPERAND_LABEL) {
+            patch_list_add(&ctx->patches, patch_off, inst->operands[2].u.label, 6);
+        }
+        return 0;
+    }
 
     case IR_OPCODE_RET:
-        return emit_ret(tb);
+        return emit_ret(&ctx->tb);
 
     case IR_OPCODE_CALL:
         /* call func — needs symbol lookup + relocation */
@@ -791,34 +890,34 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
             }
             int symidx = -1;
             if (callee) {
-                for (int i = 0; i < code->sym.n; i++) {
-                    if (code->sym.syms[i].label &&
-                        strcmp(code->sym.syms[i].label, callee) == 0) {
+                for (int i = 0; i < ctx->code->sym.n; i++) {
+                    if (ctx->code->sym.syms[i].label &&
+                        strcmp(ctx->code->sym.syms[i].label, callee) == 0) {
                         symidx = i;
                         break;
                     }
                 }
                 if (symidx < 0) {
-                    symidx = add_sym(code, ARCH_SYM_FUNC, callee, 0, 0);
+                    symidx = add_sym(ctx->code, ARCH_SYM_FUNC, callee, 0, 0);
                 }
             }
             size_t relpos;
-            emit_call(tb, &relpos);
+            emit_call(&ctx->tb, &relpos);
             if (symidx >= 0) {
-                add_rel(code, ARCH_REL_BRANCH, relpos, symidx);
+                add_rel(ctx->code, ARCH_REL_BRANCH, relpos, symidx);
             }
             return 0;
         }
 
     case IR_OPCODE_ALLOCA:
         /* sub rsp, size — approximate with fixed 16-byte alignment */
-        return emit_sub_rsp(tb, 16);
+        return emit_sub_rsp(&ctx->tb, 16);
 
     case IR_OPCODE_LOAD:
         /* mov reg, [reg] — 0x8B /r */
         src0 = operand_reg(&inst->operands[0]);
         {
-            emit_mov_rr(tb, dst, src0);  /* simplified: just mov */
+            emit_mov_rr(&ctx->tb, dst, src0);  /* simplified: just mov */
             return 0;
         }
 
@@ -826,7 +925,7 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
         /* mov [reg], reg — 0x89 /r */
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        return emit_rr(tb, 0x89, src0, src1, 1);
+        return emit_rr(&ctx->tb, 0x89, src0, src1, 1);
 
     /* Unhandled opcodes — emit NOP for now */
     case IR_OPCODE_PHI:
@@ -848,10 +947,10 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
     case IR_OPCODE_YIELD:
     case IR_OPCODE_AWAIT:
     case IR_OPCODE_SUSPEND:
-        return tb_byte(tb, 0x90);  /* NOP */
+        return tb_byte(&ctx->tb, 0x90);  /* NOP */
 
     default:
-        return tb_byte(tb, 0x90);  /* NOP */
+        return tb_byte(&ctx->tb, 0x90);  /* NOP */
     }
 }
 
@@ -861,46 +960,54 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
 int
 x86_64_assemble(ir_object_t *obj, arch_code_t *code)
 {
-    textbuf_t tb;
+    asm_ctx_t ctx;
     ir_func_t *func;
 
     if (!obj || !code) return -1;
 
-    if (tb_init(&tb) < 0) return -1;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.code = code;
+    if (tb_init(&ctx.tb) < 0) return -1;
 
     /* Walk all functions */
     func = obj->funcs;
     while (func) {
-        /* Record function start offset */
-        off_t func_start = tb.size;
+        off_t func_start = ctx.tb.size;
         int symidx = add_sym(code, ARCH_SYM_FUNC, func->name, func_start, 0);
 
-        /* Walk all blocks */
         for (size_t bi = 0; bi < func->nblocks; bi++) {
             ir_block_t *blk = &func->blocks[bi];
+
+            /* Record block label -> text offset */
+            if (blk->label && blk->label->name) {
+                label_map_add(&ctx.labels, blk->label->name, ctx.tb.size);
+            }
+
             ir_instr_ent_t *ent = blk->instrs;
             while (ent) {
-                if (compile_instr(&tb, code, &ent->inst) < 0) {
-                    free(tb.buf);
+                if (compile_instr(&ctx, &ent->inst) < 0) {
+                    free(ctx.tb.buf);
+                    asm_ctx_free(&ctx);
                     return -1;
                 }
                 ent = ent->next;
             }
         }
 
-        /* Update symbol size */
-        code->sym.syms[symidx].size = tb.size - func_start;
-
+        code->sym.syms[symidx].size = ctx.tb.size - func_start;
         func = func->next;
     }
 
-    /* Transfer text buffer to code */
-    code->text.s = tb.buf;
-    code->text.size = tb.size;
+    /* Resolve branch patches */
+    resolve_patches(&ctx);
+
+    code->text.s = ctx.tb.buf;
+    code->text.size = ctx.tb.size;
     code->cpu = ARCH_CPU_X86_64;
 
     (void)x86_64_initialize;
     (void)x86_64_load_instr;
+    asm_ctx_free(&ctx);
     return 0;
 }
 

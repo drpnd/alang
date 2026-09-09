@@ -68,6 +68,110 @@ emit32(textbuf_t *tb, uint32_t insn)
     return tb_emit(tb, (uint8_t*)&insn, 4);
 }
 
+/*======================================================================
+ * Label resolution system
+ *======================================================================*/
+
+typedef struct {
+    char *name;
+    size_t offset;
+} label_entry_t;
+
+typedef struct {
+    label_entry_t *items;
+    int count;
+    int cap;
+} label_map_t;
+
+typedef struct {
+    size_t off;       /* offset of branch instruction in text */
+    char *target;     /* target label name */
+    int reg;          /* register for CBZ (-1 for B) */
+} branch_patch_t;
+
+typedef struct {
+    branch_patch_t *items;
+    int count;
+    int cap;
+} patch_list_t;
+
+typedef struct {
+    textbuf_t tb;
+    arch_code_t *code;
+    label_map_t labels;
+    patch_list_t patches;
+} asm_ctx_t;
+
+static void
+label_map_add(label_map_t *m, const char *name, size_t off)
+{
+    if (m->count >= m->cap) {
+        m->cap = m->cap ? m->cap * 2 : 16;
+        m->items = realloc(m->items, m->cap * sizeof(label_entry_t));
+    }
+    m->items[m->count].name = strdup(name);
+    m->items[m->count].offset = off;
+    m->count++;
+}
+
+static size_t
+label_map_lookup(label_map_t *m, const char *name)
+{
+    for (int i = 0; i < m->count; i++) {
+        if (strcmp(m->items[i].name, name) == 0) {
+            return m->items[i].offset;
+        }
+    }
+    return (size_t)-1;
+}
+
+static void
+patch_list_add(patch_list_t *p, size_t off, const char *target, int reg)
+{
+    if (p->count >= p->cap) {
+        p->cap = p->cap ? p->cap * 2 : 16;
+        p->items = realloc(p->items, p->cap * sizeof(branch_patch_t));
+    }
+    p->items[p->count].off = off;
+    p->items[p->count].target = strdup(target);
+    p->items[p->count].reg = reg;
+    p->count++;
+}
+
+static void
+resolve_patches(asm_ctx_t *ctx)
+{
+    for (int i = 0; i < ctx->patches.count; i++) {
+        branch_patch_t *p = &ctx->patches.items[i];
+        size_t target = label_map_lookup(&ctx->labels, p->target);
+        if (target == (size_t)-1) {
+            fprintf(stderr, "warning: unresolved label %s\n", p->target);
+            continue;
+        }
+        int32_t disp = (int32_t)(target - p->off);
+        if (p->reg < 0) {
+            /* B instruction: imm26 = disp / 4 */
+            int32_t imm26 = (disp / 4) & 0x3FFFFFF;
+            uint32_t insn = (0x05U << 26) | imm26;
+            memcpy(ctx->tb.buf + p->off, &insn, 4);
+        } else {
+            /* CBZ instruction: imm19 = disp / 4 */
+            int32_t imm19 = (disp / 4) & 0x7FFFF;
+            uint32_t insn = (1U << 31) | (0x34U << 24) | (imm19 << 5) | (p->reg & 31);
+            memcpy(ctx->tb.buf + p->off, &insn, 4);
+        }
+    }
+}
+
+static void
+asm_ctx_free(asm_ctx_t *ctx)
+{
+    for (int i = 0; i < ctx->labels.count; i++) free(ctx->labels.items[i].name);
+    free(ctx->labels.items);
+    for (int i = 0; i < ctx->patches.count; i++) free(ctx->patches.items[i].target);
+    free(ctx->patches.items);
+}
+
 /*
  * Parse SSA id "%N" to integer N.
  */
@@ -381,7 +485,7 @@ add_rel(arch_code_t *code, arch_rel_type_t type, off_t pos, int sym)
  *======================================================================*/
 
 static int
-compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
+compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 {
     int dst, src0, src1;
     int ok;
@@ -396,102 +500,114 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
     case IR_OPCODE_CONST:
         imm = operand_imm(&inst->operands[0], &ok);
         if (!ok) return -1;
-        return emit_load_imm64(tb, dst, imm);
+        return emit_load_imm64(&ctx->tb, dst, imm);
 
     case IR_OPCODE_MOV:
         /* operands[0] = source, operands[1] = destination */
         src0 = operand_reg(&inst->operands[0]);
         dst = operand_reg(&inst->operands[1]);
-        return emit_orr_reg(tb, dst, 31, src0, 1);  /* mov = orr rd, xzr, rm */
+        return emit_orr_reg(&ctx->tb, dst, 31, src0, 1);  /* mov = orr rd, xzr, rm */
 
     case IR_OPCODE_ADD:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        return emit_add_reg(tb, dst, src0, src1, 1);
+        return emit_add_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_SUB:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        return emit_sub_reg(tb, dst, src0, src1, 1);
+        return emit_sub_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_MUL:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        return emit_mul_reg(tb, dst, src0, src1, 1);
+        return emit_mul_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_NEG:
         src0 = operand_reg(&inst->operands[0]);
-        return emit_sub_reg(tb, dst, 31, src0, 1);  /* sub rd, xzr, src0 */
+        return emit_sub_reg(&ctx->tb, dst, 31, src0, 1);  /* sub rd, xzr, src0 */
 
     case IR_OPCODE_NOT:
         src0 = operand_reg(&inst->operands[0]);
-        return emit_orn_reg(tb, dst, 31, src0, 1);  /* orn rd, xzr, src0 */
+        return emit_orn_reg(&ctx->tb, dst, 31, src0, 1);  /* orn rd, xzr, src0 */
 
     case IR_OPCODE_AND:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        return emit_and_reg(tb, dst, src0, src1, 1);
+        return emit_and_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_OR:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        return emit_orr_reg(tb, dst, src0, src1, 1);
+        return emit_orr_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_XOR:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        return emit_eor_reg(tb, dst, src0, src1, 1);
+        return emit_eor_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_CMP_EQ:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_reg(tb, src0, src1, 1);
-        return emit_cset(tb, dst, COND_EQ, 1);
+        emit_cmp_reg(&ctx->tb, src0, src1, 1);
+        return emit_cset(&ctx->tb, dst, COND_EQ, 1);
 
     case IR_OPCODE_CMP_NE:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_reg(tb, src0, src1, 1);
-        return emit_cset(tb, dst, COND_NE, 1);
+        emit_cmp_reg(&ctx->tb, src0, src1, 1);
+        return emit_cset(&ctx->tb, dst, COND_NE, 1);
 
     case IR_OPCODE_CMP_LT:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_reg(tb, src0, src1, 1);
-        return emit_cset(tb, dst, COND_LT, 1);
+        emit_cmp_reg(&ctx->tb, src0, src1, 1);
+        return emit_cset(&ctx->tb, dst, COND_LT, 1);
 
     case IR_OPCODE_CMP_LE:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_reg(tb, src0, src1, 1);
-        return emit_cset(tb, dst, COND_LE, 1);
+        emit_cmp_reg(&ctx->tb, src0, src1, 1);
+        return emit_cset(&ctx->tb, dst, COND_LE, 1);
 
     case IR_OPCODE_CMP_GT:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_reg(tb, src0, src1, 1);
-        return emit_cset(tb, dst, COND_GT, 1);
+        emit_cmp_reg(&ctx->tb, src0, src1, 1);
+        return emit_cset(&ctx->tb, dst, COND_GT, 1);
 
     case IR_OPCODE_CMP_GE:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
-        emit_cmp_reg(tb, src0, src1, 1);
-        return emit_cset(tb, dst, COND_GE, 1);
+        emit_cmp_reg(&ctx->tb, src0, src1, 1);
+        return emit_cset(&ctx->tb, dst, COND_GE, 1);
 
-    case IR_OPCODE_BR:
-        /* b label — placeholder offset 0, needs relocation */
-        return emit_b(tb, 0);
-
-    case IR_OPCODE_BR_COND:
-        /* cbz/cbnz or: cmp + b.cond + b */
-        src0 = operand_reg(&inst->operands[0]);
-        emit_cmp_reg(tb, src0, 31, 1);  /* cmp src0, xzr */
-        emit_bcond(tb, COND_NE, 8);     /* b.ne then (skip next) */
-        emit_b(tb, 8);                  /* b else (skip 2 instructions) */
+    case IR_OPCODE_BR: {
+        /* b label — emit placeholder, save patch for resolution */
+        size_t off = ctx->tb.size;
+        emit_b(&ctx->tb, 0);
+        if (inst->noperands > 0 && inst->operands[0].type == IR_OPERAND_LABEL) {
+            patch_list_add(&ctx->patches, off, inst->operands[0].u.label, -1);
+        }
         return 0;
+    }
+
+    case IR_OPCODE_BR_COND: {
+        /* CBZ Xt, $else — if cond==0, branch to else; then falls through */
+        src0 = operand_reg(&inst->operands[0]);
+        size_t off = ctx->tb.size;
+        /* CBZ: sf 011010 0 imm19 Rt = (1<<31)|(0x34<<24)|(imm19<<5)|Rt */
+        uint32_t cbz = (1U << 31) | (0x34U << 24) | (src0 & 31);
+        emit32(&ctx->tb, cbz);
+        /* Else label is in operands[2] */
+        if (inst->noperands > 2 && inst->operands[2].type == IR_OPERAND_LABEL) {
+            patch_list_add(&ctx->patches, off, inst->operands[2].u.label, src0);
+        }
+        return 0;
+    }
 
     case IR_OPCODE_RET:
-        return emit_ret(tb);
+        return emit_ret(&ctx->tb);
 
     case IR_OPCODE_CALL:
         {
@@ -502,21 +618,21 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
             }
             int symidx = -1;
             if (callee) {
-                for (int i = 0; i < code->sym.n; i++) {
-                    if (code->sym.syms[i].label &&
-                        strcmp(code->sym.syms[i].label, callee) == 0) {
+                for (int i = 0; i < ctx->code->sym.n; i++) {
+                    if (ctx->code->sym.syms[i].label &&
+                        strcmp(ctx->code->sym.syms[i].label, callee) == 0) {
                         symidx = i;
                         break;
                     }
                 }
                 if (symidx < 0) {
-                    symidx = add_sym(code, ARCH_SYM_FUNC, callee, 0, 0);
+                    symidx = add_sym(ctx->code, ARCH_SYM_FUNC, callee, 0, 0);
                 }
             }
-            off_t relpos = tb->size;
-            emit_bl(tb, 0);  /* placeholder */
+            off_t relpos = ctx->tb.size;
+            emit_bl(&ctx->tb, 0);  /* placeholder */
             if (symidx >= 0) {
-                add_rel(code, ARCH_REL_BRANCH, relpos, symidx);
+                add_rel(ctx->code, ARCH_REL_BRANCH, relpos, symidx);
             }
             return 0;
         }
@@ -527,7 +643,7 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
         {
             uint32_t insn = (1U << 31) | (0x22U << 24) | (16 << 10) |
                             (31U << 5) | 31;
-            return emit32(tb, insn);
+            return emit32(&ctx->tb, insn);
         }
 
     case IR_OPCODE_LOAD:
@@ -535,7 +651,7 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
         src0 = operand_reg(&inst->operands[0]);
         {
             uint32_t insn = (0xF9U << 24) | ((src0 & 31) << 5) | (dst & 31);
-            return emit32(tb, insn);
+            return emit32(&ctx->tb, insn);
         }
 
     case IR_OPCODE_STORE:
@@ -544,7 +660,7 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
         src1 = operand_reg(&inst->operands[1]);
         {
             uint32_t insn = (0xF8U << 24) | ((src0 & 31) << 5) | (src1 & 31);
-            return emit32(tb, insn);
+            return emit32(&ctx->tb, insn);
         }
 
     /* Unhandled — NOP */
@@ -569,10 +685,10 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
     case IR_OPCODE_YIELD:
     case IR_OPCODE_AWAIT:
     case IR_OPCODE_SUSPEND:
-        return emit_nop(tb);
+        return emit_nop(&ctx->tb);
 
     default:
-        return emit_nop(tb);
+        return emit_nop(&ctx->tb);
     }
 }
 
@@ -582,39 +698,54 @@ compile_instr(textbuf_t *tb, arch_code_t *code, ir_instr_t *inst)
 int
 aarch64_assemble(ir_object_t *obj, arch_code_t *code)
 {
-    textbuf_t tb;
+    asm_ctx_t ctx;
     ir_func_t *func;
 
     if (!obj || !code) return -1;
 
-    if (tb_init(&tb) < 0) return -1;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.code = code;
+    if (tb_init(&ctx.tb) < 0) return -1;
 
     /* Walk all functions */
     func = obj->funcs;
     while (func) {
-        off_t func_start = tb.size;
+        off_t func_start = ctx.tb.size;
         int symidx = add_sym(code, ARCH_SYM_FUNC, func->name, func_start, 0);
 
         for (size_t bi = 0; bi < func->nblocks; bi++) {
             ir_block_t *blk = &func->blocks[bi];
+
+            /* Record block label -> text offset */
+            if (blk->label && blk->label->name) {
+                label_map_add(&ctx.labels, blk->label->name, ctx.tb.size);
+            }
+
+            /* Emit instructions */
             ir_instr_ent_t *ent = blk->instrs;
             while (ent) {
-                if (compile_instr(&tb, code, &ent->inst) < 0) {
-                    free(tb.buf);
+                if (compile_instr(&ctx, &ent->inst) < 0) {
+                    free(ctx.tb.buf);
+                    asm_ctx_free(&ctx);
                     return -1;
                 }
                 ent = ent->next;
             }
         }
 
-        code->sym.syms[symidx].size = tb.size - func_start;
+        code->sym.syms[symidx].size = ctx.tb.size - func_start;
         func = func->next;
     }
 
-    code->text.s = tb.buf;
-    code->text.size = tb.size;
+    /* Resolve branch patches */
+    resolve_patches(&ctx);
+
+    /* Transfer to code */
+    code->text.s = ctx.tb.buf;
+    code->text.size = ctx.tb.size;
     code->cpu = ARCH_CPU_AARCH64;
 
+    asm_ctx_free(&ctx);
     return 0;
 }
 
