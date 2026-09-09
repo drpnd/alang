@@ -41,6 +41,7 @@ _error_new(compiler_error_code_t, pos_t);
 static compiler_instr_t *
 _instr_new(void);
 static void
+__attribute__((unused))
 _instr_delete(compiler_instr_t *);
 static compiler_var_table_t *
 _var_table_initialize(compiler_var_table_t *);
@@ -110,6 +111,7 @@ _instr_new(void)
  * _instr_delete -- delete an instruction
  */
 static void
+__attribute__((unused))
 _instr_delete(compiler_instr_t *instr)
 {
     free(instr);
@@ -150,6 +152,7 @@ _var_table_release(compiler_var_table_t *t)
  * _symbol_add -- add a symbol
  */
 static int
+__attribute__((unused))
 _symbol_add(compiler_t *c, compiler_symbol_t *s)
 {
     size_t i;
@@ -216,10 +219,12 @@ _env_delete(compiler_env_t *env)
  * _type2size -- resolve the size of the type
  */
 static ssize_t
+__attribute__((unused))
 _type2size(compiler_t *c, type_t *type)
 {
     ssize_t sz;
 
+    (void)c;
     sz = -1;
     switch (type->type) {
     case TYPE_PRIMITIVE_I8:
@@ -240,6 +245,24 @@ _type2size(compiler_t *c, type_t *type)
     case TYPE_PRIMITIVE_F64:
         sz = 64;
         break;
+    case TYPE_PRIMITIVE_F16:
+        sz = 16;
+        break;
+    case TYPE_PRIMITIVE_FP8:
+        sz = 8;
+        break;
+    case TYPE_PRIMITIVE_FP4:
+        sz = 4;
+        break;
+    case TYPE_PRIMITIVE_BOOL:
+        sz = 8;
+        break;
+    case TYPE_PRIMITIVE_STRING:
+        sz = 64;     /* pointer size */
+        break;
+    default:
+        /* Composite types: size not yet resolved */
+        break;
     }
 
     return sz;
@@ -253,7 +276,8 @@ _type2reg(compiler_t *c, type_t *type)
 {
     ir_reg_type_t rtype;
 
-    rtype = IR_REG_UNDEF;
+    (void)c;
+    rtype = IR_REG_NONE;
     switch ( type->type ) {
     case TYPE_PRIMITIVE_I8:
     case TYPE_PRIMITIVE_U8:
@@ -273,10 +297,19 @@ _type2reg(compiler_t *c, type_t *type)
         rtype = IR_REG_I64;
         break;
     case TYPE_PRIMITIVE_F32:
-        rtype = IR_REG_FP32;
+        rtype = IR_REG_F32;
         break;
     case TYPE_PRIMITIVE_F64:
-        rtype = IR_REG_FP64;
+        rtype = IR_REG_F64;
+        break;
+    case TYPE_PRIMITIVE_F16:
+        rtype = IR_REG_F16;
+        break;
+    case TYPE_PRIMITIVE_FP8:
+        rtype = IR_REG_FP8;
+        break;
+    case TYPE_PRIMITIVE_FP4:
+        rtype = IR_REG_FP4;
         break;
     case TYPE_PRIMITIVE_STRING:
         rtype = IR_REG_PTR;
@@ -286,6 +319,15 @@ _type2reg(compiler_t *c, type_t *type)
         break;
     case TYPE_ENUM:
         rtype = IR_REG_I64;
+        break;
+    case TYPE_STRUCT:
+    case TYPE_ID:
+    case TYPE_REFERENCE:
+    case TYPE_STREAM:
+    case TYPE_CHAN:
+        rtype = IR_REG_PTR;
+        break;
+    default:
         break;
     }
 
@@ -299,7 +341,6 @@ static compiler_var_t *
 _var_new(compiler_t *c, const char *id, type_t *type)
 {
     compiler_var_t *var;
-    ssize_t sz;
     ir_reg_type_t rtype;
 
     /* Allocate a new variable */
@@ -310,11 +351,10 @@ _var_new(compiler_t *c, const char *id, type_t *type)
 
     /* Resolve the register type from the specified type */
     rtype = _type2reg(c, type);
-    if ( rtype == IR_REG_UNDEF ) {
+    if ( rtype == IR_REG_NONE ) {
         return NULL;
     }
     var->irreg.type = rtype;
-    var->irreg.assigned = 1;
     var->irreg.id = strdup(id);
 
     var->type = type;
@@ -402,6 +442,7 @@ _val_new(void)
  * _val_new_nil -- allocate a new nil value
  */
 static compiler_val_t *
+__attribute__((unused))
 _val_new_nil(void)
 {
     compiler_val_t *val;
@@ -422,6 +463,7 @@ static compiler_val_t *
 _val_new_reg(compiler_env_t *env)
 {
     compiler_val_t *val;
+    (void)env;
 
     val = _val_new();
     if ( val == NULL ) {
@@ -439,6 +481,7 @@ static compiler_val_t *
 _val_new_reg_set(compiler_env_t *env)
 {
     compiler_val_t *val;
+    (void)env;
 
     val = _val_new();
     if ( val == NULL ) {
@@ -456,6 +499,7 @@ static compiler_val_t *
 _val_new_var(compiler_env_t *env, compiler_var_t *var)
 {
     compiler_val_t *val;
+    (void)env;
 
     val = _val_new();
     if ( val == NULL ) {
@@ -531,6 +575,8 @@ _val_delete(compiler_val_t *val)
         break;
     case VAL_LITERAL:
         break;
+    default:
+        break;
     }
     free(val);
 }
@@ -574,6 +620,7 @@ _val_list_append(compiler_val_list_t *l, compiler_val_t *val)
  * _val_list_delete -- delete a value list
  */
 static void
+__attribute__((unused))
 _val_list_delete(compiler_val_list_t *l)
 {
     compiler_val_t *v;
@@ -629,9 +676,11 @@ _instr_mov(operand_t *op0, operand_t *op1)
  * _instr_alloca -- allocate a new alloca instruction
  */
 static ir_instr_t *
+__attribute__((unused))
 _instr_alloca(ir_operand_t *op0)
 {
     ir_instr_t *instr;
+    (void)op0;
 
     instr = ir_instr_new();
     if ( instr == NULL ) {
@@ -648,8 +697,10 @@ _instr_alloca(ir_operand_t *op0)
  * _instr_add -- allocate a new add insruction
  */
 static ir_instr_t *
+__attribute__((unused))
 _instr_add(ir_operand_t *op0, ir_operand_t *op1)
 {
+    (void)op0; (void)op1;
     return NULL;
 }
 
@@ -657,10 +708,12 @@ _instr_add(ir_operand_t *op0, ir_operand_t *op1)
  * _instr_infix -- allocate a new infix instruction
  */
 static ir_instr_t *
+__attribute__((unused))
 _instr_infix(ir_opcode_t opcode, ir_operand_t *op0, ir_operand_t *op1,
              ir_result_t *result)
 {
     ir_instr_t *instr;
+    (void)op0; (void)op1; (void)result;
 
     /* Add an instruction */
     instr = ir_instr_new();
@@ -679,8 +732,10 @@ _instr_infix(ir_opcode_t opcode, ir_operand_t *op0, ir_operand_t *op1,
  * _operand -- convert a variable to an operand
  */
 static int
+__attribute__((unused))
 _operand(compiler_t *c, compiler_env_t *env, ir_operand_t *operand)
 {
+    (void)c; (void)env; (void)operand;
     return -1;
 }
 
@@ -692,6 +747,7 @@ _id(compiler_t *c, compiler_env_t *env, const char *id)
 {
     compiler_val_t *val;
     compiler_var_t *var;
+    (void)c;
 
     var = _var_search(env, id);
     if ( var == NULL ) {
@@ -710,6 +766,7 @@ static compiler_val_t *
 _literal(compiler_t *c, compiler_env_t *env, literal_t *lit)
 {
     compiler_val_t *val;
+    (void)c; (void)env;
 
     val = _val_new_literal(lit);
     if ( val == NULL ) {
@@ -741,8 +798,7 @@ _decl(compiler_t *c, compiler_env_t *env, decl_t *decl, pos_t pos, int arg,
     var->arg = arg;
     var->ret = retflag;
     if ( arg ) {
-        var->irreg.assigned = 1;
-    }
+        }
 
     /* Add the variable to the table */
     ret = _var_add(env, var);
@@ -864,7 +920,7 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     compiler_val_t *vr;
     compiler_val_t *v0;
     compiler_val_t *v1;
-    ir_instr_t *instr;
+    compiler_instr_t *instr;
     operand_t op0;
     operand_t op1;
     operand_t op2;
@@ -895,18 +951,20 @@ _op_infix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     op2.type = OPERAND_VAL;
     op2.u.val = vr;
 
-    ir_operand_t irop0;
-    ir_operand_t irop1;
-    ir_result_t res;
-
-    /* Add an instruction */
-    instr = _instr_infix(opcode, &irop0, &irop1, &res);
+    (void)pos;
+    /* FIXME: properly populate ir_instr_t operands */
+    instr = _instr_new();
     if ( instr == NULL ) {
         _val_delete(v0);
         _val_delete(v1);
         _val_delete(vr);
         return NULL;
     }
+    instr->ir.opcode = opcode;
+    instr->operands[0].type = OPERAND_VAL;
+    instr->operands[0].u.val = v0;
+    instr->operands[1].type = OPERAND_VAL;
+    instr->operands[1].u.val = v1;
     ret = _append_instr(&env->code, instr);
     if ( ret < 0 ) {
         /* FIXME: delete the instruction */
@@ -927,6 +985,7 @@ _op_prefix(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     compiler_val_t *v;
     compiler_instr_t *instr;
     int ret;
+    (void)pos;
 
     if ( op->fix != FIX_PREFIX ) {
         return NULL;
@@ -975,7 +1034,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     compiler_val_t *v0;
     compiler_val_t *v1;
     ir_instr_t *instr;
-    int ret;
+    (void)pos;
 
     if ( op->fix != FIX_INFIX ) {
         return NULL;
@@ -1002,8 +1061,8 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         return NULL;
     }
     instr->opcode = opcode;
-    instr->operands[0].type = OPERAND_TYPE_REG;
-    //instr->operands[0].u.val = v0;
+    /* FIXME: populate operands properly with ir_operand_t */
+    (void)v0; (void)v1; (void)vr;
     //instr->operands[1].type = OPERAND_VAL;
     //instr->operands[1].u.val = v1;
     //instr->operands[2].type = OPERAND_VAL;
@@ -1021,6 +1080,7 @@ _divmod(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
  * _incdec -- parse an increment/decrement instruction
  */
 static compiler_val_t *
+__attribute__((unused))
 _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
         pos_t pos)
 {
@@ -1030,6 +1090,7 @@ _incdec(compiler_t *c, compiler_env_t *env, op_t *op, ir_opcode_t opcode,
     operand_t op0;
     operand_t op1;
     int ret;
+    (void)pos;
 
     val = _expr(c, env, op->e0);
     if ( VAL_VAR != val->type ) {
@@ -1117,10 +1178,10 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t pos)
         val = _op_prefix(c, env, op, IR_OPCODE_NOT, pos);
         break;
     case OP_LAND:
-        val = _op_infix(c, env, op, IR_OPCODE_LAND, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_AND, pos);
         break;
     case OP_LOR:
-        val = _op_infix(c, env, op, IR_OPCODE_LOR, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_OR, pos);
         break;
     case OP_AND:
         val = _op_infix(c, env, op, IR_OPCODE_AND, pos);
@@ -1132,19 +1193,19 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t pos)
         val = _op_infix(c, env, op, IR_OPCODE_XOR, pos);
         break;
     case OP_COMP:
-        val = _op_prefix(c, env, op, IR_OPCODE_COMP, pos);
+        val = _op_prefix(c, env, op, IR_OPCODE_NOT, pos);
         break;
     case OP_LSHIFT:
-        val = _op_infix(c, env, op, IR_OPCODE_LSHIFT, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_SHL, pos);
         break;
     case OP_RSHIFT:
-        val = _op_infix(c, env, op, IR_OPCODE_RSHIFT, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_SHR, pos);
         break;
     case OP_CMP_EQ:
         val = _op_infix(c, env, op, IR_OPCODE_CMP_EQ, pos);
         break;
     case OP_CMP_NEQ:
-        val = _op_infix(c, env, op, IR_OPCODE_CMP_NEQ, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_NE, pos);
         break;
     case OP_CMP_GT:
         val = _op_infix(c, env, op, IR_OPCODE_CMP_GT, pos);
@@ -1153,10 +1214,15 @@ _op(compiler_t *c, compiler_env_t *env, op_t *op, pos_t pos)
         val = _op_infix(c, env, op, IR_OPCODE_CMP_LT, pos);
         break;
     case OP_CMP_GEQ:
-        val = _op_infix(c, env, op, IR_OPCODE_CMP_GEQ, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_GE, pos);
         break;
     case OP_CMP_LEQ:
-        val = _op_infix(c, env, op, IR_OPCODE_CMP_LEQ, pos);
+        val = _op_infix(c, env, op, IR_OPCODE_CMP_LE, pos);
+        break;
+    case OP_PTRREF:
+    case OP_PTRIND:
+        /* FIXME: implement borrow/dereference */
+        val = NULL;
         break;
     }
 
@@ -1173,7 +1239,6 @@ _match(compiler_t *c, compiler_env_t *env, match_t *m)
     compiler_val_t *rv;
     compiler_env_t *nenv;
     match_arm_t *cs;
-    literal_set_t *lset;
     ssize_t n;
 
     /* Create a new environemt */
@@ -1185,6 +1250,10 @@ _match(compiler_t *c, compiler_env_t *env, match_t *m)
 
     /* Parse the condition */
     cond = _expr(c, env, m->cond);
+    if ( cond == NULL ) {
+        return NULL;
+    }
+    /* FIXME: emit IR_OPCODE_SWITCH with match arms */
 
     /* Count the number of cases */
     n = 0;
@@ -1204,7 +1273,6 @@ _match(compiler_t *c, compiler_env_t *env, match_t *m)
     n = 0;
     cs = m->block->head;
     while ( cs != NULL ) {
-        lset = cs->pattern;
         rv->u.conds->vals[n] = _inner_block(c, nenv, cs->block);
         n++;
         cs = cs->next;
@@ -1232,6 +1300,10 @@ _if(compiler_t *c, compiler_env_t *env, if_t *ife)
 
     /* Parse the condition */
     cond = _expr(c, env, ife->cond);
+    if ( cond == NULL ) {
+        return NULL;
+    }
+    /* FIXME: emit IR_OPCODE_BR_COND for if/else branches */
 
     /* Initialize the return value with a two-conditional-value set value */
     rv = _val_new_cond(2);
@@ -1253,17 +1325,29 @@ static compiler_val_t *
 _call(compiler_t *c, compiler_env_t *env, call_t *call)
 {
     compiler_val_t *rv;
-    compiler_env_t *nenv;
+    compiler_instr_t *instr;
+    int ret;
+    (void)c;
 
-    /* Create a new environment */
-    nenv = _env_new(c);
-    if ( nenv == NULL ) {
+    /* Evaluate arguments */
+    if ( call->exprs != NULL ) {
+        (void)_expr_list(c, env, call->exprs);
+    }
+
+    /* Emit call instruction */
+    instr = _instr_new();
+    if ( instr == NULL ) {
         return NULL;
     }
-    nenv->prev = env;
+    instr->ir.opcode = IR_OPCODE_CALL;
+    /* FIXME: set function reference and argument operands */
+    ret = _append_instr(&env->code, instr);
+    if ( ret < 0 ) {
+        return NULL;
+    }
 
-    /* Initialize the return value */
-    rv = NULL;
+    /* Result value */
+    rv = _val_new_reg(env);
 
     return rv;
 }
@@ -1362,6 +1446,31 @@ _expr(compiler_t *c, compiler_env_t *env, expr_t *e)
     case EXPR_LIST:
         val = _expr_list(c, env, e->u.list);
         break;
+    case EXPR_LET:
+        /* let binding as expression */
+        val = _decl(c, env, e->u.decl, e->pos, 0, 0);
+        break;
+    case EXPR_YIELD:
+        /* FIXME: emit IR_OPCODE_YIELD with port and value */
+        if ( e->u.yield_expr->expr != NULL ) {
+            val = _expr(c, env, e->u.yield_expr->expr);
+        } else {
+            val = NULL;
+        }
+        break;
+    case EXPR_CAST:
+        /* FIXME: emit IR_OPCODE_CAST */
+        val = _expr(c, env, e->u.cast->expr);
+        break;
+    case EXPR_RANGE:
+        /* FIXME: ranges not yet supported in IR */
+        val = NULL;
+        break;
+    case EXPR_BLOCK:
+        val = _inner_block(c, env, e->u.block);
+        break;
+    default:
+        break;
     }
 
     return val;
@@ -1413,6 +1522,36 @@ _expr_list(compiler_t *c, compiler_env_t *env, expr_list_t *exprs)
 static compiler_val_t *
 _while(compiler_t *c, compiler_env_t *env, stmt_while_t *w)
 {
+    compiler_val_t *cond;
+    compiler_instr_t *instr;
+    int ret;
+    (void)c;
+
+    /* Evaluate condition */
+    cond = _expr(c, env, w->cond);
+    if ( cond == NULL ) {
+        return NULL;
+    }
+
+    /* Emit conditional branch */
+    instr = _instr_new();
+    if ( instr == NULL ) {
+        return NULL;
+    }
+    instr->ir.opcode = IR_OPCODE_BR_COND;
+    instr->operands[0].type = OPERAND_VAL;
+    instr->operands[0].u.val = cond;
+    /* FIXME: set then/else labels for loop body and exit */
+    ret = _append_instr(&env->code, instr);
+    if ( ret < 0 ) {
+        return NULL;
+    }
+
+    /* Compile loop body */
+    if ( w->block != NULL ) {
+        (void)_inner_block(c, env, w->block);
+    }
+
     return NULL;
 }
 
@@ -1443,6 +1582,7 @@ _return(compiler_t *c, compiler_env_t *env, expr_t *e)
     instr->ir.opcode = IR_OPCODE_RET;
     instr->operands[0].type = OPERAND_VAL;
     instr->operands[0].u.val = val;
+    (void)_append_instr(&env->code, instr);
 
     return val;
 }
@@ -1484,6 +1624,29 @@ _stmt(compiler_t *c, compiler_env_t *env, stmt_t *stmt)
         break;
     case STMT_RETURN:
         val = _return(c, env, stmt->u.expr);
+        break;
+    case STMT_LET:
+        /* decl_t has no pos field; use a zero-initialized pos */
+        { pos_t p = {0}; val = _decl(c, env, stmt->u.let_decl, p, 0, 0); }
+        env->retval = val;
+        break;
+    case STMT_REASSIGN:
+        val = _op(c, env, stmt->u.reassign, stmt->u.reassign->e0->pos);
+        env->retval = val;
+        break;
+    case STMT_FOR:
+        /* FIXME: implement for-in loop */
+        val = NULL;
+        break;
+    case STMT_LOOP:
+        /* FIXME: implement infinite loop */
+        val = NULL;
+        break;
+    case STMT_BREAK:
+        /* FIXME: emit break (branch to loop exit) */
+        val = NULL;
+        break;
+    default:
         break;
     }
 
@@ -1646,8 +1809,9 @@ _coroutine(compiler_t *c, coroutine_t *cr)
 static int
 _struct(compiler_t *c, struct_t *st)
 {
-    //st->id;
-    return -1;
+    (void)c; (void)st;
+    /* FIXME: register struct type */
+    return 0;
 }
 
 /*
@@ -1656,8 +1820,9 @@ _struct(compiler_t *c, struct_t *st)
 static int
 _enum(compiler_t *c, enum_t *en)
 {
-    //en0>id;
-    return -1;
+    (void)c; (void)en;
+    /* FIXME: register enum type */
+    return 0;
 }
 
 /*
@@ -1666,9 +1831,9 @@ _enum(compiler_t *c, enum_t *en)
 static int
 _type_alias(compiler_t *c, type_alias_t *td)
 {
-    //td->src;
-    //td->dst;
-    return -1;
+    (void)c; (void)td;
+    /* FIXME: register type alias */
+    return 0;
 }
 
 /*
@@ -1690,7 +1855,10 @@ _directive(compiler_t *c, directive_t *dr)
         ret = _type_alias(c, &dr->u.type_alias);
         break;
     }
-    COMPILE_ERROR_RETURN(c, "invalid directive");
+    if ( ret < 0 ) {
+        COMPILE_ERROR_RETURN(c, "invalid directive");
+    }
+    return 0;
 }
 
 /*
@@ -1737,10 +1905,12 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
  * _free_instrs -- release the instructions
  */
 static void
+__attribute__((unused))
 _free_instrs(compiler_t *c, compiler_instr_t *instrs)
 {
     compiler_instr_t *i;
     compiler_instr_t *ni;
+    (void)c;
 
     i = instrs;
     while ( i != NULL ) {
@@ -1772,8 +1942,12 @@ _free_blocks(compiler_t *c, compiler_block_t *b)
         }
         b->env = NULL;
         break;
+    default:
+        break;
     }
-    _free_blocks(c, b->next);
+    if ( b->next != NULL ) {
+        _free_blocks(c, b->next);
+    }
     free(b);
 }
 

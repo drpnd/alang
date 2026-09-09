@@ -50,6 +50,15 @@ typedef struct {
 } operand_ref_imm_t;
 
 /*
+ * Operand type
+ */
+typedef enum {
+    OPERAND_VAL,
+    OPERAND_REF,
+    OPERAND_REF_IMM,
+} operand_type_t;
+
+/*
  * Operand
  */
 typedef struct {
