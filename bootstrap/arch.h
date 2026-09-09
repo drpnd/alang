@@ -121,7 +121,7 @@ typedef struct {
 typedef struct {
     arch_cpu_t cpu;
     arch_loader_t loader;
-    int (*assemble)(ir_object_t *);
+    int (*assemble)(ir_object_t *, arch_code_t *);
     int (*export)(FILE *, arch_code_t *);
 } arch_t;
 
@@ -137,11 +137,11 @@ arch_init(arch_cpu_t, arch_loader_t);
 int
 x86_64_test(uint8_t *);
 int
-x86_64_assemble(ir_object_t *);
+x86_64_assemble(ir_object_t *obj, arch_code_t *code);
 
 /* arch/aarch64.c */
 int
-aarch64_assemble(ir_object_t *);
+aarch64_assemble(ir_object_t *obj, arch_code_t *code);
 
 /* ld/mach-o.c */
 int

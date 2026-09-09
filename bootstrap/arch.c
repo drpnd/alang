@@ -63,9 +63,6 @@ arch_init(arch_cpu_t cpu, arch_loader_t loader)
         return NULL;
     }
 
-    arch->assemble = NULL;
-    arch->export = NULL;
-
     return arch;
 }
 
