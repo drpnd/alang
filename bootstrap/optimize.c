@@ -352,9 +352,8 @@ pass_copy_prop_block(ir_block_t *blk)
     while (ent) {
         ir_instr_t *inst = &ent->inst;
 
-        /* Skip MOV instructions — their sources will be resolved when
-         * the destinations are replaced in other instructions */
-        if (inst->opcode == IR_OPCODE_MOV) {
+        /* Skip MOV and CALL instructions — handle specially */
+        if (inst->opcode == IR_OPCODE_MOV || inst->opcode == IR_OPCODE_CALL) {
             ent = ent->next;
             continue;
         }

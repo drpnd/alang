@@ -113,6 +113,12 @@ typedef struct {
         arch_rel_t *rels;
     } rel;
 
+    /* String literals (for string constants) */
+    struct {
+        int n;
+        struct { char *str; size_t offset; } *items;
+    } strings;
+
 } arch_code_t;
 
 /*

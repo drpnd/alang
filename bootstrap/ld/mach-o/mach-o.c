@@ -299,6 +299,32 @@ _export(FILE *fp, arch_code_t *code)
     }
     for ( i = 0; i < code->rel.n; i++ ) {
         relocinfo[i].r_address = code->rel.rels[i].pos;
+        if ( code->rel.rels[i].sym < 0 ) {
+            /* String literal reference: sym = -(sid+1) */
+            (void)0; int sid = -(code->rel.rels[i].sym + 1); (void)sid;
+            /* String is in data section at offset strings.items[sid].offset */
+            /* Use a section-relative relocation (not external) */
+            relocinfo[i].r_symbolnum = 2; /* section 2 = __data */
+            relocinfo[i].r_extern = 0;
+            relocinfo[i].r_pcrel = 1;
+            relocinfo[i].r_length = 2;
+            if ( code->cpu == ARCH_CPU_AARCH64 ) {
+                relocinfo[i].r_type = 1; /* ARM64_RELOC_PAGE21... actually need ADRP */
+                /* For ADR, use ARM64_RELOC_PAGEOFF12? No, for PC-relative we
+                   need a different approach. Let's use a section-relative
+                   unsigned relocation. */
+                /* Actually for simple ADR with PC-relative offset, we can
+                   compute the offset directly since strings are in the same
+                   binary. Use r_extern=0 and section number. */
+                relocinfo[i].r_type = 3; /* ARM64_RELOC_PAGEOFF12 */
+                relocinfo[i].r_pcrel = 0;
+            } else {
+                relocinfo[i].r_type = 1; /* X86_64_RELOC_SIGNED_1 */
+            }
+            /* The linker will compute: target = data_section_base + string_offset
+               and patch the instruction to be PC-relative. */
+            continue;
+        }
         relocinfo[i].r_symbolnum = code->rel.rels[i].sym;
         relocinfo[i].r_extern = 1;
         switch ( code->rel.rels[i].type ) {
@@ -356,9 +382,16 @@ _export(FILE *fp, arch_code_t *code)
             nl[i].n_value = code->sym.syms[i].pos + codesize + datasize;
             break;
         case ARCH_SYM_GLOBAL:
-            /* .data */
-            nl[i].n_sect = 0x02;
-            nl[i].n_value = code->sym.syms[i].pos + codesize;
+            if ( code->sym.syms[i].pos == 0 && code->sym.syms[i].size == 0 ) {
+                /* Undefined external symbol (e.g. libc function) */
+                nl[i].n_type = N_EXT | 0;  /* N_UNDF = 0, N_EXT = external */
+                nl[i].n_sect = 0;  /* N_NO_SECT */
+                nl[i].n_value = 0;
+            } else {
+                /* .data */
+                nl[i].n_sect = 0x02;
+                nl[i].n_value = code->sym.syms[i].pos + codesize;
+            }
             break;
         case ARCH_SYM_FUNC:
             /* .text */

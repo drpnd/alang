@@ -297,6 +297,12 @@ typedef struct {
     label_map_t labels;
     patch_list_t patches;
     int max_ssa;
+    struct {
+        size_t *lea_off;
+        int *str_idx;
+        int count;
+        int cap;
+    } str_patches;
 } asm_ctx_t;
 
 static void
@@ -353,6 +359,8 @@ asm_ctx_free(asm_ctx_t *ctx)
     free(ctx->labels.items);
     for (int i = 0; i < ctx->patches.count; i++) free(ctx->patches.items[i].target);
     free(ctx->patches.items);
+    free(ctx->str_patches.lea_off);
+    free(ctx->str_patches.str_idx);
 }
 
 /*
@@ -742,6 +750,39 @@ emit_epilogue(asm_ctx_t *ctx, int max_ssa)
 }
 
 /*
+ * Add a string literal to the data section.
+ */
+static int
+add_string(asm_ctx_t *ctx, const char *str)
+{
+    for (int i = 0; i < ctx->code->strings.n; i++) {
+        if (strcmp(ctx->code->strings.items[i].str, str) == 0) return i;
+    }
+    int n = ctx->code->strings.n;
+    ctx->code->strings.items = realloc(ctx->code->strings.items,
+        (n + 1) * sizeof(*ctx->code->strings.items));
+    ctx->code->strings.items[n].str = strdup(str);
+    ctx->code->strings.items[n].offset = 0;
+    ctx->code->strings.n++;
+    return n;
+}
+
+static void
+str_patch_add(asm_ctx_t *ctx, size_t lea_off, int str_idx)
+{
+    if (ctx->str_patches.count >= ctx->str_patches.cap) {
+        ctx->str_patches.cap = ctx->str_patches.cap ? ctx->str_patches.cap * 2 : 16;
+        ctx->str_patches.lea_off = realloc(ctx->str_patches.lea_off,
+            ctx->str_patches.cap * sizeof(size_t));
+        ctx->str_patches.str_idx = realloc(ctx->str_patches.str_idx,
+            ctx->str_patches.cap * sizeof(int));
+    }
+    ctx->str_patches.lea_off[ctx->str_patches.count] = lea_off;
+    ctx->str_patches.str_idx[ctx->str_patches.count] = str_idx;
+    ctx->str_patches.count++;
+}
+
+/*
  * Get the register from an operand (assuming it's a register operand).
  */
 static x86_64_reg_t
@@ -783,6 +824,7 @@ operand_imm(ir_operand_t *op, int *ok)
  */
 static x86_64_reg_t operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, x86_64_reg_t scratch);
 static x86_64_reg_t operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op);
+static void str_patch_add(asm_ctx_t *ctx, size_t lea_off, int str_idx);
 
 static x86_64_reg_t
 operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, x86_64_reg_t scratch)
@@ -819,6 +861,24 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
     switch (inst->opcode) {
     case IR_OPCODE_CONST:
+        if (inst->operands[0].type == IR_OPERAND_IMM &&
+            inst->operands[0].u.imm.type == IR_IMM_STR) {
+            /* String constant: emit LEA with relocation */
+            const char *str = inst->operands[0].u.imm.u.str;
+            if (!str) str = "";
+            int sid = add_string(ctx, str);
+            /* lea dst, [rip + 0] — placeholder, patched later */
+            uint8_t buf[7];
+            int rex = REX | (REG_REX(dst) ? REX_R : 0);
+            buf[0] = rex;
+            buf[1] = 0x8D;  /* LEA */
+            buf[2] = _modrm(0, REG_CODE(dst), 5);  /* mod=0, rm=5 = RIP-relative */
+            tb_emit(&ctx->tb, buf, 3);
+            size_t off = ctx->tb.size;
+            tb_u32(&ctx->tb, 0);  /* placeholder disp32 */
+            str_patch_add(ctx, off, sid);
+            return 0;
+        }
         imm = operand_imm(&inst->operands[0], &ok);
         if (!ok) return -1;
         return emit_mov_imm(&ctx->tb, dst, imm);
@@ -1193,6 +1253,24 @@ x86_64_assemble(ir_object_t *obj, arch_code_t *code)
 
     /* Resolve branch patches */
     resolve_patches(&ctx);
+
+    /* Append string data to text section */
+    size_t string_data_start = ctx.tb.size;
+    for (int i = 0; i < ctx.code->strings.n; i++) {
+        ctx.code->strings.items[i].offset = string_data_start;
+        size_t slen = strlen(ctx.code->strings.items[i].str) + 1;
+        tb_emit(&ctx.tb, (uint8_t*)ctx.code->strings.items[i].str, slen);
+    }
+
+    /* Patch LEA instructions with string offsets (RIP-relative) */
+    for (int i = 0; i < ctx.str_patches.count; i++) {
+        size_t lea_off = ctx.str_patches.lea_off[i];
+        int sid = ctx.str_patches.str_idx[i];
+        size_t str_off = ctx.code->strings.items[sid].offset;
+        /* RIP-relative: disp32 = target - (lea_off + 4) */
+        int32_t disp = (int32_t)(str_off - (lea_off + 4));
+        memcpy(ctx.tb.buf + lea_off, &disp, 4);
+    }
 
     code->text.s = ctx.tb.buf;
     code->text.size = ctx.tb.size;

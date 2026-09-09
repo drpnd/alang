@@ -100,7 +100,13 @@ typedef struct {
     arch_code_t *code;
     label_map_t labels;
     patch_list_t patches;
-    int max_ssa;  /* max SSA id in current function */
+    int max_ssa;
+    struct {
+        size_t *adr_off;
+        int *str_idx;
+        int count;
+        int cap;
+    } str_patches;
 } asm_ctx_t;
 
 static void
@@ -171,6 +177,8 @@ asm_ctx_free(asm_ctx_t *ctx)
     free(ctx->labels.items);
     for (int i = 0; i < ctx->patches.count; i++) free(ctx->patches.items[i].target);
     free(ctx->patches.items);
+    free(ctx->str_patches.adr_off);
+    free(ctx->str_patches.str_idx);
 }
 
 /*
@@ -230,6 +238,9 @@ static int is_callee_saved(int reg)
 static int emit_ret(textbuf_t *tb);
 static int emit_nop(textbuf_t *tb);
 static int emit_orr_reg(textbuf_t *tb, int rd, int rn, int rm, int sf);
+static int operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, int scratch);
+static int operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op);
+static void str_patch_add(asm_ctx_t *ctx, size_t adr_off, int str_idx);
 static int emit_bl(textbuf_t *tb, int32_t offset);
 
 static int
@@ -575,6 +586,44 @@ emit_nop(textbuf_t *tb)
 #define COND_GT 12
 #define COND_LE 13
 
+/*
+ * Add a string literal to the data section.
+ * Returns the string index for later reference.
+ */
+static int
+add_string(asm_ctx_t *ctx, const char *str)
+{
+    /* Check if already exists */
+    for (int i = 0; i < ctx->code->strings.n; i++) {
+        if (strcmp(ctx->code->strings.items[i].str, str) == 0) {
+            return i;
+        }
+    }
+    /* Add new */
+    int n = ctx->code->strings.n;
+    ctx->code->strings.items = realloc(ctx->code->strings.items,
+        (n + 1) * sizeof(*ctx->code->strings.items));
+    ctx->code->strings.items[n].str = strdup(str);
+    ctx->code->strings.items[n].offset = 0;  /* will be set during export */
+    ctx->code->strings.n++;
+    return n;
+}
+
+static void
+str_patch_add(asm_ctx_t *ctx, size_t adr_off, int str_idx)
+{
+    if (ctx->str_patches.count >= ctx->str_patches.cap) {
+        ctx->str_patches.cap = ctx->str_patches.cap ? ctx->str_patches.cap * 2 : 16;
+        ctx->str_patches.adr_off = realloc(ctx->str_patches.adr_off,
+            ctx->str_patches.cap * sizeof(size_t));
+        ctx->str_patches.str_idx = realloc(ctx->str_patches.str_idx,
+            ctx->str_patches.cap * sizeof(int));
+    }
+    ctx->str_patches.adr_off[ctx->str_patches.count] = adr_off;
+    ctx->str_patches.str_idx[ctx->str_patches.count] = str_idx;
+    ctx->str_patches.count++;
+}
+
 /*======================================================================
  * Symbol and relocation helpers
  *======================================================================*/
@@ -648,6 +697,24 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
     switch (inst->opcode) {
     case IR_OPCODE_CONST:
+        if (inst->operands[0].type == IR_OPERAND_IMM &&
+            inst->operands[0].u.imm.type == IR_IMM_STR) {
+            /* String constant: store in data section, emit ADR to reference it */
+            const char *str = inst->operands[0].u.imm.u.str;
+            if (!str) str = "";
+            int sid = add_string(ctx, str);
+            /* ADR Xd, #0 — placeholder, will be patched with string offset */
+            /* ADR: 0 immlo 10000 immhi Rd */
+            size_t off = ctx->tb.size;
+            uint32_t adr = (1U << 28) | (dst & 31);  /* immlo=0, immhi=0 */
+            emit32(&ctx->tb, adr);
+            /* We need a special relocation type for string refs */
+            /* For now, use ARCH_REL_PC32 with the string index as sym */
+            /* But strings aren't in the symbol table... use a convention */
+            /* Store: rel.pos = text offset, rel.sym = -(sid+1) (negative = string) */
+            str_patch_add(ctx, off, sid);
+            return 0;
+        }
         imm = operand_imm(&inst->operands[0], &ok);
         if (!ok) return -1;
         return emit_load_imm64(&ctx->tb, dst, imm);
@@ -791,12 +858,65 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 callee = inst->operands[inst->noperands - 1].u.imm.u.str;
             }
 
+            /* Handle builtins: print, println */
+            if (callee && (strcmp(callee, "print") == 0 ||
+                           strcmp(callee, "println") == 0)) {
+                /* Move first arg to X0 (string pointer) */
+                if (nargs > 0) {
+                    ir_operand_t *arg = &inst->operands[0];
+                    if (arg->type == IR_OPERAND_IMM &&
+                        arg->u.imm.type == IR_IMM_STR) {
+                        /* String argument: emit ADR to string literal */
+                        const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
+                        int sid = add_string(ctx, str);
+                        size_t off = ctx->tb.size;
+                        uint32_t adr = (1U << 28) | (0 & 31);
+                        emit32(&ctx->tb, adr);
+                        str_patch_add(ctx, off, sid);
+                    } else {
+                        int src = operand_reg_or_imm_scratch(ctx, arg, 0);
+                        if (src != 0) {
+                            emit_orr_reg(&ctx->tb, 0, 31, src, 1);
+                        }
+                    }
+                }
+                /* For println, we need to call puts; for print, call printf */
+                /* Actually, for simplicity, call _puts (prints + newline) */
+                /* Create symbol for _puts or _printf */
+                const char *libc_fn = (strcmp(callee, "println") == 0) ? "puts" : "printf";
+                int symidx = -1;
+                for (int i = 0; i < ctx->code->sym.n; i++) {
+                    if (ctx->code->sym.syms[i].label &&
+                        strcmp(ctx->code->sym.syms[i].label, libc_fn) == 0) {
+                        symidx = i;
+                        break;
+                    }
+                }
+                if (symidx < 0) {
+                    symidx = add_sym(ctx->code, ARCH_SYM_GLOBAL, libc_fn, 0, 0);
+                }
+                /* BL puts/printf */
+                off_t relpos = ctx->tb.size;
+                emit_bl(&ctx->tb, 0);
+                add_rel(ctx->code, ARCH_REL_BRANCH, relpos, symidx);
+                return 0;
+            }
             /* Move arguments to argument registers X0-X7 */
             for (int i = 0; i < nargs && i < 8; i++) {
-                int src_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[i], arg_regs[i]);
-                int dst_reg = arg_regs[i];
-                if (src_reg != dst_reg) {
-                    emit_orr_reg(&ctx->tb, dst_reg, 31, src_reg, 1);
+                ir_operand_t *arg = &inst->operands[i];
+                if (arg->type == IR_OPERAND_IMM && arg->u.imm.type == IR_IMM_STR) {
+                    /* String argument: ADR to string literal */
+                    const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
+                    int sid = add_string(ctx, str);
+                    size_t off = ctx->tb.size;
+                    uint32_t adr = (1U << 28) | (arg_regs[i] & 31);
+                    emit32(&ctx->tb, adr);
+                    str_patch_add(ctx, off, sid);
+                } else {
+                    int src_reg = operand_reg_or_imm_scratch(ctx, arg, arg_regs[i]);
+                    if (src_reg != arg_regs[i]) {
+                        emit_orr_reg(&ctx->tb, arg_regs[i], 31, src_reg, 1);
+                    }
                 }
             }
 
@@ -960,6 +1080,30 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
 
     /* Resolve branch patches */
     resolve_patches(&ctx);
+
+    /* Append string data to text section */
+    size_t string_data_start = ctx.tb.size;
+    for (int i = 0; i < ctx.code->strings.n; i++) {
+        ctx.code->strings.items[i].offset = string_data_start;
+        size_t slen = strlen(ctx.code->strings.items[i].str) + 1;
+        tb_emit(&ctx.tb, (uint8_t*)ctx.code->strings.items[i].str, slen);
+    }
+
+    /* Patch ADR instructions with string offsets */
+    for (int i = 0; i < ctx.str_patches.count; i++) {
+        size_t adr_off = ctx.str_patches.adr_off[i];
+        int sid = ctx.str_patches.str_idx[i];
+        size_t str_off = ctx.code->strings.items[sid].offset;
+        int32_t disp = (int32_t)(str_off - adr_off);
+        /* ADR: immlo (bits 30-29) and immhi (bits 23-5) */
+        uint32_t adr;
+        memcpy(&adr, ctx.tb.buf + adr_off, 4);
+        int32_t imm = disp / 1;  /* ADR uses byte offset */
+        uint32_t immlo = (imm & 3);
+        uint32_t immhi = ((imm >> 2) & 0x7FFFF);
+        adr = (1U << 28) | (immlo << 29) | (immhi << 5) | (adr & 0x1F);
+        memcpy(ctx.tb.buf + adr_off, &adr, 4);
+    }
 
     /* Transfer to code */
     code->text.s = ctx.tb.buf;
