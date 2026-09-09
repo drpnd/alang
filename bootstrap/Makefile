@@ -8,6 +8,8 @@
 
 BASEDIR=$(shell pwd)
 CFLAGS=-g -Wall -DBASEDIR=\"$(BASEDIR)\" -MMD -MP
+YACC_CFLAGS=-g -Wall -Wno-unused-but-set-variable -DBASEDIR="\"$(BASEDIR)\"" -MMD -MP
+LEX_CFLAGS=-g -Wall -Wno-unused-function -Wno-unneeded-internal-declaration -Wno-sign-compare -DBASEDIR="\"$(BASEDIR)\"" -MMD -MP
 
 YACC ?= yacc
 LEX ?= flex
@@ -29,7 +31,9 @@ lex.yy.c lex.yy.h: minica.l y.tab.h
 
 # Object files
 lex.yy.o: lex.yy.c lex.yy.h minica.h
+	$(CC) $(LEX_CFLAGS) -c -o $@ $<
 y.tab.o: y.tab.c lex.yy.h minica.h
+	$(CC) $(YACC_CFLAGS) -c -o $@ $<
 syntax.o: syntax.c syntax.h minica.h
 syntax_debug.o: syntax_debug.c syntax.h minica.h
 arch.o: arch.c arch.h ir.h
@@ -74,3 +78,39 @@ clean:
 
 # Include auto-generated dependency files
 -include *.d arch/x86-64/*.d arch/aarch64/*.d ld/elf/*.d ld/mach-o/*.d tests/*.d
+
+# IR unit test
+tests/minica_test_ir.o: tests/minica_test_ir.c ir.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+minica_test_ir: tests/minica_test_ir.o ir.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+# IR test target
+test_ir: minica_test_ir
+	./minica_test_ir
+
+# DFIR compiler test
+compiler.o: compiler.c syntax.h ir.h compile.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+tests/minica_test_dfir.o: tests/minica_test_dfir.c minica.h syntax.h ir.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+minica_test_dfir: tests/minica_test_dfir.o compiler.o ir.o y.tab.o lex.yy.o syntax.o syntax_debug.o arch.o $(LD_OBJS) $(ARCH_OBJS)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# DFIR test target
+test_dfir: minica_test_dfir
+	./minica_test_dfir ../examples/simple1.al
+
+
+# Full build test (parse -> DFIR -> assemble -> export)
+tests/minica_test_build.o: tests/minica_test_build.c minica.h syntax.h ir.h arch.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+minica_test_build: tests/minica_test_build.o compiler.o ir.o y.tab.o lex.yy.o syntax.o syntax_debug.o arch.o arch/x86-64/x86-64.o arch/x86-64/instr.o arch/aarch64/aarch64.o ld/mach-o/mach-o.o ld/elf/elf.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+test_build: minica_test_build
+	./minica_test_build ../examples/simple1.al out.o --aarch64 --mach-o
