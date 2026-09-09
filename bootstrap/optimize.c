@@ -364,6 +364,10 @@ pass_copy_prop_block(ir_block_t *blk)
         int max_op = inst->noperands;
         /* For CALL: don't replace the last operand (callee name) */
         if (inst->opcode == IR_OPCODE_CALL) max_op = inst->noperands - 1;
+        /* For GET_FIELD/SET_FIELD: don't replace the struct base (operand 0)
+         * because it refers to a register-based struct, not a value. */
+        if (inst->opcode == IR_OPCODE_GET_FIELD ||
+            inst->opcode == IR_OPCODE_SET_FIELD) max_op = 0;
         for (int i = 0; i < max_op && i < IR_MAX_OPERANDS; i++) {
             if (inst->operands[i].type == IR_OPERAND_REG &&
                 inst->operands[i].u.reg.id) {

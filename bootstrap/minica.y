@@ -856,6 +856,12 @@ assign_expr:    TOK_MUT identifier TOK_EQ expression
                     $$ = expr_op_new_infix(scanner,
                         expr_new_id(scanner, $2), $4, OP_ASSIGN);
                 }
+        |       TOK_MUT p_expr TOK_DOT identifier TOK_EQ expression
+                {
+                    /* mut p.x = expr (struct field reassignment) */
+                    $$ = expr_op_new_infix(scanner,
+                        expr_new_member(scanner, $2, $4), $6, OP_ASSIGN);
+                }
         |       TOK_MUT identifier TOK_PLUS_EQ expression
                 {
                     $$ = expr_op_new_infix(scanner,

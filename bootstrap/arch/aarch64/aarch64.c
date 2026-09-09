@@ -634,6 +634,28 @@ emit_nop(textbuf_t *tb)
     return emit32(tb, 0xD503201F);
 }
 
+/*
+ * LDR Xt, [xn, #imm]  (unsigned offset)
+ */
+static int
+emit_ldr_imm(textbuf_t *tb, int rt, int rn, int imm)
+{
+    uint32_t insn = (0xF9U << 24) | (((imm / 8) & 0xFFF) << 10) |
+                   ((rn & 31) << 5) | (rt & 31);
+    return emit32(tb, insn);
+}
+
+/*
+ * STR xt, [xn, #imm]  (unsigned offset)
+ */
+static int
+emit_str_imm(textbuf_t *tb, int rt, int rn, int imm)
+{
+    uint32_t insn = (0xF9U << 24) | (((imm / 8) & 0xFFF) << 10) |
+                   ((rn & 31) << 5) | (rt & 31);
+    return emit32(tb, insn);
+}
+
 /* Condition codes */
 #define COND_EQ 0
 #define COND_NE 1
@@ -1107,15 +1129,50 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             return emit32(&ctx->tb, insn);
         }
 
-    /* Unhandled — NOP */
+    case IR_OPCODE_GET_FIELD: {
+        /* Struct base may be an immediate after copy propagation */
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        int field_idx = 0;
+        if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_IMM) {
+            field_idx = (int)inst->operands[1].u.imm.u.s32;
+        }
+        int field_reg = src0 + field_idx;
+        if (dst != field_reg) {
+            emit_orr_reg(&ctx->tb, dst, 31, field_reg, 1);
+        }
+        return 0;
+    }
+
+    case IR_OPCODE_SET_FIELD: {
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        int field_idx = 0;
+        if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_IMM) {
+            field_idx = (int)inst->operands[1].u.imm.u.s32;
+        }
+        int field_reg = src0 + field_idx;
+        int val_reg = 31;
+        if (inst->noperands > 2) {
+            val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[2], 17);
+        }
+        return emit_orr_reg(&ctx->tb, field_reg, 31, val_reg, 1);
+    }
+
+    case IR_OPCODE_MAKE_STRUCT: {
+        if (inst->noperands > 0) {
+            src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+            if (dst != src0) {
+                emit_orr_reg(&ctx->tb, dst, 31, src0, 1);
+            }
+        }
+        return 0;
+    }
+
+    /* Unhandled -- NOP */
     case IR_OPCODE_PHI:
     case IR_OPCODE_SWITCH:
     case IR_OPCODE_MEMCPY:
     case IR_OPCODE_UREM:
     case IR_OPCODE_CAST:
-    case IR_OPCODE_MAKE_STRUCT:
-    case IR_OPCODE_GET_FIELD:
-    case IR_OPCODE_SET_FIELD:
     case IR_OPCODE_GET_ELEM:
     case IR_OPCODE_MAKE_ENUM:
     case IR_OPCODE_EXTRACT_VARIANT:

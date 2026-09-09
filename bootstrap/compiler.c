@@ -45,6 +45,7 @@ typedef struct _cvar {
     char *name;             /* variable name */
     ir_reg_type_t type;     /* IR register type */
     int ssa_id;             /* SSA value id (unique per variable instance) */
+    char *type_name;        /* source type name (e.g., "Point") for struct lookup */
     struct _cvar *next;     /* next variable in scope chain */
 } cvar_t;
 
@@ -94,6 +95,24 @@ typedef struct {
     char break_label[64];      /* label to jump to for break */
 } loop_ctx_t;
 
+#define MAX_STRUCTS 64
+#define MAX_FIELDS 32
+
+/* Struct field descriptor */
+typedef struct {
+    char name[64];          /* field name */
+    int offset;             /* byte offset within struct */
+    ir_reg_type_t type;     /* field IR type */
+} field_desc_t;
+
+/* Struct type descriptor */
+typedef struct {
+    char name[64];          /* struct name */
+    field_desc_t fields[MAX_FIELDS];  /* field list */
+    int nfields;            /* number of fields */
+    int size;               /* total struct size in bytes */
+} struct_desc_t;
+
 /*
  * Compiler state.
  */
@@ -104,6 +123,8 @@ typedef struct {
     int error;              /* error flag */
     loop_ctx_t loops[MAX_LOOP_DEPTH];  /* loop context stack */
     int loop_depth;         /* current loop nesting depth */
+    struct_desc_t structs[MAX_STRUCTS];  /* registered struct types */
+    int nstructs;           /* number of registered structs */
 } dfir_compiler_t;
 
 /*======================================================================
@@ -119,7 +140,7 @@ static scope_t *_scope_new(scope_t *parent);
 static void _scope_free(scope_t *s);
 static cvar_t *_scope_lookup(scope_t *s, const char *name);
 static int _scope_bind(scope_t *s, const char *name, ir_reg_type_t type,
-                       int ssa_id);
+                       int ssa_id, const char *type_name);
 
 static bb_t *_bb_new(const char *label);
 static void _bb_free(bb_t *b);
@@ -170,6 +191,7 @@ _scope_free(scope_t *s)
     while (v) {
         cvar_t *next = v->next;
         free(v->name);
+        free(v->type_name);
         free(v);
         v = next;
     }
@@ -191,7 +213,8 @@ _scope_lookup(scope_t *s, const char *name)
 }
 
 static int
-_scope_bind(scope_t *s, const char *name, ir_reg_type_t type, int ssa_id)
+_scope_bind(scope_t *s, const char *name, ir_reg_type_t type, int ssa_id,
+            const char *type_name)
 {
     /* Check for duplicate in current scope only */
     cvar_t *v = s->vars;
@@ -205,6 +228,7 @@ _scope_bind(scope_t *s, const char *name, ir_reg_type_t type, int ssa_id)
     nv->name = strdup(name);
     nv->type = type;
     nv->ssa_id = ssa_id;
+    nv->type_name = type_name ? strdup(type_name) : NULL;
     nv->next = s->vars;
     s->vars = nv;
     return 0;
@@ -377,6 +401,49 @@ _type2reg(type_t *type)
 /*======================================================================
  * Operand constructors
  *======================================================================*/
+
+/* Size of an IR register type in bytes */
+static int
+_ir_type_size(ir_reg_type_t t)
+{
+    switch (t) {
+    case IR_REG_I8:   return 1;
+    case IR_REG_I16:  return 2;
+    case IR_REG_I32:  return 4;
+    case IR_REG_I64:  return 4;  /* use 4 for now (32-bit regs) */
+    case IR_REG_F32:  return 4;
+    case IR_REG_F64:  return 8;
+    case IR_REG_BOOL: return 4;
+    case IR_REG_STR:  return 8;
+    case IR_REG_PTR:  return 8;
+    default:          return 8;
+    }
+}
+
+/* Find a struct descriptor by name; returns NULL if not found */
+static struct_desc_t *
+_find_struct(dfir_compiler_t *c, const char *name)
+{
+    for (int i = 0; i < c->nstructs; i++) {
+        if (strcmp(c->structs[i].name, name) == 0) {
+            return &c->structs[i];
+        }
+    }
+    return NULL;
+}
+
+/* Find field index in a struct; returns -1 if not found */
+static int
+_find_field(struct_desc_t *sd, const char *field_name)
+{
+    for (int i = 0; i < sd->nfields; i++) {
+        if (strcmp(sd->fields[i].name, field_name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 
 static ir_operand_t
 _op_reg(ir_reg_t reg)
@@ -562,7 +629,11 @@ _expr(dfir_compiler_t *c, expr_t *e)
         decl_t *d = e->u.decl;
         ir_reg_type_t rtype = _type2reg(d->type);
         ir_reg_t result = _ssa(c, rtype);
-        _scope_bind(c->scope, d->id, rtype, c->fn->ssa_counter - 1);
+        const char *tname = NULL;
+        if (d->type && (d->type->type == TYPE_STRUCT || d->type->type == TYPE_ID)) {
+            tname = d->type->id;
+        }
+        _scope_bind(c->scope, d->id, rtype, c->fn->ssa_counter - 1, tname);
 
         if (d->init) {
             ir_reg_t init_val = _expr(c, d->init);
@@ -579,29 +650,52 @@ _expr(dfir_compiler_t *c, expr_t *e)
 
         /* Assignment */
         if (op->type == OP_ASSIGN) {
-            if (op->e0->type != EXPR_ID) {
+            if (op->e0->type == EXPR_ID) {
+                ir_reg_t val = _expr(c, op->e1);
+                cvar_t *v = _scope_lookup(c->scope, op->e0->u.id);
+                if (!v) {
+                    fprintf(stderr, "error: undefined variable '%s'\n",
+                            op->e0->u.id);
+                    c->error = 1;
+                    return val;
+                }
+                /* MOV value to existing variable's SSA */
+                ir_operand_t ops[2];
+                ops[0] = _op_reg(val);
+                ir_reg_t dst;
+                char buf[64];
+                snprintf(buf, sizeof(buf), "%%%d", v->ssa_id);
+                ir_reg_init(&dst, v->type, buf);
+                ops[1] = _op_reg(dst);
+                _emit(c, IR_OPCODE_MOV, NULL, 2, ops);
+                return val;
+            } else if (op->e0->type == EXPR_MEMBER) {
+                /* Struct field assignment: mut p.x = expr */
+                member_t *mem = &op->e0->u.mem;
+                ir_reg_t val = _expr(c, op->e1);
+                ir_reg_t obj = _expr(c, mem->e);
+                int field_idx = 0;
+                if (mem->e->type == EXPR_ID) {
+                    cvar_t *v = _scope_lookup(c->scope, mem->e->u.id);
+                    if (v && v->type_name) {
+                        struct_desc_t *sd = _find_struct(c, v->type_name);
+                        if (sd) {
+                            int idx = _find_field(sd, mem->id);
+                            if (idx >= 0) field_idx = idx;
+                        }
+                    }
+                }
+                ir_operand_t ops[3];
+                ops[0] = _op_reg(obj);
+                ops[1] = _op_imm_i32(field_idx);
+                ops[2] = _op_reg(val);
+                _emit(c, IR_OPCODE_SET_FIELD, NULL, 3, ops);
+                return val;
+            } else {
                 fprintf(stderr, "error: invalid assignment target\n");
                 c->error = 1;
                 return _ssa(c, IR_REG_NONE);
             }
-            ir_reg_t val = _expr(c, op->e1);
-            cvar_t *v = _scope_lookup(c->scope, op->e0->u.id);
-            if (!v) {
-                fprintf(stderr, "error: undefined variable '%s'\n",
-                        op->e0->u.id);
-                c->error = 1;
-                return val;
-            }
-            /* MOV value to existing variable's SSA */
-            ir_operand_t ops[2];
-            ops[0] = _op_reg(val);
-            ir_reg_t dst;
-            char buf[64];
-            snprintf(buf, sizeof(buf), "%%%d", v->ssa_id);
-            ir_reg_init(&dst, v->type, buf);
-            ops[1] = _op_reg(dst);
-            _emit(c, IR_OPCODE_MOV, NULL, 2, ops);
-            return val;
         }
 
         /* Prefix operations */
@@ -868,7 +962,11 @@ _expr(dfir_compiler_t *c, expr_t *e)
         decl_t *d = e->u.decl;
         ir_reg_type_t rtype = _type2reg(d->type);
         ir_reg_t result = _ssa(c, rtype);
-        _scope_bind(c->scope, d->id, rtype, c->fn->ssa_counter - 1);
+        const char *tname = NULL;
+        if (d->type && (d->type->type == TYPE_STRUCT || d->type->type == TYPE_ID)) {
+            tname = d->type->id;
+        }
+        _scope_bind(c->scope, d->id, rtype, c->fn->ssa_counter - 1, tname);
 
         if (d->init) {
             ir_reg_t init_val = _expr(c, d->init);
@@ -883,12 +981,25 @@ _expr(dfir_compiler_t *c, expr_t *e)
     case EXPR_MEMBER: {
         member_t *mem = &e->u.mem;
         ir_reg_t obj = _expr(c, mem->e);
-        /* FIXME: resolve field index from struct type */
-        ir_reg_t result = _ssa(c, IR_REG_PTR);
+        /* Resolve field index from struct type */
+        int field_idx = 0;
+        ir_reg_type_t field_type = IR_REG_I64;
+        if (mem->e->type == EXPR_ID) {
+            cvar_t *v = _scope_lookup(c->scope, mem->e->u.id);
+            if (v && v->type_name) {
+                struct_desc_t *sd = _find_struct(c, v->type_name);
+                if (sd) {
+                    field_idx = _find_field(sd, mem->id);
+                    if (field_idx < 0) field_idx = 0;
+                    field_type = sd->fields[field_idx].type;
+                }
+            }
+        }
+        ir_reg_t result = _ssa(c, field_type);
         ir_operand_t ops[2];
         ops[0] = _op_reg(obj);
-        ops[1] = _op_imm_i32(0);  /* FIXME: field index */
-        _emit(c, IR_OPCODE_GET_FIELD, &result, 1, ops);
+        ops[1] = _op_imm_i32(field_idx);
+        _emit(c, IR_OPCODE_GET_FIELD, &result, 2, ops);
         return result;
     }
 
@@ -932,15 +1043,52 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
     case STMT_LET: {
         decl_t *d = stmt->u.let_decl;
         ir_reg_type_t rtype = _type2reg(d->type);
-        ir_reg_t result = _ssa(c, rtype);
-        _scope_bind(c->scope, d->id, rtype, c->fn->ssa_counter - 1);
+        const char *tname = NULL;
+        if (d->type && (d->type->type == TYPE_STRUCT || d->type->type == TYPE_ID)) {
+            tname = d->type->id;
+        }
 
-        if (d->init) {
-            ir_reg_t init_val = _expr(c, d->init);
-            ir_operand_t ops[2];
-            ops[0] = _op_reg(init_val);
-            ops[1] = _op_reg(result);
-            _emit(c, IR_OPCODE_MOV, NULL, 2, ops);
+        /* For struct types, allocate SSA registers for each field */
+        struct_desc_t *sd = NULL;
+        if (tname) {
+            sd = _find_struct(c, tname);
+        }
+        if (sd && sd->nfields > 0) {
+            /* Allocate one SSA register per field */
+            ir_reg_t result = _ssa(c, sd->fields[0].type);
+            int base_ssa = c->fn->ssa_counter - 1;
+            /* Allocate remaining field registers */
+            for (int i = 1; i < sd->nfields; i++) {
+                ir_reg_t freg = _ssa(c, sd->fields[i].type);
+                (void)freg;
+            }
+            _scope_bind(c->scope, d->id, rtype, base_ssa, tname);
+
+            /* For struct types: emit CONST 0 directly to each field register.
+             * This avoids MOV which copy propagation would fold. */
+            for (int i = 0; i < sd->nfields; i++) {
+                char buf[64];
+                snprintf(buf, sizeof(buf), "%%%d", base_ssa + i);
+                ir_reg_t freg;
+                ir_reg_init(&freg, sd->fields[i].type, buf);
+                ir_operand_t zero_op = _op_imm_i32(0);
+                _emit(c, IR_OPCODE_CONST, &freg, 1, &zero_op);
+            }
+            /* If there's an initializer, evaluate it but discard result */
+            if (d->init) {
+                (void)_expr(c, d->init);
+            }
+        } else {
+            ir_reg_t result = _ssa(c, rtype);
+            _scope_bind(c->scope, d->id, rtype, c->fn->ssa_counter - 1, tname);
+
+            if (d->init) {
+                ir_reg_t init_val = _expr(c, d->init);
+                ir_operand_t ops[2];
+                ops[0] = _op_reg(init_val);
+                ops[1] = _op_reg(result);
+                _emit(c, IR_OPCODE_MOV, NULL, 2, ops);
+            }
         }
         break;
     }
@@ -960,6 +1108,28 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
                 ops[1] = _op_reg(dst);
                 _emit(c, IR_OPCODE_MOV, NULL, 2, ops);
             }
+        } else if (op->e0->type == EXPR_MEMBER) {
+            /* Struct field assignment: mut p.x = expr */
+            member_t *mem = &op->e0->u.mem;
+            ir_reg_t val = _expr(c, op->e1);
+            ir_reg_t obj = _expr(c, mem->e);
+            /* Resolve field index */
+            int field_idx = 0;
+            if (mem->e->type == EXPR_ID) {
+                cvar_t *v = _scope_lookup(c->scope, mem->e->u.id);
+                if (v && v->type_name) {
+                    struct_desc_t *sd = _find_struct(c, v->type_name);
+                    if (sd) {
+                        int idx = _find_field(sd, mem->id);
+                        if (idx >= 0) field_idx = idx;
+                    }
+                }
+            }
+            ir_operand_t ops[3];
+            ops[0] = _op_reg(obj);
+            ops[1] = _op_imm_i32(field_idx);
+            ops[2] = _op_reg(val);
+            _emit(c, IR_OPCODE_SET_FIELD, NULL, 3, ops);
         }
         break;
     }
@@ -1125,7 +1295,7 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
             c->scope = child;
             if (f->pattern && f->pattern->type == EXPR_ID) {
                 _scope_bind(c->scope, f->pattern->u.id, IR_REG_I32,
-                            counter_ssa);
+                            counter_ssa, NULL);
             }
 
             /* Compile body */
@@ -1262,7 +1432,7 @@ _func(dfir_compiler_t *c, func_t *fn)
             if (a->decl && a->decl->id) {
                 ir_reg_type_t rtype = _type2reg(a->decl->type);
                 (void)_ssa(c, rtype);
-                _scope_bind(s, a->decl->id, rtype, fb->ssa_counter - 1);
+                _scope_bind(s, a->decl->id, rtype, fb->ssa_counter - 1, NULL);
             }
             a = a->next;
         }
@@ -1275,7 +1445,7 @@ _func(dfir_compiler_t *c, func_t *fn)
             if (r->decl && r->decl->id) {
                 ir_reg_type_t rtype = _type2reg(r->decl->type);
                 (void)_ssa(c, rtype);
-                _scope_bind(s, r->decl->id, rtype, fb->ssa_counter - 1);
+                _scope_bind(s, r->decl->id, rtype, fb->ssa_counter - 1, NULL);
             }
             r = r->next;
         }
@@ -1370,7 +1540,7 @@ _coroutine(dfir_compiler_t *c, coroutine_t *cr)
     /* First SSA value (%0) is the state variable */
     ir_reg_t state_reg = _ssa(c, IR_REG_I32);
     fb->state_var_ssa = fb->ssa_counter - 1;
-    _scope_bind(s, "__state", IR_REG_I32, fb->state_var_ssa);
+    _scope_bind(s, "__state", IR_REG_I32, fb->state_var_ssa, NULL);
 
     /* Bind regular arguments (starting from %1) */
     if (cr->args) {
@@ -1379,7 +1549,7 @@ _coroutine(dfir_compiler_t *c, coroutine_t *cr)
             if (a->decl && a->decl->id) {
                 ir_reg_type_t rtype = _type2reg(a->decl->type);
                 (void)_ssa(c, rtype);
-                _scope_bind(s, a->decl->id, rtype, fb->ssa_counter - 1);
+                _scope_bind(s, a->decl->id, rtype, fb->ssa_counter - 1, NULL);
             }
             a = a->next;
         }
@@ -1392,7 +1562,7 @@ _coroutine(dfir_compiler_t *c, coroutine_t *cr)
             if (r->decl && r->decl->id) {
                 ir_reg_type_t rtype = _type2reg(r->decl->type);
                 (void)_ssa(c, rtype);
-                _scope_bind(s, r->decl->id, rtype, fb->ssa_counter - 1);
+                _scope_bind(s, r->decl->id, rtype, fb->ssa_counter - 1, NULL);
             }
             r = r->next;
         }
@@ -1507,9 +1677,44 @@ _coroutine(dfir_compiler_t *c, coroutine_t *cr)
 static void
 _directive(dfir_compiler_t *c, directive_t *dr)
 {
-    (void)c;
-    (void)dr;
-    /* FIXME: register struct/enum/type alias definitions */
+    if (!dr) return;
+
+    switch (dr->type) {
+    case DIRECTIVE_STRUCT: {
+        struct_t *st = &dr->u.st;
+        if (c->nstructs >= MAX_STRUCTS) {
+            fprintf(stderr, "error: too many struct definitions\n");
+            c->error = 1;
+            return;
+        }
+        struct_desc_t *sd = &c->structs[c->nstructs];
+        snprintf(sd->name, sizeof(sd->name), "%s", st->id);
+        sd->nfields = 0;
+        sd->size = 0;
+
+        /* Register fields */
+        if (st->list) {
+            decl_t *d = st->list->head;
+            while (d && sd->nfields < MAX_FIELDS) {
+                field_desc_t *fd = &sd->fields[sd->nfields];
+                snprintf(fd->name, sizeof(fd->name), "%s", d->id);
+                fd->type = _type2reg(d->type);
+                fd->offset = sd->size;
+                sd->size += _ir_type_size(fd->type);
+                sd->nfields++;
+                d = d->next;
+            }
+        }
+        c->nstructs++;
+        break;
+    }
+    case DIRECTIVE_ENUM:
+        /* TODO: register enum types */
+        break;
+    case DIRECTIVE_TYPE_ALIAS:
+        /* TODO: register type aliases */
+        break;
+    }
 }
 
 /*
