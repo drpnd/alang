@@ -1536,3 +1536,46 @@ expr_new_block(void *scanner, inner_block_t *block)
     expr->u.block = block;
     return expr;
 }
+
+/*
+ * graph_decl_new -- create a new graph declaration
+ */
+graph_decl_t *
+graph_decl_new(const char *id, graph_node_ref_t *nodes)
+{
+    graph_decl_t *g;
+    g = malloc(sizeof(graph_decl_t));
+    if (NULL == g) return NULL;
+    memset(g, 0, sizeof(graph_decl_t));
+    g->id = id ? strdup(id) : NULL;
+    g->nodes = nodes;
+    return g;
+}
+
+/*
+ * graph_node_ref_new -- create a new graph node reference
+ */
+graph_node_ref_t *
+graph_node_ref_new(const char *name, expr_list_t *args)
+{
+    graph_node_ref_t *n;
+    n = malloc(sizeof(graph_node_ref_t));
+    if (NULL == n) return NULL;
+    memset(n, 0, sizeof(graph_node_ref_t));
+    n->name = name ? strdup(name) : NULL;
+    n->args = args;
+    return n;
+}
+
+/*
+ * graph_node_ref_append -- append a node to the pipe chain
+ */
+graph_node_ref_t *
+graph_node_ref_append(graph_node_ref_t *list, graph_node_ref_t *node)
+{
+    if (NULL == list) return node;
+    graph_node_ref_t *tail = list;
+    while (tail->next) tail = tail->next;
+    tail->next = node;
+    return list;
+}

@@ -134,6 +134,7 @@ static void _inner_block(dfir_compiler_t *c, inner_block_t *block);
 static void _func(dfir_compiler_t *c, func_t *fn);
 static void _coroutine(dfir_compiler_t *c, coroutine_t *cr);
 static void _directive(dfir_compiler_t *c, directive_t *dr);
+static void _graph(dfir_compiler_t *c, graph_decl_t *gd);
 
 /*======================================================================
  * Scope management
@@ -1341,6 +1342,79 @@ _directive(dfir_compiler_t *c, directive_t *dr)
     /* FIXME: register struct/enum/type alias definitions */
 }
 
+/*
+ * _graph -- compile a graph declaration to DFIR graph IR
+ *
+ * Converts a pipe chain (source |> map(f) |> sink) into an ir_graph_t
+ * with nodes and edges.
+ */
+static void
+_graph(dfir_compiler_t *c, graph_decl_t *gd)
+{
+    ir_graph_t *graph = ir_graph_new(gd->id);
+    if (!graph) return;
+
+    /* Walk the pipe chain and create nodes + edges */
+    graph_node_ref_t *node = gd->nodes;
+    int node_idx = 0;
+    char prev_name[64] = "";
+
+    while (node) {
+        char node_name[64];
+        char func_ref[256];
+        const char *port_names[] = {"in", "out"};
+
+        snprintf(node_name, sizeof(node_name), "%%n%d", node_idx);
+
+        /* Build function reference: @name or @name(args) */
+        if (node->args && node->args->head) {
+            /* For source/sink with string arguments, include the arg */
+            expr_t *arg = node->args->head;
+            if (arg->type == EXPR_LITERAL && arg->u.lit &&
+                arg->u.lit->type == LIT_STRING && arg->u.lit->u.s) {
+                snprintf(func_ref, sizeof(func_ref), "@%s(\"%s\")",
+                         node->name, arg->u.lit->u.s);
+            } else {
+                snprintf(func_ref, sizeof(func_ref), "@%s", node->name);
+            }
+        } else {
+            snprintf(func_ref, sizeof(func_ref), "@%s", node->name);
+        }
+
+        /* Add node: source/sink have 1 port, others have 2 (in, out) */
+        int is_source = (strcmp(node->name, "source") == 0);
+        int is_sink = (strcmp(node->name, "sink") == 0);
+        if (is_source) {
+            const char *ports[] = {"out"};
+            ir_graph_add_node(graph, node_name, func_ref, 1, ports);
+        } else if (is_sink) {
+            const char *ports[] = {"in"};
+            ir_graph_add_node(graph, node_name, func_ref, 1, ports);
+        } else {
+            ir_graph_add_node(graph, node_name, func_ref, 2, port_names);
+        }
+
+        /* Add edge from previous node to this one */
+        if (node_idx > 0 && prev_name[0]) {
+            /* Determine ports based on node types */
+            const char *src_port = "out";
+            const char *dst_port = "in";
+            /* If previous was source, it only has "out" */
+            /* If this is sink, it only has "in" */
+            ir_graph_add_edge(graph, prev_name, src_port,
+                             node_name, dst_port,
+                             IR_REG_I32, 128);
+        }
+
+        strncpy(prev_name, node_name, sizeof(prev_name) - 1);
+        node = node->next;
+        node_idx++;
+    }
+
+    /* Add graph to IR object */
+    ir_object_add_graph(c->ir, graph);
+}
+
 /*======================================================================
  * Top-level compilation
  *======================================================================*/
@@ -1382,6 +1456,9 @@ compile_to_dfir(st_t *st)
                 break;
             case OUTER_BLOCK_DIRECTIVE:
                 _directive(&c, e->u.dr);
+                break;
+            case OUTER_BLOCK_GRAPH:
+                _graph(&c, e->u.graph);
                 break;
             }
             e = e->next;

@@ -258,6 +258,24 @@ typedef struct {
 } coroutine_t;
 
 /*
+ * Graph node reference (in a pipe expression)
+ */
+typedef struct _graph_node_ref graph_node_ref_t;
+struct _graph_node_ref {
+    char *name;             /* node name (e.g., "source", "map", "double") */
+    expr_list_t *args;      /* arguments (e.g., "file:input" for source) */
+    graph_node_ref_t *next; /* next node in pipe chain */
+};
+
+/*
+ * Graph declaration
+ */
+typedef struct {
+    char *id;               /* graph name (e.g., "main") */
+    graph_node_ref_t *nodes; /* pipe chain: source |> map |> sink */
+} graph_decl_t;
+
+/*
  * Operations
  */
 typedef enum {
@@ -550,6 +568,7 @@ typedef enum {
     OUTER_BLOCK_FUNC,
     OUTER_BLOCK_COROUTINE,
     OUTER_BLOCK_DIRECTIVE,
+    OUTER_BLOCK_GRAPH,
 } outer_block_entry_type_t;
 
 /*
@@ -561,6 +580,7 @@ struct _outer_block_entry {
         func_t *fn;
         coroutine_t *cr;
         directive_t *dr;
+        graph_decl_t *graph;
     } u;
     outer_block_entry_t *next;
 };
@@ -706,6 +726,12 @@ coroutine_t *
 coroutine_new(const char *, arg_list_t *, arg_list_t *, inner_block_t *);
 outer_block_entry_t *
 outer_block_entry_new(outer_block_entry_type_t);
+graph_decl_t *
+graph_decl_new(const char *id, graph_node_ref_t *nodes);
+graph_node_ref_t *
+graph_node_ref_new(const char *name, expr_list_t *args);
+graph_node_ref_t *
+graph_node_ref_append(graph_node_ref_t *list, graph_node_ref_t *node);
 outer_block_t *
 outer_block_new(outer_block_entry_t *);
 inner_block_t *

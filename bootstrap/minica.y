@@ -66,6 +66,8 @@ void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
     enum_elem_t *enum_elem;
     coroutine_t *coroutine;
     func_t *func;
+    graph_decl_t *graph;
+    graph_node_ref_t *gnref;
     stmt_t *stmt;
     stmt_list_t *stmts;
 }
@@ -135,6 +137,9 @@ void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
 %type <match_arm> match_arm
 %type <func> fndef
 %type <coroutine> crdef
+%type <graph> graphdef
+%type <gnref> pipe_expr
+%type <gnref> pipe_node
 %type <stmt> statement
 %type <stmts> statements
 %type <lit> literal
@@ -220,6 +225,54 @@ outer_entry:    directive
                     block = outer_block_entry_new(OUTER_BLOCK_FUNC);
                     block->u.fn = $1;
                     $$ = block;
+                }
+        |       graphdef
+                {
+                    outer_block_entry_t *block;
+                    block = outer_block_entry_new(OUTER_BLOCK_GRAPH);
+                    block->u.graph = $1;
+                    $$ = block;
+                }
+                ;
+
+/* Graph definition */
+graphdef:       TOK_GRAPH identifier TOK_LBRACE pipe_expr TOK_RBRACE
+                {
+                    $$ = graph_decl_new($2, $4);
+                }
+        |       TOK_GRAPH identifier TOK_LBRACE TOK_RBRACE
+                {
+                    $$ = graph_decl_new($2, NULL);
+                }
+                ;
+
+/* Pipe expression: node |> node |> node ... */
+pipe_expr:      pipe_expr TOK_PIPE pipe_node
+                {
+                    $$ = graph_node_ref_append($1, $3);
+                }
+        |       pipe_node
+                {
+                    $$ = $1;
+                }
+                ;
+
+/* A node in a pipe: name(args) or just name */
+pipe_node:      identifier TOK_LPAREN expr_list TOK_RPAREN
+                {
+                    $$ = graph_node_ref_new($1, $3);
+                }
+        |       identifier
+                {
+                    $$ = graph_node_ref_new($1, NULL);
+                }
+        |       TOK_SOURCE TOK_LPAREN expr_list TOK_RPAREN
+                {
+                    $$ = graph_node_ref_new("source", $3);
+                }
+        |       TOK_SINK TOK_LPAREN expr_list TOK_RPAREN
+                {
+                    $$ = graph_node_ref_new("sink", $3);
                 }
                 ;
 

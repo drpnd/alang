@@ -171,6 +171,27 @@ main(int argc, const char *const argv[])
 
     print_native(&code);
 
+
+    /* Print graphs */
+    if (ir->ngraphs > 0) {
+        printf("--- Graphs ---\n");
+        for (size_t i = 0; i < ir->ngraphs; i++) {
+            ir_graph_t *g = &ir->graphs[i];
+            printf("graph @%s (%zu nodes, %zu edges)\n",
+                   g->name ? g->name : "?", g->nnodes, g->nedges);
+            for (size_t j = 0; j < g->nnodes; j++) {
+                printf("  node %s = %s (%d ports)\n",
+                       g->nodes[j].name, g->nodes[j].func_ref,
+                       g->nodes[j].nports);
+            }
+            for (size_t j = 0; j < g->nedges; j++) {
+                printf("  edge %s.%s -> %s.%s\n",
+                       g->edges[j].src_node, g->edges[j].src_port,
+                       g->edges[j].dst_node, g->edges[j].dst_port);
+            }
+        }
+        printf("\n");
+    }
     /* 5. Mangle symbol names for Mach-O (Apple convention: _prefix) */
     if (loader == ARCH_LD_MACH_O) {
         for (int i = 0; i < code.sym.n; i++) {
