@@ -615,6 +615,21 @@ add_rel(arch_code_t *code, arch_rel_type_t type, off_t pos, int sym)
  *======================================================================*/
 
 static int
+operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
+{
+    if (op->type == IR_OPERAND_IMM) {
+        int ok;
+        int64_t val = operand_imm(op, &ok);
+        if (ok) {
+            int scratch = 17;
+            emit_load_imm64(&ctx->tb, scratch, val);
+            return scratch;
+        }
+    }
+    return operand_reg(op);
+}
+
+static int
 compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 {
     int dst, src0, src1;
@@ -678,37 +693,37 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
     case IR_OPCODE_CMP_EQ:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_EQ, 1);
 
     case IR_OPCODE_CMP_NE:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_NE, 1);
 
     case IR_OPCODE_CMP_LT:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_LT, 1);
 
     case IR_OPCODE_CMP_LE:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_LE, 1);
 
     case IR_OPCODE_CMP_GT:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_GT, 1);
 
     case IR_OPCODE_CMP_GE:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_GE, 1);
 
@@ -723,15 +738,20 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     }
 
     case IR_OPCODE_BR_COND: {
-        /* CBZ Xt, $else — if cond==0, branch to else; then falls through */
+        /* test cond; if false, jump to $else; if true, jump to $then */
         src0 = operand_reg(&inst->operands[0]);
+        /* CBZ Xt, $else — if cond==0, branch to else */
         size_t off = ctx->tb.size;
-        /* CBZ: sf 011010 0 imm19 Rt = (1<<31)|(0x34<<24)|(imm19<<5)|Rt */
         uint32_t cbz = (1U << 31) | (0x34U << 24) | (src0 & 31);
         emit32(&ctx->tb, cbz);
-        /* Else label is in operands[2] */
         if (inst->noperands > 2 && inst->operands[2].type == IR_OPERAND_LABEL) {
             patch_list_add(&ctx->patches, off, inst->operands[2].u.label, src0);
+        }
+        /* B $then — unconditional branch to then block */
+        size_t off2 = ctx->tb.size;
+        emit_b(&ctx->tb, 0);
+        if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_LABEL) {
+            patch_list_add(&ctx->patches, off2, inst->operands[1].u.label, -1);
         }
         return 0;
     }

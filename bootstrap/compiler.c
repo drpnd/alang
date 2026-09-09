@@ -810,8 +810,8 @@ _expr(dfir_compiler_t *c, expr_t *e)
             snprintf(resume_label, sizeof(resume_label), "S%d_resume_%d",
                      c->fn->state_counter, c->fn->nstates);
             c->fn->state_counter++;
-            c->fn->nstates++;
             strncpy(c->fn->dispatch_labels[c->fn->nstates], resume_label, 63);
+            c->fn->nstates++;
             _fnb_add_block(c->fn, resume_label);
         } else {
             /* In a regular function, yield is just a send */
@@ -1249,17 +1249,45 @@ _coroutine(dfir_compiler_t *c, coroutine_t *cr)
         _emit(c, IR_OPCODE_RET, NULL, 1, &ret_op);
     }
 
-    /* Now build the dispatch switch in S_dispatch */
-    /* Go back to the dispatch block and emit the switch */
+    /* Now build the dispatch chain in S_dispatch */
+    /* Go back to the dispatch block and emit compare-and-branch chain */
     bb_t *dispatch = fb->blocks;  /* first block is S_dispatch */
     bb_t *saved_cur = fb->cur;
     fb->cur = dispatch;
 
-    /* switch %state, $default [ 0, S0_start; 1, S1_resume_1; ... ] */
-    ir_operand_t sw_ops[2];
-    sw_ops[0] = _op_reg(state_reg);
-    sw_ops[1] = _op_label("S0_start");  /* default = start */
-    _emit(c, IR_OPCODE_SWITCH, NULL, 2, sw_ops);
+    /* For each state (except 0), emit: if %state == i then br S{i}_label */
+    for (int i = 1; i < fb->nstates; i++) {
+        /* %cmp = cmp_eq %state, i */
+        ir_reg_t cmp_result = _ssa(c, IR_REG_BOOL);
+        ir_operand_t cmp_ops[2];
+        cmp_ops[0] = _op_reg(state_reg);
+        cmp_ops[1] = _op_imm_i32(i);
+        _emit(c, IR_OPCODE_CMP_EQ, &cmp_result, 2, cmp_ops);
+
+        /* br_cond %cmp, $state_label, $fallthrough */
+        /* Fall through to next comparison or default */
+        ir_operand_t br_ops[3];
+        br_ops[0] = _op_reg(cmp_result);
+        br_ops[1] = _op_label(fb->dispatch_labels[i]);
+        if (i + 1 < fb->nstates) {
+            /* Fall through to next comparison block */
+            char next_label[64];
+            snprintf(next_label, sizeof(next_label), "$dispatch_%d", i + 1);
+            br_ops[2] = _op_label(next_label);
+            _emit(c, IR_OPCODE_BR_COND, NULL, 3, br_ops);
+            _fnb_add_block(fb, next_label);
+        } else {
+            /* Last comparison: fall through to default (S0_start) */
+            br_ops[2] = _op_label(fb->dispatch_labels[0]);
+            _emit(c, IR_OPCODE_BR_COND, NULL, 3, br_ops);
+        }
+    }
+
+    /* If only 1 state (no yields), just branch to S0_start */
+    if (fb->nstates <= 1) {
+        ir_operand_t br_op = _op_label(fb->dispatch_labels[0]);
+        _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
+    }
 
     fb->cur = saved_cur;
 

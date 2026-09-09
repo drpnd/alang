@@ -755,6 +755,27 @@ operand_reg(ir_operand_t *op)
 }
 
 /*
+ * Get a register for an operand, loading immediates into a temp register.
+ */
+static int64_t operand_imm(ir_operand_t *op, int *ok);
+static int emit_mov_imm(textbuf_t *tb, x86_64_reg_t reg, int64_t val);
+static x86_64_reg_t
+operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
+{
+    if (op->type == IR_OPERAND_IMM) {
+        int ok;
+        int64_t val = operand_imm(op, &ok);
+        if (ok) {
+            /* Use R10 as a scratch register */
+            x86_64_reg_t scratch = REG_R10;
+            emit_mov_imm(&ctx->tb, scratch, val);
+            return scratch;
+        }
+    }
+    return operand_reg(op);
+}
+
+/*
  * Get immediate value from an operand.
  */
 static int64_t
@@ -775,6 +796,8 @@ operand_imm(ir_operand_t *op, int *ok)
 /*
  * Compile a single DFIR instruction to x86-64 machine code.
  */
+static x86_64_reg_t operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op);
+
 static int
 compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 {
@@ -928,37 +951,37 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
     case IR_OPCODE_CMP_EQ:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x04, dst);  /* sete */
 
     case IR_OPCODE_CMP_NE:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x05, dst);  /* setne */
 
     case IR_OPCODE_CMP_LT:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x0C, dst);  /* setl */
 
     case IR_OPCODE_CMP_LE:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x0E, dst);  /* setle */
 
     case IR_OPCODE_CMP_GT:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x0F, dst);  /* setg */
 
     case IR_OPCODE_CMP_GE:
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
         emit_cmp_rr(&ctx->tb, src0, src1);
         return emit_setcc_movzx(&ctx->tb, 0x0D, dst);  /* setge */
 
@@ -974,16 +997,23 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     }
 
     case IR_OPCODE_BR_COND: {
-        /* test reg, reg; jz $else — if cond==0, jump to else; then falls through */
+        /* test reg, reg; jz $else; jmp $then */
         src0 = operand_reg(&inst->operands[0]);
         emit_rr(&ctx->tb, 0x85, src0, src0, 1);  /* test reg, reg */
         /* jz rel32: 0F 84 cd */
         tb_byte(&ctx->tb, 0x0F);
         tb_byte(&ctx->tb, 0x84);
         size_t patch_off = ctx->tb.size;
-        tb_u32(&ctx->tb, 0);  /* placeholder */
+        tb_u32(&ctx->tb, 0);  /* placeholder for jz $else */
         if (inst->noperands > 2 && inst->operands[2].type == IR_OPERAND_LABEL) {
             patch_list_add(&ctx->patches, patch_off, inst->operands[2].u.label, 6);
+        }
+        /* jmp $then */
+        tb_byte(&ctx->tb, 0xE9);  /* jmp rel32 */
+        size_t patch_off2 = ctx->tb.size;
+        tb_u32(&ctx->tb, 0);  /* placeholder for jmp $then */
+        if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_LABEL) {
+            patch_list_add(&ctx->patches, patch_off2, inst->operands[1].u.label, 5);
         }
         return 0;
     }
