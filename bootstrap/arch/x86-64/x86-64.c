@@ -988,10 +988,12 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
     case IR_OPCODE_SHL:
         src0 = operand_reg(&inst->operands[0]);
-        /* shl r/m, cl — D3 /4 */
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         {
-            /* mov dst, src0; shl dst, cl */
+            /* mov dst, src0; mov cl, src1_low; shl dst, cl */
             emit_mov_rr(&ctx->tb, dst, src0);
+            /* mov rcx, src1 (to get shift count in CL) */
+            emit_mov_rr(&ctx->tb, REG_RCX, src1);
             uint8_t buf[4];
             int pos = 0;
             int rex = REX_W | (REG_REX(dst) ? REX_B : 0) | REX;
@@ -1003,9 +1005,11 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
     case IR_OPCODE_SHR:
         src0 = operand_reg(&inst->operands[0]);
-        /* sar r/m, cl — D3 /7 */
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         {
             emit_mov_rr(&ctx->tb, dst, src0);
+            /* mov rcx, src1 (to get shift count in CL) */
+            emit_mov_rr(&ctx->tb, REG_RCX, src1);
             uint8_t buf[4];
             int pos = 0;
             int rex = REX_W | (REG_REX(dst) ? REX_B : 0) | REX;
@@ -1151,12 +1155,83 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         src1 = operand_reg(&inst->operands[1]);
         return emit_rr(&ctx->tb, 0x89, src0, src1, 1);
 
+    case IR_OPCODE_DIV: {
+        /* Signed division: idiv rm divides RDX:RAX by rm.
+         * Result (quotient) in RAX, remainder in RDX.
+         * Need: mov rax, src0; cqo; idiv src1; mov dst, rax */
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
+        emit_mov_rr(&ctx->tb, REG_RAX, src0);
+        /* cqo: REX.W 0x99 — sign-extend RAX into RDX:RAX */
+        {
+            uint8_t cqo[] = { REX_W | REX, 0x99 };
+            tb_emit(&ctx->tb, cqo, 2);
+        }
+        /* idiv src1: REX.W 0xF7 /7 */
+        {
+            uint8_t buf[4];
+            int pos = 0;
+            int rex = REX_W | (REG_REX(src1) ? REX_B : 0) | REX;
+            buf[pos++] = rex;
+            buf[pos++] = 0xF7;
+            buf[pos++] = _modrm(7, 3, REG_CODE(src1));
+            tb_emit(&ctx->tb, buf, pos);
+        }
+        if (dst != REG_RAX) emit_mov_rr(&ctx->tb, dst, REG_RAX);
+        return 0;
+    }
+
+    case IR_OPCODE_UDIV: {
+        /* Unsigned division: div rm divides RDX:RAX by rm.
+         * Need: mov rax, src0; xor rdx,rdx; div src1; mov dst, rax */
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
+        emit_mov_rr(&ctx->tb, REG_RAX, src0);
+        /* xor rdx, rdx */
+        emit_rr(&ctx->tb, 0x31, REG_RDX, REG_RDX, 1);
+        /* div src1: REX.W 0xF7 /6 */
+        {
+            uint8_t buf[4];
+            int pos = 0;
+            int rex = REX_W | (REG_REX(src1) ? REX_B : 0) | REX;
+            buf[pos++] = rex;
+            buf[pos++] = 0xF7;
+            buf[pos++] = _modrm(6, 3, REG_CODE(src1));
+            tb_emit(&ctx->tb, buf, pos);
+        }
+        if (dst != REG_RAX) emit_mov_rr(&ctx->tb, dst, REG_RAX);
+        return 0;
+    }
+
+    case IR_OPCODE_MOD: {
+        /* Signed modulo: same as DIV but result is in RDX (remainder) */
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
+        emit_mov_rr(&ctx->tb, REG_RAX, src0);
+        /* cqo */
+        {
+            uint8_t cqo[] = { REX_W | REX, 0x99 };
+            tb_emit(&ctx->tb, cqo, 2);
+        }
+        /* idiv src1 */
+        {
+            uint8_t buf[4];
+            int pos = 0;
+            int rex = REX_W | (REG_REX(src1) ? REX_B : 0) | REX;
+            buf[pos++] = rex;
+            buf[pos++] = 0xF7;
+            buf[pos++] = _modrm(7, 3, REG_CODE(src1));
+            tb_emit(&ctx->tb, buf, pos);
+        }
+        /* Result is in RDX (remainder) */
+        if (dst != REG_RDX) emit_mov_rr(&ctx->tb, dst, REG_RDX);
+        return 0;
+    }
+
     /* Unhandled opcodes — emit NOP for now */
     case IR_OPCODE_PHI:
     case IR_OPCODE_SWITCH:
     case IR_OPCODE_MEMCPY:
-    case IR_OPCODE_UDIV:
-    case IR_OPCODE_MOD:
     case IR_OPCODE_UREM:
     case IR_OPCODE_CAST:
     case IR_OPCODE_MAKE_STRUCT:
