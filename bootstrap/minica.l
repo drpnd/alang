@@ -49,6 +49,7 @@ void yyerror(YYLTYPE *, yyscan_t, const char *);
 int
 yywrap(yyscan_t scanner)
 {
+    (void)scanner;
     return 1;
 }
 

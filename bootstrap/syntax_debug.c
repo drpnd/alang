@@ -45,7 +45,7 @@ _prefix(const char *op, expr_t *e)
 }
 
 static void
-_suffix(const char *op, expr_t *e)
+__attribute__((unused)) _suffix(const char *op, expr_t *e)
 {
     _expr(e);
     printf(" %s", op);
@@ -273,6 +273,7 @@ static void
 _literal(literal_t *lit)
 {
     switch ( lit->type ) {
+    case LIT_BININT:
     case LIT_HEXINT:
         printf("0x%s", lit->u.n);
         break;

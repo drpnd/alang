@@ -31,7 +31,7 @@
 #include "lex.yy.h"
 #include "minica.h"
 
-void yyerror(YYLTYPE *, yyscan_t, const char *);
+void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
 
 #define ERROR_ON_NULL(val, msg)             \
     do {                                    \
@@ -1119,6 +1119,7 @@ void
 yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str)
 {
     int lineno;
+    (void)yylloc;
     lineno = yyget_lineno(scanner);
     fprintf(stderr, "Parser error near Line %d: %s\n", lineno, str);
 }
