@@ -991,9 +991,16 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_RET:
         /* Move return value to RAX if needed */
         if (inst->noperands > 0) {
-            src0 = operand_reg(&inst->operands[0]);
-            if (src0 != REG_RAX) {
-                emit_mov_rr(&ctx->tb, REG_RAX, src0);
+            if (inst->operands[0].type == IR_OPERAND_IMM) {
+                /* Load immediate into RAX */
+                int ok;
+                int64_t val = operand_imm(&inst->operands[0], &ok);
+                if (ok) emit_mov_imm(&ctx->tb, REG_RAX, val);
+            } else {
+                src0 = operand_reg(&inst->operands[0]);
+                if (src0 != REG_RAX) {
+                    emit_mov_rr(&ctx->tb, REG_RAX, src0);
+                }
             }
         }
         /* Emit full epilogue */

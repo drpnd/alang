@@ -78,6 +78,11 @@ typedef struct _fnb {
     int ssa_counter;        /* SSA value counter */
     int state_counter;      /* coroutine state counter */
     int nargs;              /* number of arguments */
+    int is_coro;            /* 1 if compiling a coroutine */
+    int state_var_ssa;      /* SSA id of the state variable (for coroutines) */
+    /* List of state labels for the dispatch switch */
+    char dispatch_labels[64][64];  /* state label names */
+    int nstates;            /* number of states */
 } fnb_t;
 
 /*
@@ -779,14 +784,46 @@ _expr(dfir_compiler_t *c, expr_t *e)
         } else {
             val = _ssa(c, IR_REG_NONE);
         }
-        ir_operand_t ops[2];
-        if (y->port) {
-            ops[0] = _op_imm_str(y->port);
+
+        if (c->fn->is_coro) {
+            /* In a coroutine, yield is a suspension point:
+             * 1. Emit YIELD (send value to output port)
+             * 2. Set state to next resume point
+             * 3. Return Poll::Pending (ret 0)
+             * 4. Create a new block for the resume point
+             */
+            ir_operand_t ops[2];
+            if (y->port) {
+                ops[0] = _op_imm_str(y->port);
+            } else {
+                ops[0] = _op_imm_str("out");
+            }
+            ops[1] = _op_reg(val);
+            _emit(c, IR_OPCODE_YIELD, NULL, 2, ops);
+
+            /* Return Pending (0) */
+            ir_operand_t ret_op = _op_imm_i32(0);
+            _emit(c, IR_OPCODE_RET, NULL, 1, &ret_op);
+
+            /* Create resume block */
+            char resume_label[64];
+            snprintf(resume_label, sizeof(resume_label), "S%d_resume_%d",
+                     c->fn->state_counter, c->fn->nstates);
+            c->fn->state_counter++;
+            c->fn->nstates++;
+            strncpy(c->fn->dispatch_labels[c->fn->nstates], resume_label, 63);
+            _fnb_add_block(c->fn, resume_label);
         } else {
-            ops[0] = _op_imm_str("out");
+            /* In a regular function, yield is just a send */
+            ir_operand_t ops[2];
+            if (y->port) {
+                ops[0] = _op_imm_str(y->port);
+            } else {
+                ops[0] = _op_imm_str("out");
+            }
+            ops[1] = _op_reg(val);
+            _emit(c, IR_OPCODE_YIELD, NULL, 2, ops);
         }
-        ops[1] = _op_reg(val);
-        _emit(c, IR_OPCODE_YIELD, NULL, 2, ops);
         return val;
     }
 
@@ -1038,6 +1075,7 @@ static void
 _func(dfir_compiler_t *c, func_t *fn)
 {
     fnb_t *fb = _fnb_new(fn->id, IR_FUNC_FUNC);
+    fb->is_coro = 0;
     c->fn = fb;
 
     /* Create entry block */
@@ -1149,17 +1187,21 @@ static void
 _coroutine(dfir_compiler_t *c, coroutine_t *cr)
 {
     fnb_t *fb = _fnb_new(cr->id, IR_FUNC_COROUTINE);
+    fb->is_coro = 1;
+    fb->state_counter = 0;
+    fb->nstates = 0;
     c->fn = fb;
-
-    /* Create entry state */
-    char state_label[64];
-    snprintf(state_label, sizeof(state_label), "S0_start");
-    _fnb_add_block(fb, state_label);
 
     /* Create scope and bind arguments */
     scope_t *s = _scope_new(c->scope);
     c->scope = s;
 
+    /* First SSA value (%0) is the state variable */
+    ir_reg_t state_reg = _ssa(c, IR_REG_I32);
+    fb->state_var_ssa = fb->ssa_counter - 1;
+    _scope_bind(s, "__state", IR_REG_I32, fb->state_var_ssa);
+
+    /* Bind regular arguments (starting from %1) */
     if (cr->args) {
         arg_t *a = cr->args->head;
         while (a) {
@@ -1185,32 +1227,41 @@ _coroutine(dfir_compiler_t *c, coroutine_t *cr)
         }
     }
 
+    /* Create the dispatch block (entry point) */
+    _fnb_add_block(fb, "S_dispatch");
+    /* State 0 is the start state */
+    strncpy(fb->dispatch_labels[0], "S0_start", 63);
+    fb->nstates = 1;
+
+    /* Create the start state block */
+    _fnb_add_block(fb, "S0_start");
+
     /* Compile body */
     if (cr->block) {
         _inner_block(c, cr->block);
     }
 
-    /* Ensure ret at the end */
+    /* Ensure ret at the end — return Poll::Ready (1) */
     if (fb->cur && (!fb->cur->tail ||
                     !ir_opcode_is_terminator(fb->cur->tail->inst.opcode))) {
-        if (cr->rets && cr->rets->head && cr->rets->head->decl &&
-            cr->rets->head->decl->id) {
-            cvar_t *rv = _scope_lookup(s, cr->rets->head->decl->id);
-            if (rv) {
-                ir_operand_t ops[1];
-                ir_reg_t reg;
-                char buf[64];
-                snprintf(buf, sizeof(buf), "%%%d", rv->ssa_id);
-                ir_reg_init(&reg, rv->type, buf);
-                ops[0] = _op_reg(reg);
-                _emit(c, IR_OPCODE_RET, NULL, 1, ops);
-            } else {
-                _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
-            }
-        } else {
-            _emit(c, IR_OPCODE_RET, NULL, 0, NULL);
-        }
+        /* Return Ready (1) */
+        ir_operand_t ret_op = _op_imm_i32(1);
+        _emit(c, IR_OPCODE_RET, NULL, 1, &ret_op);
     }
+
+    /* Now build the dispatch switch in S_dispatch */
+    /* Go back to the dispatch block and emit the switch */
+    bb_t *dispatch = fb->blocks;  /* first block is S_dispatch */
+    bb_t *saved_cur = fb->cur;
+    fb->cur = dispatch;
+
+    /* switch %state, $default [ 0, S0_start; 1, S1_resume_1; ... ] */
+    ir_operand_t sw_ops[2];
+    sw_ops[0] = _op_reg(state_reg);
+    sw_ops[1] = _op_label("S0_start");  /* default = start */
+    _emit(c, IR_OPCODE_SWITCH, NULL, 2, sw_ops);
+
+    fb->cur = saved_cur;
 
     /* Transfer to ir_func_t */
     ir_func_t *irf = ir_func_new();

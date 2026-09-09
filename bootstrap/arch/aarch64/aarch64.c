@@ -739,9 +739,16 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_RET:
         /* Move return value to X0 if needed */
         if (inst->noperands > 0) {
-            src0 = operand_reg(&inst->operands[0]);
-            if (src0 != 0) {
-                emit_orr_reg(&ctx->tb, 0, 31, src0, 1);  /* mov x0, src0 */
+            if (inst->operands[0].type == IR_OPERAND_IMM) {
+                /* Load immediate into X0 */
+                int ok;
+                int64_t val = operand_imm(&inst->operands[0], &ok);
+                if (ok) emit_load_imm64(&ctx->tb, 0, val);
+            } else {
+                src0 = operand_reg(&inst->operands[0]);
+                if (src0 != 0) {
+                    emit_orr_reg(&ctx->tb, 0, 31, src0, 1);  /* mov x0, src0 */
+                }
             }
         }
         /* Emit full epilogue: restore callee-saved + ldp x29,x30 + ret */
