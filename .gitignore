@@ -1,0 +1,26 @@
+# Build artifacts
+*.o
+*.d
+*.bak
+*.tmp
+a.out
+*.exe
+
+# Generated parser/lexer files
+bootstrap/y.tab.c
+bootstrap/y.tab.h
+bootstrap/y.tab.o
+bootstrap/y.tab.d
+bootstrap/y.output
+bootstrap/lex.yy.c
+bootstrap/lex.yy.h
+bootstrap/lex.yy.o
+bootstrap/lex.yy.d
+
+# Test binaries
+bootstrap/minica_test_*
+bootstrap/out.o
+bootstrap/out_exe
+
+# IDE / editor
+.vscode/
