@@ -83,3 +83,7 @@ run_test "while_break.al" 5
 run_test "div_mod.al" 5
 run_test "struct_test.al" 42
 run_test "struct_test2.al" 30
+run_test "enum_test.al" 0
+run_test "enum_match.al" 42
+run_test "enum_match2.al" 1
+run_test "enum_match3.al" 3

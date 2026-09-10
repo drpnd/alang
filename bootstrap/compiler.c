@@ -97,6 +97,8 @@ typedef struct {
 
 #define MAX_STRUCTS 64
 #define MAX_FIELDS 32
+#define MAX_ENUMS 64
+#define MAX_VARIANTS 32
 
 /* Struct field descriptor */
 typedef struct {
@@ -113,6 +115,19 @@ typedef struct {
     int size;               /* total struct size in bytes */
 } struct_desc_t;
 
+/* Enum variant descriptor */
+typedef struct {
+    char name[64];          /* variant name */
+    int index;              /* variant index (discriminant) */
+} variant_desc_t;
+
+/* Enum type descriptor */
+typedef struct {
+    char name[64];          /* enum name */
+    variant_desc_t variants[MAX_VARIANTS];  /* variant list */
+    int nvariants;          /* number of variants */
+} enum_desc_t;
+
 /*
  * Compiler state.
  */
@@ -125,6 +140,8 @@ typedef struct {
     int loop_depth;         /* current loop nesting depth */
     struct_desc_t structs[MAX_STRUCTS];  /* registered struct types */
     int nstructs;           /* number of registered structs */
+    enum_desc_t enums[MAX_ENUMS];    /* registered enum types */
+    int nenums;             /* number of registered enums */
 } dfir_compiler_t;
 
 /*======================================================================
@@ -444,6 +461,35 @@ _find_field(struct_desc_t *sd, const char *field_name)
     return -1;
 }
 
+/* Find an enum descriptor by name; returns NULL if not found */
+static enum_desc_t *
+_find_enum(dfir_compiler_t *c, const char *name)
+{
+    for (int i = 0; i < c->nenums; i++) {
+        if (strcmp(c->enums[i].name, name) == 0) {
+            return &c->enums[i];
+        }
+    }
+    return NULL;
+}
+
+/* Find a variant index in an enum; returns -1 if not found.
+ * Also searches across all enums if enum_name is NULL. */
+static enum_desc_t *
+_find_variant(dfir_compiler_t *c, const char *variant_name, int *out_idx)
+{
+    for (int i = 0; i < c->nenums; i++) {
+        for (int j = 0; j < c->enums[i].nvariants; j++) {
+            if (strcmp(c->enums[i].variants[j].name, variant_name) == 0) {
+                if (out_idx) *out_idx = c->enums[i].variants[j].index;
+                return &c->enums[i];
+            }
+        }
+    }
+    if (out_idx) *out_idx = -1;
+    return NULL;
+}
+
 
 static ir_operand_t
 _op_reg(ir_reg_t reg)
@@ -612,6 +658,18 @@ _expr(dfir_compiler_t *c, expr_t *e)
     case EXPR_ID: {
         cvar_t *v = _scope_lookup(c->scope, e->u.id);
         if (!v) {
+            /* Check if it's an enum variant */
+            int variant_idx = -1;
+            enum_desc_t *ed = _find_variant(c, e->u.id, &variant_idx);
+            if (ed && variant_idx >= 0) {
+                /* Emit MAKE_ENUM with the variant index */
+                ir_reg_t result = _ssa(c, IR_REG_I64);
+                ir_operand_t ops[2];
+                ops[0] = _op_imm_i32(variant_idx);
+                ops[1] = _op_imm_str(ed->name);
+                _emit(c, IR_OPCODE_MAKE_ENUM, &result, 2, ops);
+                return result;
+            }
             fprintf(stderr, "error: undefined variable '%s'\n", e->u.id);
             c->error = 1;
             return _ssa(c, IR_REG_NONE);
@@ -830,52 +888,59 @@ _expr(dfir_compiler_t *c, expr_t *e)
     case EXPR_MATCH: {
         match_t *m = &e->u.match;
         ir_reg_t cond = _expr(c, m->cond);
+        int match_id = c->fn->ssa_counter;
 
-        /* Emit switch instruction with match arms */
-        char default_label[64];
-        snprintf(default_label, sizeof(default_label), "$match_default_%d",
-                 c->fn->ssa_counter);
+        char end_label[64];
+        snprintf(end_label, sizeof(end_label), "$match_end_%d", match_id);
 
-        /* Count arms */
-        int narms = 0;
+        /* Compile each arm as a compare-and-branch */
         match_arm_t *arm = m->block->head;
-        while (arm) { narms++; arm = arm->next; }
-        (void)narms;
-
-        /* Emit switch: switch %cond, $default */
-        ir_operand_t sw_ops[2];
-        sw_ops[0] = _op_reg(cond);
-        sw_ops[1] = _op_label(default_label);
-        _emit(c, IR_OPCODE_SWITCH, NULL, 2, sw_ops);
-        free(sw_ops[1].u.label);
-
-        /* Compile each arm */
-        arm = m->block->head;
         int arm_idx = 0;
         while (arm) {
-            char arm_label[64];
+            char arm_label[64], next_label[64];
             snprintf(arm_label, sizeof(arm_label), "$match_arm_%d_%d",
-                     c->fn->ssa_counter, arm_idx);
+                     match_id, arm_idx);
+            snprintf(next_label, sizeof(next_label), "$match_next_%d_%d",
+                     match_id, arm_idx);
+
+            /* Check if pattern is an enum variant */
+            int variant_idx = -1;
+            if (arm->pattern && arm->pattern->type == EXPR_ID) {
+                _find_variant(c, arm->pattern->u.id, &variant_idx);
+            }
+
+            if (variant_idx >= 0) {
+                /* Enum variant match: check_variant %cond, variant_idx */
+                ir_reg_t cmp_result = _ssa(c, IR_REG_BOOL);
+                ir_operand_t cv_ops[2];
+                cv_ops[0] = _op_reg(cond);
+                cv_ops[1] = _op_imm_i32(variant_idx);
+                _emit(c, IR_OPCODE_CHECK_VARIANT, &cmp_result, 2, cv_ops);
+
+                /* br_cond %cmp, $arm, $next */
+                ir_operand_t br_ops[3];
+                br_ops[0] = _op_reg(cmp_result);
+                br_ops[1] = _op_label(arm_label);
+                br_ops[2] = _op_label(next_label);
+                _emit(c, IR_OPCODE_BR_COND, NULL, 3, br_ops);
+            } else {
+                /* Default/default arm: unconditional branch to arm */
+                ir_operand_t br_op = _op_label(arm_label);
+                _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
+            }
+
+            /* Arm body block */
             _fnb_add_block(c->fn, arm_label);
             if (arm->block) _inner_block(c, arm->block);
+            ir_operand_t end_br = _op_label(end_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &end_br);
 
-            char end_label[64];
-            snprintf(end_label, sizeof(end_label), "$match_end_%d",
-                     c->fn->ssa_counter);
-            ir_operand_t br_op = _op_label(end_label);
-            _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
+            /* Next arm check block */
+            _fnb_add_block(c->fn, next_label);
 
             arm = arm->next;
             arm_idx++;
         }
-
-        /* Default block */
-        _fnb_add_block(c->fn, default_label);
-        char end_label[64];
-        snprintf(end_label, sizeof(end_label), "$match_end_%d",
-                 c->fn->ssa_counter);
-        ir_operand_t br_op = _op_label(end_label);
-        _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
 
         /* End block */
         _fnb_add_block(c->fn, end_label);
@@ -1712,9 +1777,33 @@ _directive(dfir_compiler_t *c, directive_t *dr)
         c->nstructs++;
         break;
     }
-    case DIRECTIVE_ENUM:
-        /* TODO: register enum types */
+    case DIRECTIVE_ENUM: {
+        enum_t *en = &dr->u.en;
+        if (c->nenums >= MAX_ENUMS) {
+            fprintf(stderr, "error: too many enum definitions\n");
+            c->error = 1;
+            return;
+        }
+        enum_desc_t *ed = &c->enums[c->nenums];
+        snprintf(ed->name, sizeof(ed->name), "%s", en->id);
+        ed->nvariants = 0;
+        /* Count variants first (list is in reverse order due to prepend) */
+        int total = 0;
+        enum_elem_t *ve = en->list;
+        while (ve) { total++; ve = ve->next; }
+        /* Register variants with correct indices (reverse the list) */
+        ve = en->list;
+        int idx = total - 1;
+        while (ve && ed->nvariants < MAX_VARIANTS) {
+            snprintf(ed->variants[ed->nvariants].name, 64, "%s", ve->id);
+            ed->variants[ed->nvariants].index = idx;
+            ed->nvariants++;
+            idx--;
+            ve = ve->next;
+        }
+        c->nenums++;
         break;
+    }
     case DIRECTIVE_TYPE_ALIAS:
         /* TODO: register type aliases */
         break;

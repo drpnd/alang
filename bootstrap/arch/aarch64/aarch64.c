@@ -1167,6 +1167,35 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return 0;
     }
 
+    case IR_OPCODE_MAKE_ENUM: {
+        /* MAKE_ENUM: result = variant_index
+         * operands[0] = variant index (imm), operands[1] = enum name (str)
+         * For unit variants, just load the index into the result register. */
+        if (inst->noperands > 0 && inst->operands[0].type == IR_OPERAND_IMM) {
+            int64_t val = operand_imm(&inst->operands[0], &(int){1});
+            return emit_load_imm64(&ctx->tb, dst, val);
+        }
+        return emit_load_imm64(&ctx->tb, dst, 0);
+    }
+
+    case IR_OPCODE_CHECK_VARIANT: {
+        /* CHECK_VARIANT: result = (enum_value == expected_index)
+         * operands[0] = enum value, operands[1] = expected index (imm) */
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        emit_cmp_reg(&ctx->tb, src0, src1, 1);
+        return emit_cset(&ctx->tb, dst, COND_EQ, 1);
+    }
+
+    case IR_OPCODE_EXTRACT_VARIANT: {
+        /* EXTRACT_VARIANT: for unit variants, just copy the value */
+        src0 = operand_reg(&inst->operands[0]);
+        if (dst != src0) {
+            return emit_orr_reg(&ctx->tb, dst, 31, src0, 1);
+        }
+        return 0;
+    }
+
     /* Unhandled -- NOP */
     case IR_OPCODE_PHI:
     case IR_OPCODE_SWITCH:
@@ -1174,9 +1203,6 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_UREM:
     case IR_OPCODE_CAST:
     case IR_OPCODE_GET_ELEM:
-    case IR_OPCODE_MAKE_ENUM:
-    case IR_OPCODE_EXTRACT_VARIANT:
-    case IR_OPCODE_CHECK_VARIANT:
     case IR_OPCODE_RECV:
     case IR_OPCODE_SEND:
     case IR_OPCODE_YIELD:
