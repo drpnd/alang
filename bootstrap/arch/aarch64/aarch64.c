@@ -974,8 +974,8 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                         arg->u.imm.type == IR_IMM_STR) {
                         /* String argument */
                         const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
-                        /* Always use puts for strings */
-                        {
+                        if (is_println) {
+                            /* println(string): use puts (adds newline) */
                             int sid = add_string(ctx, str);
                             size_t off = ctx->tb.size;
                             emit32(&ctx->tb, (1U << 28) | 0);
@@ -984,14 +984,16 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                             off_t rp = ctx->tb.size;
                             emit_bl(&ctx->tb, 0);
                             add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
-                        }
-                        if (!is_println) {
-                            /* print(string) — use puts (adds newline, but works) */
-                            int sid = add_string(ctx, str);
+                        } else {
+                            /* print(string): use printf with the string as
+                             * the format string directly (no %s needed).
+                             * This avoids variadic ABI issues with X1. */
+                            int sid_str = add_string(ctx, str);
                             size_t off = ctx->tb.size;
-                            emit32(&ctx->tb, (1U << 28) | 0);
-                            str_patch_add(ctx, off, sid);
-                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "puts", 0, 0);
+                            emit32(&ctx->tb, (1U << 28) | 0);  /* ADR X0, #0 */
+                            str_patch_add(ctx, off, sid_str);
+                            /* BL printf */
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "printf", 0, 0);
                             off_t rp = ctx->tb.size;
                             emit_bl(&ctx->tb, 0);
                             add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
@@ -1293,11 +1295,12 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
     resolve_patches(&ctx);
 
     /* Append string data to text section */
-    size_t string_data_start = ctx.tb.size;
+    size_t cur_off = ctx.tb.size;
     for (int i = 0; i < ctx.code->strings.n; i++) {
-        ctx.code->strings.items[i].offset = string_data_start;
+        ctx.code->strings.items[i].offset = cur_off;
         size_t slen = strlen(ctx.code->strings.items[i].str) + 1;
         tb_emit(&ctx.tb, (uint8_t*)ctx.code->strings.items[i].str, slen);
+        cur_off += slen;
     }
 
     /* Patch ADR instructions with string offsets */
