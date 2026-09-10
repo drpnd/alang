@@ -1301,6 +1301,10 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
             /* Compile body */
             if (f->block) _inner_block(c, f->block);
 
+            /* Branch to increment block */
+            ir_operand_t body_br = _op_label(inc_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &body_br);
+
             /* Restore parent scope */
             c->scope = child->parent;
             _scope_free(child);

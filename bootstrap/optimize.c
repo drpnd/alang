@@ -10,7 +10,10 @@
  * Passes:
  *   1. Constant folding — evaluate constant expressions at compile time
  *   2. Copy propagation — replace references to moved values with originals
- *   3. Dead code elimination — remove unused instructions and unreachable blocks
+ *   3. Constant branch elimination — replace br_cond with constant condition
+ *   4. Unreachable block elimination — remove blocks not reachable from entry
+ *   5. Block merging — merge blocks connected by single-pred unconditional br
+ *   6. Dead code elimination — remove unused instructions
  *
  * Each pass operates on ir_object_t and modifies it in place.
  * Passes are run in sequence until no changes are made (fixpoint).
@@ -547,6 +550,303 @@ pass_dce_func(ir_func_t *func)
 }
 
 /*======================================================================
+ * Pass 4: Constant Branch Elimination
+ *
+ * If a br_cond instruction has a constant condition, replace it with
+ * an unconditional branch to the taken target.
+ *======================================================================*/
+
+static int
+pass_const_branch_func(ir_func_t *func)
+{
+    int changed = 0;
+
+    /* Build constant map from CONST instructions across all blocks */
+    const_map_t cmap;
+    cmap_init(&cmap);
+
+    for (size_t bi = 0; bi < func->nblocks; bi++) {
+        ir_block_t *blk = &func->blocks[bi];
+        ir_instr_ent_t *ent = blk->instrs;
+        while (ent) {
+            if (ent->inst.opcode == IR_OPCODE_CONST && ent->inst.result.n > 0) {
+                int ok;
+                int64_t val = instr_const_value(&ent->inst, &ok);
+                if (ok && ent->inst.result.reg[0].id) {
+                    cmap_set(&cmap, ent->inst.result.reg[0].id, val);
+                }
+            }
+            ent = ent->next;
+        }
+    }
+
+    /* Replace br_cond with constant condition */
+    for (size_t bi = 0; bi < func->nblocks; bi++) {
+        ir_block_t *blk = &func->blocks[bi];
+        ir_instr_ent_t *ent = blk->instrs;
+        while (ent) {
+            ir_instr_t *inst = &ent->inst;
+            if (inst->opcode == IR_OPCODE_BR_COND && inst->noperands >= 3 &&
+                inst->operands[0].type == IR_OPERAND_REG &&
+                inst->operands[0].u.reg.id) {
+                int64_t cond_val;
+                if (cmap_get(&cmap, inst->operands[0].u.reg.id, &cond_val)) {
+                    /* Condition is constant: pick the right target */
+                    const char *target_label;
+                    if (cond_val != 0) {
+                        /* True: branch to operands[1] (then) */
+                        if (inst->operands[1].type == IR_OPERAND_LABEL) {
+                            target_label = inst->operands[1].u.label;
+                        } else {
+                            ent = ent->next;
+                            continue;
+                        }
+                    } else {
+                        /* False: branch to operands[2] (else) */
+                        if (inst->operands[2].type == IR_OPERAND_LABEL) {
+                            target_label = inst->operands[2].u.label;
+                        } else {
+                            ent = ent->next;
+                            continue;
+                        }
+                    }
+                    /* Replace with unconditional branch */
+                    inst->opcode = IR_OPCODE_BR;
+                    inst->noperands = 1;
+                    inst->operands[0].type = IR_OPERAND_LABEL;
+                    inst->operands[0].u.label = strdup(target_label);
+                    /* Clear operands[1] and [2] */
+                    memset(&inst->operands[1], 0, sizeof(ir_operand_t));
+                    memset(&inst->operands[2], 0, sizeof(ir_operand_t));
+                    changed = 1;
+                }
+            }
+            ent = ent->next;
+        }
+    }
+
+    cmap_free(&cmap);
+    return changed;
+}
+
+/*======================================================================
+ * Pass 5: Unreachable Block Elimination
+ *
+ * Remove blocks that are not reachable from the entry (first) block.
+ *======================================================================*/
+
+static int
+pass_unreachable_blocks_func(ir_func_t *func)
+{
+    int changed = 0;
+    if (func->nblocks == 0) return 0;
+
+    /* Mark reachable blocks using a worklist */
+    int *reachable = calloc(func->nblocks, sizeof(int));
+    int *worklist = calloc(func->nblocks, sizeof(int));
+    int whead = 0, wtail = 0;
+
+    /* Entry block is block 0 */
+    reachable[0] = 1;
+    worklist[wtail++] = 0;
+
+    while (whead < wtail) {
+        int idx = worklist[whead++];
+        ir_block_t *blk = &func->blocks[idx];
+        ir_instr_ent_t *ent = blk->instrs;
+        while (ent) {
+            ir_instr_t *inst = &ent->inst;
+            /* Find branch targets */
+            for (int i = 0; i < inst->noperands && i < IR_MAX_OPERANDS; i++) {
+                if (inst->operands[i].type == IR_OPERAND_LABEL &&
+                    inst->operands[i].u.label) {
+                    /* Find block with this label */
+                    for (size_t j = 0; j < func->nblocks; j++) {
+                        if (func->blocks[j].label &&
+                            func->blocks[j].label->name &&
+                            strcmp(func->blocks[j].label->name,
+                                   inst->operands[i].u.label) == 0) {
+                            if (!reachable[j]) {
+                                reachable[j] = 1;
+                                worklist[wtail++] = (int)j;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            ent = ent->next;
+        }
+    }
+
+    /* Remove unreachable blocks by compacting the blocks array */
+    size_t write_idx = 0;
+    for (size_t i = 0; i < func->nblocks; i++) {
+        if (reachable[i]) {
+            if (write_idx != i) {
+                func->blocks[write_idx] = func->blocks[i];
+            }
+            write_idx++;
+        } else {
+            /* Free instructions in unreachable block */
+            ir_instr_ent_t *ent = func->blocks[i].instrs;
+            while (ent) {
+                ir_instr_ent_t *next = ent->next;
+                ir_instr_ent_delete(ent);
+                ent = next;
+            }
+            if (func->blocks[i].label) {
+                free(func->blocks[i].label->name);
+                free(func->blocks[i].label);
+            }
+            changed = 1;
+        }
+    }
+    func->nblocks = write_idx;
+
+    free(reachable);
+    free(worklist);
+    return changed;
+}
+
+/*======================================================================
+ * Pass 6: Block Merging
+ *
+ * If a block B1 ends with an unconditional branch (br) to block B2,
+ * and B2 has only one predecessor (B1), merge B2 into B1.
+ *======================================================================*/
+
+static int
+pass_block_merge_func(ir_func_t *func)
+{
+    int changed = 0;
+    if (func->nblocks <= 1) return 0;
+
+    /* Count predecessors for each block */
+    int *npred = calloc(func->nblocks, sizeof(int));
+
+    for (size_t i = 0; i < func->nblocks; i++) {
+        ir_block_t *blk = &func->blocks[i];
+        ir_instr_ent_t *ent = blk->instrs;
+        while (ent) {
+            ir_instr_t *inst = &ent->inst;
+            for (int j = 0; j < inst->noperands && j < IR_MAX_OPERANDS; j++) {
+                if (inst->operands[j].type == IR_OPERAND_LABEL &&
+                    inst->operands[j].u.label) {
+                    for (size_t k = 0; k < func->nblocks; k++) {
+                        if (func->blocks[k].label &&
+                            func->blocks[k].label->name &&
+                            strcmp(func->blocks[k].label->name,
+                                   inst->operands[j].u.label) == 0) {
+                            npred[k]++;
+                            break;
+                        }
+                    }
+                }
+            }
+            ent = ent->next;
+        }
+    }
+
+    /* Find merge candidates: block ending with br to a block with 1 pred */
+    for (size_t i = 0; i < func->nblocks; i++) {
+        ir_block_t *blk = &func->blocks[i];
+        /* Find the last instruction */
+        ir_instr_ent_t *last_ent = blk->instrs;
+        ir_instr_ent_t *prev_ent = NULL;
+        while (last_ent && last_ent->next) {
+            prev_ent = last_ent;
+            last_ent = last_ent->next;
+        }
+        if (!last_ent) continue;
+
+        /* Check if last instruction is an unconditional branch */
+        if (last_ent->inst.opcode != IR_OPCODE_BR ||
+            last_ent->inst.noperands < 1 ||
+            last_ent->inst.operands[0].type != IR_OPERAND_LABEL) {
+            continue;
+        }
+
+        const char *target = last_ent->inst.operands[0].u.label;
+        /* Find the target block */
+        int target_idx = -1;
+        for (size_t k = 0; k < func->nblocks; k++) {
+            if (k == i) continue;  /* Don't merge with self */
+            if (func->blocks[k].label &&
+                func->blocks[k].label->name &&
+                strcmp(func->blocks[k].label->name, target) == 0) {
+                target_idx = (int)k;
+                break;
+            }
+        }
+        if (target_idx < 0) continue;
+        if (npred[target_idx] != 1) continue;  /* Target has other preds */
+
+        /* Don't merge if target is a loop header (target has a back-edge
+         * from a block at or after the source block). Check if any block
+         * at index >= i branches to the target. */
+        int is_loop_header = 0;
+        for (size_t k = i; k < func->nblocks; k++) {
+            ir_block_t *kblk = &func->blocks[k];
+            ir_instr_ent_t *kent = kblk->instrs;
+            while (kent) {
+                for (int j = 0; j < kent->inst.noperands && j < IR_MAX_OPERANDS; j++) {
+                    if (kent->inst.operands[j].type == IR_OPERAND_LABEL &&
+                        kent->inst.operands[j].u.label &&
+                        strcmp(kent->inst.operands[j].u.label, target) == 0) {
+                        is_loop_header = 1;
+                    }
+                }
+                if (is_loop_header) break;
+                kent = kent->next;
+            }
+            if (is_loop_header) break;
+        }
+        if (is_loop_header) continue;
+
+        /* Merge: remove the br from block i, then append target's
+         * instructions to block i. Mark target as empty. */
+        /* Remove the br instruction */
+        if (prev_ent) {
+            prev_ent->next = NULL;
+            blk->last = prev_ent;
+        } else {
+            blk->instrs = NULL;
+            blk->last = NULL;
+        }
+        blk->ninstr--;
+        /* Free the removed br instruction */
+        for (int j = 0; j < last_ent->inst.noperands && j < IR_MAX_OPERANDS; j++) {
+            if (last_ent->inst.operands[j].type == IR_OPERAND_LABEL) {
+                free(last_ent->inst.operands[j].u.label);
+            }
+        }
+        free(last_ent);
+
+        /* Append target block's instructions to block i */
+        ir_block_t *tblk = &func->blocks[target_idx];
+        if (blk->last) {
+            blk->last->next = tblk->instrs;
+            blk->last = tblk->last;
+        } else {
+            blk->instrs = tblk->instrs;
+            blk->last = tblk->last;
+        }
+        blk->ninstr += tblk->ninstr;
+        tblk->instrs = NULL;
+        tblk->last = NULL;
+        tblk->ninstr = 0;
+
+        /* Update predecessor counts: target is now gone */
+        npred[target_idx] = 0;
+        changed = 1;
+    }
+
+    free(npred);
+    return changed;
+}
+
+/*======================================================================
  * Main optimizer entry point
  *======================================================================*/
 
@@ -578,6 +878,9 @@ ir_optimize(ir_object_t *obj)
                 iter_changes += pass_const_fold_block(blk);
                 iter_changes += pass_copy_prop_block(blk);
             }
+            iter_changes += pass_const_branch_func(func);
+            iter_changes += pass_unreachable_blocks_func(func);
+            iter_changes += pass_block_merge_func(func);
             iter_changes += pass_dce_func(func);
             func = func->next;
         }
