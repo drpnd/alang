@@ -42,6 +42,14 @@ void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
 
 %}
 
+%code requires {
+/* Type list for enum tuple variants */
+struct type_list_val {
+    type_t **types;
+    size_t count;
+};
+}
+
 %union {
     st_t *file;
 
@@ -56,6 +64,7 @@ void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
     decl_t *decl;
     decl_list_t *decl_list;
     expr_list_t *exprs;
+    struct type_list_val type_list_val;
     expr_t *expr;
     match_arm_t *match_arm;
     match_block_t *match_block;
@@ -126,7 +135,8 @@ void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
 %type <decl> field
 %type <enum_elem> enum_variant_list enum_variant
 %type <type> primitive_type type reference_type
-%type <exprs> expr_list pattern_list type_list
+%type <exprs> expr_list pattern_list
+%type <type_list_val> type_list
 %type <expr> expression control_expr
 %type <expr> assign_expr or_test and_test comparison_eq comparison
 %type <expr> or_expr xor_expr and_expr shift_expr
@@ -365,13 +375,13 @@ enum_variant:   identifier
                 }
         |       identifier TOK_LPAREN type_list TOK_RPAREN
                 {
-                    /* Tuple variant -- TODO: store type list */
-                    $$ = enum_elem_new($1);
+                    /* Tuple variant */
+                    $$ = enum_elem_new_tuple($1, $3.types, $3.count);
                 }
         |       identifier TOK_LBRACE field_list TOK_RBRACE
                 {
-                    /* Struct variant -- TODO: store field list */
-                    $$ = enum_elem_new($1);
+                    /* Struct variant */
+                    $$ = enum_elem_new_struct($1, $3);
                 }
                 ;
 
@@ -471,16 +481,15 @@ primitive_type: TOK_TYPE_I8
 /* Type list (for enum tuple variants) */
 type_list:      type
                 {
-                    expr_list_t *list;
-                    list = expr_list_new();
-                    ERROR_ON_NULL(list, "Memory error: type_list");
-                    /* TODO: proper type list */
-                    $$ = list;
+                    $$.types = malloc(sizeof(type_t *));
+                    $$.types[0] = $1;
+                    $$.count = 1;
                 }
         |       type_list TOK_COMMA type
                 {
-                    /* TODO: append type */
-                    $$ = $1;
+                    $$.types = realloc($1.types, ($1.count + 1) * sizeof(type_t *));
+                    $$.types[$1.count] = $3;
+                    $$.count = $1.count + 1;
                 }
                 ;
 

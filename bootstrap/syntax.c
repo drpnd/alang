@@ -546,8 +546,36 @@ enum_elem_new(const char *id)
         free(elem);
         return NULL;
     }
+    elem->fields = NULL;
+    elem->types = NULL;
+    elem->ntypes = 0;
     elem->next = NULL;
 
+    return elem;
+}
+
+/*
+ * enum_elem_new_tuple -- create a tuple variant
+ */
+enum_elem_t *
+enum_elem_new_tuple(const char *id, type_t **types, size_t ntypes)
+{
+    enum_elem_t *elem = enum_elem_new(id);
+    if (!elem) return NULL;
+    elem->types = types;
+    elem->ntypes = ntypes;
+    return elem;
+}
+
+/*
+ * enum_elem_new_struct -- create a struct variant
+ */
+enum_elem_t *
+enum_elem_new_struct(const char *id, decl_list_t *fields)
+{
+    enum_elem_t *elem = enum_elem_new(id);
+    if (!elem) return NULL;
+    elem->fields = fields;
     return elem;
 }
 

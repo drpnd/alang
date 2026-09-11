@@ -119,6 +119,8 @@ typedef struct {
 typedef struct {
     char name[64];          /* variant name */
     int index;              /* variant index (discriminant) */
+    int ntypes;             /* number of associated data types (0 for unit) */
+    ir_reg_type_t types[MAX_FIELDS];  /* associated data IR types */
 } variant_desc_t;
 
 /* Enum type descriptor */
@@ -490,6 +492,20 @@ _find_variant(dfir_compiler_t *c, const char *variant_name, int *out_idx)
     return NULL;
 }
 
+/* Find a variant descriptor by name */
+static variant_desc_t *
+_find_variant_desc(dfir_compiler_t *c, const char *variant_name)
+{
+    for (int i = 0; i < c->nenums; i++) {
+        for (int j = 0; j < c->enums[i].nvariants; j++) {
+            if (strcmp(c->enums[i].variants[j].name, variant_name) == 0) {
+                return &c->enums[i].variants[j];
+            }
+        }
+    }
+    return NULL;
+}
+
 
 static ir_operand_t
 _op_reg(ir_reg_t reg)
@@ -827,6 +843,47 @@ _expr(dfir_compiler_t *c, expr_t *e)
 
     case EXPR_CALL: {
         call_t *call = e->u.call;
+
+        /* Check if callee is an enum variant (tuple variant construction) */
+        if (call->callee) {
+            variant_desc_t *vd = _find_variant_desc(c, call->callee);
+            if (vd) {
+                /* Enum tuple variant: MAKE_ENUM with variant index + data */
+                ir_reg_t result = _ssa(c, IR_REG_I64);
+                ir_operand_t ops[IR_MAX_OPERANDS];
+                int nargs = 0;
+                /* Operand 0: variant index */
+                ops[nargs] = _op_imm_i32(vd->index);
+                nargs++;
+                /* Operands 1..N: data values */
+                if (call->exprs) {
+                    expr_t *arg = call->exprs->head;
+                    while (arg && nargs < IR_MAX_OPERANDS - 1) {
+                        ir_reg_t argval = _expr(c, arg);
+                        ops[nargs] = _op_reg(argval);
+                        nargs++;
+                        arg = arg->next;
+                    }
+                }
+                /* Last operand: enum name - find which enum has this variant */
+                for (int i = 0; i < c->nenums; i++) {
+                    int found = 0;
+                    for (int j = 0; j < c->enums[i].nvariants; j++) {
+                        if (strcmp(c->enums[i].variants[j].name, call->callee) == 0) {
+                            ops[nargs] = _op_imm_str(c->enums[i].name);
+                            nargs++;
+                            found = 1;
+                            break;
+                        }
+                    }
+                    if (found) break;
+                }
+                _emit(c, IR_OPCODE_MAKE_ENUM, &result, nargs, ops);
+                return result;
+            }
+        }
+
+        /* Regular function call */
         /* Evaluate arguments and collect as operands */
         ir_operand_t ops[IR_MAX_OPERANDS];
         int nargs = 0;
@@ -1797,6 +1854,16 @@ _directive(dfir_compiler_t *c, directive_t *dr)
         while (ve && ed->nvariants < MAX_VARIANTS) {
             snprintf(ed->variants[ed->nvariants].name, 64, "%s", ve->id);
             ed->variants[ed->nvariants].index = idx;
+            ed->variants[ed->nvariants].ntypes = 0;
+            /* Store tuple variant data types */
+            if (ve->types && ve->ntypes > 0) {
+                int nt = (int)ve->ntypes;
+                if (nt > MAX_FIELDS) nt = MAX_FIELDS;
+                for (int t = 0; t < nt; t++) {
+                    ed->variants[ed->nvariants].types[t] = _type2reg(ve->types[t]);
+                }
+                ed->variants[ed->nvariants].ntypes = nt;
+            }
             ed->nvariants++;
             idx--;
             ve = ve->next;

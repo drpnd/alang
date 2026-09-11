@@ -1170,14 +1170,35 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     }
 
     case IR_OPCODE_MAKE_ENUM: {
-        /* MAKE_ENUM: result = variant_index
-         * operands[0] = variant index (imm), operands[1] = enum name (str)
-         * For unit variants, just load the index into the result register. */
-        if (inst->noperands > 0 && inst->operands[0].type == IR_OPERAND_IMM) {
-            int64_t val = operand_imm(&inst->operands[0], &(int){1});
-            return emit_load_imm64(&ctx->tb, dst, val);
+        /* MAKE_ENUM: result = variant_index [+ data values]
+         * operands[0] = variant index (imm)
+         * operands[1..N-1] = data values (for tuple variants)
+         * operands[N-1] = enum name (str)
+         * The variant index goes in the result register.
+         * Data values go in consecutive registers (dst+1, dst+2, ...). */
+        if (inst->noperands > 0) {
+            /* Load variant index into result register */
+            if (inst->operands[0].type == IR_OPERAND_IMM) {
+                int64_t val = operand_imm(&inst->operands[0], &(int){1});
+                emit_load_imm64(&ctx->tb, dst, val);
+            } else {
+                src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+                emit_orr_reg(&ctx->tb, dst, 31, src0, 1);
+            }
+            /* Store data values in consecutive registers */
+            for (int i = 1; i < inst->noperands - 1; i++) {
+                int data_dst = dst + i;
+                if (data_dst >= AARCH64_MAX_REGS) break;
+                if (inst->operands[i].type == IR_OPERAND_IMM) {
+                    int64_t val = operand_imm(&inst->operands[i], &(int){1});
+                    emit_load_imm64(&ctx->tb, data_dst, val);
+                } else {
+                    int src = operand_reg_or_imm_scratch(ctx, &inst->operands[i], 16);
+                    emit_orr_reg(&ctx->tb, data_dst, 31, src, 1);
+                }
+            }
         }
-        return emit_load_imm64(&ctx->tb, dst, 0);
+        return 0;
     }
 
     case IR_OPCODE_CHECK_VARIANT: {
@@ -1190,10 +1211,18 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     }
 
     case IR_OPCODE_EXTRACT_VARIANT: {
-        /* EXTRACT_VARIANT: for unit variants, just copy the value */
-        src0 = operand_reg(&inst->operands[0]);
-        if (dst != src0) {
-            return emit_orr_reg(&ctx->tb, dst, 31, src0, 1);
+        /* EXTRACT_VARIANT: extract data field from a tuple variant
+         * operands[0] = enum value (base register)
+         * operands[1] = field index (which data value to extract)
+         * Result = register at (base + 1 + field_index) */
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+        int field_idx = 0;
+        if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_IMM) {
+            field_idx = (int)inst->operands[1].u.imm.u.s32;
+        }
+        int data_reg = src0 + 1 + field_idx;
+        if (dst != data_reg) {
+            return emit_orr_reg(&ctx->tb, dst, 31, data_reg, 1);
         }
         return 0;
     }

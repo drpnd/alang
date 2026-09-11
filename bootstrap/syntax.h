@@ -719,6 +719,8 @@ directive_t *
 directive_type_alias_new(void *, type_t *, const char *);
 enum_elem_t *
 enum_elem_new(const char *);
+enum_elem_t *enum_elem_new_tuple(const char *id, type_t **types, size_t ntypes);
+enum_elem_t *enum_elem_new_struct(const char *id, decl_list_t *fields);
 enum_elem_t *
 enum_elem_prepend(enum_elem_t *, enum_elem_t *);
 func_t *
