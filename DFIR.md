@@ -1,8 +1,8 @@
 # DFIR — Data Flow IR Specification
 
-> **Version:** 0.1 (draft)
+> **Version:** 0.2 (implemented)
 >
-> **Status:** Work in progress
+> **Status:** Bootstrap compiler implemented with aarch64 and x86-64 backends
 
 ## 1. Overview
 
@@ -14,7 +14,7 @@ both functions and coroutines as first-class constructs.
 
 | Goal | Description |
 |------|-------------|
-| Minimal | ~25 instructions total across three layers |
+| Minimal | 44 instructions total across three layers |
 | SSA | Every value is assigned exactly once |
 | Data-flow-native | Channels, `yield`, `await` are IR-level instructions |
 | Backend-agnostic | Lowerable to Cranelift, C, or an interpreter |
@@ -23,12 +23,14 @@ both functions and coroutines as first-class constructs.
 ### 1.2 Compilation Pipeline
 
 ```
-Source → AST → DFIR → (optimizer passes) → Native Code
-                                   ↓
-                        Cranelift / C backend / Interpreter
+.al source → minica_parse() → AST → compile_to_dfir() → DFIR → ir_optimize() → backend → .o → ld → executable
+                                                              ↓
+                                                    aarch64 (Mach-O) / x86-64 (ELF)
 ```
 
 DFIR is the **only** IR in the compiler. There is no separate LLVM step.
+The bootstrap compiler (`bootstrap/`) implements the full pipeline from
+source to native code for both aarch64 (macOS Mach-O) and x86-64 (ELF).
 
 ### 1.3 Three Layers
 
@@ -572,54 +574,92 @@ A module maps to a single compilation unit (one source file or crate).
 
 ## 8. Optimizer Passes
 
-DFIR supports a small set of optimization passes that operate on the IR:
+DFIR supports a set of optimization passes that operate on the IR.
+All passes run to a fixpoint (until no changes are made):
 
-| Pass | Layer | Description |
-|------|-------|-------------|
-| Constant folding | `func`, `coro` | Evaluate constant expressions at compile time |
-| Copy propagation | `func`, `coro` | Replace `%b = %a; ... %b` with `%a` |
-| Dead code elimination | `func`, `coro` | Remove unused instructions and unreachable states/blocks |
-| Inline | `func` | Inline small `func` calls into callers |
-| State minimization | `coro` | Merge redundant states; remove unreachable states |
-| Node fusion | `graph` | Fuse adjacent `map`/`filter` coros into a single coro |
-| Channel elision | `graph` | When two fused nodes share a channel, remove the channel and pass values directly |
+| Pass | Status | Description |
+|------|--------|-------------|
+| Function inlining | ✅ Implemented | Inline small single-block function calls (≤8 blocks, ≤32 instrs) |
+| Constant folding | ✅ Implemented | Evaluate constant binary/unary operations at compile time |
+| Copy propagation | ✅ Implemented | Replace `%b = %a; ... %b` with `%a`; fold constants into operands |
+| Constant branch elimination | ✅ Implemented | Replace `br_cond` with constant condition to unconditional `br` |
+| Unreachable block elimination | ✅ Implemented | Remove blocks not reachable from entry (worklist-based) |
+| Block merging | ✅ Implemented | Merge blocks connected by single-predecessor unconditional `br` |
+| Dead code elimination | ✅ Implemented | Remove unused instructions without side effects |
+| State minimization | Planned | Merge redundant coroutine states |
+| Node fusion | Planned | Fuse adjacent `map`/`filter` coros into a single coro |
+| Channel elision | Planned | Remove unnecessary channels between fused nodes |
 
 ### 8.1 Pass Ordering
 
 ```
-1. Inline           ; expand small function calls
-2. Constant folding ; fold constants
-3. Copy propagation ; simplify SSA chains
-4. Dead code elim   ; remove unreachable code
-5. State minimization ; simplify coro state machines
-6. Node fusion      ; merge adjacent graph nodes
-7. Channel elision  ; remove unnecessary channels
+1. Function inlining      ; expand small function calls (before other passes)
+2. Constant folding       ; fold constant expressions
+3. Copy propagation       ; simplify SSA chains, fold constants into operands
+4. Constant branch elim   ; replace constant br_cond with unconditional br
+5. Unreachable block elim ; remove blocks not reachable from entry
+6. Block merging          ; merge single-predecessor blocks
+7. Dead code elimination  ; remove unused instructions
 ```
 
-After optimization, DFIR is lowered to the target backend (Cranelift or C).
+Passes 1-7 run in sequence per iteration, up to 10 iterations, until fixpoint.
+
+### 8.2 Inlining Details
+
+- Only single-block functions are inlined (multi-block support is planned)
+- Functions containing `CALL` instructions are not inlined
+- Only one call is inlined per function per iteration
+- SSA IDs are remapped by an offset to avoid conflicts
+- `RET` in inlined body is replaced with `MOV` to call result register
+- Both register and immediate call arguments are supported
 
 ---
 
 ## 9. Backend Lowering
 
-DFIR is backend-agnostic. The planned backends are:
+DFIR is backend-agnostic. The implemented backends are:
 
 | Backend | Use Case | Status |
 |---------|----------|--------|
-| Cranelift | Fast compilation, development builds | Planned |
-| C | Production builds via gcc/clang optimization | Planned |
-| Interpreter | Debugging, REPL, testing | Planned |
+| aarch64 (Mach-O) | macOS Apple Silicon | ✅ Implemented |
+| x86-64 (ELF) | Linux x86-64 | ✅ Implemented |
+| Cranelift | Fast compilation | Planned |
+| C | Production builds | Planned |
+| Interpreter | Debugging, REPL | Planned |
 
-### 9.1 Lowering Rules
+### 9.1 Implemented Features by Backend
 
-| DFIR Construct | Cranelift | C |
-|----------------|-----------|---|
-| `func` | `Function` with `Block`s | C function with `goto` for blocks |
-| `coro` state | Switch-dispatch on state enum | `switch(state)` in a function |
-| `graph` | Runtime API calls | Runtime API calls |
-| `recv`/`send` | Runtime channel API | Runtime channel API |
-| `phi` | CR-style block parameters | Variable assigned in each predecessor |
-| `alloc` | Stack slot | C stack variable |
+| Feature | aarch64 | x86-64 |
+|---------|---------|--------|
+| Arithmetic (add/sub/mul/div/mod) | ✅ | ✅ |
+| Bitwise (and/or/xor/not/shl/shr) | ✅ | ✅ |
+| Comparison (eq/ne/lt/le/gt/ge) | ✅ | ✅ |
+| Control flow (br/br_cond/ret) | ✅ | ✅ |
+| Function calls (with arg passing) | ✅ | ✅ |
+| print/println builtins | ✅ | ✅ |
+| String literals | ✅ | ✅ |
+| Struct field access | ✅ | ✅ |
+| Enum (make/check/extract) | ✅ | ✅ |
+| Loop support (for/while/loop) | ✅ | ✅ |
+| Break/continue | ✅ | ✅ |
+| Callee-saved register preservation | ✅ | ✅ |
+| Graph runtime | ✅ | N/A |
+
+### 9.2 Lowering Rules
+
+| DFIR Construct | aarch64 | x86-64 |
+|----------------|---------|--------|
+| `func` | Basic blocks with B/CBZ/Bcond | Basic blocks with JMP/Jcc |
+| SSA registers | X0-X28 (direct mapping) | RAX-R15 (direct mapping) |
+| `call` | BL with X0-X7 args | CALL with RDI/RSI/RDX/RCX/R8/R9 args |
+| `const` | MOVZ/MOVK or ADR (strings) | MOV imm or LEA (strings) |
+| `br` | B (patched offset) | JMP (patched offset) |
+| `br_cond` | CBZ + B | Jcc |
+| `ret` | RET (with epilogue) | RET (with epilogue) |
+| `make_enum` | MOVZ + consecutive regs | MOV imm + consecutive regs |
+| `get_field` | ORR (mov from base+idx reg) | MOV (from base+idx reg) |
+| `check_variant` | CMP + CSET | CMP + SETZ |
+| `print/println` | ADR + BL puts/printf | LEA + CALL puts/printf |
 
 ---
 
@@ -681,7 +721,101 @@ edge        := "edge" "%" name "." port "->" "%" name "." port ":" "chan" "<" ty
 
 ---
 
-## 12. Open Questions
+## 12. Source Language Features
+
+The bootstrap compiler supports the following source language (`.al`) features:
+
+### 12.1 Types
+
+| Type | Syntax | Status |
+|------|--------|--------|
+| Integers | `i8 i16 i32 i64 u8 u16 u32 u64` | ✅ |
+| Floats | `f16 f32 f64` | Parsed (backend partial) |
+| Boolean | `bool` | ✅ |
+| String | `string` | ✅ |
+| Struct | `struct Name { field: T, ... }` | ✅ |
+| Enum (unit) | `enum Name { Var1, Var2, ... }` | ✅ |
+| Enum (tuple) | `enum Name { Var(T), ... }` | ✅ |
+| Enum (struct) | `enum Name { Var{ f: T, ... } }` | Parsed |
+| Reference | `&T`, `&mut T` | Parsed |
+| Stream | `stream<T>` | Parsed |
+| Channel | `chan<T>` | Parsed |
+
+### 12.2 Statements
+
+| Statement | Syntax | Status |
+|-----------|--------|--------|
+| Let binding | `let x: T = expr` | ✅ |
+| Reassignment | `mut x = expr` | ✅ |
+| Field assignment | `mut p.x = expr` | ✅ |
+| If/else | `if cond { } else { }` | ✅ |
+| While loop | `while cond { }` | ✅ |
+| For loop | `for x in 0..N { }` | ✅ |
+| Infinite loop | `loop { }` | ✅ |
+| Break | `break` | ✅ |
+| Continue | `continue` | ✅ |
+| Return | `return expr` | ✅ |
+| Match | `match x { Pat => expr, ... }` | ✅ |
+| Expression | `expr` | ✅ |
+
+### 12.3 Expressions
+
+| Expression | Syntax | Status |
+|------------|--------|--------|
+| Literals | `42`, `3.14`, `"hello"`, `true` | ✅ |
+| Identifiers | `x` | ✅ |
+| Binary ops | `+ - * / % & \| ^ << >>` | ✅ |
+| Comparison | `== != < <= > >=` | ✅ |
+| Logical | `&& \|\| !` | ✅ |
+| Function call | `f(a, b)` | ✅ |
+| Enum variant | `Some(42)` | ✅ |
+| Struct field | `p.x` | ✅ |
+| Array index | `a[i]` | Parsed |
+| Range | `0..5`, `0..=5` | ✅ |
+| If expression | `if c { a } else { b }` | ✅ |
+| Match expression | `match x { ... }` | ✅ |
+| Cast | `expr as T` | Parsed |
+| Yield | `yield expr` | Parsed |
+
+### 12.4 Builtins
+
+| Builtin | Syntax | Description |
+|---------|--------|-------------|
+| `print` | `print(expr)` | Print without newline |
+| `println` | `println(expr)` | Print with newline |
+| `source` | `source("file:path")` | Graph source node |
+| `sink` | `sink("stdout")` | Graph sink node |
+
+### 12.5 Graph Syntax
+
+```
+graph main {
+    source("file:input") |> double |> sink("stdout")
+}
+```
+
+Graph pipelines compile to an executable `main` function that:
+1. Generates input values (source: counter 0..9)
+2. Applies each transform function in sequence
+3. Prints each result (sink: println)
+
+### 12.6 Match with Data Extraction
+
+```
+enum Option { Some(i32), None }
+
+fn main() (r: i32) {
+    let x = Some(42)
+    match x {
+        Some(v) => mut r = v,  // v is bound to the extracted data
+        None => mut r = 0
+    }
+}
+```
+
+---
+
+## 13. Open Questions
 
 - [ ] Should DFIR support a binary serialization format (for caching)?
 - [ ] Should `dfir.graph` support dynamic (runtime) graph modification?
@@ -742,3 +876,20 @@ edge        := "edge" "%" name "." port "->" "%" name "." port ":" "chan" "<" ty
 | 44 | `suspend` | Async | coro | `suspend` |
 
 **Total: 44 instructions** (across all categories and layers).
+
+### Implementation Status
+
+| Category | Implemented in Backends |
+|----------|------------------------|
+| Constants & Values (const, mov) | ✅ aarch64, x86-64 |
+| Arithmetic (add/sub/mul/div/udiv/mod) | ✅ aarch64, x86-64 |
+| Comparison (eq/ne/lt/le/gt/ge) | ✅ aarch64, x86-64 |
+| Logic/Bitwise (and/or/xor/not/shl/shr) | ✅ aarch64, x86-64 |
+| Memory (load/store/alloca) | ✅ aarch64, x86-64 |
+| Struct (get_field/set_field/make_struct) | ✅ aarch64, x86-64 |
+| Enum (make_enum/check_variant/extract_variant) | ✅ aarch64, x86-64 |
+| Control Flow (br/br_cond/ret) | ✅ aarch64, x86-64 |
+| Call | ✅ aarch64, x86-64 |
+| Print/println builtins | ✅ aarch64, x86-64 |
+| Coroutine (recv/send/yield/await/suspend) | Parsed (backend: NOP) |
+| Graph runtime | ✅ aarch64 (linear pipelines) |
