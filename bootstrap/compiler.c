@@ -1948,6 +1948,206 @@ _graph(dfir_compiler_t *c, graph_decl_t *gd)
 
     /* Add graph to IR object */
     ir_object_add_graph(c->ir, graph);
+
+    /* Generate executable runtime code for the graph.
+     * For a linear pipeline source |> f1 |> f2 |> ... |> sink,
+     * generate a function that:
+     * 1. Iterates over input values (source)
+     * 2. Applies each transformation function
+     * 3. Prints results (sink)
+     *
+     * For now, source generates values 0..9, sink prints to stdout.
+     */
+    if (strcmp(gd->id, "main") == 0) {
+        /* Create a function builder for the graph runtime */
+        fnb_t *fb = _fnb_new(gd->id, IR_FUNC_FUNC);
+        fb->is_coro = 0;
+        c->fn = fb;
+        c->loop_depth = 0;
+
+        /* Create entry block */
+        _fnb_add_block(c->fn, "$entry");
+        scope_t *s = _scope_new(c->scope);
+        c->scope = s;
+
+        /* Allocate dummy SSA registers to push the counter into
+         * callee-saved register range (X19+) so it survives calls */
+        for (int i = 0; i < 19; i++) {
+            ir_reg_t dummy = _ssa(c, IR_REG_I32);
+            (void)dummy;
+        }
+
+        /* Collect the pipeline stages from the graph nodes */
+        /* node 0 = source, node 1..N-2 = transforms, node N-1 = sink */
+        graph_node_ref_t *n = gd->nodes;
+        char transform_names[16][256];
+        int ntransforms = 0;
+        int has_source = 0;
+        int has_sink = 0;
+
+        while (n) {
+            if (strcmp(n->name, "source") == 0) {
+                has_source = 1;
+            } else if (strcmp(n->name, "sink") == 0) {
+                has_sink = 1;
+            } else {
+                /* Transform function */
+                if (ntransforms < 16) {
+                    snprintf(transform_names[ntransforms], 256, "%s", n->name);
+                    ntransforms++;
+                }
+            }
+            n = n->next;
+        }
+
+        /* Generate: for i in 0..10 { val = i; val = f1(val); ...; println(val) } */
+        if (has_source && has_sink) {
+            /* Initialize counter */
+            ir_reg_t counter = _ssa(c, IR_REG_I32);
+            int counter_ssa = c->fn->ssa_counter - 1;
+            ir_operand_t zero_op = _op_imm_i32(0);
+            _emit(c, IR_OPCODE_CONST, &counter, 1, &zero_op);
+
+            /* Create loop labels */
+            char cond_label[64], body_label[64], inc_label[64], end_label[64];
+            int id = c->fn->ssa_counter;
+            snprintf(cond_label, sizeof(cond_label), "$gr_cond_%d", id);
+            snprintf(body_label, sizeof(body_label), "$gr_body_%d", id);
+            snprintf(inc_label, sizeof(inc_label), "$gr_inc_%d", id);
+            snprintf(end_label, sizeof(end_label), "$gr_end_%d", id);
+
+            /* Push loop context */
+            if (c->loop_depth < MAX_LOOP_DEPTH) {
+                snprintf(c->loops[c->loop_depth].continue_label, 64, "%s", inc_label);
+                snprintf(c->loops[c->loop_depth].break_label, 64, "%s", end_label);
+                c->loop_depth++;
+            }
+
+            /* br $cond */
+            ir_operand_t br_op = _op_label(cond_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
+
+            /* Condition block */
+            _fnb_add_block(c->fn, cond_label);
+            ir_reg_t ten = _ssa(c, IR_REG_I32);
+            ir_operand_t ten_op = _op_imm_i32(10);
+            _emit(c, IR_OPCODE_CONST, &ten, 1, &ten_op);
+            ir_reg_t cmp = _ssa(c, IR_REG_BOOL);
+            ir_operand_t cmp_ops[2];
+            cmp_ops[0] = _op_reg(counter);
+            cmp_ops[1] = _op_reg(ten);
+            _emit(c, IR_OPCODE_CMP_LT, &cmp, 2, cmp_ops);
+            ir_operand_t br_ops[3];
+            br_ops[0] = _op_reg(cmp);
+            br_ops[1] = _op_label(body_label);
+            br_ops[2] = _op_label(end_label);
+            _emit(c, IR_OPCODE_BR_COND, NULL, 3, br_ops);
+
+            /* Body block */
+            _fnb_add_block(c->fn, body_label);
+
+            /* Start with the counter value as the input */
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%%%d", counter_ssa);
+            ir_reg_t counter_reg;
+            ir_reg_init(&counter_reg, IR_REG_I32, buf);
+
+            /* Apply each transform function, chaining results */
+            ir_reg_t current_val = counter_reg;
+            for (int t = 0; t < ntransforms; t++) {
+                ir_operand_t call_ops[3];
+                call_ops[0] = _op_reg(current_val);
+                call_ops[1] = _op_imm_str(transform_names[t]);
+                ir_reg_t result = _ssa(c, IR_REG_I64);
+                _emit(c, IR_OPCODE_CALL, &result, 2, call_ops);
+                current_val = result;
+            }
+
+            /* Sink: println(current_val) */
+            ir_operand_t sink_ops[2];
+            sink_ops[0] = _op_reg(current_val);
+            sink_ops[1] = _op_imm_str("println");
+            _emit(c, IR_OPCODE_CALL, NULL, 2, sink_ops);
+
+            /* br $inc */
+            br_op = _op_label(inc_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
+
+            /* Increment block */
+            _fnb_add_block(c->fn, inc_label);
+            ir_reg_t one = _ssa(c, IR_REG_I32);
+            ir_operand_t one_op = _op_imm_i32(1);
+            _emit(c, IR_OPCODE_CONST, &one, 1, &one_op);
+            ir_reg_t next = _ssa(c, IR_REG_I32);
+            ir_operand_t add_ops[2];
+            add_ops[0] = _op_reg(counter_reg);
+            add_ops[1] = _op_reg(one);
+            _emit(c, IR_OPCODE_ADD, &next, 2, add_ops);
+            ir_operand_t inc_ops[2];
+            inc_ops[0] = _op_reg(next);
+            inc_ops[1] = _op_reg(counter_reg);
+            _emit(c, IR_OPCODE_MOV, NULL, 2, inc_ops);
+            br_op = _op_label(cond_label);
+            _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
+
+            /* End block */
+            _fnb_add_block(c->fn, end_label);
+            c->loop_depth--;
+        }
+
+        /* Return 0 */
+        ir_reg_t ret_val = _ssa(c, IR_REG_I32);
+        ir_operand_t ret_op = _op_imm_i32(0);
+        _emit(c, IR_OPCODE_CONST, &ret_val, 1, &ret_op);
+        ir_operand_t ret_ops[1];
+        ret_ops[0] = _op_reg(ret_val);
+        _emit(c, IR_OPCODE_RET, NULL, 1, ret_ops);
+
+        /* Restore scope */
+        c->scope = s->parent;
+        _scope_free(s);
+
+        /* Transfer to ir_func_t */
+        c->fn->ssa_counter = fb->ssa_counter;
+        {
+            ir_func_t *irf = ir_func_new();
+            irf->name = strdup(gd->id);
+            irf->type = IR_FUNC_FUNC;
+            irf->nargs = 0;
+            irf->nrets = 1;
+
+            /* Transfer blocks (same pattern as _func) */
+            bb_t *b = fb->blocks;
+            while (b) {
+                ir_block_t *block = ir_block_new(b->label);
+                ir_instr_ent_t *e = b->head;
+                while (e) {
+                    ir_instr_ent_t *next = e->next;
+                    if (block->instrs == NULL) {
+                        block->instrs = e;
+                    } else {
+                        block->last->next = e;
+                    }
+                    block->last = e;
+                    e->next = NULL;
+                    block->ninstr++;
+                    e = next;
+                }
+                b->head = NULL;
+                b->tail = NULL;
+                b->count = 0;
+                ir_func_add_block(irf, block);
+                free(block);
+                b = b->next;
+            }
+            fb->blocks = NULL;
+            fb->cur = NULL;
+
+            ir_object_add_func(c->ir, irf);
+        }
+
+        c->fn = NULL;
+    }
 }
 
 /*======================================================================

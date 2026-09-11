@@ -275,7 +275,7 @@ emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
         int alloc_size = (saved_count / 2) * 16;
         if (alloc_size > 0) {
             /* SUB (immediate): sf 1 0 0 1 0 0 0 1 0 0 sh imm12 Rn Rd */
-            uint32_t sub = (1U << 31) | (0x22U << 24) |
+            uint32_t sub = (1U << 31) | (0x51U << 24) |
                           ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
             emit32(&ctx->tb, sub);
         }
@@ -315,13 +315,13 @@ emit_epilogue(asm_ctx_t *ctx, int max_ssa)
         for (int j = 0; j < saved_count; j++) {
             int reg = 19 + j;
             int offset = j * 8;
-            /* LDR Xt, [sp, #offset] */
-            uint32_t ldr = (0xF9U << 24) | (((offset / 8) & 0xFFF) << 10) |
+            /* LDR Xt, [sp, #offset] — bit 22=1 for load (not store) */
+            uint32_t ldr = (0xF9U << 24) | (1U << 22) | (((offset / 8) & 0xFFF) << 10) |
                           (31U << 5) | reg;
             emit32(&ctx->tb, ldr);
         }
         /* add sp, sp, #alloc_size */
-        uint32_t add = (1U << 31) | (0x02U << 24) |
+        uint32_t add = (1U << 31) | (0x11U << 24) |
                        ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
         emit32(&ctx->tb, add);
     }
