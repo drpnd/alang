@@ -494,6 +494,7 @@ emit_mov_rr(textbuf_t *tb, x86_64_reg_t dst, x86_64_reg_t src)
  * Emit ret
  */
 static int
+__attribute__((unused))
 emit_ret(textbuf_t *tb)
 {
     return tb_byte(tb, 0xC3);
@@ -517,6 +518,7 @@ emit_call(textbuf_t *tb, size_t *reloff)
  * E9 cd — jmp rel32
  */
 static int
+__attribute__((unused))
 emit_jmp(textbuf_t *tb, size_t *reloff)
 {
     if (tb_byte(tb, 0xE9) < 0) return -1;
@@ -529,6 +531,7 @@ emit_jmp(textbuf_t *tb, size_t *reloff)
  * 0F 8x cd — jcc rel32
  */
 static int
+__attribute__((unused))
 emit_jcc(textbuf_t *tb, uint8_t cc, size_t *reloff)
 {
     if (tb_byte(tb, 0x0F) < 0) return -1;
@@ -652,6 +655,7 @@ add_rel(arch_code_t *code, arch_rel_type_t type, off_t pos, int sym)
  */
 
 /* Argument registers in order */
+__attribute__((unused))
 static const x86_64_reg_t arg_regs[6] = {
     REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9
 };
@@ -841,6 +845,7 @@ operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, x86_64_reg_t scratc
 }
 
 static x86_64_reg_t
+__attribute__((unused))
 operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
 {
     return operand_reg_or_imm_scratch(ctx, op, REG_R10);
@@ -852,7 +857,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     x86_64_reg_t dst, src0, src1;
     int ok;
     int64_t imm;
-    size_t reloff;
+    /* size_t reloff; -- unused */
 
     dst = REG_NONE;
     if (inst->result.n > 0) {

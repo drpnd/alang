@@ -465,6 +465,7 @@ _find_field(struct_desc_t *sd, const char *field_name)
 
 /* Find an enum descriptor by name; returns NULL if not found */
 static enum_desc_t *
+__attribute__((unused))
 _find_enum(dfir_compiler_t *c, const char *name)
 {
     for (int i = 0; i < c->nenums; i++) {
@@ -1177,7 +1178,7 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
         }
         if (sd && sd->nfields > 0) {
             /* Allocate one SSA register per field */
-            ir_reg_t result = _ssa(c, sd->fields[0].type);
+            /* ir_reg_t result = _ssa(c, sd->fields[0].type); -- unused */
             int base_ssa = c->fn->ssa_counter - 1;
             /* Allocate remaining field registers */
             for (int i = 1; i < sd->nfields; i++) {

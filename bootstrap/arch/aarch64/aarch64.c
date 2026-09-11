@@ -222,6 +222,7 @@ ssa_to_reg(int id)
 /*
  * Check if a register is callee-saved (X19-X28)
  */
+__attribute__((unused))
 static int is_callee_saved(int reg)
 {
     return reg >= 19 && reg <= 28;
@@ -608,6 +609,7 @@ emit_bl(textbuf_t *tb, int32_t offset)
  * B.cond: 0 1 0 1 0 1 0 0 imm19 0 cond
  */
 static int
+__attribute__((unused))
 emit_bcond(textbuf_t *tb, int cond, int32_t offset)
 {
     uint32_t imm19 = ((offset / 4) & 0x7FFFF) << 5;
@@ -638,6 +640,7 @@ emit_nop(textbuf_t *tb)
  * LDR Xt, [xn, #imm]  (unsigned offset)
  */
 static int
+__attribute__((unused))
 emit_ldr_imm(textbuf_t *tb, int rt, int rn, int imm)
 {
     uint32_t insn = (0xF9U << 24) | (((imm / 8) & 0xFFF) << 10) |
@@ -649,6 +652,7 @@ emit_ldr_imm(textbuf_t *tb, int rt, int rn, int imm)
  * STR xt, [xn, #imm]  (unsigned offset)
  */
 static int
+__attribute__((unused))
 emit_str_imm(textbuf_t *tb, int rt, int rn, int imm)
 {
     uint32_t insn = (0xF9U << 24) | (((imm / 8) & 0xFFF) << 10) |

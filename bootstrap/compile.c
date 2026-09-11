@@ -1888,6 +1888,7 @@ _outer_block_entry(compiler_t *c, outer_block_entry_t *e)
         }
         break;
     case OUTER_BLOCK_DIRECTIVE:
+    case OUTER_BLOCK_GRAPH:
         /* Directive */
         ret = _directive(c, e->u.dr);
         break;

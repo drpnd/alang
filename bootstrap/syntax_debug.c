@@ -413,6 +413,9 @@ _stmt(stmt_t *stmt)
     case STMT_BREAK:
         printf("break");
         break;
+    case STMT_CONTINUE:
+        printf("continue");
+        break;
     case STMT_EXPR:
         _expr(stmt->u.expr);
         break;
@@ -495,6 +498,9 @@ _outer_block_entry(outer_block_entry_t *e)
         _coroutine(e->u.cr);
         break;
     case OUTER_BLOCK_DIRECTIVE:
+        _directive(e->u.dr);
+        break;
+    case OUTER_BLOCK_GRAPH:
         _directive(e->u.dr);
         break;
     }

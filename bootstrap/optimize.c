@@ -1183,6 +1183,7 @@ pass_inline_func(ir_object_t *obj, ir_func_t *caller)
 /*======================================================================
  * Main optimizer entry point
  *======================================================================
+ */
 
 /*
  * ir_optimize — run optimizer passes on an IR object
