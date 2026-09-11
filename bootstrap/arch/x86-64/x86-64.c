@@ -604,6 +604,20 @@ emit_sub_rsp(textbuf_t *tb, int32_t size)
     return tb_emit(tb, buf, pos);
 }
 
+static int
+emit_add_rsp(textbuf_t *tb, int32_t size)
+{
+    /* REX.W + 0x81 /0 (ADD r/m64, imm32) with RSP */
+    uint8_t buf[8];
+    int pos = 0;
+    buf[pos++] = REX | REX_W;
+    buf[pos++] = 0x81;
+    buf[pos++] = _modrm(0, 3, REG_CODE(REG_RSP));
+    memcpy(buf + pos, &size, 4);
+    pos += 4;
+    return tb_emit(tb, buf, pos);
+}
+
 /*
  * Symbol table builder
  */
@@ -1113,14 +1127,165 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return 0;
 
     case IR_OPCODE_CALL:
-        /* call func — needs symbol lookup + relocation */
         {
-            /* Find or create symbol for callee */
+            /* Last operand is callee name, preceding operands are args */
+            int nargs = inst->noperands - 1;
             const char *callee = NULL;
-            if (inst->operands[0].type == IR_OPERAND_IMM &&
-                inst->operands[0].u.imm.type == IR_IMM_STR) {
-                callee = inst->operands[0].u.imm.u.str;
+            if (inst->noperands > 0 &&
+                inst->operands[inst->noperands - 1].type == IR_OPERAND_IMM &&
+                inst->operands[inst->noperands - 1].u.imm.type == IR_IMM_STR) {
+                callee = inst->operands[inst->noperands - 1].u.imm.u.str;
             }
+
+            /* Handle builtins: print, println */
+            if (callee && (strcmp(callee, "print") == 0 ||
+                           strcmp(callee, "println") == 0)) {
+                int is_println = (strcmp(callee, "println") == 0);
+                if (nargs > 0) {
+                    ir_operand_t *arg = &inst->operands[0];
+                    if (arg->type == IR_OPERAND_IMM &&
+                        arg->u.imm.type == IR_IMM_STR) {
+                        /* String argument */
+                        const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
+                        if (is_println) {
+                            /* println(string): use puts */
+                            int sid = add_string(ctx, str);
+                            /* lea rdi, [rip+0] */
+                            uint8_t buf[7];
+                            int pos = 0;
+                            buf[pos++] = REX_W | REX;
+                            buf[pos++] = 0x8D;
+                            buf[pos++] = _modrm(0, 0, 7);  /* RIP-relative */
+                            buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
+                            size_t off = ctx->tb.size;
+                            tb_emit(&ctx->tb, buf, pos);
+                            str_patch_add(ctx, off + 3, sid);
+                            /* call puts */
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "puts", 0, 0);
+                            size_t rp;
+                            emit_call(&ctx->tb, &rp);
+                            add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
+                        } else {
+                            /* print(string): use printf with string as format */
+                            int sid = add_string(ctx, str);
+                            uint8_t buf[7];
+                            int pos = 0;
+                            buf[pos++] = REX_W | REX;
+                            buf[pos++] = 0x8D;
+                            buf[pos++] = _modrm(0, 0, 7);
+                            buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
+                            size_t off = ctx->tb.size;
+                            tb_emit(&ctx->tb, buf, pos);
+                            str_patch_add(ctx, off + 3, sid);
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "printf", 0, 0);
+                            size_t rp;
+                            emit_call(&ctx->tb, &rp);
+                            add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
+                        }
+                    } else {
+                        /* Integer argument */
+                        int ok;
+                        int64_t val = operand_imm(arg, &ok);
+                        if (ok) {
+                            /* Constant: convert to string, use puts */
+                            char buf32[32];
+                            if (is_println) {
+                                snprintf(buf32, sizeof(buf32), "%lld\n", (long long)val);
+                            } else {
+                                snprintf(buf32, sizeof(buf32), "%lld", (long long)val);
+                            }
+                            int sid = add_string(ctx, buf32);
+                            uint8_t buf[7];
+                            int pos = 0;
+                            buf[pos++] = REX_W | REX;
+                            buf[pos++] = 0x8D;
+                            buf[pos++] = _modrm(0, 0, 7);
+                            buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
+                            size_t off = ctx->tb.size;
+                            tb_emit(&ctx->tb, buf, pos);
+                            str_patch_add(ctx, off + 3, sid);
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "puts", 0, 0);
+                            size_t rp;
+                            emit_call(&ctx->tb, &rp);
+                            add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
+                        } else {
+                            /* Variable: use printf("%d\n", val) or printf("%d", val) */
+                            const char *fmt = is_println ? "%d\n" : "%d";
+                            /* RDI = format string */
+                            int sid_fmt = add_string(ctx, fmt);
+                            uint8_t buf[7];
+                            int pos = 0;
+                            buf[pos++] = REX_W | REX;
+                            buf[pos++] = 0x8D;
+                            buf[pos++] = _modrm(0, 0, 7);
+                            buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
+                            size_t off1 = ctx->tb.size;
+                            tb_emit(&ctx->tb, buf, pos);
+                            str_patch_add(ctx, off1 + 3, sid_fmt);
+                            /* RSI = value */
+                            int val_reg;
+                            if (arg->type == IR_OPERAND_IMM) {
+                                int ok2;
+                                int64_t v = operand_imm(arg, &ok2);
+                                if (ok2) {
+                                    emit_mov_imm(&ctx->tb, REG_RSI, v);
+                                    val_reg = REG_RSI;
+                                } else {
+                                    val_reg = REG_RAX;
+                                }
+                            } else {
+                                val_reg = operand_reg(arg);
+                                if (val_reg != REG_RSI) {
+                                    emit_mov_rr(&ctx->tb, REG_RSI, val_reg);
+                                }
+                            }
+                            /* Align stack to 16 bytes (printf is variadic) */
+                            emit_sub_rsp(&ctx->tb, 8);
+                            int si = add_sym(ctx->code, ARCH_SYM_GLOBAL, "printf", 0, 0);
+                            size_t rp;
+                            emit_call(&ctx->tb, &rp);
+                            add_rel(ctx->code, ARCH_REL_BRANCH, rp, si);
+                            emit_add_rsp(&ctx->tb, 8);
+                        }
+                    }
+                }
+                return 0;
+            }
+
+            /* Regular function call: move args to RDI, RSI, RDX, RCX, R8, R9 */
+            static const x86_64_reg_t x86_arg_regs[6] = {
+                REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9
+            };
+            for (int i = 0; i < nargs && i < 6; i++) {
+                ir_operand_t *arg = &inst->operands[i];
+                if (arg->type == IR_OPERAND_IMM && arg->u.imm.type == IR_IMM_STR) {
+                    /* String argument: LEA to string */
+                    const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
+                    int sid = add_string(ctx, str);
+                    uint8_t buf[7];
+                    int pos = 0;
+                    buf[pos++] = REX_W | (REG_REX(x86_arg_regs[i]) ? REX_R : 0) | REX;
+                    buf[pos++] = 0x8D;
+                    buf[pos++] = _modrm(0, REG_CODE(x86_arg_regs[i]), 7);
+                    buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
+                    size_t off = ctx->tb.size;
+                    tb_emit(&ctx->tb, buf, pos);
+                    str_patch_add(ctx, off + 3, sid);
+                } else if (arg->type == IR_OPERAND_IMM) {
+                    int ok;
+                    int64_t val = operand_imm(arg, &ok);
+                    if (ok) {
+                        emit_mov_imm(&ctx->tb, x86_arg_regs[i], val);
+                    }
+                } else {
+                    int src_reg = operand_reg(arg);
+                    if (src_reg != x86_arg_regs[i]) {
+                        emit_mov_rr(&ctx->tb, x86_arg_regs[i], src_reg);
+                    }
+                }
+            }
+
+            /* Find or create symbol for callee */
             int symidx = -1;
             if (callee) {
                 for (int i = 0; i < ctx->code->sym.n; i++) {
@@ -1134,10 +1299,20 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                     symidx = add_sym(ctx->code, ARCH_SYM_FUNC, callee, 0, 0);
                 }
             }
+            /* Align stack to 16 bytes */
+            emit_sub_rsp(&ctx->tb, 8);
             size_t relpos;
             emit_call(&ctx->tb, &relpos);
+            emit_add_rsp(&ctx->tb, 8);
             if (symidx >= 0) {
                 add_rel(ctx->code, ARCH_REL_BRANCH, relpos, symidx);
+            }
+            /* Move RAX to result register */
+            if (inst->result.n > 0 && inst->result.reg[0].id) {
+                int dst_reg = ssa_to_reg(ssa_id(inst->result.reg[0].id));
+                if (dst_reg != REG_RAX) {
+                    emit_mov_rr(&ctx->tb, dst_reg, REG_RAX);
+                }
             }
             return 0;
         }
@@ -1233,19 +1408,108 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return 0;
     }
 
-    /* Unhandled opcodes — emit NOP for now */
+    case IR_OPCODE_GET_FIELD: {
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        int field_idx = 0;
+        if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_IMM) {
+            int ok;
+            field_idx = (int)operand_imm(&inst->operands[1], &ok);
+            if (!ok) field_idx = 0;
+        }
+        int field_reg = src0 + field_idx;
+        if (dst != field_reg) {
+            emit_mov_rr(&ctx->tb, dst, field_reg);
+        }
+        return 0;
+    }
+
+    case IR_OPCODE_SET_FIELD: {
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        int field_idx = 0;
+        if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_IMM) {
+            int ok;
+            field_idx = (int)operand_imm(&inst->operands[1], &ok);
+            if (!ok) field_idx = 0;
+        }
+        int field_reg = src0 + field_idx;
+        int val_reg = REG_RAX;
+        if (inst->noperands > 2) {
+            val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[2], REG_R11);
+        }
+        if (field_reg != val_reg) {
+            emit_mov_rr(&ctx->tb, field_reg, val_reg);
+        }
+        return 0;
+    }
+
+    case IR_OPCODE_MAKE_STRUCT: {
+        if (inst->noperands > 0) {
+            src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+            if (dst != src0) {
+                emit_mov_rr(&ctx->tb, dst, src0);
+            }
+        }
+        return 0;
+    }
+
+    case IR_OPCODE_MAKE_ENUM: {
+        if (inst->noperands > 0) {
+            if (inst->operands[0].type == IR_OPERAND_IMM) {
+                int ok;
+                int64_t val = operand_imm(&inst->operands[0], &ok);
+                emit_mov_imm(&ctx->tb, dst, val);
+            } else {
+                src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+                if (dst != src0) {
+                    emit_mov_rr(&ctx->tb, dst, src0);
+                }
+            }
+            /* Store data values in consecutive registers */
+            for (int i = 1; i < inst->noperands - 1; i++) {
+                int data_dst = dst + i;
+                if (inst->operands[i].type == IR_OPERAND_IMM) {
+                    int ok;
+                    int64_t val = operand_imm(&inst->operands[i], &ok);
+                    emit_mov_imm(&ctx->tb, data_dst, val);
+                } else {
+                    int src = operand_reg_or_imm_scratch(ctx, &inst->operands[i], REG_R11);
+                    if (data_dst != src) {
+                        emit_mov_rr(&ctx->tb, data_dst, src);
+                    }
+                }
+            }
+        }
+        return 0;
+    }
+
+    case IR_OPCODE_CHECK_VARIANT: {
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
+        emit_cmp_rr(&ctx->tb, src0, src1);
+        return emit_setcc_movzx(&ctx->tb, 0x84, dst);  /* setz */
+    }
+
+    case IR_OPCODE_EXTRACT_VARIANT: {
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        int field_idx = 0;
+        if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_IMM) {
+            int ok;
+            field_idx = (int)operand_imm(&inst->operands[1], &ok);
+            if (!ok) field_idx = 0;
+        }
+        int data_reg = src0 + 1 + field_idx;
+        if (dst != data_reg) {
+            emit_mov_rr(&ctx->tb, dst, data_reg);
+        }
+        return 0;
+    }
+
+    /* Unhandled opcodes -- emit NOP for now */
     case IR_OPCODE_PHI:
     case IR_OPCODE_SWITCH:
     case IR_OPCODE_MEMCPY:
     case IR_OPCODE_UREM:
     case IR_OPCODE_CAST:
-    case IR_OPCODE_MAKE_STRUCT:
-    case IR_OPCODE_GET_FIELD:
-    case IR_OPCODE_SET_FIELD:
-    case IR_OPCODE_GET_ELEM:
-    case IR_OPCODE_MAKE_ENUM:
-    case IR_OPCODE_EXTRACT_VARIANT:
-    case IR_OPCODE_CHECK_VARIANT:
     case IR_OPCODE_RECV:
     case IR_OPCODE_SEND:
     case IR_OPCODE_YIELD:
