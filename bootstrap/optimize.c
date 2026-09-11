@@ -14,6 +14,7 @@
  *   4. Unreachable block elimination — remove blocks not reachable from entry
  *   5. Block merging — merge blocks connected by single-pred unconditional br
  *   6. Dead code elimination — remove unused instructions
+ *   7. Function inlining — inline small single-block function calls
  *
  * Each pass operates on ir_object_t and modifies it in place.
  * Passes are run in sequence until no changes are made (fixpoint).
@@ -847,8 +848,341 @@ pass_block_merge_func(ir_func_t *func)
 }
 
 /*======================================================================
- * Main optimizer entry point
+ * Pass 7: Function Inlining
+ *
+ * Inline small function calls by replacing CALL instructions with
+ * the callee's body. SSA IDs are remapped to avoid conflicts.
  *======================================================================*/
+
+#define MAX_INLINE_BLOCKS 8
+#define MAX_INLINE_INSTRS 32
+
+/* Find a function by name in the IR object */
+static ir_func_t *
+find_func_by_name(ir_object_t *obj, const char *name)
+{
+    ir_func_t *func = obj->funcs;
+    while (func) {
+        if (func->name && strcmp(func->name, name) == 0) {
+            return func;
+        }
+        func = func->next;
+    }
+    return NULL;
+}
+
+/* Check if a function is small enough to inline */
+static int
+is_inlineable(ir_func_t *func)
+{
+    if (!func || func->type != IR_FUNC_FUNC) return 0;
+    if (func->nblocks > MAX_INLINE_BLOCKS) return 0;
+    int total_instrs = 0;
+    for (size_t i = 0; i < func->nblocks; i++) {
+        total_instrs += (int)func->blocks[i].ninstr;
+        if (total_instrs > MAX_INLINE_INSTRS) return 0;
+    }
+    return 1;
+}
+
+/* Map an SSA id string to a new offset id */
+static void
+remap_ssa_id(char *buf, size_t bufsize, const char *orig_id, int offset)
+{
+    if (!orig_id || orig_id[0] != '%') {
+        snprintf(buf, bufsize, "%s", orig_id ? orig_id : "%0");
+        return;
+    }
+    int val = atoi(orig_id + 1);
+    snprintf(buf, bufsize, "%%%d", val + offset);
+}
+
+/* Remap a register's id in-place */
+static void
+remap_reg(ir_reg_t *reg, int offset)
+{
+    if (!reg || !reg->id) return;
+    char buf[64];
+    remap_ssa_id(buf, sizeof(buf), reg->id, offset);
+    free(reg->id);
+    reg->id = strdup(buf);
+}
+
+/* Remap all operands and results of an instruction */
+static void
+remap_instr(ir_instr_t *inst, int offset)
+{
+    /* Remap result registers */
+    for (int i = 0; i < inst->result.n && i < 2; i++) {
+        remap_reg(&inst->result.reg[i], offset);
+    }
+    /* Remap operand registers (not immediates, not labels) */
+    for (int i = 0; i < inst->noperands && i < IR_MAX_OPERANDS; i++) {
+        if (inst->operands[i].type == IR_OPERAND_REG) {
+            remap_reg(&inst->operands[i].u.reg, offset);
+        }
+    }
+}
+
+/* Clone an instruction with SSA remapping */
+static ir_instr_ent_t *
+clone_instr_remapped(ir_instr_ent_t *src, int offset)
+{
+    ir_instr_ent_t *new_ent = ir_instr_ent_new();
+    if (!new_ent) return NULL;
+    new_ent->inst = src->inst;
+    new_ent->next = NULL;
+
+    /* Deep-copy result registers */
+    for (int i = 0; i < new_ent->inst.result.n && i < 2; i++) {
+        if (new_ent->inst.result.reg[i].id) {
+            new_ent->inst.result.reg[i].id = strdup(new_ent->inst.result.reg[i].id);
+        }
+    }
+    /* Deep-copy operand strings/labels */
+    for (int i = 0; i < new_ent->inst.noperands && i < IR_MAX_OPERANDS; i++) {
+        if (new_ent->inst.operands[i].type == IR_OPERAND_REG) {
+            if (new_ent->inst.operands[i].u.reg.id) {
+                new_ent->inst.operands[i].u.reg.id =
+                    strdup(new_ent->inst.operands[i].u.reg.id);
+            }
+        } else if (new_ent->inst.operands[i].type == IR_OPERAND_LABEL) {
+            if (new_ent->inst.operands[i].u.label) {
+                new_ent->inst.operands[i].u.label =
+                    strdup(new_ent->inst.operands[i].u.label);
+            }
+        } else if (new_ent->inst.operands[i].type == IR_OPERAND_IMM &&
+                   new_ent->inst.operands[i].u.imm.type == IR_IMM_STR) {
+            if (new_ent->inst.operands[i].u.imm.u.str) {
+                new_ent->inst.operands[i].u.imm.u.str =
+                    strdup(new_ent->inst.operands[i].u.imm.u.str);
+            }
+        }
+    }
+
+    remap_instr(&new_ent->inst, offset);
+    return new_ent;
+}
+
+/*
+ * Inline a CALL instruction in a block.
+ * Returns 1 if inlining was performed, 0 otherwise.
+ *
+ * Strategy: build a list of new instructions (arg MOVs + cloned callee body
+ * with RET replaced by MOV to result), then splice them into the block
+ * replacing the CALL instruction.
+ */
+static int
+try_inline_call(ir_func_t *caller, ir_func_t *callee,
+                size_t blk_idx, ir_instr_ent_t **ent_ptr,
+                ir_instr_ent_t *prev, int ssa_offset)
+{
+    ir_instr_ent_t *ent = *ent_ptr;
+    ir_instr_t *call_inst = &ent->inst;
+    int nargs = call_inst->noperands - 1;
+
+    /* The result register of the CALL */
+    const char *result_id = NULL;
+    if (call_inst->result.n > 0 && call_inst->result.reg[0].id) {
+        result_id = call_inst->result.reg[0].id;
+    }
+
+    /* Save continuation (instructions after the CALL) */
+    ir_instr_ent_t *continuation = ent->next;
+
+    /* Build new instruction chain */
+    ir_instr_ent_t *new_head = NULL;
+    ir_instr_ent_t *new_tail = NULL;
+
+    /* 1. Emit argument setup: for each argument, emit a CONST (if immediate)
+     *    or MOV (if register) to load the value into the remapped param reg. */
+    for (int i = 0; i < nargs; i++) {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%%%d", i + ssa_offset);
+        if (call_inst->operands[i].type == IR_OPERAND_REG) {
+            /* Register argument: mov %src, %param */
+            ir_instr_ent_t *mov_ent = ir_instr_ent_new();
+            mov_ent->inst.opcode = IR_OPCODE_MOV;
+            mov_ent->inst.result.n = 0;
+            mov_ent->inst.noperands = 2;
+            mov_ent->inst.operands[0].type = IR_OPERAND_REG;
+            mov_ent->inst.operands[0].u.reg = call_inst->operands[i].u.reg;
+            if (mov_ent->inst.operands[0].u.reg.id) {
+                mov_ent->inst.operands[0].u.reg.id =
+                    strdup(mov_ent->inst.operands[0].u.reg.id);
+            }
+            mov_ent->inst.operands[1].type = IR_OPERAND_REG;
+            ir_reg_init(&mov_ent->inst.operands[1].u.reg,
+                        call_inst->operands[i].u.reg.type, buf);
+            mov_ent->next = NULL;
+            if (!new_head) { new_head = mov_ent; new_tail = mov_ent; }
+            else { new_tail->next = mov_ent; new_tail = mov_ent; }
+        } else if (call_inst->operands[i].type == IR_OPERAND_IMM) {
+            /* Immediate argument: const %param, imm */
+            ir_instr_ent_t *const_ent = ir_instr_ent_new();
+            const_ent->inst.opcode = IR_OPCODE_CONST;
+            const_ent->inst.result.n = 1;
+            ir_reg_init(&const_ent->inst.result.reg[0], IR_REG_I64, buf);
+            const_ent->inst.noperands = 1;
+            const_ent->inst.operands[0].type = IR_OPERAND_IMM;
+            const_ent->inst.operands[0].u.imm = call_inst->operands[i].u.imm;
+            const_ent->next = NULL;
+            if (!new_head) { new_head = const_ent; new_tail = const_ent; }
+            else { new_tail->next = const_ent; new_tail = const_ent; }
+        }
+    }
+
+    /* 2. Clone callee's instructions (single block assumed) */
+    ir_block_t *cblk = &callee->blocks[0];
+    ir_instr_ent_t *cent = cblk->instrs;
+    while (cent) {
+        ir_instr_ent_t *new_ent = clone_instr_remapped(cent, ssa_offset);
+
+        /* Replace RET with MOV to call result */
+        if (new_ent->inst.opcode == IR_OPCODE_RET) {
+            if (new_ent->inst.noperands >= 1 &&
+                new_ent->inst.operands[0].type == IR_OPERAND_REG &&
+                result_id) {
+                new_ent->inst.opcode = IR_OPCODE_MOV;
+                new_ent->inst.noperands = 2;
+                /* operand[0] = return value (already remapped) */
+                /* operand[1] = call result register */
+                new_ent->inst.operands[1].type = IR_OPERAND_REG;
+                ir_reg_init(&new_ent->inst.operands[1].u.reg,
+                            IR_REG_I64, result_id);
+            } else {
+                ir_instr_ent_delete(new_ent);
+                cent = cent->next;
+                continue;
+            }
+        }
+
+        new_ent->next = NULL;
+        if (!new_head) { new_head = new_ent; new_tail = new_ent; }
+        else { new_tail->next = new_ent; new_tail = new_ent; }
+        cent = cent->next;
+    }
+
+    /* 3. Splice: replace the CALL instruction with new_head */
+    if (prev) {
+        prev->next = new_head;
+    } else {
+        caller->blocks[blk_idx].instrs = new_head;
+    }
+    new_tail->next = continuation;
+
+    /* Update block's last pointer if needed */
+    if (caller->blocks[blk_idx].last == ent) {
+        caller->blocks[blk_idx].last = new_tail;
+    }
+
+    /* Update instruction count: remove 1 (CALL), add new instructions */
+    {
+        int new_count = 0;
+        ir_instr_ent_t *cnt = new_head;
+        while (cnt) { new_count++; cnt = cnt->next; }
+        caller->blocks[blk_idx].ninstr += new_count - 1;
+    }
+
+    /* Free the CALL instruction */
+    ir_instr_ent_delete(ent);
+
+    *ent_ptr = continuation;
+    return 1;
+}
+
+static int
+pass_inline_func(ir_object_t *obj, ir_func_t *caller)
+{
+    int changed = 0;
+
+    /* Find the max SSA id in the caller to use as offset */
+    int max_ssa = 0;
+    for (size_t bi = 0; bi < caller->nblocks; bi++) {
+        ir_instr_ent_t *ent = caller->blocks[bi].instrs;
+        while (ent) {
+            for (int i = 0; i < ent->inst.result.n && i < 2; i++) {
+                if (ent->inst.result.reg[i].id) {
+                    int v = atoi(ent->inst.result.reg[i].id + 1);
+                    if (v > max_ssa) max_ssa = v;
+                }
+            }
+            ent = ent->next;
+        }
+    }
+
+    for (size_t bi = 0; bi < caller->nblocks; bi++) {
+        ir_instr_ent_t *ent = caller->blocks[bi].instrs;
+        ir_instr_ent_t *prev = NULL;
+        while (ent) {
+            if (ent->inst.opcode == IR_OPCODE_CALL &&
+                ent->inst.noperands > 0 &&
+                ent->inst.operands[ent->inst.noperands - 1].type == IR_OPERAND_IMM &&
+                ent->inst.operands[ent->inst.noperands - 1].u.imm.type == IR_IMM_STR) {
+                const char *callee_name =
+                    ent->inst.operands[ent->inst.noperands - 1].u.imm.u.str;
+                ir_func_t *callee = find_func_by_name(obj, callee_name);
+                if (callee && callee != caller && is_inlineable(callee) &&
+                    callee->nblocks == 1) {
+                    /* Skip if any argument is a register that doesn't exist
+                     * in the current block (e.g., result of a just-inlined call) */
+                    int skip = 0;
+                    /* Check that all register arguments are still defined */
+                    int fnargs = ent->inst.noperands - 1;
+                    for (int ai = 0; ai < fnargs; ai++) {
+                        if (ent->inst.operands[ai].type == IR_OPERAND_REG &&
+                            ent->inst.operands[ai].u.reg.id) {
+                            /* Check if this register is defined in the block */
+                            int found = 0;
+                            ir_instr_ent_t *search = caller->blocks[bi].instrs;
+                            while (search && search != ent) {
+                                if (search->inst.result.n > 0 &&
+                                    search->inst.result.reg[0].id &&
+                                    strcmp(search->inst.result.reg[0].id,
+                                           ent->inst.operands[ai].u.reg.id) == 0) {
+                                    found = 1;
+                                    break;
+                                }
+                                if (search->inst.opcode == IR_OPCODE_MOV &&
+                                    search->inst.noperands >= 2 &&
+                                    search->inst.operands[1].type == IR_OPERAND_REG &&
+                                    search->inst.operands[1].u.reg.id &&
+                                    strcmp(search->inst.operands[1].u.reg.id,
+                                           ent->inst.operands[ai].u.reg.id) == 0) {
+                                    found = 1;
+                                    break;
+                                }
+                                search = search->next;
+                            }
+                            if (!found) { skip = 1; break; }
+                        }
+                    }
+                    if (skip) {
+                        prev = ent;
+                        ent = ent->next;
+                        continue;
+                    }
+                    int offset = max_ssa + 1;
+                    if (try_inline_call(caller, callee, bi, &ent, prev, offset)) {
+                        changed = 1;
+                        max_ssa += 100; /* leave room for inlined SSA ids */
+                        /* Only inline one call per function per iteration
+                         * to avoid nested inlining issues */
+                        return changed;
+                    }
+                }
+            }
+            prev = ent;
+            ent = ent->next;
+        }
+    }
+
+    return changed;
+}
+
+/*======================================================================
+ * Main optimizer entry point
+ *======================================================================
 
 /*
  * ir_optimize — run optimizer passes on an IR object
@@ -878,6 +1212,7 @@ ir_optimize(ir_object_t *obj)
                 iter_changes += pass_const_fold_block(blk);
                 iter_changes += pass_copy_prop_block(blk);
             }
+            iter_changes += pass_inline_func(obj, func);
             iter_changes += pass_const_branch_func(func);
             iter_changes += pass_unreachable_blocks_func(func);
             iter_changes += pass_block_merge_func(func);
