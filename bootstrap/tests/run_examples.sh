@@ -88,3 +88,4 @@ run_test "enum_match.al" 42
 run_test "enum_match2.al" 1
 run_test "enum_match3.al" 3
 run_test "enum_tuple.al" 1
+run_test "enum_extract.al" 42

@@ -961,10 +961,24 @@ _expr(dfir_compiler_t *c, expr_t *e)
             snprintf(next_label, sizeof(next_label), "$match_next_%d_%d",
                      match_id, arm_idx);
 
-            /* Check if pattern is an enum variant */
+            /* Check if pattern is an enum variant (unit or tuple) */
             int variant_idx = -1;
+            const char *bind_var = NULL;  /* variable to bind data to */
+
             if (arm->pattern && arm->pattern->type == EXPR_ID) {
+                /* Unit variant: Some, None, etc. */
                 _find_variant(c, arm->pattern->u.id, &variant_idx);
+            } else if (arm->pattern && arm->pattern->type == EXPR_CALL) {
+                /* Tuple variant: Some(x) — pattern is EXPR_CALL */
+                call_t *pcall = arm->pattern->u.call;
+                if (pcall->callee) {
+                    _find_variant(c, pcall->callee, &variant_idx);
+                    /* Get the binding variable name */
+                    if (pcall->exprs && pcall->exprs->head &&
+                        pcall->exprs->head->type == EXPR_ID) {
+                        bind_var = pcall->exprs->head->u.id;
+                    }
+                }
             }
 
             if (variant_idx >= 0) {
@@ -981,17 +995,41 @@ _expr(dfir_compiler_t *c, expr_t *e)
                 br_ops[1] = _op_label(arm_label);
                 br_ops[2] = _op_label(next_label);
                 _emit(c, IR_OPCODE_BR_COND, NULL, 3, br_ops);
+
+                /* Arm body block */
+                _fnb_add_block(c->fn, arm_label);
+
+                /* If tuple variant, extract data and bind variable */
+                if (bind_var) {
+                    /* Extract field 0 from the enum value */
+                    ir_reg_t extracted = _ssa(c, IR_REG_I64);
+                    ir_operand_t ex_ops[2];
+                    ex_ops[0] = _op_reg(cond);
+                    ex_ops[1] = _op_imm_i32(0);  /* field index 0 */
+                    _emit(c, IR_OPCODE_EXTRACT_VARIANT, &extracted, 2, ex_ops);
+
+                    /* Bind the extracted value to the variable name */
+                    char buf[64];
+                    snprintf(buf, sizeof(buf), "%%%d",
+                             c->fn->ssa_counter - 1);
+                    _scope_bind(c->scope, bind_var, IR_REG_I64,
+                                c->fn->ssa_counter - 1, NULL);
+                }
+
+                if (arm->block) _inner_block(c, arm->block);
+                ir_operand_t end_br = _op_label(end_label);
+                _emit(c, IR_OPCODE_BR, NULL, 1, &end_br);
             } else {
-                /* Default/default arm: unconditional branch to arm */
+                /* Default arm: unconditional branch to arm */
                 ir_operand_t br_op = _op_label(arm_label);
                 _emit(c, IR_OPCODE_BR, NULL, 1, &br_op);
-            }
 
-            /* Arm body block */
-            _fnb_add_block(c->fn, arm_label);
-            if (arm->block) _inner_block(c, arm->block);
-            ir_operand_t end_br = _op_label(end_label);
-            _emit(c, IR_OPCODE_BR, NULL, 1, &end_br);
+                /* Arm body block */
+                _fnb_add_block(c->fn, arm_label);
+                if (arm->block) _inner_block(c, arm->block);
+                ir_operand_t end_br = _op_label(end_label);
+                _emit(c, IR_OPCODE_BR, NULL, 1, &end_br);
+            }
 
             /* Next arm check block */
             _fnb_add_block(c->fn, next_label);
@@ -1178,7 +1216,7 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
         }
         if (sd && sd->nfields > 0) {
             /* Allocate one SSA register per field */
-            /* ir_reg_t result = _ssa(c, sd->fields[0].type); -- unused */
+            ir_reg_t first_field = _ssa(c, sd->fields[0].type);
             int base_ssa = c->fn->ssa_counter - 1;
             /* Allocate remaining field registers */
             for (int i = 1; i < sd->nfields; i++) {
@@ -1202,15 +1240,17 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
                 (void)_expr(c, d->init);
             }
         } else {
-            ir_reg_t result = _ssa(c, rtype);
-            _scope_bind(c->scope, d->id, rtype, c->fn->ssa_counter - 1, tname);
-
             if (d->init) {
                 ir_reg_t init_val = _expr(c, d->init);
-                ir_operand_t ops[2];
-                ops[0] = _op_reg(init_val);
-                ops[1] = _op_reg(result);
-                _emit(c, IR_OPCODE_MOV, NULL, 2, ops);
+                /* Bind variable directly to the init value's SSA id.
+                 * This avoids MOV, which is important for enum values
+                 * where data occupies consecutive registers. */
+                _scope_bind(c->scope, d->id, rtype,
+                            atoi(init_val.id + 1), tname);
+            } else {
+                ir_reg_t result = _ssa(c, rtype);
+                _scope_bind(c->scope, d->id, rtype,
+                            c->fn->ssa_counter - 1, tname);
             }
         }
         break;

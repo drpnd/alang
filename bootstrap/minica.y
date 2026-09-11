@@ -841,6 +841,13 @@ pattern:        literal
                 {
                     $$ = expr_new_id(scanner, $2);
                 }
+        |       identifier TOK_LPAREN identifier TOK_RPAREN
+                {
+                    /* Tuple variant pattern: Some(x) */
+                    expr_list_t *args = expr_list_new();
+                    expr_t *var = expr_new_id(scanner, $3);
+                    $$ = expr_new_call(scanner, $1, expr_list_append(args, var));
+                }
                 ;
 pattern_list:   pattern
                 {
