@@ -244,6 +244,47 @@ static int operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op);
 static void str_patch_add(asm_ctx_t *ctx, size_t adr_off, int str_idx);
 static int emit_bl(textbuf_t *tb, int32_t offset);
 
+
+/* Save caller-saved registers (X0-X18) to stack.
+ * Reserves 16 extra bytes at [SP] for variadic arg area (for printf).
+ * Saved registers start at [SP, #16]. */
+static void
+emit_caller_save(asm_ctx_t *ctx)
+{
+    int max_cs = ctx->max_ssa < 18 ? ctx->max_ssa : 18;
+    int n_cs = max_cs + 1;
+    if (n_cs % 2 != 0) n_cs++;
+    int save_size = n_cs * 8 + 32;  /* +16 for variadic area, +16 for alignment */
+    uint32_t sub = (1U << 31) | (0x51U << 24) |
+                  ((save_size & 0xFFF) << 10) | (31U << 5) | 31;
+    emit32(&ctx->tb, sub);
+    for (int i = 0; i <= max_cs; i++) {
+        int off = 16 + i * 8;  /* saved regs start at [SP, #16] */
+        uint32_t str = (0xF9U << 24) | (((off / 8) & 0xFFF) << 10) |
+                      (31U << 5) | i;
+        emit32(&ctx->tb, str);
+    }
+}
+
+/* Restore caller-saved registers from stack */
+static void
+emit_caller_restore(asm_ctx_t *ctx)
+{
+    int max_cs = ctx->max_ssa < 18 ? ctx->max_ssa : 18;
+    int n_cs = max_cs + 1;
+    if (n_cs % 2 != 0) n_cs++;
+    int save_size = n_cs * 8 + 32;
+    for (int i = 0; i <= max_cs; i++) {
+        int off = 16 + i * 8;
+        uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                      (((off / 8) & 0xFFF) << 10) | (31U << 5) | i;
+        emit32(&ctx->tb, ldr);
+    }
+    uint32_t add = (1U << 31) | (0x11U << 24) |
+                  ((save_size & 0xFFF) << 10) | (31U << 5) | 31;
+    emit32(&ctx->tb, add);
+}
+
 static int
 emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
 {
@@ -971,6 +1012,8 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             if (callee && (strcmp(callee, "print") == 0 ||
                            strcmp(callee, "println") == 0)) {
                 int is_println = (strcmp(callee, "println") == 0);
+                /* Save caller-saved registers around builtin calls */
+                emit_caller_save(ctx);
                 if (nargs > 0) {
                     ir_operand_t *arg = &inst->operands[0];
                     if (arg->type == IR_OPERAND_IMM &&
@@ -1042,8 +1085,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                             } else {
                                 val_reg = operand_reg(arg);
                             }
-                            /* Store value to [sp] (variadic arg area) */
-                            /* STR Xt, [SP] = 0xF90003E8 | (t & 31) */
+                            /* Store value to [sp] (variadic arg area at [SP, #0]) */
                             emit32(&ctx->tb, 0xF9000000 | (31 << 5) | (val_reg & 31));
                             /* X0 = format string */
                             int sid_fmt = add_string(ctx, fmt);
@@ -1058,6 +1100,8 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                         }
                     }
                 }
+                /* Restore caller-saved registers after builtin call */
+                emit_caller_restore(ctx);
                 return 0;
             }
             /* Save caller-saved registers (X0-X18) around the call.
@@ -1067,7 +1111,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             int n_cs = max_cs + 1;  /* X0 through X(max_cs) */
             /* Round up to even for alignment */
             if (n_cs % 2 != 0) n_cs++;
-            int save_size = n_cs * 8 + 16;  /* +16 for return value + alignment */
+            int save_size = n_cs * 8 + 32;  /* +16 for return value, +16 for variadic/alignment */
 
             /* sub sp, sp, #save_size */
             {
@@ -1075,9 +1119,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                               ((save_size & 0xFFF) << 10) | (31U << 5) | 31;
                 emit32(&ctx->tb, sub);
             }
-            /* Save caller-saved registers: str xi, [sp, #i*8] */
+            /* Save caller-saved registers: str xi, [sp, #16+i*8] */
             for (int i = 0; i <= max_cs; i++) {
-                uint32_t str = (0xF9U << 24) | (((i * 8 / 8) & 0xFFF) << 10) |
+                int off = 16 + i * 8;
+                uint32_t str = (0xF9U << 24) | (((off / 8) & 0xFFF) << 10) |
                               (31U << 5) | i;
                 emit32(&ctx->tb, str);
             }
@@ -1125,22 +1170,23 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
             /* Save return value to extra stack slot */
             {
-                int ret_off = n_cs * 8;  /* offset of return value slot */
+                int ret_off = 16 + n_cs * 8;  /* past saved regs */
                 uint32_t str = (0xF9U << 24) | (((ret_off / 8) & 0xFFF) << 10) |
                               (31U << 5) | 0;
                 emit32(&ctx->tb, str);
             }
 
-            /* Restore caller-saved registers: ldr xi, [sp, #i*8] */
+            /* Restore caller-saved registers: ldr xi, [sp, #16+i*8] */
             for (int i = 0; i <= max_cs; i++) {
+                int off = 16 + i * 8;
                 uint32_t ldr = (0xF9U << 24) | (1U << 22) |
-                              (((i * 8 / 8) & 0xFFF) << 10) | (31U << 5) | i;
+                              (((off / 8) & 0xFFF) << 10) | (31U << 5) | i;
                 emit32(&ctx->tb, ldr);
             }
 
             /* Move return value from stack slot to destination register */
             if (dst != 31) {
-                int ret_off = n_cs * 8;
+                int ret_off = 16 + n_cs * 8;
                 uint32_t ldr = (0xF9U << 24) | (1U << 22) |
                               (((ret_off / 8) & 0xFFF) << 10) | (31U << 5) | dst;
                 emit32(&ctx->tb, ldr);

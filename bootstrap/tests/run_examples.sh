@@ -92,3 +92,13 @@ run_test "enum_extract.al" 42
 run_test "factorial.al" 120
 run_test "fibonacci.al" 55
 run_test "primes.al" 10
+run_test "negate.al" 214
+run_test "print_test.al" 0
+run_test "print_int.al" 0
+run_test "print_expr.al" 0
+run_test "print_combined.al" 0
+run_test "print_mixed.al" 0
+run_test "coro_main.al" 42
+run_test "coro_ret.al" 7
+run_test "coro_simple.al" 1
+run_test "pipeline.al" 0
