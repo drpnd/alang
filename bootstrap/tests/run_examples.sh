@@ -89,3 +89,6 @@ run_test "enum_match2.al" 1
 run_test "enum_match3.al" 3
 run_test "enum_tuple.al" 1
 run_test "enum_extract.al" 42
+run_test "factorial.al" 120
+run_test "fibonacci.al" 55
+run_test "primes.al" 10

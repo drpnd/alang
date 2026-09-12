@@ -734,7 +734,10 @@ _expr(dfir_compiler_t *c, expr_t *e)
                     c->error = 1;
                     return val;
                 }
-                /* MOV value to existing variable's SSA */
+                /* MOV value to existing variable's SSA register.
+                 * Note: we use the same SSA id (register-based model)
+                 * rather than creating a new one. Copy propagation must
+                 * handle MOV redefinitions correctly. */
                 ir_operand_t ops[2];
                 ops[0] = _op_reg(val);
                 ir_reg_t dst;
@@ -1216,7 +1219,7 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
         }
         if (sd && sd->nfields > 0) {
             /* Allocate one SSA register per field */
-            ir_reg_t first_field = _ssa(c, sd->fields[0].type);
+            (void)_ssa(c, sd->fields[0].type);
             int base_ssa = c->fn->ssa_counter - 1;
             /* Allocate remaining field registers */
             for (int i = 1; i < sd->nfields; i++) {
@@ -1248,7 +1251,7 @@ _stmt(dfir_compiler_t *c, stmt_t *stmt)
                 _scope_bind(c->scope, d->id, rtype,
                             atoi(init_val.id + 1), tname);
             } else {
-                ir_reg_t result = _ssa(c, rtype);
+                (void)_ssa(c, rtype);
                 _scope_bind(c->scope, d->id, rtype,
                             c->fn->ssa_counter - 1, tname);
             }
@@ -2010,13 +2013,6 @@ _graph(dfir_compiler_t *c, graph_decl_t *gd)
         _fnb_add_block(c->fn, "$entry");
         scope_t *s = _scope_new(c->scope);
         c->scope = s;
-
-        /* Allocate dummy SSA registers to push the counter into
-         * callee-saved register range (X19+) so it survives calls */
-        for (int i = 0; i < 19; i++) {
-            ir_reg_t dummy = _ssa(c, IR_REG_I32);
-            (void)dummy;
-        }
 
         /* Collect the pipeline stages from the graph nodes */
         /* node 0 = source, node 1..N-2 = transforms, node N-1 = sink */

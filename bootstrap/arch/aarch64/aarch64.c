@@ -247,7 +247,6 @@ static int emit_bl(textbuf_t *tb, int32_t offset);
 static int
 emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
 {
-    (void)nargs;
     /* Save FP (X29) and LR (X30) */
     /* stp x29, x30, [sp, #-16]! = 0xA9BF7BFD */
     emit32(&ctx->tb, 0xA9BF7BFD);
@@ -1061,6 +1060,28 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 }
                 return 0;
             }
+            /* Save caller-saved registers (X0-X18) around the call.
+             * We save all registers up to max_ssa (capped at 18) to the
+             * stack, plus one extra slot for the return value. */
+            int max_cs = ctx->max_ssa < 18 ? ctx->max_ssa : 18;
+            int n_cs = max_cs + 1;  /* X0 through X(max_cs) */
+            /* Round up to even for alignment */
+            if (n_cs % 2 != 0) n_cs++;
+            int save_size = n_cs * 8 + 16;  /* +16 for return value + alignment */
+
+            /* sub sp, sp, #save_size */
+            {
+                uint32_t sub = (1U << 31) | (0x51U << 24) |
+                              ((save_size & 0xFFF) << 10) | (31U << 5) | 31;
+                emit32(&ctx->tb, sub);
+            }
+            /* Save caller-saved registers: str xi, [sp, #i*8] */
+            for (int i = 0; i <= max_cs; i++) {
+                uint32_t str = (0xF9U << 24) | (((i * 8 / 8) & 0xFFF) << 10) |
+                              (31U << 5) | i;
+                emit32(&ctx->tb, str);
+            }
+
             /* Move arguments to argument registers X0-X7 */
             for (int i = 0; i < nargs && i < 8; i++) {
                 ir_operand_t *arg = &inst->operands[i];
@@ -1102,9 +1123,34 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 add_rel(ctx->code, ARCH_REL_BRANCH, relpos, symidx);
             }
 
-            /* Move return value (X0) to result register */
-            if (dst != 31 && dst != 0) {
-                emit_orr_reg(&ctx->tb, dst, 31, 0, 1);  /* mov dst, x0 */
+            /* Save return value to extra stack slot */
+            {
+                int ret_off = n_cs * 8;  /* offset of return value slot */
+                uint32_t str = (0xF9U << 24) | (((ret_off / 8) & 0xFFF) << 10) |
+                              (31U << 5) | 0;
+                emit32(&ctx->tb, str);
+            }
+
+            /* Restore caller-saved registers: ldr xi, [sp, #i*8] */
+            for (int i = 0; i <= max_cs; i++) {
+                uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                              (((i * 8 / 8) & 0xFFF) << 10) | (31U << 5) | i;
+                emit32(&ctx->tb, ldr);
+            }
+
+            /* Move return value from stack slot to destination register */
+            if (dst != 31) {
+                int ret_off = n_cs * 8;
+                uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                              (((ret_off / 8) & 0xFFF) << 10) | (31U << 5) | dst;
+                emit32(&ctx->tb, ldr);
+            }
+
+            /* add sp, sp, #save_size */
+            {
+                uint32_t add = (1U << 31) | (0x11U << 24) |
+                              ((save_size & 0xFFF) << 10) | (31U << 5) | 31;
+                emit32(&ctx->tb, add);
             }
             return 0;
         }

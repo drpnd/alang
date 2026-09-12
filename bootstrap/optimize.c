@@ -378,48 +378,49 @@ pass_copy_prop_block(ir_block_t *blk)
                 inst->operands[i].u.reg.id) {
                 const char *reg_id = inst->operands[i].u.reg.id;
 
-                /* Search backwards for a definition of this register */
-                ir_instr_ent_t *prev = blk->instrs;
-                while (prev && prev != ent) {
-                    ir_instr_t *pinst = &prev->inst;
-
-                    /* Check if this instruction defines reg_id */
-                    int defines_reg = 0;
-
-                    /* Case 1: result.reg[0] matches (most instructions) */
-                    if (pinst->result.n > 0 && pinst->result.reg[0].id &&
-                        strcmp(pinst->result.reg[0].id, reg_id) == 0) {
-                        defines_reg = 1;
+                /* Search backwards for the NEAREST definition of this register.
+                 * We must find the most recent definition, not the first one,
+                 * because a register may be redefined by multiple MOVs
+                 * (register-based variable model). */
+                ir_instr_ent_t *prev = NULL;
+                ir_instr_ent_t *scan = blk->instrs;
+                while (scan && scan != ent) {
+                    ir_instr_t *sinst = &scan->inst;
+                    int def = 0;
+                    if (sinst->result.n > 0 && sinst->result.reg[0].id &&
+                        strcmp(sinst->result.reg[0].id, reg_id) == 0) {
+                        def = 1;
                     }
+                    if (sinst->opcode == IR_OPCODE_MOV &&
+                        sinst->noperands >= 2 &&
+                        sinst->operands[1].type == IR_OPERAND_REG &&
+                        sinst->operands[1].u.reg.id &&
+                        strcmp(sinst->operands[1].u.reg.id, reg_id) == 0) {
+                        def = 1;
+                    }
+                    if (def) {
+                        prev = scan;  /* remember most recent definition */
+                    }
+                    scan = scan->next;
+                }
 
-                    /* Case 2: MOV — destination is operands[1] */
+                if (prev) {
+                    ir_instr_t *pinst = &prev->inst;
                     if (pinst->opcode == IR_OPCODE_MOV &&
                         pinst->noperands >= 2 &&
-                        pinst->operands[1].type == IR_OPERAND_REG &&
-                        pinst->operands[1].u.reg.id &&
-                        strcmp(pinst->operands[1].u.reg.id, reg_id) == 0) {
-                        defines_reg = 1;
+                        pinst->operands[0].type == IR_OPERAND_REG &&
+                        pinst->operands[0].u.reg.id) {
+                        /* mov %src, %dst → replace uses of %dst with %src */
+                        inst->operands[i].u.reg = pinst->operands[0].u.reg;
+                        changed = 1;
+                    } else if (pinst->opcode == IR_OPCODE_CONST &&
+                               pinst->noperands >= 1 &&
+                               pinst->operands[0].type == IR_OPERAND_IMM) {
+                        /* const %dst, imm → replace uses of %dst with imm */
+                        inst->operands[i].type = IR_OPERAND_IMM;
+                        inst->operands[i].u.imm = pinst->operands[0].u.imm;
+                        changed = 1;
                     }
-
-                    if (defines_reg) {
-                        if (pinst->opcode == IR_OPCODE_MOV &&
-                            pinst->noperands >= 2 &&
-                            pinst->operands[0].type == IR_OPERAND_REG &&
-                            pinst->operands[0].u.reg.id) {
-                            /* mov %src, %dst → replace uses of %dst with %src */
-                            inst->operands[i].u.reg = pinst->operands[0].u.reg;
-                            changed = 1;
-                        } else if (pinst->opcode == IR_OPCODE_CONST &&
-                                   pinst->noperands >= 1 &&
-                                   pinst->operands[0].type == IR_OPERAND_IMM) {
-                            /* const %dst, imm → replace uses of %dst with imm */
-                            inst->operands[i].type = IR_OPERAND_IMM;
-                            inst->operands[i].u.imm = pinst->operands[0].u.imm;
-                            changed = 1;
-                        }
-                        break;
-                    }
-                    prev = prev->next;
                 }
             }
         }
