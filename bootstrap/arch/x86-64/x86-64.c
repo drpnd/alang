@@ -680,10 +680,79 @@ static const x86_64_reg_t arg_regs[6] = {
  *   mov rbp, rsp
  *   sub rsp, <stack_size>
  */
+
+/* Save caller-saved registers (SSA %0-%8) to stack before a call.
+ * %0=RAX, %1=RCX, %2=RDX, %3=RSI, %4=RDI, %5=R8, %6=R9, %7=R10, %8=R11 */
+static void
+emit_caller_save(asm_ctx_t *ctx)
+{
+    int max_cs = ctx->max_ssa < 8 ? ctx->max_ssa : 8;
+    int n_cs = max_cs + 1;
+    if (n_cs % 2 != 0) n_cs++;
+    int save_size = n_cs * 8;
+    emit_sub_rsp(&ctx->tb, save_size);
+    for (int i = 0; i <= max_cs; i++) {
+        x86_64_reg_t reg = ssa_to_reg(i);
+        if (reg == REG_NONE) continue;
+        int offset = i * 8;
+        uint8_t buf[8];
+        int pos = 0;
+        int rex = REX_W | (REG_REX(reg) ? REX_R : 0) | REX;
+        buf[pos++] = rex;
+        buf[pos++] = 0x89;
+        if (offset == 0) {
+            buf[pos++] = _modrm(REG_CODE(reg), 0, REG_CODE(REG_RSP));
+            buf[pos++] = _sib(REG_CODE(REG_RSP), REG_CODE(REG_RSP), 0);
+        } else if (offset < 128) {
+            buf[pos++] = _modrm(REG_CODE(reg), 1, REG_CODE(REG_RSP));
+            buf[pos++] = _sib(REG_CODE(REG_RSP), REG_CODE(REG_RSP), 0);
+            buf[pos++] = (uint8_t)(int8_t)offset;
+        } else {
+            buf[pos++] = _modrm(REG_CODE(reg), 2, REG_CODE(REG_RSP));
+            buf[pos++] = _sib(REG_CODE(REG_RSP), REG_CODE(REG_RSP), 0);
+            memcpy(buf + pos, &offset, 4); pos += 4;
+        }
+        tb_emit(&ctx->tb, buf, pos);
+    }
+}
+
+/* Restore caller-saved registers from stack after a call. */
+static void
+emit_caller_restore(asm_ctx_t *ctx)
+{
+    int max_cs = ctx->max_ssa < 8 ? ctx->max_ssa : 8;
+    int n_cs = max_cs + 1;
+    if (n_cs % 2 != 0) n_cs++;
+    int save_size = n_cs * 8;
+    for (int i = 0; i <= max_cs; i++) {
+        x86_64_reg_t reg = ssa_to_reg(i);
+        if (reg == REG_NONE) continue;
+        int offset = i * 8;
+        uint8_t buf[8];
+        int pos = 0;
+        int rex = REX_W | (REG_REX(reg) ? REX_R : 0) | REX;
+        buf[pos++] = rex;
+        buf[pos++] = 0x8B;
+        if (offset == 0) {
+            buf[pos++] = _modrm(REG_CODE(reg), 0, REG_CODE(REG_RSP));
+            buf[pos++] = _sib(REG_CODE(REG_RSP), REG_CODE(REG_RSP), 0);
+        } else if (offset < 128) {
+            buf[pos++] = _modrm(REG_CODE(reg), 1, REG_CODE(REG_RSP));
+            buf[pos++] = _sib(REG_CODE(REG_RSP), REG_CODE(REG_RSP), 0);
+            buf[pos++] = (uint8_t)(int8_t)offset;
+        } else {
+            buf[pos++] = _modrm(REG_CODE(reg), 2, REG_CODE(REG_RSP));
+            buf[pos++] = _sib(REG_CODE(REG_RSP), REG_CODE(REG_RSP), 0);
+            memcpy(buf + pos, &offset, 4); pos += 4;
+        }
+        tb_emit(&ctx->tb, buf, pos);
+    }
+    emit_add_rsp(&ctx->tb, save_size);
+}
+
 static int
 emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
 {
-    (void)nargs;
     /* push rbp */
     tb_byte(&ctx->tb, 0x55);
     /* mov rbp, rsp (REX.W + 0x8B + ModR/M) */
@@ -728,6 +797,36 @@ emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
         int8_t disp8 = (int8_t)offset;
         tb_emit(&ctx->tb, (uint8_t*)&disp8, 1);
         slot++;
+    }
+
+    /* Move arguments from ABI registers (RDI, RSI, RDX, RCX, R8, R9)
+     * to their SSA register locations. SSA %0=RAX, %1=RCX, %2=RDX,
+     * %3=RSI, %4=RDI, %5=R8, %6=R9. Move in reverse to avoid clobbering. */
+    {
+        static const x86_64_reg_t abi_args[6] = {
+            REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9
+        };
+        int n = nargs < 6 ? nargs : 6;
+        /* Use R10 as temp if needed, move in reverse */
+        for (int i = n - 1; i >= 0; i--) {
+            x86_64_reg_t src = abi_args[i];
+            x86_64_reg_t dst = ssa_to_reg(i);
+            if (dst == REG_NONE || dst == src) continue;
+            /* Check if dst is used as a later src (cycle) */
+            int has_cycle = 0;
+            for (int j = 0; j < i; j++) {
+                if (ssa_to_reg(j) == dst && abi_args[j] == src) {
+                    has_cycle = 1; break;
+                }
+            }
+            if (has_cycle) {
+                /* Use R10 as temp */
+                emit_mov_rr(&ctx->tb, REG_R10, src);
+                emit_mov_rr(&ctx->tb, dst, REG_R10);
+            } else {
+                emit_mov_rr(&ctx->tb, dst, src);
+            }
+        }
     }
 
     return 0;
@@ -865,6 +964,38 @@ operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
     return operand_reg_or_imm_scratch(ctx, op, REG_R10);
 }
 
+
+/* Try to emit a binary op with immediate second operand.
+ * Returns 1 if handled, 0 if not (caller should use register form).
+ * subopcode: 0=add, 1=or, 4=and, 5=sub, 6=xor */
+static int
+try_emit_binop_imm(asm_ctx_t *ctx, x86_64_reg_t dst, x86_64_reg_t src0,
+                   ir_operand_t *src1_op, uint8_t subopcode)
+{
+    if (src1_op->type != IR_OPERAND_IMM) return 0;
+    int ok;
+    int64_t val = operand_imm(src1_op, &ok);
+    if (!ok) return 0;
+
+    /* mov dst, src0 */
+    if (dst != src0) {
+        emit_mov_rr(&ctx->tb, dst, src0);
+    }
+    /* op dst, imm32 — REX.W 0x81 /subopcode imm32 */
+    {
+        uint8_t buf[8];
+        int pos = 0;
+        int rex = REX_W | (REG_REX(dst) ? REX_B : 0) | REX;
+        buf[pos++] = rex;
+        buf[pos++] = 0x81;
+        buf[pos++] = _modrm(subopcode, 3, REG_CODE(dst));
+        int32_t imm32 = (int32_t)val;
+        memcpy(buf + pos, &imm32, 4); pos += 4;
+        tb_emit(&ctx->tb, buf, pos);
+    }
+    return 1;
+}
+
 static int
 compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 {
@@ -909,18 +1040,30 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return emit_mov_rr(&ctx->tb, dst, src0);
 
     case IR_OPCODE_ADD:
-        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        /* If src0 is immediate, load it directly into dst */
+        if (inst->operands[0].type == IR_OPERAND_IMM) {
+            int ok; int64_t v = operand_imm(&inst->operands[0], &ok);
+            if (ok) { emit_mov_imm(&ctx->tb, dst, v); src0 = dst; }
+            else src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        } else src0 = operand_reg(&inst->operands[0]);
+        if (try_emit_binop_imm(ctx, dst, src0, &inst->operands[1], 0))
+            return 0;
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
-        /* add src0, src1 => result in src0, then mov to dst if different */
-        emit_rr(&ctx->tb, 0x01, src0, src1, 1);  /* add src0, src1 */
-        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
+        emit_mov_rr(&ctx->tb, dst, src0);
+        emit_rr(&ctx->tb, 0x01, dst, src1, 1);  /* dst += src1 */
         return 0;
 
     case IR_OPCODE_SUB:
-        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        if (inst->operands[0].type == IR_OPERAND_IMM) {
+            int ok; int64_t v = operand_imm(&inst->operands[0], &ok);
+            if (ok) { emit_mov_imm(&ctx->tb, dst, v); src0 = dst; }
+            else src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        } else src0 = operand_reg(&inst->operands[0]);
+        if (try_emit_binop_imm(ctx, dst, src0, &inst->operands[1], 5))
+            return 0;
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
-        emit_rr(&ctx->tb, 0x29, src0, src1, 1);
-        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
+        emit_mov_rr(&ctx->tb, dst, src0);
+        emit_rr(&ctx->tb, 0x29, dst, src1, 1);  /* dst -= src1 */
         return 0;
 
     case IR_OPCODE_MUL:
@@ -958,14 +1101,15 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         src0 = operand_reg(&inst->operands[0]);
         /* neg r/m64 — F7 /3 */
         {
+            /* Copy to dst first to avoid clobbering src0 */
+            emit_mov_rr(&ctx->tb, dst, src0);
             uint8_t buf[4];
             int pos = 0;
-            int rex = REX_W | (REG_REX(src0) ? REX_B : 0) | REX;
-            int modrm = _modrm(3, 3, REG_CODE(src0));
+            int rex = REX_W | (REG_REX(dst) ? REX_B : 0) | REX;
+            int modrm = _modrm(3, 3, REG_CODE(dst));
             buf[pos++] = rex;
             buf[pos++] = 0xF7;
             buf[pos++] = modrm;
-            if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
             return tb_emit(&ctx->tb, buf, pos);
         }
 
@@ -973,36 +1117,54 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         src0 = operand_reg(&inst->operands[0]);
         /* not r/m64 — F7 /2 */
         {
+            emit_mov_rr(&ctx->tb, dst, src0);
             uint8_t buf[4];
             int pos = 0;
-            int rex = REX_W | (REG_REX(src0) ? REX_B : 0) | REX;
-            int modrm = _modrm(2, 3, REG_CODE(src0));
+            int rex = REX_W | (REG_REX(dst) ? REX_B : 0) | REX;
+            int modrm = _modrm(2, 3, REG_CODE(dst));
             buf[pos++] = rex;
             buf[pos++] = 0xF7;
             buf[pos++] = modrm;
-            if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
             return tb_emit(&ctx->tb, buf, pos);
         }
 
     case IR_OPCODE_AND:
-        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        if (inst->operands[0].type == IR_OPERAND_IMM) {
+            int ok; int64_t v = operand_imm(&inst->operands[0], &ok);
+            if (ok) { emit_mov_imm(&ctx->tb, dst, v); src0 = dst; }
+            else src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        } else src0 = operand_reg(&inst->operands[0]);
+        if (try_emit_binop_imm(ctx, dst, src0, &inst->operands[1], 4))
+            return 0;
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
-        emit_rr(&ctx->tb, 0x21, src0, src1, 1);
-        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
+        emit_mov_rr(&ctx->tb, dst, src0);
+        emit_rr(&ctx->tb, 0x21, dst, src1, 1);  /* dst &= src1 */
         return 0;
 
     case IR_OPCODE_OR:
-        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        if (inst->operands[0].type == IR_OPERAND_IMM) {
+            int ok; int64_t v = operand_imm(&inst->operands[0], &ok);
+            if (ok) { emit_mov_imm(&ctx->tb, dst, v); src0 = dst; }
+            else src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        } else src0 = operand_reg(&inst->operands[0]);
+        if (try_emit_binop_imm(ctx, dst, src0, &inst->operands[1], 1))
+            return 0;
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
-        emit_rr(&ctx->tb, 0x09, src0, src1, 1);
-        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
+        emit_mov_rr(&ctx->tb, dst, src0);
+        emit_rr(&ctx->tb, 0x09, dst, src1, 1);  /* dst |= src1 */
         return 0;
 
     case IR_OPCODE_XOR:
-        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        if (inst->operands[0].type == IR_OPERAND_IMM) {
+            int ok; int64_t v = operand_imm(&inst->operands[0], &ok);
+            if (ok) { emit_mov_imm(&ctx->tb, dst, v); src0 = dst; }
+            else src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
+        } else src0 = operand_reg(&inst->operands[0]);
+        if (try_emit_binop_imm(ctx, dst, src0, &inst->operands[1], 6))
+            return 0;
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
-        emit_rr(&ctx->tb, 0x31, src0, src1, 1);
-        if (dst != src0) emit_mov_rr(&ctx->tb, dst, src0);
+        emit_mov_rr(&ctx->tb, dst, src0);
+        emit_rr(&ctx->tb, 0x31, dst, src1, 1);  /* dst ^= src1 */
         return 0;
 
     case IR_OPCODE_SHL:
@@ -1141,6 +1303,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             if (callee && (strcmp(callee, "print") == 0 ||
                            strcmp(callee, "println") == 0)) {
                 int is_println = (strcmp(callee, "println") == 0);
+                emit_caller_save(ctx);
                 if (nargs > 0) {
                     ir_operand_t *arg = &inst->operands[0];
                     if (arg->type == IR_OPERAND_IMM &&
@@ -1249,17 +1412,35 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                         }
                     }
                 }
+                emit_caller_restore(ctx);
                 return 0;
             }
 
-            /* Regular function call: move args to RDI, RSI, RDX, RCX, R8, R9 */
+            /* Regular function call */
             static const x86_64_reg_t x86_arg_regs[6] = {
                 REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9
             };
+
+            /* Find or create symbol for callee */
+            int symidx = -1;
+            if (callee) {
+                for (int i = 0; i < ctx->code->sym.n; i++) {
+                    if (ctx->code->sym.syms[i].label &&
+                        strcmp(ctx->code->sym.syms[i].label, callee) == 0) {
+                        symidx = i;
+                        break;
+                    }
+                }
+                if (symidx < 0) {
+                    symidx = add_sym(ctx->code, ARCH_SYM_FUNC, callee, 0, 0);
+                }
+            }
+            /* Save caller-saved registers before the call */
+            emit_caller_save(ctx);
+            /* Move arguments to argument registers */
             for (int i = 0; i < nargs && i < 6; i++) {
                 ir_operand_t *arg = &inst->operands[i];
                 if (arg->type == IR_OPERAND_IMM && arg->u.imm.type == IR_IMM_STR) {
-                    /* String argument: LEA to string */
                     const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
                     int sid = add_string(ctx, str);
                     uint8_t buf[7];
@@ -1284,21 +1465,6 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                     }
                 }
             }
-
-            /* Find or create symbol for callee */
-            int symidx = -1;
-            if (callee) {
-                for (int i = 0; i < ctx->code->sym.n; i++) {
-                    if (ctx->code->sym.syms[i].label &&
-                        strcmp(ctx->code->sym.syms[i].label, callee) == 0) {
-                        symidx = i;
-                        break;
-                    }
-                }
-                if (symidx < 0) {
-                    symidx = add_sym(ctx->code, ARCH_SYM_FUNC, callee, 0, 0);
-                }
-            }
             /* Align stack to 16 bytes */
             emit_sub_rsp(&ctx->tb, 8);
             size_t relpos;
@@ -1307,12 +1473,21 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             if (symidx >= 0) {
                 add_rel(ctx->code, ARCH_REL_BRANCH, relpos, symidx);
             }
-            /* Move RAX to result register */
+            /* Save return value to RBX (callee-saved, not clobbered by restore)
+             * before restoring caller-saved registers. */
+            int dst_reg = REG_RAX;
             if (inst->result.n > 0 && inst->result.reg[0].id) {
-                int dst_reg = ssa_to_reg(ssa_id(inst->result.reg[0].id));
-                if (dst_reg != REG_RAX) {
-                    emit_mov_rr(&ctx->tb, dst_reg, REG_RAX);
-                }
+                dst_reg = ssa_to_reg(ssa_id(inst->result.reg[0].id));
+            }
+            int need_save_ret = (dst_reg != REG_RAX && dst_reg != REG_NONE);
+            if (need_save_ret) {
+                /* mov rbx, rax — save return value to callee-saved register */
+                emit_mov_rr(&ctx->tb, REG_RBX, REG_RAX);
+            }
+            emit_caller_restore(ctx);
+            if (need_save_ret) {
+                /* mov dst, rbx — move return value to destination */
+                emit_mov_rr(&ctx->tb, dst_reg, REG_RBX);
             }
             return 0;
         }

@@ -1654,6 +1654,13 @@ _func(dfir_compiler_t *c, func_t *fn)
     ir_func_t *irf = ir_func_new();
     irf->name = strdup(fn->id);
     irf->type = IR_FUNC_FUNC;
+    /* Count function arguments for ABI */
+    if (fn->args) {
+        int nargs = 0;
+        arg_t *a = fn->args->head;
+        while (a) { nargs++; a = a->next; }
+        irf->nargs = nargs;
+    }
 
     bb_t *b = fb->blocks;
     while (b) {
