@@ -96,3 +96,12 @@ run_test "div_mod.al" 5
 run_test "fibonacci.al" 55
 run_test "factorial.al" 120
 run_test "negate.al" 214
+run_test "for_nested.al" 6
+run_test "continue_test.al" 9
+run_test "struct_test.al" 42
+run_test "struct_test2.al" 30
+run_test "enum_test.al" 0
+run_test "enum_match.al" 42
+run_test "enum_match2.al" 1
+run_test "enum_match3.al" 3
+run_test "enum_tuple.al" 1

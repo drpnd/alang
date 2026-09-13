@@ -1195,6 +1195,8 @@ pass_inline_func(ir_object_t *obj, ir_func_t *caller)
  *
  * Returns the number of changes made across all passes.
  */
+static int pass_compact_ssa_func(ir_func_t *func);
+
 int
 ir_optimize(ir_object_t *obj)
 {
@@ -1223,6 +1225,15 @@ ir_optimize(ir_object_t *obj)
             func = func->next;
         }
 
+        /* Compact SSA IDs after all passes to eliminate gaps */
+        if (iter_changes > 0) {
+            ir_func_t *f2 = obj->funcs;
+            while (f2) {
+                iter_changes += pass_compact_ssa_func(f2);
+                f2 = f2->next;
+            }
+        }
+
         if (iter_changes == 0) {
             break;  /* Fixpoint reached */
         }
@@ -1240,3 +1251,123 @@ ir_optimize(ir_object_t *obj)
  * vim600: sw=4 ts=4 fdm=marker
  * vim<600: sw=4 ts=4
  */
+
+/*======================================================================
+ * Pass: SSA Compaction
+ *
+ * Renumbers SSA IDs sequentially (0, 1, 2, ...) to eliminate gaps left
+ * by optimization passes. This keeps max SSA ID low so it fits within
+ * the backend's register file without spilling.
+ *======================================================================*/
+
+/* Collect all unique SSA IDs in a function and build a compaction map.
+ * Returns the number of unique IDs found. */
+static int
+pass_compact_ssa_func(ir_func_t *func)
+{
+    if (!func || func->nblocks == 0) return 0;
+
+    /* Step 1: Collect all unique SSA IDs */
+    /* Use a simple array since max SSA IDs are small (< 256) */
+    int seen[256];
+    int map[256];
+    int n_unique = 0;
+
+    memset(seen, 0, sizeof(seen));
+    memset(map, 0, sizeof(map));
+
+    /* Preserve function arguments and return values at their original
+     * SSA IDs (0..nargs+nrets-1). The prologue moves arguments to these
+     * IDs, so renumbering them would break the calling convention. */
+    int n_preserve = func->nargs + func->nrets;
+    if (n_preserve > 256) n_preserve = 256;
+    for (int i = 0; i < n_preserve; i++) {
+        seen[i] = 1;
+        map[i] = i;
+        n_unique++;
+    }
+
+    for (size_t bi = 0; bi < func->nblocks; bi++) {
+        ir_block_t *blk = &func->blocks[bi];
+        ir_instr_ent_t *e = blk->instrs;
+        while (e) {
+            ir_instr_t *inst = &e->inst;
+            /* Check result registers */
+            for (int i = 0; i < inst->result.n && i < 2; i++) {
+                if (inst->result.reg[i].id) {
+                    int id = atoi(inst->result.reg[i].id + 1);
+                    if (id >= 0 && id < 256 && !seen[id]) {
+                        seen[id] = 1;
+                        map[id] = n_unique++;
+                    }
+                }
+            }
+            /* Check operand registers */
+            for (int i = 0; i < inst->noperands && i < IR_MAX_OPERANDS; i++) {
+                if (inst->operands[i].type == IR_OPERAND_REG &&
+                    inst->operands[i].u.reg.id) {
+                    int id = atoi(inst->operands[i].u.reg.id + 1);
+                    if (id >= 0 && id < 256 && !seen[id]) {
+                        seen[id] = 1;
+                        map[id] = n_unique++;
+                    }
+                }
+            }
+            /* Also check MOV destination (operand[1] is a register) */
+            if (inst->opcode == IR_OPCODE_MOV && inst->noperands >= 2) {
+                if (inst->operands[1].type == IR_OPERAND_REG &&
+                    inst->operands[1].u.reg.id) {
+                    int id = atoi(inst->operands[1].u.reg.id + 1);
+                    if (id >= 0 && id < 256 && !seen[id]) {
+                        seen[id] = 1;
+                        map[id] = n_unique++;
+                    }
+                }
+            }
+            e = e->next;
+        }
+    }
+
+    /* Step 2: Check if compaction is needed (max ID > n_unique - 1) */
+    int max_id = 0;
+    for (int i = 0; i < 256; i++) {
+        if (seen[i] && i > max_id) max_id = i;
+    }
+    if (max_id < n_unique) return 0;  /* No gaps, no compaction needed */
+
+    /* Step 3: Rewrite all SSA IDs */
+    for (size_t bi = 0; bi < func->nblocks; bi++) {
+        ir_block_t *blk = &func->blocks[bi];
+        ir_instr_ent_t *e = blk->instrs;
+        while (e) {
+            ir_instr_t *inst = &e->inst;
+            /* Rewrite result registers */
+            for (int i = 0; i < inst->result.n && i < 2; i++) {
+                if (inst->result.reg[i].id) {
+                    int id = atoi(inst->result.reg[i].id + 1);
+                    if (id >= 0 && id < 256) {
+                        char buf[32];
+                        snprintf(buf, sizeof(buf), "%%%d", map[id]);
+                        inst->result.reg[i].id = strdup(buf);
+                    }
+                }
+            }
+            /* Rewrite operand registers */
+            for (int i = 0; i < inst->noperands && i < IR_MAX_OPERANDS; i++) {
+                if (inst->operands[i].type == IR_OPERAND_REG &&
+                    inst->operands[i].u.reg.id) {
+                    int id = atoi(inst->operands[i].u.reg.id + 1);
+                    if (id >= 0 && id < 256) {
+                        char buf[32];
+                        snprintf(buf, sizeof(buf), "%%%d", map[id]);
+                        inst->operands[i].u.reg.id = strdup(buf);
+                    }
+                }
+            }
+            e = e->next;
+        }
+    }
+
+    /* Update function's nargs if needed (nargs should still be valid) */
+    return 1;  /* Changed */
+}

@@ -1479,7 +1479,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             if (inst->result.n > 0 && inst->result.reg[0].id) {
                 dst_reg = ssa_to_reg(ssa_id(inst->result.reg[0].id));
             }
-            int need_save_ret = (dst_reg != REG_RAX && dst_reg != REG_NONE);
+            int need_save_ret = (dst_reg != REG_NONE);
             if (need_save_ret) {
                 /* mov rbx, rax — save return value to callee-saved register */
                 emit_mov_rr(&ctx->tb, REG_RBX, REG_RAX);
