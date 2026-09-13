@@ -29,7 +29,7 @@
  */
 
 #include "syntax.h"
-#include "compile.h"
+#include "ir.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

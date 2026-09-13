@@ -32,7 +32,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "compile.h"
 #include "y.tab.h"
 
 #define STRING_CHUNK 4096

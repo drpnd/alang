@@ -19,7 +19,6 @@ LD_OBJS=ld/mach-o/mach-o.o ld/elf/elf.o
 
 all:
 	$(MAKE) minica_test_ld minica_test_asm minica_test_parser
-	# minica_test_compiler: skipped (pre-existing struct mismatch in test file)
 
 # Generate parser (y.tab.c and y.tab.h in one invocation)
 y.tab.c y.tab.h: minica.y
@@ -37,13 +36,11 @@ y.tab.o: y.tab.c lex.yy.h minica.h
 syntax.o: syntax.c syntax.h minica.h
 syntax_debug.o: syntax_debug.c syntax.h minica.h
 arch.o: arch.c arch.h ir.h
-compile.o: compile.c ir.c compile.h minica.h syntax.h ir.h
 ir.o: ir.c ir.h
 optimize.o: optimize.c ir.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 ir_debug.o: ir_debug.c ir.h
-tests/minica_test_parser.o: tests/minica_test_parser.c minica.h compile.h syntax.h
-tests/minica_test_compiler.o: tests/minica_test_compiler.c minica.h compile.h syntax.h
+tests/minica_test_parser.o: tests/minica_test_parser.c minica.h syntax.h
 tests/minica_test_ld.o: tests/minica_test_ld.c
 tests/minica_test_asm.o: tests/minica_test_asm.c arch.h
 
@@ -57,20 +54,16 @@ minica_test_ld: tests/minica_test_ld.o $(LD_OBJS)
 minica_test_asm: tests/minica_test_asm.o arch.o $(ARCH_OBJS) $(LD_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o syntax_debug.o compile.o optimize.o ir.o arch.o $(LD_OBJS) $(ARCH_OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
-
-minica_test_compiler: tests/minica_test_compiler.o y.tab.o lex.yy.o syntax.o syntax_debug.o compile.o ir.o ir_debug.o arch.o $(LD_OBJS) $(ARCH_OBJS)
+minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o syntax_debug.o optimize.o ir.o arch.o $(LD_OBJS) $(ARCH_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Test target
 test: minica_test_parser
 	./minica_test_parser ../examples/simple1.al
-	# minica_test_compiler: skipped (pre-existing struct mismatch in test file)
 
 # Clean target (includes subdirectory objects and dependency files)
 clean:
-	rm -f minica_test_ld minica_test_asm minica_test_parser minica_test_compiler minica
+	rm -f minica_test_ld minica_test_asm minica_test_parser minica
 	rm -f *.o y.tab.c y.tab.h lex.yy.c lex.yy.h *.d
 	rm -f arch/x86-64/*.o arch/x86-64/*.d arch/aarch64/*.o arch/aarch64/*.d
 	rm -f ld/elf/*.o ld/elf/*.d ld/mach-o/*.o ld/mach-o/*.d
@@ -93,7 +86,7 @@ test_ir: minica_test_ir
 	./minica_test_ir
 
 # DFIR compiler test
-compiler.o: compiler.c syntax.h ir.h compile.h
+compiler.o: compiler.c syntax.h ir.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 tests/minica_test_dfir.o: tests/minica_test_dfir.c minica.h syntax.h ir.h

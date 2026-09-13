@@ -21,7 +21,6 @@
  * SOFTWARE.
  */
 
-#include "../compile.h"
 #include "../minica.h"
 #include <stdio.h>
 #include <stdlib.h>

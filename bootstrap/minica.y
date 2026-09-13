@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "syntax.h"
-#include "compile.h"
 #include "y.tab.h"
 #include "lex.yy.h"
 #include "minica.h"
@@ -43,6 +42,7 @@ void yyerror(YYLTYPE *yylloc, yyscan_t scanner, const char *str);
 %}
 
 %code requires {
+#include "syntax.h"
 /* Type list for enum tuple variants */
 struct type_list_val {
     type_t **types;
