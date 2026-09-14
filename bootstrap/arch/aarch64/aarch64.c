@@ -1271,7 +1271,8 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
          * operands[1..N-1] = data values (for tuple variants)
          * operands[N-1] = enum name (str)
          * The variant index goes in the result register.
-         * Data values go in consecutive registers (dst+1, dst+2, ...). */
+         * Data values go in scratch registers X16, X17 (not dst+1,
+         * which may collide with other SSA values). */
         if (inst->noperands > 0) {
             /* Load variant index into result register */
             if (inst->operands[0].type == IR_OPERAND_IMM) {
@@ -1281,10 +1282,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
                 emit_orr_reg(&ctx->tb, dst, 31, src0, 1);
             }
-            /* Store data values in consecutive registers */
-            for (int i = 1; i < inst->noperands - 1; i++) {
-                int data_dst = dst + i;
-                if (data_dst >= AARCH64_MAX_REGS) break;
+            /* Store data values in scratch registers (X16, X17) */
+            int scratch_regs[] = {16, 17};
+            for (int i = 1; i < inst->noperands - 1 && i - 1 < 2; i++) {
+                int data_dst = scratch_regs[i - 1];
                 if (inst->operands[i].type == IR_OPERAND_IMM) {
                     int64_t val = operand_imm(&inst->operands[i], &(int){1});
                     emit_load_imm64(&ctx->tb, data_dst, val);
@@ -1308,15 +1309,15 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 
     case IR_OPCODE_EXTRACT_VARIANT: {
         /* EXTRACT_VARIANT: extract data field from a tuple variant
-         * operands[0] = enum value (base register)
+         * operands[0] = enum value (base register, holds variant index)
          * operands[1] = field index (which data value to extract)
-         * Result = register at (base + 1 + field_index) */
-        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+         * Data was stored in X16/X17 by MAKE_ENUM. */
         int field_idx = 0;
         if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_IMM) {
             field_idx = (int)inst->operands[1].u.imm.u.s32;
         }
-        int data_reg = src0 + 1 + field_idx;
+        int scratch_regs[] = {16, 17};
+        int data_reg = scratch_regs[field_idx % 2];
         if (dst != data_reg) {
             return emit_orr_reg(&ctx->tb, dst, 31, data_reg, 1);
         }
