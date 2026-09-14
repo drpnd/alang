@@ -102,3 +102,8 @@ run_test "coro_main.al" 42
 run_test "coro_ret.al" 7
 run_test "coro_simple.al" 1
 run_test "pipeline.al" 0
+run_test "recursive_fib.al" 55
+run_test "gcd.al" 6
+run_test "power.al" 0
+run_test "collatz.al" 111
+run_test "sum_digits.al" 15

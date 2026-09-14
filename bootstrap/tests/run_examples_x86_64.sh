@@ -105,3 +105,6 @@ run_test "enum_match.al" 42
 run_test "enum_match2.al" 1
 run_test "enum_match3.al" 3
 run_test "enum_tuple.al" 1
+run_test "recursive_fib.al" 55
+run_test "gcd.al" 6
+run_test "power.al" 0
