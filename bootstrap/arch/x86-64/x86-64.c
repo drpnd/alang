@@ -1513,9 +1513,13 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_DIV: {
         /* Signed division: idiv rm divides RDX:RAX by rm.
          * Result (quotient) in RAX, remainder in RDX.
-         * Need: mov rax, src0; cqo; idiv src1; mov dst, rax */
+         * idiv clobbers both RAX and RDX. cqto also clobbers RDX.
+         * Save both RAX and RDX via push, restore RDX after. */
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
+        /* Save RDX (clobbered by cqto) and RAX (clobbered by idiv) */
+        tb_byte(&ctx->tb, 0x52);  /* push rdx */
+        tb_byte(&ctx->tb, 0x50);  /* push rax */
         emit_mov_rr(&ctx->tb, REG_RAX, src0);
         /* cqo: REX.W 0x99 — sign-extend RAX into RDX:RAX */
         {
@@ -1532,15 +1536,23 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             buf[pos++] = _modrm(7, 3, REG_CODE(src1));
             tb_emit(&ctx->tb, buf, pos);
         }
-        if (dst != REG_RAX) emit_mov_rr(&ctx->tb, dst, REG_RAX);
+        /* Save quotient to R10 (temp, callee-managed), then restore RAX/RDX,
+         * then move result to dst. */
+        emit_mov_rr(&ctx->tb, REG_R10, REG_RAX);
+        tb_byte(&ctx->tb, 0x58);  /* pop rax */
+        tb_byte(&ctx->tb, 0x5A);  /* pop rdx */
+        emit_mov_rr(&ctx->tb, dst, REG_R10);
         return 0;
     }
 
     case IR_OPCODE_UDIV: {
         /* Unsigned division: div rm divides RDX:RAX by rm.
-         * Need: mov rax, src0; xor rdx,rdx; div src1; mov dst, rax */
+         * idiv clobbers both RAX and RDX. Use push/pop to save RDX. */
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
+        if (dst != REG_RDX) {
+            tb_byte(&ctx->tb, 0x52);  /* push rdx */
+        }
         emit_mov_rr(&ctx->tb, REG_RAX, src0);
         /* xor rdx, rdx */
         emit_rr(&ctx->tb, 0x31, REG_RDX, REG_RDX, 1);
@@ -1555,13 +1567,22 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             tb_emit(&ctx->tb, buf, pos);
         }
         if (dst != REG_RAX) emit_mov_rr(&ctx->tb, dst, REG_RAX);
+        if (dst != REG_RDX) {
+            tb_byte(&ctx->tb, 0x5A);  /* pop rdx */
+        }
         return 0;
     }
 
     case IR_OPCODE_MOD: {
-        /* Signed modulo: same as DIV but result is in RDX (remainder) */
+        /* Signed modulo: same as DIV but result is in RDX (remainder).
+         * idiv clobbers both RAX (quotient) and RDX (remainder).
+         * cqto also clobbers RDX before idiv runs.
+         * Save both RAX and RDX via push, restore RAX after. */
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], REG_R10);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
+        /* Save RDX (clobbered by cqto) and RAX (clobbered by idiv) */
+        tb_byte(&ctx->tb, 0x52);  /* push rdx */
+        tb_byte(&ctx->tb, 0x50);  /* push rax */
         emit_mov_rr(&ctx->tb, REG_RAX, src0);
         /* cqo */
         {
@@ -1578,8 +1599,12 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             buf[pos++] = _modrm(7, 3, REG_CODE(src1));
             tb_emit(&ctx->tb, buf, pos);
         }
-        /* Result is in RDX (remainder) */
-        if (dst != REG_RDX) emit_mov_rr(&ctx->tb, dst, REG_RDX);
+        /* Save remainder to R10 (temp), then restore RAX/RDX,
+         * then move result to dst. */
+        emit_mov_rr(&ctx->tb, REG_R10, REG_RDX);
+        tb_byte(&ctx->tb, 0x58);  /* pop rax */
+        tb_byte(&ctx->tb, 0x5A);  /* pop rdx */
+        emit_mov_rr(&ctx->tb, dst, REG_R10);
         return 0;
     }
 
