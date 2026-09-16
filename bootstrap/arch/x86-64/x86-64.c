@@ -1313,12 +1313,12 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                         if (is_println) {
                             /* println(string): use puts */
                             int sid = add_string(ctx, str);
-                            /* lea rdi, [rip+0] */
+                            /* lea rdi, [rip+disp32] — RIP-relative addressing */
                             uint8_t buf[7];
                             int pos = 0;
                             buf[pos++] = REX_W | REX;
                             buf[pos++] = 0x8D;
-                            buf[pos++] = _modrm(0, 0, 7);  /* RIP-relative */
+                            buf[pos++] = _modrm(7, 0, 5);  /* mod=0, reg=RDI, rm=5(RIP) */
                             buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
                             size_t off = ctx->tb.size;
                             tb_emit(&ctx->tb, buf, pos);
@@ -1335,7 +1335,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                             int pos = 0;
                             buf[pos++] = REX_W | REX;
                             buf[pos++] = 0x8D;
-                            buf[pos++] = _modrm(0, 0, 7);
+                            buf[pos++] = _modrm(7, 0, 5);  /* lea rdi, [rip+disp32] */
                             buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
                             size_t off = ctx->tb.size;
                             tb_emit(&ctx->tb, buf, pos);
@@ -1362,7 +1362,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                             int pos = 0;
                             buf[pos++] = REX_W | REX;
                             buf[pos++] = 0x8D;
-                            buf[pos++] = _modrm(0, 0, 7);
+                            buf[pos++] = _modrm(7, 0, 5);  /* lea rdi, [rip+disp32] */
                             buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
                             size_t off = ctx->tb.size;
                             tb_emit(&ctx->tb, buf, pos);
@@ -1380,7 +1380,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                             int pos = 0;
                             buf[pos++] = REX_W | REX;
                             buf[pos++] = 0x8D;
-                            buf[pos++] = _modrm(0, 0, 7);
+                            buf[pos++] = _modrm(7, 0, 5);  /* lea rdi, [rip+disp32] */
                             buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0; buf[pos++] = 0;
                             size_t off1 = ctx->tb.size;
                             tb_emit(&ctx->tb, buf, pos);
@@ -1799,9 +1799,8 @@ x86_64_assemble(ir_object_t *obj, arch_code_t *code)
     resolve_patches(&ctx);
 
     /* Append string data to text section */
-    size_t string_data_start = ctx.tb.size;
     for (int i = 0; i < ctx.code->strings.n; i++) {
-        ctx.code->strings.items[i].offset = string_data_start;
+        ctx.code->strings.items[i].offset = ctx.tb.size;
         size_t slen = strlen(ctx.code->strings.items[i].str) + 1;
         tb_emit(&ctx.tb, (uint8_t*)ctx.code->strings.items[i].str, slen);
     }

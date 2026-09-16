@@ -110,3 +110,8 @@ run_test "gcd.al" 6
 run_test "power.al" 0
 run_test "collatz.al" 111
 run_test "sum_digits.al" 15
+run_test "print_test.al" 0
+run_test "print_int.al" 0
+run_test "print_expr.al" 0
+run_test "print_combined.al" 0
+run_test "print_mixed.al" 0
