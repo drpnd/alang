@@ -107,3 +107,5 @@ run_test "gcd.al" 6
 run_test "power.al" 0
 run_test "collatz.al" 111
 run_test "sum_digits.al" 15
+run_test "early_return.al" 5
+run_test "recursive_fib_ret.al" 55

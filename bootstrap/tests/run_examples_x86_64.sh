@@ -115,3 +115,5 @@ run_test "print_int.al" 0
 run_test "print_expr.al" 0
 run_test "print_combined.al" 0
 run_test "print_mixed.al" 0
+run_test "early_return.al" 5
+run_test "recursive_fib_ret.al" 55

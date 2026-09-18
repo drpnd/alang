@@ -891,7 +891,8 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return emit_lsr_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_NEG:
-        src0 = operand_reg(&inst->operands[0]);
+        /* neg dst, src0 = sub dst, xzr, src0 */
+        src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         return emit_sub_reg(&ctx->tb, dst, 31, src0, 1);  /* sub rd, xzr, src0 */
 
     case IR_OPCODE_NOT:

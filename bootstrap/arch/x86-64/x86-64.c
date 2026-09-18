@@ -1098,11 +1098,23 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         }
 
     case IR_OPCODE_NEG:
-        src0 = operand_reg(&inst->operands[0]);
-        /* neg r/m64 — F7 /3 */
-        {
+        /* Handle immediate operand: load into dst first, then negate */
+        if (inst->operands[0].type == IR_OPERAND_IMM) {
+            int ok; int64_t v = operand_imm(&inst->operands[0], &ok);
+            if (ok) {
+                emit_mov_imm(&ctx->tb, dst, v);
+                src0 = dst;
+            } else {
+                src0 = operand_reg(&inst->operands[0]);
+                emit_mov_rr(&ctx->tb, dst, src0);
+            }
+        } else {
+            src0 = operand_reg(&inst->operands[0]);
             /* Copy to dst first to avoid clobbering src0 */
             emit_mov_rr(&ctx->tb, dst, src0);
+        }
+        /* neg r/m64 — F7 /3 */
+        {
             uint8_t buf[4];
             int pos = 0;
             int rex = REX_W | (REG_REX(dst) ? REX_B : 0) | REX;

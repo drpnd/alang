@@ -432,6 +432,49 @@ pass_copy_prop_block(ir_block_t *blk)
 }
 
 /*======================================================================
+ * Pass: Dead Code After Terminator
+ *
+ * Removes instructions that follow a terminator (RET, BR) within the
+ * same basic block. These are unreachable.
+ *======================================================================*/
+static int
+pass_dce_after_terminator_func(ir_func_t *func)
+{
+    int changed = 0;
+    for (size_t bi = 0; bi < func->nblocks; bi++) {
+        ir_block_t *blk = &func->blocks[bi];
+        ir_instr_ent_t *ent = blk->instrs;
+        ir_instr_ent_t *prev = NULL;
+        int found_terminator = 0;
+        while (ent) {
+            if (found_terminator) {
+                ir_instr_ent_t *next = ent->next;
+                if (prev) {
+                    prev->next = next;
+                } else {
+                    blk->instrs = next;
+                }
+                if (blk->last == ent) {
+                    blk->last = prev;
+                }
+                blk->ninstr--;
+                free(ent);
+                ent = next;
+                changed = 1;
+                continue;
+            }
+            if (ent->inst.opcode == IR_OPCODE_RET ||
+                ent->inst.opcode == IR_OPCODE_BR) {
+                found_terminator = 1;
+            }
+            prev = ent;
+            ent = ent->next;
+        }
+    }
+    return changed;
+}
+
+/*======================================================================
  * Pass 3: Dead Code Elimination
  *
  * Remove instructions whose results are never used and have no side effects.
@@ -1196,6 +1239,7 @@ pass_inline_func(ir_object_t *obj, ir_func_t *caller)
  * Returns the number of changes made across all passes.
  */
 static int pass_compact_ssa_func(ir_func_t *func);
+static int pass_dce_after_terminator_func(ir_func_t *func);
 
 int
 ir_optimize(ir_object_t *obj)
@@ -1221,6 +1265,7 @@ ir_optimize(ir_object_t *obj)
             iter_changes += pass_const_branch_func(func);
             iter_changes += pass_unreachable_blocks_func(func);
             iter_changes += pass_block_merge_func(func);
+            iter_changes += pass_dce_after_terminator_func(func);
             iter_changes += pass_dce_func(func);
             func = func->next;
         }
