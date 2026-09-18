@@ -109,3 +109,5 @@ run_test "collatz.al" 111
 run_test "sum_digits.al" 15
 run_test "early_return.al" 5
 run_test "recursive_fib_ret.al" 55
+run_test "float_arith.al" 32
+run_test "float_add.al" 6

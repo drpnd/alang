@@ -805,6 +805,116 @@ operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op)
     return operand_reg_or_imm_scratch(ctx, op, 17);
 }
 
+
+/*
+ * Float instruction emitters (using D registers via FMOV bridge)
+ * We store doubles in integer registers and bridge to D registers
+ * for actual FP operations.
+ */
+
+/* FMOV Dd, Xn — move from general register to FP register
+ * 1 00 11110 01 1 00 110 000000 Rn Rd = 0x9E670000 | (Rn << 5) | Rd */
+static int
+emit_fmov_dx(textbuf_t *tb, int dd, int xn)
+{
+    uint32_t insn = 0x9E670000U | ((xn & 31) << 5) | (dd & 31);
+    return emit32(tb, insn);
+}
+
+/* FMOV Xd, Dn — move from FP register to general register
+ * 1 00 11110 01 1 00 111 000000 Rn Rd = 0x9E780000 | (Rn << 5) | Rd */
+static int
+emit_fmov_xd(textbuf_t *tb, int xd, int dn)
+{
+    uint32_t insn = 0x9E780000U | ((dn & 31) << 5) | (xd & 31);
+    return emit32(tb, insn);
+}
+
+/* FADD Dd, Dn, Dm — 0x1E652800 | (Rm << 16) | (Rn << 5) | Rd */
+static int
+emit_fadd(textbuf_t *tb, int dd, int dn, int dm)
+{
+    uint32_t insn = 0x1E652800U | ((dm & 31) << 16) | ((dn & 31) << 5) | (dd & 31);
+    return emit32(tb, insn);
+}
+
+/* FSUB Dd, Dn, Dm — 0x1E653800 | (Rm << 16) | (Rn << 5) | Rd */
+static int
+emit_fsub(textbuf_t *tb, int dd, int dn, int dm)
+{
+    uint32_t insn = 0x1E653800U | ((dm & 31) << 16) | ((dn & 31) << 5) | (dd & 31);
+    return emit32(tb, insn);
+}
+
+/* FMUL Dd, Dn, Dm — 0x1E600800 | (Rm << 16) | (Rn << 5) | Rd */
+static int
+emit_fmul(textbuf_t *tb, int dd, int dn, int dm)
+{
+    uint32_t insn = 0x1E600800U | ((dm & 31) << 16) | ((dn & 31) << 5) | (dd & 31);
+    return emit32(tb, insn);
+}
+
+/* FDIV Dd, Dn, Dm — 0x1E601800 | (Rm << 16) | (Rn << 5) | Rd */
+static int
+emit_fdiv(textbuf_t *tb, int dd, int dn, int dm)
+{
+    uint32_t insn = 0x1E601800U | ((dm & 31) << 16) | ((dn & 31) << 5) | (dd & 31);
+    return emit32(tb, insn);
+}
+
+/* FCMP Dn, Dm — 0x1E652000 | (Rm << 16) | (Rn << 5) */
+static int
+emit_fcmp(textbuf_t *tb, int dn, int dm)
+{
+    uint32_t insn = 0x1E652000U | ((dm & 31) << 16) | ((dn & 31) << 5);
+    return emit32(tb, insn);
+}
+
+/* Load immediate double into register via literal pool approach.
+ * Use FMOV Dd, #imm when possible, otherwise load via X register. */
+static int
+emit_load_imm_double(textbuf_t *tb, int dst, double val)
+{
+    /* Try FMOV Dd, #imm (only works for certain values)
+     * For now, use the X register bridge: load bits into X, FMOV to D */
+    /* Use dst as temp X register, then bridge to D0, operate, bridge back */
+    /* Actually, load the 64-bit bit pattern into the dst X register */
+    union { double d; int64_t i; } u;
+    u.d = val;
+    return emit_load_imm64(tb, dst, u.i);
+}
+
+/* Check if an instruction's operands are float type */
+static int
+is_float_op(ir_instr_t *inst)
+{
+    if (inst->result.n > 0 && inst->result.reg[0].type == IR_REG_F64)
+        return 1;
+    if (inst->result.n > 0 && inst->result.reg[0].type == IR_REG_F32)
+        return 1;
+    return 0;
+}
+
+/* Check if an immediate operand is a float */
+static int
+is_float_imm(ir_operand_t *op)
+{
+    return op->type == IR_OPERAND_IMM &&
+           (op->u.imm.type == IR_IMM_F64 || op->u.imm.type == IR_IMM_F32);
+}
+
+/* Get float immediate value */
+static double
+operand_float_imm(ir_operand_t *op, int *ok)
+{
+    if (op->type == IR_OPERAND_IMM) {
+        if (op->u.imm.type == IR_IMM_F64) { *ok = 1; return op->u.imm.u.f64; }
+        if (op->u.imm.type == IR_IMM_F32) { *ok = 1; return (double)op->u.imm.u.f32; }
+    }
+    *ok = 0;
+    return 0.0;
+}
+
 static int
 compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
 {
@@ -837,6 +947,14 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             str_patch_add(ctx, off, sid);
             return 0;
         }
+        /* Check for float immediate */
+        if (is_float_imm(&inst->operands[0])) {
+            int fok;
+            double fval = operand_float_imm(&inst->operands[0], &fok);
+            if (fok) {
+                return emit_load_imm_double(&ctx->tb, dst, fval);
+            }
+        }
         imm = operand_imm(&inst->operands[0], &ok);
         if (!ok) return -1;
         return emit_load_imm64(&ctx->tb, dst, imm);
@@ -848,21 +966,53 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return emit_orr_reg(&ctx->tb, dst, 31, src0, 1);  /* mov = orr rd, xzr, rm */
 
     case IR_OPCODE_ADD:
+        if (is_float_op(inst)) {
+            src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+            src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fadd(&ctx->tb, 0, 0, 1);
+            return emit_fmov_xd(&ctx->tb, dst, 0);
+        }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_add_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_SUB:
+        if (is_float_op(inst)) {
+            src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+            src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fsub(&ctx->tb, 0, 0, 1);
+            return emit_fmov_xd(&ctx->tb, dst, 0);
+        }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_sub_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_MUL:
+        if (is_float_op(inst)) {
+            src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+            src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fmul(&ctx->tb, 0, 0, 1);
+            return emit_fmov_xd(&ctx->tb, dst, 0);
+        }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_mul_reg(&ctx->tb, dst, src0, src1, 1);
 
     case IR_OPCODE_DIV:
+        if (is_float_op(inst)) {
+            src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+            src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fdiv(&ctx->tb, 0, 0, 1);
+            return emit_fmov_xd(&ctx->tb, dst, 0);
+        }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         return emit_sdiv_reg(&ctx->tb, dst, src0, src1, 1);
