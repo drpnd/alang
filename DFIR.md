@@ -1,6 +1,6 @@
 # DFIR — Data Flow IR Specification
 
-> **Version:** 0.2 (implemented)
+> **Version:** 0.3 (implemented)
 >
 > **Status:** Bootstrap compiler implemented with aarch64 and x86-64 backends
 
@@ -30,7 +30,7 @@ both functions and coroutines as first-class constructs.
 
 DFIR is the **only** IR in the compiler. There is no separate LLVM step.
 The bootstrap compiler (`bootstrap/`) implements the full pipeline from
-source to native code for both aarch64 (macOS Mach-O) and x86-64 (ELF).
+source to native code for both aarch64 (macOS Mach-O) and x86-64 (Mach-O/ELF).
 
 ### 1.3 Three Layers
 
@@ -586,6 +586,8 @@ All passes run to a fixpoint (until no changes are made):
 | Unreachable block elimination | ✅ Implemented | Remove blocks not reachable from entry (worklist-based) |
 | Block merging | ✅ Implemented | Merge blocks connected by single-predecessor unconditional `br` |
 | Dead code elimination | ✅ Implemented | Remove unused instructions without side effects |
+| DCE after terminator | ✅ Implemented | Remove unreachable instructions after RET/BR |
+| SSA compaction | ✅ Implemented | Renumber SSA IDs sequentially to eliminate gaps from optimization |
 | State minimization | Planned | Merge redundant coroutine states |
 | Node fusion | Planned | Fuse adjacent `map`/`filter` coros into a single coro |
 | Channel elision | Planned | Remove unnecessary channels between fused nodes |
@@ -599,10 +601,15 @@ All passes run to a fixpoint (until no changes are made):
 4. Constant branch elim   ; replace constant br_cond with unconditional br
 5. Unreachable block elim ; remove blocks not reachable from entry
 6. Block merging          ; merge single-predecessor blocks
-7. Dead code elimination  ; remove unused instructions
+7. DCE after terminator   ; remove unreachable instructions after RET/BR
+8. Dead code elimination  ; remove unused instructions
+9. SSA compaction         ; renumber SSA IDs sequentially (after all other passes)
 ```
 
-Passes 1-7 run in sequence per iteration, up to 10 iterations, until fixpoint.
+Passes 1-8 run in sequence per iteration, up to 10 iterations, until fixpoint.
+SSA compaction (pass 9) runs once per iteration after all other passes, to
+eliminate gaps in SSA IDs left by optimization. This keeps the maximum SSA ID
+low so it fits within the backend's register file without spilling.
 
 ### 8.2 Inlining Details
 
@@ -891,5 +898,65 @@ fn main() (r: i32) {
 | Control Flow (br/br_cond/ret) | ✅ aarch64, x86-64 |
 | Call | ✅ aarch64, x86-64 |
 | Print/println builtins | ✅ aarch64, x86-64 |
+| Early return (return mid-function) | ✅ aarch64, x86-64 |
+| NEG (negation, including immediates) | ✅ aarch64, x86-64 |
+| Caller-saved register save/restore | ✅ aarch64, x86-64 |
+| SSA compaction | ✅ All backends |
+| DCE after terminator | ✅ All backends |
 | Coroutine (recv/send/yield/await/suspend) | Parsed (backend: NOP) |
-| Graph runtime | ✅ aarch64 (linear pipelines) |
+| Graph runtime | ✅ aarch64, x86-64 (linear pipelines) |
+
+### Test Coverage
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| IR unit tests | 22 | ✅ All pass |
+| aarch64 example tests | 50 | ✅ All pass |
+| x86-64 example tests | 44 | ✅ All pass |
+| **Total** | **116** | **0 failures** |
+
+### Example Programs (50 total)
+
+| Category | Examples |
+|----------|---------|
+| Arithmetic | zero, simple1, arith, subtract, multiply, bitops, comparison, multi_var, large_num, negate |
+| Control flow | if_test, if_else, while_test, for_test, for_nested, break_test, continue_test, while_break |
+| Functions | func_call, func_call2, func_if, early_return |
+| Recursion | recursive_fib, recursive_fib_ret, fibonacci, factorial, gcd |
+| Algorithms | primes, power, collatz, sum_digits |
+| Div/Mod | div_mod |
+| Structs | struct_test, struct_test2 |
+| Enums | enum_test, enum_match, enum_match2, enum_match3, enum_tuple, enum_extract |
+| Print | print_test, print_int, print_expr, print_combined, print_mixed |
+| Coroutines | coro_simple, coro_ret, coro_main |
+| Graph pipeline | pipeline |
+| Division/modulo | div_mod |
+
+### Compiler Architecture
+
+```
+compiler.c (2,254 lines)     — AST → DFIR compiler
+optimize.c (1,418 lines)     — 9 optimizer passes (const fold, copy prop, DCE, etc.)
+ir.c/ir.h (407 lines)        — DFIR data structures and utilities
+arch/aarch64/aarch64.c       — AArch64 backend (Mach-O)
+arch/x86-64/x86-64.c         — x86-64 backend (Mach-O/ELF)
+```
+
+### Key Design Decisions
+
+1. **SSA register allocation**: SSA IDs map directly to hardware registers.
+   Compaction keeps IDs low. No separate register allocator needed (yet).
+
+2. **Caller-saved save/restore**: Both backends save/restore caller-saved
+   registers around function calls (BL on aarch64, CALL on x86-64) using
+   stack-based save areas. Return values preserved via callee-saved temp.
+
+3. **3-operand emulation**: x86-64 has 2-operand instructions (dst op= src),
+   but DFIR is 3-operand (dst = src0 op src1). Fixed by emitting
+   `mov dst, src0; op dst, src1` and using immediate-form instructions.
+
+4. **idiv clobber handling**: x86-64 `idiv` clobbers RAX and RDX.
+   Both registers are saved via push/pop around DIV/MOD operations.
+
+5. **String table**: Strings are appended to the text section with per-string
+   offsets. LEA instructions use RIP-relative addressing patched after assembly.
