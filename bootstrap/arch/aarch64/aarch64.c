@@ -785,10 +785,22 @@ add_rel(arch_code_t *code, arch_rel_type_t type, off_t pos, int sym)
  * DFIR to AArch64 code generation
  *======================================================================*/
 
+static int is_float_imm(ir_operand_t *op);
+static double operand_float_imm(ir_operand_t *op, int *ok);
+static int emit_load_imm_double(textbuf_t *tb, int dst, double val);
+
 static int
 operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, int scratch)
 {
     if (op->type == IR_OPERAND_IMM) {
+        if (is_float_imm(op)) {
+            int fok;
+            double fval = operand_float_imm(op, &fok);
+            if (fok) {
+                emit_load_imm_double(&ctx->tb, scratch, fval);
+                return scratch;
+            }
+        }
         int ok;
         int64_t val = operand_imm(op, &ok);
         if (ok) {
@@ -866,7 +878,7 @@ emit_fdiv(textbuf_t *tb, int dd, int dn, int dm)
 static int
 emit_fcmp(textbuf_t *tb, int dn, int dm)
 {
-    uint32_t insn = 0x1E652000U | ((dm & 31) << 16) | ((dn & 31) << 5);
+    uint32_t insn = 0x1E602000U | ((dm & 31) << 16) | ((dn & 31) << 5);
     return emit32(tb, insn);
 }
 
@@ -881,7 +893,8 @@ emit_load_imm_double(textbuf_t *tb, int dst, double val)
     /* Actually, load the 64-bit bit pattern into the dst X register */
     union { double d; int64_t i; } u;
     u.d = val;
-    return emit_load_imm64(tb, dst, u.i);
+    emit_load_imm64(tb, dst, u.i);
+    return dst;
 }
 
 /* Check if an instruction's operands are float type */
@@ -913,6 +926,23 @@ operand_float_imm(ir_operand_t *op, int *ok)
     }
     *ok = 0;
     return 0.0;
+}
+
+
+static int
+is_float_cmp(ir_instr_t *inst)
+{
+    for (int i = 0; i < inst->noperands && i < IR_MAX_OPERANDS; i++) {
+        if (inst->operands[i].type == IR_OPERAND_REG &&
+            inst->operands[i].u.reg.type == IR_REG_F64)
+            return 1;
+        if (inst->operands[i].type == IR_OPERAND_REG &&
+            inst->operands[i].u.reg.type == IR_REG_F32)
+            return 1;
+        if (is_float_imm(&inst->operands[i]))
+            return 1;
+    }
+    return 0;
 }
 
 static int
@@ -1067,36 +1097,72 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_CMP_EQ:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        if (is_float_cmp(inst)) {
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fcmp(&ctx->tb, 0, 1);
+            return emit_cset(&ctx->tb, dst, COND_EQ, 1);
+        }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_EQ, 1);
 
     case IR_OPCODE_CMP_NE:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        if (is_float_cmp(inst)) {
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fcmp(&ctx->tb, 0, 1);
+            return emit_cset(&ctx->tb, dst, COND_NE, 1);
+        }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_NE, 1);
 
     case IR_OPCODE_CMP_LT:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        if (is_float_cmp(inst)) {
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fcmp(&ctx->tb, 0, 1);
+            return emit_cset(&ctx->tb, dst, COND_LT, 1);
+        }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_LT, 1);
 
     case IR_OPCODE_CMP_LE:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        if (is_float_cmp(inst)) {
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fcmp(&ctx->tb, 0, 1);
+            return emit_cset(&ctx->tb, dst, COND_LE, 1);
+        }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_LE, 1);
 
     case IR_OPCODE_CMP_GT:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        if (is_float_cmp(inst)) {
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fcmp(&ctx->tb, 0, 1);
+            return emit_cset(&ctx->tb, dst, COND_GT, 1);
+        }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_GT, 1);
 
     case IR_OPCODE_CMP_GE:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        if (is_float_cmp(inst)) {
+            emit_fmov_dx(&ctx->tb, 0, src0);
+            emit_fmov_dx(&ctx->tb, 1, src1);
+            emit_fcmp(&ctx->tb, 0, 1);
+            return emit_cset(&ctx->tb, dst, COND_GE, 1);
+        }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
         return emit_cset(&ctx->tb, dst, COND_GE, 1);
 
@@ -1221,10 +1287,28 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                         } else {
                             /* Variable: macOS arm64 printf is variadic —
                              * arguments go on the stack, not in X1. */
-                            const char *fmt = is_println ? "%d\n" : "%d";
-                            /* Load integer value */
+                            int is_float = is_float_imm(arg) ||
+                                (arg->type == IR_OPERAND_REG &&
+                                 (arg->u.reg.type == IR_REG_F64 ||
+                                  arg->u.reg.type == IR_REG_F32));
+                            const char *fmt;
+                            if (is_float) {
+                                fmt = is_println ? "%f\n" : "%f";
+                            } else {
+                                fmt = is_println ? "%d\n" : "%d";
+                            }
+                            /* Load value */
                             int val_reg;
-                            if (arg->type == IR_OPERAND_IMM) {
+                            if (is_float && arg->type == IR_OPERAND_IMM) {
+                                int fok;
+                                double fv = operand_float_imm(arg, &fok);
+                                if (fok) {
+                                    emit_load_imm_double(&ctx->tb, 8, fv);
+                                    val_reg = 8;
+                                } else {
+                                    val_reg = 31;
+                                }
+                            } else if (arg->type == IR_OPERAND_IMM) {
                                 int ok;
                                 int64_t v = operand_imm(arg, &ok);
                                 if (ok) {
