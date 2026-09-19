@@ -28,6 +28,8 @@ opcode_name(ir_opcode_t opc)
     case IR_OPCODE_ALLOCA:          return "alloca";
     case IR_OPCODE_LOAD:            return "load";
     case IR_OPCODE_STORE:           return "store";
+    case IR_OPCODE_LOAD8:           return "load8";
+    case IR_OPCODE_STORE8:          return "store8";
     case IR_OPCODE_MOV:             return "mov";
     case IR_OPCODE_MEMCPY:          return "memcpy";
     case IR_OPCODE_ADD:             return "add";
@@ -55,6 +57,7 @@ opcode_name(ir_opcode_t opc)
     case IR_OPCODE_GET_FIELD:       return "get_field";
     case IR_OPCODE_SET_FIELD:       return "set_field";
     case IR_OPCODE_GET_ELEM:        return "get_elem";
+    case IR_OPCODE_SET_ELEM:        return "set_elem";
     case IR_OPCODE_MAKE_ENUM:       return "make_enum";
     case IR_OPCODE_EXTRACT_VARIANT: return "extract_variant";
     case IR_OPCODE_CHECK_VARIANT:   return "check_variant";

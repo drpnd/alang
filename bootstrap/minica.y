@@ -85,6 +85,7 @@ struct type_list_val {
 %token <numval>         TOK_LIT_HEXINT TOK_LIT_DECINT TOK_LIT_BININT
 %token <idval>          TOK_ID
 %token <strval>         TOK_LIT_STR
+%token <numval>         TOK_LIT_CHAR
 
     /* Arithmetic operations */
 %token TOK_ADD TOK_SUB TOK_MUL TOK_DIV TOK_MOD
@@ -1183,6 +1184,10 @@ literal:        TOK_LIT_BININT
         |       TOK_LIT_STR
                 {
                     $$ = literal_new_string(scanner, $1);
+                }
+        |       TOK_LIT_CHAR
+                {
+                    $$ = literal_new_char(scanner, $1);
                 }
         |       TOK_TRUE
                 {

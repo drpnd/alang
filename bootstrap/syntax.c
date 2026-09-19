@@ -150,6 +150,25 @@ literal_new_string(void *scanner, const char *v)
     return lit;
 }
 
+
+/*
+ * literal_new_char -- allocate a character literal
+ */
+literal_t *
+literal_new_char(void *scanner, const char *v)
+{
+    literal_t *lit;
+
+    lit = _literal_new(scanner);
+    if ( lit == NULL ) {
+        return NULL;
+    }
+    lit->type = LIT_CHAR;
+    lit->u.n = strdup(v);
+
+    return lit;
+}
+
 /*
  * literal_new_bool -- allocate a bool literal
  */
@@ -187,6 +206,8 @@ literal_release(literal_t *lit)
         free(lit->u.s);
         break;
     case LIT_BOOL:
+        break;
+    case LIT_CHAR:
         break;
     }
     free(lit);

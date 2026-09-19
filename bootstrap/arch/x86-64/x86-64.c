@@ -1534,6 +1534,38 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         src1 = operand_reg(&inst->operands[1]);
         return emit_rr(&ctx->tb, 0x89, src0, src1, 1);
 
+    case IR_OPCODE_LOAD8: {
+        /* LOAD8: dst = *(uint8_t*)(base + idx)
+         * MOVZB r32, [base + idx] — 0x0F B6 /r with SIB */
+        int base_reg = operand_reg(&inst->operands[0]);
+        int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R10);
+        uint8_t buf[4];
+        int pos = 0;
+        int rex = (REG_REX(dst) ? REX_R : 0) | (REG_REX(base_reg) ? REX_B : 0) | (REG_REX(idx_reg) ? REX_X : 0);
+        if (rex) buf[pos++] = rex | REX;
+        buf[pos++] = 0x0F;
+        buf[pos++] = 0xB6;  /* MOVZB r32, r/m8 */
+        buf[pos++] = _modrm(0, REG_CODE(dst), 4);
+        buf[pos++] = _sib(REG_CODE(base_reg), REG_CODE(idx_reg), 0);
+        return tb_emit(&ctx->tb, buf, pos);
+    }
+
+    case IR_OPCODE_STORE8: {
+        /* STORE8: *(uint8_t*)(base + idx) = val
+         * MOV [base + idx], r8 — 0x88 /r with SIB */
+        int base_reg = operand_reg(&inst->operands[0]);
+        int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R10);
+        int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[2], REG_R11);
+        uint8_t buf[4];
+        int pos = 0;
+        int rex = (REG_REX(val_reg) ? REX_R : 0) | (REG_REX(base_reg) ? REX_B : 0) | (REG_REX(idx_reg) ? REX_X : 0);
+        if (rex) buf[pos++] = rex | REX;
+        buf[pos++] = 0x88;  /* MOV r/m8, r8 */
+        buf[pos++] = _modrm(0, REG_CODE(val_reg), 4);
+        buf[pos++] = _sib(REG_CODE(base_reg), REG_CODE(idx_reg), 0);
+        return tb_emit(&ctx->tb, buf, pos);
+    }
+
     case IR_OPCODE_GET_ELEM: {
         /* GET_ELEM: dst = arr[idx]
          * mov dst, [base + idx*8]

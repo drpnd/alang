@@ -63,6 +63,7 @@ typedef enum {
     LIT_FLOAT,
     LIT_STRING,
     LIT_BOOL,
+    LIT_CHAR,
 } literal_type_t;
 
 /*
@@ -675,6 +676,7 @@ literal_t *
 literal_new_int(void *, const char *, int);
 literal_t *
 literal_new_float(void *, const char *);
+literal_t *literal_new_char(void *, const char *);
 literal_t *
 literal_new_string(void *, const char *);
 literal_t *

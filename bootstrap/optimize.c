@@ -95,6 +95,8 @@ has_side_effects(ir_opcode_t opc)
 {
     switch (opc) {
     case IR_OPCODE_STORE:
+    case IR_OPCODE_STORE8:
+    case IR_OPCODE_SET_ELEM:
     case IR_OPCODE_MEMCPY:
     case IR_OPCODE_SET_FIELD:
     case IR_OPCODE_BR:

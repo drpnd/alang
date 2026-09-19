@@ -387,6 +387,30 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
     return TOK_LIT_STR;
 }
 
+
+    /* Character literal */
+\'(\\[ntr0\\\'"]|[^\\\'\n])\' {
+    int c;
+    if (yytext[1] == '\\') {
+        switch (yytext[2]) {
+        case 'n': c = '\n'; break;
+        case 't': c = '\t'; break;
+        case 'r': c = '\r'; break;
+        case '0': c = '\0'; break;
+        case '\\': c = '\\'; break;
+        case '\'': c = '\''; break;
+        case '"': c = '"'; break;
+        default: c = yytext[2]; break;
+        }
+    } else {
+        c = yytext[1];
+    }
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d", c);
+    yylval->numval = strdup(buf);
+    return TOK_LIT_CHAR;
+}
+
     /* Line comment */
 \/\/ { BEGIN comment; }
 <comment>[^\n]*\n {

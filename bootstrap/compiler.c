@@ -647,6 +647,14 @@ _compile_literal(dfir_compiler_t *c, literal_t *lit)
         _emit(c, IR_OPCODE_CONST, &result, 1, &op);
         break;
     }
+    case LIT_CHAR: {
+        int cval = 0;
+        if (lit->u.n) cval = atoi(lit->u.n);
+        result = _ssa(c, IR_REG_I32);
+        op = _op_imm_i32(cval);
+        _emit(c, IR_OPCODE_CONST, &result, 1, &op);
+        break;
+    }
     default:
         result = _ssa(c, IR_REG_I32);
         op = _op_imm_i32(0);
@@ -908,6 +916,235 @@ _expr(dfir_compiler_t *c, expr_t *e)
                 ops[0] = _op_imm_i32(16);
             }
             _emit(c, IR_OPCODE_ALLOCA, &result, 1, ops);
+            return result;
+        }
+
+        /* Builtin: __malloc(size) — heap allocation via libc */
+        if (call->callee && strcmp(call->callee, "__malloc") == 0) {
+            ir_operand_t ops[2];
+            if (call->exprs && call->exprs->head) {
+                ir_reg_t sz = _expr(c, call->exprs->head);
+                ops[0] = _op_reg(sz);
+            } else {
+                ops[0] = _op_imm_i32(0);
+            }
+            ops[1] = _op_imm_str("malloc");
+            ir_reg_t result = _ssa(c, IR_REG_PTR);
+            _emit(c, IR_OPCODE_CALL, &result, 2, ops);
+            return result;
+        }
+
+        /* Builtin: __free(ptr) — free heap memory */
+        if (call->callee && strcmp(call->callee, "__free") == 0) {
+            ir_operand_t ops[2];
+            if (call->exprs && call->exprs->head) {
+                ir_reg_t ptr = _expr(c, call->exprs->head);
+                ops[0] = _op_reg(ptr);
+            } else {
+                ops[0] = _op_imm_i32(0);
+            }
+            ops[1] = _op_imm_str("free");
+            _emit(c, IR_OPCODE_CALL, NULL, 2, ops);
+            return _ssa(c, IR_REG_NONE);
+        }
+
+        /* Builtin: __strlen(s) — string length via libc */
+        if (call->callee && strcmp(call->callee, "__strlen") == 0) {
+            ir_operand_t ops[2];
+            if (call->exprs && call->exprs->head) {
+                ir_reg_t s = _expr(c, call->exprs->head);
+                ops[0] = _op_reg(s);
+            } else {
+                ops[0] = _op_imm_i32(0);
+            }
+            ops[1] = _op_imm_str("strlen");
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_CALL, &result, 2, ops);
+            return result;
+        }
+
+        /* Builtin: __str_get(s, i) — get byte from string at index i */
+        if (call->callee && strcmp(call->callee, "__str_get") == 0) {
+            ir_reg_t s = _ssa(c, IR_REG_PTR);
+            ir_reg_t idx = _ssa(c, IR_REG_I32);
+            ir_operand_t s_ops[1], i_ops[1];
+            if (call->exprs && call->exprs->head) {
+                expr_t *arg = call->exprs->head;
+                ir_reg_t sv = _expr(c, arg);
+                s_ops[0] = _op_reg(sv);
+                _emit(c, IR_OPCODE_CONST, &s, 1, s_ops);
+                if (arg->next) {
+                    ir_reg_t iv = _expr(c, arg->next);
+                    i_ops[0] = _op_reg(iv);
+                    _emit(c, IR_OPCODE_CONST, &idx, 1, i_ops);
+                }
+            }
+            /* LOAD8: result = load8 [s + idx] */
+            ir_reg_t result = _ssa(c, IR_REG_I32);
+            ir_operand_t ops[2];
+            ops[0] = _op_reg(s);
+            ops[1] = _op_reg(idx);
+            _emit(c, IR_OPCODE_LOAD8, &result, 2, ops);
+            return result;
+        }
+
+        /* Builtin: __byte_load(ptr, idx) — load 1 byte from ptr+idx */
+        if (call->callee && strcmp(call->callee, "__byte_load") == 0) {
+            ir_reg_t ptr = _ssa(c, IR_REG_PTR);
+            ir_reg_t idx = _ssa(c, IR_REG_I32);
+            if (call->exprs && call->exprs->head) {
+                expr_t *arg = call->exprs->head;
+                ir_reg_t pv = _expr(c, arg);
+                ir_operand_t p_ops[1] = {_op_reg(pv)};
+                _emit(c, IR_OPCODE_CONST, &ptr, 1, p_ops);
+                if (arg->next) {
+                    ir_reg_t iv = _expr(c, arg->next);
+                    ir_operand_t i_ops[1] = {_op_reg(iv)};
+                    _emit(c, IR_OPCODE_CONST, &idx, 1, i_ops);
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I32);
+            ir_operand_t ops[2];
+            ops[0] = _op_reg(ptr);
+            ops[1] = _op_reg(idx);
+            _emit(c, IR_OPCODE_LOAD8, &result, 2, ops);
+            return result;
+        }
+
+        /* Builtin: __byte_store(ptr, idx, val) — store 1 byte to ptr+idx */
+        if (call->callee && strcmp(call->callee, "__byte_store") == 0) {
+            ir_reg_t ptr = _ssa(c, IR_REG_PTR);
+            ir_reg_t idx = _ssa(c, IR_REG_I32);
+            ir_reg_t val = _ssa(c, IR_REG_I32);
+            if (call->exprs && call->exprs->head) {
+                expr_t *arg = call->exprs->head;
+                ir_reg_t pv = _expr(c, arg);
+                ir_operand_t p_ops[1] = {_op_reg(pv)};
+                _emit(c, IR_OPCODE_CONST, &ptr, 1, p_ops);
+                if (arg->next) {
+                    ir_reg_t iv = _expr(c, arg->next);
+                    ir_operand_t i_ops[1] = {_op_reg(iv)};
+                    _emit(c, IR_OPCODE_CONST, &idx, 1, i_ops);
+                    if (arg->next->next) {
+                        ir_reg_t vv = _expr(c, arg->next->next);
+                        ir_operand_t v_ops[1] = {_op_reg(vv)};
+                        _emit(c, IR_OPCODE_CONST, &val, 1, v_ops);
+                    }
+                }
+            }
+            ir_operand_t ops[3];
+            ops[0] = _op_reg(ptr);
+            ops[1] = _op_reg(idx);
+            ops[2] = _op_reg(val);
+            _emit(c, IR_OPCODE_STORE8, NULL, 3, ops);
+            return val;
+        }
+
+        /* Builtin: __mem_load(ptr) — load 8 bytes from ptr */
+        if (call->callee && strcmp(call->callee, "__mem_load") == 0) {
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            ir_operand_t ops[1];
+            if (call->exprs && call->exprs->head) {
+                ir_reg_t ptr = _expr(c, call->exprs->head);
+                ops[0] = _op_reg(ptr);
+            } else {
+                ops[0] = _op_imm_i32(0);
+            }
+            _emit(c, IR_OPCODE_LOAD, &result, 1, ops);
+            return result;
+        }
+
+        /* Builtin: __mem_store(ptr, val) — store 8 bytes to ptr */
+        if (call->callee && strcmp(call->callee, "__mem_store") == 0) {
+            ir_operand_t ops[2];
+            if (call->exprs && call->exprs->head) {
+                ir_reg_t ptr = _expr(c, call->exprs->head);
+                ops[0] = _op_reg(ptr);
+                if (call->exprs->head->next) {
+                    ir_reg_t val = _expr(c, call->exprs->head->next);
+                    ops[1] = _op_reg(val);
+                } else {
+                    ops[1] = _op_imm_i32(0);
+                }
+            } else {
+                ops[0] = _op_imm_i32(0);
+                ops[1] = _op_imm_i32(0);
+            }
+            _emit(c, IR_OPCODE_STORE, NULL, 2, ops);
+            return _ssa(c, IR_REG_NONE);
+        }
+
+        /* Builtin: __fopen(path, mode) — open file via libc */
+        if (call->callee && strcmp(call->callee, "__fopen") == 0) {
+            ir_operand_t ops[3];
+            int nargs = 0;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 2) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ops[nargs] = _op_imm_str("fopen");
+            nargs++;
+            ir_reg_t result = _ssa(c, IR_REG_PTR);
+            _emit(c, IR_OPCODE_CALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __fclose(fp) — close file */
+        if (call->callee && strcmp(call->callee, "__fclose") == 0) {
+            ir_operand_t ops[2];
+            if (call->exprs && call->exprs->head) {
+                ir_reg_t fp = _expr(c, call->exprs->head);
+                ops[0] = _op_reg(fp);
+            } else {
+                ops[0] = _op_imm_i32(0);
+            }
+            ops[1] = _op_imm_str("fclose");
+            _emit(c, IR_OPCODE_CALL, NULL, 2, ops);
+            return _ssa(c, IR_REG_NONE);
+        }
+
+        /* Builtin: __fread(buf, size, count, fp) — read from file */
+        if (call->callee && strcmp(call->callee, "__fread") == 0) {
+            ir_operand_t ops[5];
+            int nargs = 0;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 4) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ops[nargs] = _op_imm_str("fread");
+            nargs++;
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_CALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __fwrite(buf, size, count, fp) — write to file */
+        if (call->callee && strcmp(call->callee, "__fwrite") == 0) {
+            ir_operand_t ops[5];
+            int nargs = 0;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 4) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ops[nargs] = _op_imm_str("fwrite");
+            nargs++;
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_CALL, &result, nargs, ops);
             return result;
         }
 

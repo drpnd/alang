@@ -291,6 +291,9 @@ _literal(literal_t *lit)
     case LIT_BOOL:
         printf("%s", lit->u.b == BOOL_TRUE ? "true" : "false");
         break;
+    case LIT_CHAR:
+        printf("%s", lit->u.n ? lit->u.n : "0");
+        break;
     }
 }
 
