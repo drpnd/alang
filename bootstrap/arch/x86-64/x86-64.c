@@ -1504,9 +1504,21 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             return 0;
         }
 
-    case IR_OPCODE_ALLOCA:
-        /* sub rsp, size — approximate with fixed 16-byte alignment */
-        return emit_sub_rsp(&ctx->tb, 16);
+    case IR_OPCODE_ALLOCA: {
+        /* Allocate stack space. Default 16 bytes, or use operand size. */
+        int size = 16;
+        if (inst->noperands > 0 && inst->operands[0].type == IR_OPERAND_IMM) {
+            int ok;
+            int64_t val = operand_imm(&inst->operands[0], &ok);
+            if (ok && val > 0) {
+                size = ((val + 15) / 16) * 16;
+            }
+        }
+        emit_sub_rsp(&ctx->tb, size);
+        /* mov dst, rsp — result is the allocated pointer */
+        emit_mov_rr(&ctx->tb, dst, REG_RSP);
+        return 0;
+    }
 
     case IR_OPCODE_LOAD:
         /* mov reg, [reg] — 0x8B /r */
@@ -1521,6 +1533,45 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg(&inst->operands[1]);
         return emit_rr(&ctx->tb, 0x89, src0, src1, 1);
+
+    case IR_OPCODE_GET_ELEM: {
+        /* GET_ELEM: dst = arr[idx]
+         * mov dst, [base + idx*8]
+         * Encoding: REX.W 8B /r with SIB: base=RSP, index=idx, scale=3 (8) */
+        int base_reg = operand_reg(&inst->operands[0]);
+        int idx_reg = operand_reg(&inst->operands[1]);
+        /* mov dst, [base + idx*8] = REX.W 8B ModRM(mod=0, reg=dst, rm=4(SIB))
+         * SIB(scale=3, index=idx, base=base) */
+        uint8_t buf[4];
+        int pos = 0;
+        int rex = REX_W | (REG_REX(dst) ? REX_R : 0);
+        if (REG_REX(base_reg)) rex |= REX_B;
+        if (REG_REX(idx_reg)) rex |= REX_X;
+        buf[pos++] = rex | REX;
+        buf[pos++] = 0x8B;  /* MOV r64, r/m64 */
+        buf[pos++] = _modrm(0, REG_CODE(dst), 4);  /* mod=0, rm=4 = SIB follows */
+        buf[pos++] = _sib(REG_CODE(base_reg), REG_CODE(idx_reg), 3);  /* scale=3 (8), index, base */
+        return tb_emit(&ctx->tb, buf, pos);
+    }
+
+    case IR_OPCODE_SET_ELEM: {
+        /* SET_ELEM: arr[idx] = val
+         * mov [base + idx*8], val
+         * REX.W 89 /r with SIB */
+        int base_reg = operand_reg(&inst->operands[0]);
+        int idx_reg = operand_reg(&inst->operands[1]);
+        int val_reg = operand_reg(&inst->operands[2]);
+        uint8_t buf[4];
+        int pos = 0;
+        int rex = REX_W | (REG_REX(val_reg) ? REX_R : 0);
+        if (REG_REX(base_reg)) rex |= REX_B;
+        if (REG_REX(idx_reg)) rex |= REX_X;
+        buf[pos++] = rex | REX;
+        buf[pos++] = 0x89;  /* MOV r/m64, r64 */
+        buf[pos++] = _modrm(0, REG_CODE(val_reg), 4);  /* mod=0, rm=4 = SIB */
+        buf[pos++] = _sib(REG_CODE(base_reg), REG_CODE(idx_reg), 3);
+        return tb_emit(&ctx->tb, buf, pos);
+    }
 
     case IR_OPCODE_DIV: {
         /* Signed division: idiv rm divides RDX:RAX by rm.

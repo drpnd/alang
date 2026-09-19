@@ -725,8 +725,8 @@ _expr(dfir_compiler_t *c, expr_t *e)
 
         /* Assignment */
         if (op->type == OP_ASSIGN) {
+            ir_reg_t val = _expr(c, op->e1);
             if (op->e0->type == EXPR_ID) {
-                ir_reg_t val = _expr(c, op->e1);
                 cvar_t *v = _scope_lookup(c->scope, op->e0->u.id);
                 if (!v) {
                     fprintf(stderr, "error: undefined variable '%s'\n",
@@ -750,7 +750,6 @@ _expr(dfir_compiler_t *c, expr_t *e)
             } else if (op->e0->type == EXPR_MEMBER) {
                 /* Struct field assignment: mut p.x = expr */
                 member_t *mem = &op->e0->u.mem;
-                ir_reg_t val = _expr(c, op->e1);
                 ir_reg_t obj = _expr(c, mem->e);
                 int field_idx = 0;
                 if (mem->e->type == EXPR_ID) {
@@ -768,6 +767,17 @@ _expr(dfir_compiler_t *c, expr_t *e)
                 ops[1] = _op_imm_i32(field_idx);
                 ops[2] = _op_reg(val);
                 _emit(c, IR_OPCODE_SET_FIELD, NULL, 3, ops);
+                return val;
+            } else if (op->e0->type == EXPR_REF) {
+                /* Array element assignment: mut arr[idx] = expr */
+                ref_t *ref = op->e0->u.ref;
+                ir_reg_t arr = _expr(c, ref->var);
+                ir_reg_t idx = _expr(c, ref->arg);
+                ir_operand_t ops[3];
+                ops[0] = _op_reg(arr);
+                ops[1] = _op_reg(idx);
+                ops[2] = _op_reg(val);
+                _emit(c, IR_OPCODE_SET_ELEM, NULL, 3, ops);
                 return val;
             } else {
                 fprintf(stderr, "error: invalid assignment target\n");
@@ -885,6 +895,20 @@ _expr(dfir_compiler_t *c, expr_t *e)
                 _emit(c, IR_OPCODE_MAKE_ENUM, &result, nargs, ops);
                 return result;
             }
+        }
+
+        /* Builtin: __alloca(size) — allocate stack space */
+        if (call->callee && strcmp(call->callee, "__alloca") == 0) {
+            ir_reg_t result = _ssa(c, IR_REG_PTR);
+            ir_operand_t ops[1];
+            if (call->exprs && call->exprs->head) {
+                ir_reg_t sz = _expr(c, call->exprs->head);
+                ops[0] = _op_reg(sz);
+            } else {
+                ops[0] = _op_imm_i32(16);
+            }
+            _emit(c, IR_OPCODE_ALLOCA, &result, 1, ops);
+            return result;
         }
 
         /* Regular function call */

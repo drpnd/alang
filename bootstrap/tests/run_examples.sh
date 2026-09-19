@@ -113,3 +113,4 @@ run_test "float_arith.al" 32
 run_test "float_add.al" 6
 run_test "float_compare.al" 1
 run_test "float_compare.al" 1
+run_test "array_test.al" 60

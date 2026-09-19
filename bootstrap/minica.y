@@ -878,6 +878,12 @@ assign_expr:    TOK_MUT identifier TOK_EQ expression
                     $$ = expr_op_new_infix(scanner,
                         expr_new_member(scanner, $2, $4), $6, OP_ASSIGN);
                 }
+        |       TOK_MUT p_expr TOK_LBRACKET expression TOK_RBRACKET TOK_EQ expression
+                {
+                    /* mut arr[idx] = expr (array element assignment) */
+                    $$ = expr_op_new_infix(scanner,
+                        expr_new_ref(scanner, $2, $4), $7, OP_ASSIGN);
+                }
         |       TOK_MUT identifier TOK_PLUS_EQ expression
                 {
                     $$ = expr_op_new_infix(scanner,

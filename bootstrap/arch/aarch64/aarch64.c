@@ -344,6 +344,9 @@ emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
 static int
 emit_epilogue(asm_ctx_t *ctx, int max_ssa)
 {
+    /* Restore SP from frame pointer (in case ALLOCA modified it) */
+    /* mov sp, x29 = add sp, x29, #0 */
+    emit32(&ctx->tb, (1U << 31) | (0x11U << 24) | (29U << 5) | 31);
     int saved_count = 0;
     for (int i = 19; i <= 28 && i <= max_ssa; i++) {
         saved_count++;
@@ -1436,14 +1439,29 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             return 0;
         }
 
-    case IR_OPCODE_ALLOCA:
-        /* sub sp, sp, #16 (approximate) */
-        /* SUB (immediate): sf 1 0 0 1 0 0 0 1 0 0 sh imm12 Rn Rd */
-        {
-            uint32_t insn = (1U << 31) | (0x22U << 24) | (16 << 10) |
-                            (31U << 5) | 31;
-            return emit32(&ctx->tb, insn);
+    case IR_OPCODE_ALLOCA: {
+        /* Allocate stack space. Default 16 bytes, or use operand size. */
+        int size = 16;
+        if (inst->noperands > 0 && inst->operands[0].type == IR_OPERAND_IMM) {
+            int ok;
+            int64_t val = operand_imm(&inst->operands[0], &ok);
+            if (ok && val > 0) {
+                /* Round up to 16-byte alignment */
+                size = ((val + 15) / 16) * 16;
+                if (size > 0xFFF) size = 0xFFF;
+            }
         }
+        /* sub sp, sp, #size */
+        uint32_t insn = (1U << 31) | (0x51U << 24) | ((size & 0xFFF) << 10) |
+                        (31U << 5) | 31;
+        emit32(&ctx->tb, insn);
+        /* mov dst, sp = add dst, sp, #0 */
+        if (dst != 31) {
+            uint32_t mov_sp = (1U << 31) | (0x11U << 24) | (31U << 5) | (dst & 31);
+            emit32(&ctx->tb, mov_sp);
+        }
+        return 0;
+    }
 
     case IR_OPCODE_LOAD:
         /* LDR Xt, [Xn] — 1 1 1 1 1 0 0 1 0 1 imm12 Rn Rt (imm12=0) */
@@ -1562,10 +1580,31 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     /* Unhandled -- NOP */
     case IR_OPCODE_PHI:
     case IR_OPCODE_SWITCH:
+    case IR_OPCODE_GET_ELEM: {
+        /* GET_ELEM: dst = arr[idx]
+         * LDR Xt, [Xbase, Xidx, LSL #3] — load 8 bytes from base + idx*8
+         * Encoding: 1 11 1 1 0 0 1 0 1 1 Rm option S 10 Rn Rt
+         * LDR (register): 0xF8606800 | (Rm << 16) | (Rn << 5) | Rt
+         * option=011 (LSL), S=0, size=11 (64-bit) */
+        src0 = operand_reg(&inst->operands[0]);
+        int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 16);
+        uint32_t insn = 0xF8606800U | ((idx_reg & 31) << 16) | ((src0 & 31) << 5) | (dst & 31);
+        return emit32(&ctx->tb, insn);
+    }
+
+    case IR_OPCODE_SET_ELEM: {
+        /* SET_ELEM: arr[idx] = val
+         * STR Xt, [Xbase, Xidx, LSL #3] */
+        int base_reg = operand_reg(&inst->operands[0]);
+        int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 16);
+        int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[2], 17);
+        uint32_t insn = 0xF8206800U | ((idx_reg & 31) << 16) | ((base_reg & 31) << 5) | (val_reg & 31);
+        return emit32(&ctx->tb, insn);
+    }
+
     case IR_OPCODE_MEMCPY:
     case IR_OPCODE_UREM:
     case IR_OPCODE_CAST:
-    case IR_OPCODE_GET_ELEM:
     case IR_OPCODE_RECV:
     case IR_OPCODE_SEND:
     case IR_OPCODE_YIELD:
