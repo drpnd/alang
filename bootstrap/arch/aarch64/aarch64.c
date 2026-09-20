@@ -332,42 +332,19 @@ emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
     /* mov x29, sp = add x29, sp, #0 = 0x910003FD */
     emit32(&ctx->tb, 0x910003FD);
 
-    /* Save callee-saved registers that are used */
-    int saved_count = 0;
-    for (int i = 19; i <= 28 && i <= max_ssa; i++) {
-        saved_count++;
-    }
-    /* Round up to even for STP */
-    if (saved_count % 2 != 0) saved_count++;
-
-    /* Save pairs: stp x19, x20, [sp, #-16]! etc. */
-    for (int i = 0; i < saved_count; i += 2) {
-        int reg2 = 19 + i + 1;
-        if (reg2 > 28) reg2 = 31;  /* XZR padding */
-        /* stp xN, xM, [sp, #-16]! */
-        /* STP encoding not used — using STR instead below */
-        /* stp x29, x30, [sp, #-16]! encoding: 0xA9BF7BFD
-           = 10101001_10111111_01111011_11111101
-           op=10, V=0, L=0(Store), 0, imm7=0x3F(-16/8=-2... wait) */
-        /* Let me just use a simpler approach: sub sp, sp, #N then str */
-        /* sub sp, sp, #(saved_count/2 * 16) */
-        int alloc_size = (saved_count / 2) * 16;
-        if (alloc_size > 0) {
-            /* SUB (immediate): sf 1 0 0 1 0 0 0 1 0 0 sh imm12 Rn Rd */
-            uint32_t sub = (1U << 31) | (0x51U << 24) |
-                          ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
-            emit32(&ctx->tb, sub);
-        }
-        for (int j = 0; j < saved_count; j++) {
-            int reg = 19 + j;
-            int offset = j * 8;
-            /* STR Xt, [sp, #offset] */
-            /* 1 1 1 1 1 0 0 1 0 0 imm12 Rn Rt */
-            uint32_t str = (0xF9U << 24) | (((offset / 8) & 0xFFF) << 10) |
-                          (31U << 5) | reg;
-            emit32(&ctx->tb, str);
-        }
-        break;  /* only one loop iteration needed */
+    /* Always save all callee-saved registers X19-X28 (10 regs = 80 bytes) */
+    int saved_count = 10;
+    int alloc_size = 80;
+    /* sub sp, sp, #80 */
+    uint32_t sub = (1U << 31) | (0x51U << 24) |
+                  ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
+    emit32(&ctx->tb, sub);
+    for (int j = 0; j < saved_count; j++) {
+        int reg = 19 + j;
+        int offset = j * 8;
+        uint32_t str = (0xF9U << 24) | (((offset / 8) & 0xFFF) << 10) |
+                      (31U << 5) | reg;
+        emit32(&ctx->tb, str);
     }
 
     return 0;
@@ -382,19 +359,16 @@ emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
 static int
 emit_epilogue(asm_ctx_t *ctx, int max_ssa)
 {
-    /* Restore SP from frame pointer (in case ALLOCA modified it) */
+    /* Restore SP to point to callee-saved area:
+     * SP = X29 - 80 (callee-saved area is 80 bytes below FP) */
     /* mov sp, x29 = add sp, x29, #0 */
     emit32(&ctx->tb, (1U << 31) | (0x11U << 24) | (29U << 5) | 31);
-    int saved_count = 0;
-    for (int i = 19; i <= 28 && i <= max_ssa; i++) {
-        saved_count++;
-    }
-    if (saved_count % 2 != 0) saved_count++;
-
-    /* Restore callee-saved registers */
-    int alloc_size = (saved_count / 2) * 16;
-    if (alloc_size > 0) {
-        for (int j = 0; j < saved_count; j++) {
+    /* sub sp, sp, #80 */
+    emit32(&ctx->tb, (1U << 31) | (0x51U << 24) | ((80 & 0xFFF) << 10) | (31U << 5) | 31);
+    /* Always restore all callee-saved registers X19-X28 */
+    int saved_count = 10;
+    int alloc_size = 80;
+    for (int j = 0; j < saved_count; j++) {
             int reg = 19 + j;
             int offset = j * 8;
             /* LDR Xt, [sp, #offset] — bit 22=1 for load (not store) */
@@ -406,7 +380,6 @@ emit_epilogue(asm_ctx_t *ctx, int max_ssa)
         uint32_t add = (1U << 31) | (0x11U << 24) |
                        ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
         emit32(&ctx->tb, add);
-    }
 
     /* ldp x29, x30, [sp], #16 = 0xA8C17BFD */
     emit32(&ctx->tb, 0xA8C17BFD);
@@ -1296,12 +1269,8 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 }
             }
         }
-        if (ctx->max_ssa >= AARCH64_MAX_REGS) {
-            int ns = ctx->max_ssa - AARCH64_MAX_REGS + 1;
-            int sz = ((ns * 8 + 15) / 16) * 16;
-            uint32_t add = (1U<<31)|(0x11U<<24)|((sz&0xFFF)<<10)|(31<<5)|31;
-            emit32(&ctx->tb, add);
-        }
+        /* emit_epilogue does "mov sp, x29" which restores SP past all
+         * stack allocations, so no manual spill dealloc needed. */
         emit_epilogue(ctx, ctx->max_ssa);
         break;
 
@@ -1928,9 +1897,7 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
         /* Compute spill area */
         int n_spill = (max_ssa >= AARCH64_MAX_REGS) ?
                       (max_ssa - AARCH64_MAX_REGS + 1) : 0;
-        int csz = 0;
-        for (int i = 19; i <= 28 && i <= max_ssa; i++) csz += 8;
-        if (csz % 16) csz += 8;
+        int csz = 80;  /* always save X19-X28 = 10 * 8 */
         /* Spill slots at [X29, -(16+csz+8)], [X29, -(16+csz+16)], ... */
         g_spill_off = -(csz + 8);
 
