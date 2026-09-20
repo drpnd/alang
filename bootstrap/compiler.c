@@ -1183,6 +1183,72 @@ _expr(dfir_compiler_t *c, expr_t *e)
             return result;
         }
 
+        /* Builtin: __str_eq(s1, s2) — compare strings, return 1 if equal, 0 if not */
+        if (call->callee && strcmp(call->callee, "__str_eq") == 0) {
+            ir_operand_t ops[3];
+            int nargs = 0;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 2) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ops[nargs] = _op_imm_str("strcmp");
+            nargs++;
+            ir_reg_t cmp_result = _ssa(c, IR_REG_I32);
+            _emit(c, IR_OPCODE_CALL, &cmp_result, nargs, ops);
+            /* strcmp returns 0 if equal; convert to 1 if equal, 0 if not */
+            ir_reg_t zero = _ssa(c, IR_REG_I32);
+            ir_operand_t zero_ops[1];
+            zero_ops[0] = _op_imm_i32(0);
+            _emit(c, IR_OPCODE_CONST, &zero, 1, zero_ops);
+            ir_reg_t result = _ssa(c, IR_REG_I32);
+            ir_operand_t eq_ops[2];
+            eq_ops[0] = _op_reg(cmp_result);
+            eq_ops[1] = _op_reg(zero);
+            _emit(c, IR_OPCODE_CMP_EQ, &result, 2, eq_ops);
+            return result;
+        }
+
+        /* Builtin: __str_len(s) — return length of null-terminated string */
+        if (call->callee && strcmp(call->callee, "__str_len") == 0) {
+            ir_operand_t ops[2];
+            int nargs = 0;
+            if (call->exprs && call->exprs->head) {
+                ir_reg_t v = _expr(c, call->exprs->head);
+                ops[nargs] = _op_reg(v);
+                nargs++;
+            }
+            ops[nargs] = _op_imm_str("strlen");
+            nargs++;
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_CALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __str_copy(dst, src) — copy string (including null terminator) */
+        if (call->callee && strcmp(call->callee, "__str_copy") == 0) {
+            ir_operand_t ops[3];
+            int nargs = 0;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 2) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ops[nargs] = _op_imm_str("strcpy");
+            nargs++;
+            ir_reg_t result = _ssa(c, IR_REG_PTR);
+            _emit(c, IR_OPCODE_CALL, &result, nargs, ops);
+            return result;
+        }
+
         /* Regular function call */
         /* Evaluate arguments and collect as operands.
          * Struct arguments are expanded into multiple field registers. */

@@ -68,6 +68,7 @@ run_test "multi_var.al" 10
 run_test "large_num.al" 3000
 run_test "spill_test.al" 34
 run_test "spill_call_test.al" 127
+run_test "str_builtin_test.al" 6
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
