@@ -2634,6 +2634,7 @@ compile_to_dfir(st_t *st)
 
     if (c.error) {
         fprintf(stderr, "Compilation completed with errors\n");
+        return NULL;
     }
 
     return c.ir;
