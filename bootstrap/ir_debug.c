@@ -15,6 +15,23 @@
 #include <stdio.h>
 #include <string.h>
 
+static const char *
+ir_type_name(ir_reg_type_t t)
+{
+    switch (t) {
+    case IR_REG_I8:   return "i8";
+    case IR_REG_I16:  return "i16";
+    case IR_REG_I32:  return "i32";
+    case IR_REG_I64:  return "i64";
+    case IR_REG_PTR:  return "ptr";
+    case IR_REG_BOOL: return "bool";
+    case IR_REG_STR:  return "str";
+    case IR_REG_F32:  return "f32";
+    case IR_REG_F64:  return "f64";
+    default:          return "?";
+    }
+}
+
 /*======================================================================
  * Opcode names
  *======================================================================*/
@@ -287,6 +304,14 @@ ir_print_code(ir_object_t *obj)
     /* Data sections */
     if (obj->data.n > 0) {
         printf("  ; Data sections: %zu entries\n", obj->data.n);
+    }
+
+    /* Global variables */
+    for (size_t i = 0; i < obj->nglobals; i++) {
+        printf("  global @%s : %s = %lld\n",
+               obj->globals[i].name,
+               ir_type_name(obj->globals[i].type),
+               (long long)obj->globals[i].init_val);
     }
 
     printf("}\n");

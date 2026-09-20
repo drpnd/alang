@@ -98,6 +98,7 @@ typedef struct {
 typedef struct {
     textbuf_t tb;
     arch_code_t *code;
+    ir_object_t *ir_obj;
     label_map_t labels;
     patch_list_t patches;
     int max_ssa;
@@ -107,6 +108,12 @@ typedef struct {
         int count;
         int cap;
     } str_patches;
+    struct {
+        size_t *adr_off;
+        int *sym_idx;
+        int count;
+        int cap;
+    } global_patches;
 } asm_ctx_t;
 
 static void
@@ -242,6 +249,7 @@ static int emit_orr_reg(textbuf_t *tb, int rd, int rn, int rm, int sf);
 static int operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, int scratch);
 static int operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op);
 static void str_patch_add(asm_ctx_t *ctx, size_t adr_off, int str_idx);
+static void global_patch_add(asm_ctx_t *ctx, size_t adr_off, int sym_idx);
 static int emit_bl(textbuf_t *tb, int32_t offset);
 
 
@@ -749,6 +757,21 @@ str_patch_add(asm_ctx_t *ctx, size_t adr_off, int str_idx)
     ctx->str_patches.count++;
 }
 
+static void
+global_patch_add(asm_ctx_t *ctx, size_t adr_off, int sym_idx)
+{
+    if (ctx->global_patches.count >= ctx->global_patches.cap) {
+        ctx->global_patches.cap = ctx->global_patches.cap ? ctx->global_patches.cap * 2 : 16;
+        ctx->global_patches.adr_off = realloc(ctx->global_patches.adr_off,
+            ctx->global_patches.cap * sizeof(size_t));
+        ctx->global_patches.sym_idx = realloc(ctx->global_patches.sym_idx,
+            ctx->global_patches.cap * sizeof(int));
+    }
+    ctx->global_patches.adr_off[ctx->global_patches.count] = adr_off;
+    ctx->global_patches.sym_idx[ctx->global_patches.count] = sym_idx;
+    ctx->global_patches.count++;
+}
+
 /*======================================================================
  * Symbol and relocation helpers
  *======================================================================*/
@@ -964,9 +987,27 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_CONST:
         if (inst->operands[0].type == IR_OPERAND_IMM &&
             inst->operands[0].u.imm.type == IR_IMM_STR) {
-            /* String constant: store in data section, emit ADR to reference it */
             const char *str = inst->operands[0].u.imm.u.str;
             if (!str) str = "";
+            /* Check if this is a global variable reference */
+            ir_global_t *glob = ir_object_find_global(ctx->ir_obj, str);
+            if (glob) {
+                int si = -1;
+                for (int s = 0; s < ctx->code->sym.n; s++) {
+                    if (ctx->code->sym.syms[s].label &&
+                        strcmp(ctx->code->sym.syms[s].label, str) == 0) {
+                        si = s; break;
+                    }
+                }
+                if (si < 0) si = add_sym(ctx->code, ARCH_SYM_GLOBAL, str, 0, 8);
+                /* ADRP Xdst, #0 — page address (patched by linker) */
+                size_t adrp_off = ctx->tb.size;
+                uint32_t adrp = (1U << 31) | (1U << 28) | (dst & 31);
+                emit32(&ctx->tb, adrp);
+                add_rel(ctx->code, ARCH_REL_AARCH64_PAGE21, adrp_off, si);
+                return 0;
+            }
+            /* String constant: store in data section, emit ADR to reference it */
             int sid = add_string(ctx, str);
             /* ADR Xd, #0 — placeholder, will be patched with string offset */
             /* ADR: 0 immlo 10000 immhi Rd */
@@ -1463,26 +1504,89 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return 0;
     }
 
-    case IR_OPCODE_LOAD:
+    case IR_OPCODE_LOAD: {
         /* LDR Xt, [Xn] — 11 111 0 01 01 imm12 Rn Rt (imm12=0)
          * Base = 0xF9400000 (bit 22 set for LDR) */
-        src0 = operand_reg(&inst->operands[0]);
-        {
-            uint32_t insn = (0xF9U << 24) | (1U << 22) | ((src0 & 31) << 5) | (dst & 31);
-            return emit32(&ctx->tb, insn);
+        int base_reg;
+        if (inst->operands[0].type == IR_OPERAND_IMM &&
+            inst->operands[0].u.imm.type == IR_IMM_STR) {
+            const char *str = inst->operands[0].u.imm.u.str;
+            if (!str) str = "";
+            ir_global_t *glob = ir_object_find_global(ctx->ir_obj, str);
+            if (glob) {
+                int si = -1;
+                for (int s = 0; s < ctx->code->sym.n; s++) {
+                    if (ctx->code->sym.syms[s].label &&
+                        strcmp(ctx->code->sym.syms[s].label, str) == 0) {
+                        si = s; break;
+                    }
+                }
+                if (si < 0) si = add_sym(ctx->code, ARCH_SYM_GLOBAL, str, 0, 8);
+                /* ADRP X16, #0 + LDR Xd, [X16, #0] */
+                size_t adrp_off = ctx->tb.size;
+                uint32_t adrp = (1U << 31) | (1U << 28) | (16 & 31);
+                emit32(&ctx->tb, adrp);
+                add_rel(ctx->code, ARCH_REL_AARCH64_PAGE21, adrp_off, si);
+                size_t ldr_off = ctx->tb.size;
+                uint32_t ldr = (0xF9U << 24) | (1U << 22) | ((16 & 31) << 5) | (dst & 31);
+                emit32(&ctx->tb, ldr);
+                add_rel(ctx->code, ARCH_REL_AARCH64_PAGEOFF12, ldr_off, si);
+                return 0;
+            } else {
+                int sid = add_string(ctx, str);
+                size_t off = ctx->tb.size;
+                uint32_t adr = (1U << 28) | (16 & 31);
+                emit32(&ctx->tb, adr);
+                str_patch_add(ctx, off, sid);
+                base_reg = 16;
+            }
+        } else {
+            base_reg = operand_reg(&inst->operands[0]);
         }
+        uint32_t insn = (0xF9U << 24) | (1U << 22) | ((base_reg & 31) << 5) | (dst & 31);
+        return emit32(&ctx->tb, insn);
+    }
 
-    case IR_OPCODE_STORE:
+    case IR_OPCODE_STORE: {
         /* STR Xt, [Xn] — 11 111 0 01 00 imm12 Rn Rt (imm12=0)
          * Base = 0xF9000000 (bit 22 clear for STR)
          * operands[0] = address (Rn), operands[1] = value (Rt) */
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 16);
-        {
-            uint32_t insn = (0xF9U << 24) | ((src0 & 31) << 5) | (src1 & 31);
-            return emit32(&ctx->tb, insn);
+        int addr_reg;
+        if (inst->operands[0].type == IR_OPERAND_IMM &&
+            inst->operands[0].u.imm.type == IR_IMM_STR) {
+            const char *str = inst->operands[0].u.imm.u.str;
+            if (!str) str = "";
+            ir_global_t *glob = ir_object_find_global(ctx->ir_obj, str);
+            if (glob) {
+                int si = -1;
+                for (int s = 0; s < ctx->code->sym.n; s++) {
+                    if (ctx->code->sym.syms[s].label &&
+                        strcmp(ctx->code->sym.syms[s].label, str) == 0) {
+                        si = s; break;
+                    }
+                }
+                if (si < 0) si = add_sym(ctx->code, ARCH_SYM_GLOBAL, str, 0, 8);
+                /* Load value first, then ADRP+STR */
+                int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+                size_t adrp_off = ctx->tb.size;
+                uint32_t adrp = (1U << 31) | (1U << 28) | (16 & 31);
+                emit32(&ctx->tb, adrp);
+                add_rel(ctx->code, ARCH_REL_AARCH64_PAGE21, adrp_off, si);
+                size_t str_off = ctx->tb.size;
+                uint32_t str_insn = (0xF9U << 24) | ((16 & 31) << 5) | (val_reg & 31);
+                emit32(&ctx->tb, str_insn);
+                add_rel(ctx->code, ARCH_REL_AARCH64_PAGEOFF12, str_off, si);
+                return 0;
+            } else {
+                addr_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+            }
+        } else {
+            addr_reg = operand_reg(&inst->operands[0]);
         }
-
+        int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        uint32_t insn = (0xF9U << 24) | ((addr_reg & 31) << 5) | (val_reg & 31);
+        return emit32(&ctx->tb, insn);
+    }
 
     case IR_OPCODE_LOAD8: {
         /* LDRB Wt, [Xbase, Xidx] — load byte at base+idx
@@ -1683,6 +1787,7 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
 
     memset(&ctx, 0, sizeof(ctx));
     ctx.code = code;
+    ctx.ir_obj = obj;
     if (tb_init(&ctx.tb) < 0) return -1;
 
     /* Walk all functions */
@@ -1770,6 +1875,28 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
         uint32_t immhi = ((imm >> 2) & 0x7FFFF);
         adr = (1U << 28) | (immlo << 29) | (immhi << 5) | (adr & 0x1F);
         memcpy(ctx.tb.buf + adr_off, &adr, 4);
+    }
+
+    /* Emit global variable data into data section */
+    for (size_t i = 0; i < obj->nglobals; i++) {
+        size_t gpos = code->data.size;
+        int64_t val = obj->globals[i].init_val;
+        uint8_t *p = (uint8_t*)&val;
+        for (int b = 0; b < 8; b++) {
+            code->data.s = realloc(code->data.s, code->data.size + 1);
+            code->data.s[code->data.size] = p[b];
+            code->data.size++;
+        }
+        /* Update symbol position (relative to data section) */
+        for (int s = 0; s < code->sym.n; s++) {
+            if (code->sym.syms[s].label &&
+                strcmp(code->sym.syms[s].label, obj->globals[i].name) == 0) {
+                code->sym.syms[s].pos = gpos;
+                code->sym.syms[s].size = 8;
+                /* Keep as ARCH_SYM_GLOBAL -> goes to .data section */
+                break;
+            }
+        }
     }
 
     /* Transfer to code */

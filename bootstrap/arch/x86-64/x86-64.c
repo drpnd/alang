@@ -294,6 +294,7 @@ typedef struct {
 typedef struct {
     textbuf_t tb;
     arch_code_t *code;
+    ir_object_t *ir_obj;
     label_map_t labels;
     patch_list_t patches;
     int max_ssa;
@@ -303,6 +304,12 @@ typedef struct {
         int count;
         int cap;
     } str_patches;
+    struct {
+        size_t *lea_off;
+        int *sym_idx;
+        int count;
+        int cap;
+    } global_patches;
 } asm_ctx_t;
 
 static void
@@ -361,6 +368,8 @@ asm_ctx_free(asm_ctx_t *ctx)
     free(ctx->patches.items);
     free(ctx->str_patches.lea_off);
     free(ctx->str_patches.str_idx);
+    free(ctx->global_patches.lea_off);
+    free(ctx->global_patches.sym_idx);
 }
 
 /*
@@ -899,6 +908,22 @@ str_patch_add(asm_ctx_t *ctx, size_t lea_off, int str_idx)
     ctx->str_patches.count++;
 }
 
+static void
+global_patch_add(asm_ctx_t *ctx, size_t lea_off, int sym_idx)
+{
+    if (ctx->global_patches.count >= ctx->global_patches.cap) {
+        ctx->global_patches.cap = ctx->global_patches.cap ? ctx->global_patches.cap * 2 : 16;
+        ctx->global_patches.lea_off = realloc(ctx->global_patches.lea_off,
+            ctx->global_patches.cap * sizeof(size_t));
+        ctx->global_patches.sym_idx = realloc(ctx->global_patches.sym_idx,
+            ctx->global_patches.cap * sizeof(int));
+    }
+    ctx->global_patches.lea_off[ctx->global_patches.count] = lea_off;
+    ctx->global_patches.sym_idx[ctx->global_patches.count] = sym_idx;
+    ctx->global_patches.count++;
+}
+
+
 /*
  * Get the register from an operand (assuming it's a register operand).
  */
@@ -1013,9 +1038,31 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_CONST:
         if (inst->operands[0].type == IR_OPERAND_IMM &&
             inst->operands[0].u.imm.type == IR_IMM_STR) {
-            /* String constant: emit LEA with relocation */
             const char *str = inst->operands[0].u.imm.u.str;
             if (!str) str = "";
+            /* Check if this is a global variable reference */
+            ir_global_t *glob = ir_object_find_global(ctx->ir_obj, str);
+            if (glob) {
+                int si = -1;
+                for (int s = 0; s < ctx->code->sym.n; s++) {
+                    if (ctx->code->sym.syms[s].label &&
+                        strcmp(ctx->code->sym.syms[s].label, str) == 0) {
+                        si = s; break;
+                    }
+                }
+                if (si < 0) si = add_sym(ctx->code, ARCH_SYM_GLOBAL, str, 0, 8);
+                uint8_t buf[3];
+                int rex = REX | (REG_REX(dst) ? REX_R : 0);
+                buf[0] = rex;
+                buf[1] = 0x8D;  /* LEA */
+                buf[2] = _modrm(0, REG_CODE(dst), 5);  /* RIP-relative */
+                tb_emit(&ctx->tb, buf, 3);
+                size_t off = ctx->tb.size;
+                tb_u32(&ctx->tb, 0);
+                global_patch_add(ctx, off, si);
+                return 0;
+            }
+            /* String constant: emit LEA with relocation */
             int sid = add_string(ctx, str);
             /* lea dst, [rip + 0] — placeholder, patched later */
             uint8_t buf[7];
@@ -1520,20 +1567,80 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         return 0;
     }
 
-    case IR_OPCODE_LOAD:
+    case IR_OPCODE_LOAD: {
         /* mov reg, [reg] — 0x8B /r */
-        src0 = operand_reg(&inst->operands[0]);
-        {
-            emit_mov_rr(&ctx->tb, dst, src0);  /* simplified: just mov */
-            return 0;
+        int base_reg;
+        if (inst->operands[0].type == IR_OPERAND_IMM &&
+            inst->operands[0].u.imm.type == IR_IMM_STR) {
+            const char *str = inst->operands[0].u.imm.u.str;
+            if (!str) str = "";
+            ir_global_t *glob = ir_object_find_global(ctx->ir_obj, str);
+            if (glob) {
+                int si = -1;
+                for (int s = 0; s < ctx->code->sym.n; s++) {
+                    if (ctx->code->sym.syms[s].label &&
+                        strcmp(ctx->code->sym.syms[s].label, str) == 0) {
+                        si = s; break;
+                    }
+                }
+                if (si < 0) si = add_sym(ctx->code, ARCH_SYM_GLOBAL, str, 0, 8);
+                uint8_t buf[3];
+                int rex = REX | (REG_REX(REG_R10) ? REX_R : 0);
+                buf[0] = rex;
+                buf[1] = 0x8D;  /* LEA */
+                buf[2] = _modrm(0, REG_CODE(REG_R10), 5);
+                tb_emit(&ctx->tb, buf, 3);
+                size_t off = ctx->tb.size;
+                tb_u32(&ctx->tb, 0);
+                global_patch_add(ctx, off, si);
+                base_reg = REG_R10;
+            } else {
+                base_reg = operand_reg(&inst->operands[0]);
+            }
+        } else {
+            base_reg = operand_reg(&inst->operands[0]);
         }
+        emit_mov_rr(&ctx->tb, dst, base_reg);
+        return 0;
+    }
 
-    case IR_OPCODE_STORE:
+    case IR_OPCODE_STORE: {
         /* mov [addr], val — 0x89 /r (reg=val, r/m=addr)
          * operands[0] = address, operands[1] = value */
-        src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
-        return emit_rr(&ctx->tb, 0x89, src0, src1, 1);
+        int addr_reg;
+        if (inst->operands[0].type == IR_OPERAND_IMM &&
+            inst->operands[0].u.imm.type == IR_IMM_STR) {
+            const char *str = inst->operands[0].u.imm.u.str;
+            if (!str) str = "";
+            ir_global_t *glob = ir_object_find_global(ctx->ir_obj, str);
+            if (glob) {
+                int si = -1;
+                for (int s = 0; s < ctx->code->sym.n; s++) {
+                    if (ctx->code->sym.syms[s].label &&
+                        strcmp(ctx->code->sym.syms[s].label, str) == 0) {
+                        si = s; break;
+                    }
+                }
+                if (si < 0) si = add_sym(ctx->code, ARCH_SYM_GLOBAL, str, 0, 8);
+                uint8_t buf[3];
+                int rex = REX | (REG_REX(REG_R10) ? REX_R : 0);
+                buf[0] = rex;
+                buf[1] = 0x8D;  /* LEA */
+                buf[2] = _modrm(0, REG_CODE(REG_R10), 5);
+                tb_emit(&ctx->tb, buf, 3);
+                size_t off = ctx->tb.size;
+                tb_u32(&ctx->tb, 0);
+                global_patch_add(ctx, off, si);
+                addr_reg = REG_R10;
+            } else {
+                addr_reg = operand_reg(&inst->operands[0]);
+            }
+        } else {
+            addr_reg = operand_reg(&inst->operands[0]);
+        }
+        int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
+        return emit_rr(&ctx->tb, 0x89, addr_reg, val_reg, 1);
+    }
 
     case IR_OPCODE_LOAD8: {
         /* LOAD8: dst = *(uint8_t*)(base + idx)
@@ -1831,6 +1938,7 @@ x86_64_assemble(ir_object_t *obj, arch_code_t *code)
 
     memset(&ctx, 0, sizeof(ctx));
     ctx.code = code;
+    ctx.ir_obj = obj;
     if (tb_init(&ctx.tb) < 0) return -1;
 
     /* Walk all functions */
@@ -1908,6 +2016,42 @@ x86_64_assemble(ir_object_t *obj, arch_code_t *code)
         size_t str_off = ctx.code->strings.items[sid].offset;
         /* RIP-relative: disp32 = target - (lea_off + 4) */
         int32_t disp = (int32_t)(str_off - (lea_off + 4));
+        memcpy(ctx.tb.buf + lea_off, &disp, 4);
+    }
+
+    /* Emit global variable data into data section */
+    for (size_t i = 0; i < obj->nglobals; i++) {
+        size_t gpos = code->data.size;
+        int64_t val = obj->globals[i].init_val;
+        uint8_t *p = (uint8_t*)&val;
+        for (int b = 0; b < 8; b++) {
+            code->data.s = realloc(code->data.s, code->data.size + 1);
+            code->data.s[code->data.size] = p[b];
+            code->data.size++;
+        }
+        for (int s = 0; s < code->sym.n; s++) {
+            if (code->sym.syms[s].label &&
+                strcmp(code->sym.syms[s].label, obj->globals[i].name) == 0) {
+                code->sym.syms[s].pos = gpos;
+                code->sym.syms[s].size = 8;
+                break;
+            }
+        }
+    }
+
+    /* Add relocations for global LEA instructions */
+    for (int i = 0; i < ctx.global_patches.count; i++) {
+        size_t lea_off = ctx.global_patches.lea_off[i];
+        int si = ctx.global_patches.sym_idx[i];
+        add_rel(code, ARCH_REL_PC32, lea_off, si);
+    }
+
+    /* Patch global LEA instructions (RIP-relative) */
+    for (int i = 0; i < ctx.global_patches.count; i++) {
+        size_t lea_off = ctx.global_patches.lea_off[i];
+        int si = ctx.global_patches.sym_idx[i];
+        size_t sym_pos = code->sym.syms[si].pos;
+        int32_t disp = (int32_t)(sym_pos - (lea_off + 4));
         memcpy(ctx.tb.buf + lea_off, &disp, 4);
     }
 

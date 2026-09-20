@@ -129,6 +129,7 @@ struct type_list_val {
 %type <obent> outer_entry
 %type <idval> identifier
 %type <decl> declaration
+%type <decl> global_decl
 %type <args> args funcargs retvals retval_named_list
 %type <arg> arg retval_named
 %type <directive> directive struct_def enum_def type_alias
@@ -245,7 +246,32 @@ outer_entry:    directive
                     block->u.graph = $1;
                     $$ = block;
                 }
+        |       global_decl
+                {
+                    outer_block_entry_t *block;
+                    block = outer_block_entry_new(OUTER_BLOCK_GLOBAL);
+                    block->u.glb = $1;
+                    $$ = block;
+                }
                 ;
+
+/* Global variable declaration (top-level let) */
+global_decl:    TOK_LET identifier TOK_COLON type TOK_EQ expression
+                {
+                    $$ = decl_new_init($2, $4, $6, 0);
+                }
+        |       TOK_LET identifier TOK_EQ expression
+                {
+                    $$ = decl_new_init($2, NULL, $4, 0);
+                }
+        |       TOK_LET TOK_MUT identifier TOK_COLON type TOK_EQ expression
+                {
+                    $$ = decl_new_init($3, $5, $7, 1);
+                }
+        |       TOK_LET TOK_MUT identifier TOK_EQ expression
+                {
+                    $$ = decl_new_init($3, NULL, $5, 1);
+                }
 
 /* Graph definition */
 graphdef:       TOK_GRAPH identifier TOK_LBRACE pipe_expr TOK_RBRACE

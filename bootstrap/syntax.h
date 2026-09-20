@@ -571,6 +571,7 @@ typedef enum {
     OUTER_BLOCK_COROUTINE,
     OUTER_BLOCK_DIRECTIVE,
     OUTER_BLOCK_GRAPH,
+    OUTER_BLOCK_GLOBAL,
 } outer_block_entry_type_t;
 
 /*
@@ -583,6 +584,7 @@ struct _outer_block_entry {
         coroutine_t *cr;
         directive_t *dr;
         graph_decl_t *graph;
+        decl_t *glb;
     } u;
     outer_block_entry_t *next;
 };

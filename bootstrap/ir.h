@@ -131,9 +131,16 @@ typedef struct {
 } ir_graph_t;
 
 typedef struct {
+    char *name;
+    ir_reg_type_t type;
+    int64_t init_val;
+} ir_global_t;
+
+typedef struct {
     size_t nfuncs; ir_func_t *funcs;
     size_t ngraphs; size_t graphs_cap; ir_graph_t *graphs;
     ir_data_table_t data;
+    size_t nglobals; ir_global_t *globals;
 } ir_object_t;
 
 #ifdef __cplusplus
@@ -158,6 +165,9 @@ void ir_operand_delete(ir_operand_t *);
 
 int ir_object_add_func(ir_object_t *obj, ir_func_t *func);
 int ir_object_add_graph(ir_object_t *obj, ir_graph_t *graph);
+int ir_object_add_global(ir_object_t *obj, const char *name,
+                         ir_reg_type_t type, int64_t init_val);
+ir_global_t *ir_object_find_global(ir_object_t *obj, const char *name);
 int ir_func_add_block(ir_func_t *func, ir_block_t *block);
 int ir_graph_add_node(ir_graph_t *graph, const char *name, const char *func_ref,
                       int nports, const char **port_names);

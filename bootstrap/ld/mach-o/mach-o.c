@@ -116,6 +116,20 @@ enum reloc_type_x86_64 {
     X86_64_RELOC_TLV,
 };
 
+enum reloc_type_arm64 {
+    ARM64_RELOC_UNSIGNED = 0,
+    ARM64_RELOC_SUBTRACTOR = 1,
+    ARM64_RELOC_BRANCH26 = 2,
+    ARM64_RELOC_PAGE21 = 3,
+    ARM64_RELOC_PAGEOFF12 = 4,
+    ARM64_RELOC_GOT_LOAD_PAGE21 = 5,
+    ARM64_RELOC_GOT_LOAD_PAGEOFF12 = 6,
+    ARM64_RELOC_POINTER_TO_GOT = 7,
+    ARM64_RELOC_TLVP_LOAD_PAGE21 = 8,
+    ARM64_RELOC_TLVP_LOAD_PAGEOFF12 = 9,
+    ARM64_RELOC_ADDEND = 10,
+};
+
 /*
  * Mach-O 64-bit header
  */
@@ -343,6 +357,16 @@ _export(FILE *fp, arch_code_t *code)
                 relocinfo[i].r_length = 2;
                 relocinfo[i].r_type = 2; /* X86_64_RELOC_BRANCH */
             }
+            break;
+        case ARCH_REL_AARCH64_PAGE21:
+            relocinfo[i].r_pcrel = 1;
+            relocinfo[i].r_length = 2;
+            relocinfo[i].r_type = ARM64_RELOC_PAGE21;
+            break;
+        case ARCH_REL_AARCH64_PAGEOFF12:
+            relocinfo[i].r_pcrel = 0;
+            relocinfo[i].r_length = 2;
+            relocinfo[i].r_type = ARM64_RELOC_PAGEOFF12;
             break;
         default:
             fprintf(stderr, "Unknown relocation type (%d).\n",

@@ -185,6 +185,7 @@ static void _inner_block(dfir_compiler_t *c, inner_block_t *block);
 static void _func(dfir_compiler_t *c, func_t *fn);
 static void _coroutine(dfir_compiler_t *c, coroutine_t *cr);
 static void _directive(dfir_compiler_t *c, directive_t *dr);
+static void _global(dfir_compiler_t *c, decl_t *glb);
 static void _graph(dfir_compiler_t *c, graph_decl_t *gd);
 
 /*======================================================================
@@ -695,6 +696,20 @@ _expr(dfir_compiler_t *c, expr_t *e)
                 _emit(c, IR_OPCODE_MAKE_ENUM, &result, 2, ops);
                 return result;
             }
+            /* Not a local variable — check globals */
+            ir_global_t *g = ir_object_find_global(c->ir, e->u.id);
+            if (g) {
+                /* Emit: CONST with global name as string (address),
+                 * then LOAD to read the value */
+                ir_reg_t addr = _ssa(c, IR_REG_PTR);
+                ir_operand_t addr_op = _op_imm_str(g->name);
+                _emit(c, IR_OPCODE_CONST, &addr, 1, &addr_op);
+                ir_reg_t result = _ssa(c, g->type);
+                ir_operand_t load_ops[1];
+                load_ops[0] = _op_reg(addr);
+                _emit(c, IR_OPCODE_LOAD, &result, 1, load_ops);
+                return result;
+            }
             fprintf(stderr, "error: undefined variable '%s'\n", e->u.id);
             c->error = 1;
             return _ssa(c, IR_REG_NONE);
@@ -737,6 +752,20 @@ _expr(dfir_compiler_t *c, expr_t *e)
             if (op->e0->type == EXPR_ID) {
                 cvar_t *v = _scope_lookup(c->scope, op->e0->u.id);
                 if (!v) {
+                    /* Not a local — check globals */
+                    ir_global_t *g = ir_object_find_global(c->ir, op->e0->u.id);
+                    if (g) {
+                        /* Emit: CONST with global name (address),
+                         * then STORE value at that address */
+                        ir_reg_t addr = _ssa(c, IR_REG_PTR);
+                        ir_operand_t addr_op = _op_imm_str(g->name);
+                        _emit(c, IR_OPCODE_CONST, &addr, 1, &addr_op);
+                        ir_operand_t store_ops[2];
+                        store_ops[0] = _op_reg(addr);
+                        store_ops[1] = _op_reg(val);
+                        _emit(c, IR_OPCODE_STORE, NULL, 2, store_ops);
+                        return val;
+                    }
                     fprintf(stderr, "error: undefined variable '%s'\n",
                             op->e0->u.id);
                     c->error = 1;
@@ -2118,6 +2147,51 @@ _coroutine(dfir_compiler_t *c, coroutine_t *cr)
     c->fn = NULL;
 }
 
+/*
+ * _global -- register a global variable
+ */
+static void
+_global(dfir_compiler_t *c, decl_t *glb)
+{
+    if (!glb || !glb->id) return;
+
+    ir_reg_type_t rtype = _type2reg(glb->type);
+    int64_t init_val = 0;
+
+    /* Try to extract initial value from literal expression */
+    if (glb->init) {
+        if (glb->init->type == EXPR_LITERAL) {
+            literal_t *lit = glb->init->u.lit;
+            if (lit) {
+                switch (lit->type) {
+                case LIT_DECINT:
+                case LIT_HEXINT:
+                case LIT_BININT:
+                    if (lit->u.n) {
+                        if (lit->type == LIT_HEXINT)
+                            init_val = strtoll(lit->u.n, NULL, 16);
+                        else if (lit->type == LIT_BININT)
+                            init_val = strtoll(lit->u.n, NULL, 2);
+                        else
+                            init_val = strtoll(lit->u.n, NULL, 10);
+                    }
+                    break;
+                case LIT_BOOL:
+                    init_val = (lit->u.b == BOOL_TRUE) ? 1 : 0;
+                    break;
+                case LIT_CHAR:
+                    if (lit->u.n) init_val = atoi(lit->u.n);
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+
+    ir_object_add_global(c->ir, glb->id, rtype, init_val);
+}
+
 static void
 _directive(dfir_compiler_t *c, directive_t *dr)
 {
@@ -2502,6 +2576,9 @@ compile_to_dfir(st_t *st)
                 break;
             case OUTER_BLOCK_DIRECTIVE:
                 _directive(&c, e->u.dr);
+                break;
+            case OUTER_BLOCK_GLOBAL:
+                _global(&c, e->u.glb);
                 break;
             case OUTER_BLOCK_GRAPH:
                 _graph(&c, e->u.graph);

@@ -96,6 +96,32 @@ int ir_object_add_func(ir_object_t *obj, ir_func_t *func) {
     return 0;
 }
 
+int ir_object_add_global(ir_object_t *obj, const char *name,
+                             ir_reg_type_t type, int64_t init_val) {
+    if (!obj || !name) return -1;
+    ir_global_t *gs = realloc(obj->globals,
+        (obj->nglobals + 1) * sizeof(ir_global_t));
+    if (!gs) return -1;
+    obj->globals = gs;
+    obj->globals[obj->nglobals].name = strdup(name);
+    obj->globals[obj->nglobals].type = type;
+    obj->globals[obj->nglobals].init_val = init_val;
+    obj->nglobals++;
+    return 0;
+}
+
+ir_global_t *
+ir_object_find_global(ir_object_t *obj, const char *name) {
+    if (!obj || !name) return NULL;
+    for (size_t i = 0; i < obj->nglobals; i++) {
+        if (obj->globals[i].name &&
+            strcmp(obj->globals[i].name, name) == 0) {
+            return &obj->globals[i];
+        }
+    }
+    return NULL;
+}
+
 int ir_object_add_graph(ir_object_t *obj, ir_graph_t *graph) {
     if (!obj || !graph) return -1;
     if (obj->ngraphs >= obj->graphs_cap) {

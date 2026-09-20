@@ -51,6 +51,8 @@ typedef enum {
 typedef enum {
     ARCH_REL_PC32,
     ARCH_REL_BRANCH,
+    ARCH_REL_AARCH64_PAGE21,
+    ARCH_REL_AARCH64_PAGEOFF12,
 } arch_rel_type_t;
 
 /*
