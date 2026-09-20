@@ -17,7 +17,7 @@
 /* All AArch64 instructions are 32-bit, little-endian. */
 
 /* Register file: X0-X28 usable for SSA values, X29=FP, X30=LR, X31=SP/XZR */
-#define AARCH64_MAX_REGS 26
+#define AARCH64_MAX_REGS 25
 
 /*
  * Emit a 32-bit instruction (little-endian).
@@ -225,15 +225,15 @@ static const int arg_regs[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 static textbuf_t *g_tb = NULL;
 static int g_spill_off = 0;  /* base offset from FP for spill slots */
 
-/* SSA to register mapping. Skip X16/X17 (IP0/IP1, used as scratch).
+/* SSA to register mapping. Skip X16/X17 (IP0/IP1) and X18 (platform reg).
  * %0-%15  → X0-X15
- * %16-%25 → X18-X28 (skip X16, X17) */
+ * %16-%24 → X19-X28 (skip X16, X17, X18) */
 static int
 ssa_to_reg(int id)
 {
     if (id < 0) return 31;
     if (id < 16) return id;
-    if (id < 26) return id + 2;  /* 16→X18, 17→X19, ... 25→X28 */
+    if (id < 25) return id + 3;  /* 16→X19, 17→X20, ... 24→X28 */
     return -1;  /* spilled */
 }
 
@@ -1430,27 +1430,36 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
              * Phase 2: Move from scratch registers to argument registers.
              * For immediate arguments, load directly into arg registers.
              * For string arguments, emit ADR directly into arg registers. */
-            /* Phase 1: Load register args to scratch regs X8+ */
-            int scratch_base = 8;  /* X8, X9, X10, ... */
+            /* Move arguments to argument registers X0-X7.
+             * Strategy: process in two phases to avoid collisions.
+             * Phase 1: Save all caller-saved register args to scratch (X8-X15).
+             * Phase 2: Move from scratch/immediate/callee-saved to arg regs. */
+            int scratch_base = 8;
+            /* Phase 1: Save caller-saved register args to scratch regs */
             for (int i = 0; i < nargs && i < 8; i++) {
                 ir_operand_t *arg = &inst->operands[i];
                 if (arg->type == IR_OPERAND_REG) {
-                    int src_reg = operand_reg(arg);
-                    if (src_reg != arg_regs[i]) {
-                        /* Load from saved stack slot to avoid collision */
+                    int src_reg = ssa_to_reg(ssa_id(arg->u.reg.id));
+                    if (src_reg < 0) {
+                        /* Spilled: load into scratch */
+                        spill_load(ssa_id(arg->u.reg.id), scratch_base + i);
+                    } else if (src_reg < 19) {
+                        /* Caller-saved (X0-X15): reload from saved stack slot */
                         int off = 16 + src_reg * 8;
                         uint32_t ldr = (0xF9U << 24) | (1U << 22) |
                                       (((off / 8) & 0xFFF) << 10) |
                                       (31U << 5) | (scratch_base + i);
                         emit32(&ctx->tb, ldr);
+                    } else {
+                        /* Callee-saved (X19-X28): value survives the call,
+                         * just remember the register for phase 2 */
                     }
                 }
             }
-            /* Phase 2: Move from scratch to arg registers, or load imms */
+            /* Phase 2: Move to argument registers */
             for (int i = 0; i < nargs && i < 8; i++) {
                 ir_operand_t *arg = &inst->operands[i];
                 if (arg->type == IR_OPERAND_IMM && arg->u.imm.type == IR_IMM_STR) {
-                    /* String argument: ADR to string literal */
                     const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
                     int sid = add_string(ctx, str);
                     size_t off = ctx->tb.size;
@@ -1458,27 +1467,23 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                     emit32(&ctx->tb, adr);
                     str_patch_add(ctx, off, sid);
                 } else if (arg->type == IR_OPERAND_IMM) {
-                    /* Immediate argument: load directly */
                     int ok;
                     int64_t val = operand_imm(arg, &ok);
-                    if (ok) {
-                        emit_load_imm64(&ctx->tb, arg_regs[i], val);
-                    }
-                } else {
-                    /* Register argument: move from scratch */
-                    int src_reg = operand_reg(arg);
-                    if (src_reg == arg_regs[i]) {
-                        /* Already in the right register, but we saved it
-                         * to stack and may have clobbered it. Reload. */
-                        int off = 16 + src_reg * 8;
-                        uint32_t ldr = (0xF9U << 24) | (1U << 22) |
-                                      (((off / 8) & 0xFFF) << 10) |
-                                      (31U << 5) | arg_regs[i];
-                        emit32(&ctx->tb, ldr);
+                    if (ok) emit_load_imm64(&ctx->tb, arg_regs[i], val);
+                } else if (arg->type == IR_OPERAND_REG) {
+                    int id = ssa_id(arg->u.reg.id);
+                    int src_reg = ssa_to_reg(id);
+                    if (src_reg < 0) {
+                        /* Was spilled: move from scratch */
+                        emit_orr_reg(&ctx->tb, arg_regs[i], 31, scratch_base + i, 1);
+                    } else if (src_reg < 19) {
+                        /* Was caller-saved: move from scratch */
+                        emit_orr_reg(&ctx->tb, arg_regs[i], 31, scratch_base + i, 1);
                     } else {
-                        /* Move from scratch register */
-                        emit_orr_reg(&ctx->tb, arg_regs[i], 31,
-                                    scratch_base + i, 1);
+                        /* Callee-saved: move directly (value is preserved) */
+                        if (src_reg != arg_regs[i]) {
+                            emit_orr_reg(&ctx->tb, arg_regs[i], 31, src_reg, 1);
+                        }
                     }
                 }
             }
