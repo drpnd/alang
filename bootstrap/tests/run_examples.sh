@@ -66,6 +66,8 @@ run_test "bitops.al" 8
 run_test "comparison.al" 1
 run_test "multi_var.al" 10
 run_test "large_num.al" 3000
+run_test "spill_test.al" 34
+run_test "spill_call_test.al" 127
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="

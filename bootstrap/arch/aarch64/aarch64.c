@@ -245,15 +245,18 @@ spill_load(int id, int reg)
         uint32_t insn = (0xF8U << 24) | (1U << 22) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
         emit32(g_tb, insn);
     } else {
-        /* Large offset: sub/add x9, x29, #hi; ldur xreg, [x9, #lo] */
+        /* Large offset: sub/add xreg, x29, #hi; ldur xreg, [xreg, #lo]
+         * Using the destination register itself as the address temp is safe
+         * because the final LDUR overwrites the address with the loaded value.
+         * (Previously used X9, which clobbers SSA value 9.) */
         int hi = (off / 256) * 256;
         int lo = off - hi;
         if (hi >= 0) {
-            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|9);
+            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|(reg&31));
         } else {
-            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|9);
+            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|(reg&31));
         }
-        emit32(g_tb, (0xF8U<<24)|(1U<<22)|((lo&0x1FF)<<12)|(9<<5)|(reg&31));
+        emit32(g_tb, (0xF8U<<24)|(1U<<22)|((lo&0x1FF)<<12)|((reg&31)<<5)|(reg&31));
     }
     return reg;
 }
@@ -266,14 +269,17 @@ spill_store(int reg, int id)
         uint32_t insn = (0xF8U << 24) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
         emit32(g_tb, insn);
     } else {
+        /* Large offset: sub/add x16, x29, #hi; stur xreg, [x16, #lo]
+         * X16 (IP0) is never used for SSA values, so it is always safe.
+         * (Previously used X9, which clobbers SSA value 9.) */
         int hi = (off / 256) * 256;
         int lo = off - hi;
         if (hi >= 0) {
-            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|9);
+            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|16);
         } else {
-            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|9);
+            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|16);
         }
-        emit32(g_tb, (0xF8U<<24)|((lo&0x1FF)<<12)|(9<<5)|(reg&31));
+        emit32(g_tb, (0xF8U<<24)|((lo&0x1FF)<<12)|(16<<5)|(reg&31));
     }
 }
 
@@ -418,7 +424,7 @@ operand_reg(ir_operand_t *op)
     if (op->type == IR_OPERAND_REG) {
         int id = ssa_id(op->u.reg.id);
         int r = ssa_to_reg(id);
-        if (r < 0) return spill_load(id, 9);
+        if (r < 0) return spill_load(id, 16);
         return r;
     }
     return 31;
