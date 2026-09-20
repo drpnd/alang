@@ -1184,13 +1184,37 @@ _expr(dfir_compiler_t *c, expr_t *e)
         }
 
         /* Regular function call */
-        /* Evaluate arguments and collect as operands */
+        /* Evaluate arguments and collect as operands.
+         * Struct arguments are expanded into multiple field registers. */
         ir_operand_t ops[IR_MAX_OPERANDS];
         int nargs = 0;
         if (call->exprs) {
             expr_t *arg = call->exprs->head;
             while (arg && nargs < IR_MAX_OPERANDS - 1) {
                 ir_reg_t argval = _expr(c, arg);
+                /* Check if this is a struct argument that needs expansion */
+                if (arg->type == EXPR_ID) {
+                    cvar_t *v = _scope_lookup(c->scope, arg->u.id);
+                    if (v && v->type_name) {
+                        struct_desc_t *sd = _find_struct(c, v->type_name);
+                        if (sd && sd->nfields > 1) {
+                            /* Expand struct into field registers */
+                            for (int fi = 0; fi < sd->nfields &&
+                                 nargs < IR_MAX_OPERANDS - 1; fi++) {
+                                ir_reg_t field_reg;
+                                ir_reg_init(&field_reg, sd->fields[fi].type, NULL);
+                                char buf[64];
+                                snprintf(buf, sizeof(buf), "%%%d",
+                                         v->ssa_id + fi);
+                                field_reg.id = strdup(buf);
+                                ops[nargs] = _op_reg(field_reg);
+                                nargs++;
+                            }
+                            arg = arg->next;
+                            continue;
+                        }
+                    }
+                }
                 ops[nargs] = _op_reg(argval);
                 nargs++;
                 arg = arg->next;
@@ -1906,7 +1930,12 @@ _func(dfir_compiler_t *c, func_t *fn)
             if (a->decl && a->decl->id) {
                 ir_reg_type_t rtype = _type2reg(a->decl->type);
                 (void)_ssa(c, rtype);
-                _scope_bind(s, a->decl->id, rtype, fb->ssa_counter - 1, NULL);
+                const char *tname = NULL;
+                if (a->decl->type && (a->decl->type->type == TYPE_STRUCT ||
+                    a->decl->type->type == TYPE_ID)) {
+                    tname = a->decl->type->id;
+                }
+                _scope_bind(s, a->decl->id, rtype, fb->ssa_counter - 1, tname);
             }
             a = a->next;
         }
@@ -1919,7 +1948,12 @@ _func(dfir_compiler_t *c, func_t *fn)
             if (r->decl && r->decl->id) {
                 ir_reg_type_t rtype = _type2reg(r->decl->type);
                 (void)_ssa(c, rtype);
-                _scope_bind(s, r->decl->id, rtype, fb->ssa_counter - 1, NULL);
+                const char *tname = NULL;
+                if (r->decl->type && (r->decl->type->type == TYPE_STRUCT ||
+                    r->decl->type->type == TYPE_ID)) {
+                    tname = r->decl->type->id;
+                }
+                _scope_bind(s, r->decl->id, rtype, fb->ssa_counter - 1, tname);
             }
             r = r->next;
         }
