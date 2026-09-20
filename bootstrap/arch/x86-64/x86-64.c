@@ -1529,9 +1529,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         }
 
     case IR_OPCODE_STORE:
-        /* mov [reg], reg — 0x89 /r */
+        /* mov [addr], val — 0x89 /r (reg=val, r/m=addr)
+         * operands[0] = address, operands[1] = value */
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], REG_R11);
         return emit_rr(&ctx->tb, 0x89, src0, src1, 1);
 
     case IR_OPCODE_LOAD8: {

@@ -805,6 +805,27 @@ _expr(dfir_compiler_t *c, expr_t *e)
             case OP_NOT:   opc = IR_OPCODE_NOT; break;
             case OP_SUB:   opc = IR_OPCODE_NEG; break;
             case OP_COMP:  opc = IR_OPCODE_NOT; break;
+            case OP_PTRIND: {
+                /* Dereference: *ptr - load 8 bytes from the pointer */
+                ir_reg_t deref_result = _ssa(c, IR_REG_I64);
+                ir_operand_t load_ops[1];
+                load_ops[0] = _op_reg(val);
+                _emit(c, IR_OPCODE_LOAD, &deref_result, 1, load_ops);
+                return deref_result;
+            }
+            case OP_PTRREF: {
+                /* Borrow: &var - allocate stack space, store value, return ptr
+                 * STORE operands: (address, value) */
+                ir_reg_t ptr_result = _ssa(c, IR_REG_PTR);
+                ir_operand_t alloca_ops[1];
+                alloca_ops[0] = _op_imm_i32(8);
+                _emit(c, IR_OPCODE_ALLOCA, &ptr_result, 1, alloca_ops);
+                ir_operand_t store_ops[2];
+                store_ops[0] = _op_reg(ptr_result);
+                store_ops[1] = _op_reg(val);
+                _emit(c, IR_OPCODE_STORE, NULL, 2, store_ops);
+                return ptr_result;
+            }
             default:
                 fprintf(stderr, "error: unsupported prefix op\n");
                 c->error = 1;

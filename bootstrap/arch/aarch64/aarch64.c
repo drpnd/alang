@@ -1464,19 +1464,22 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     }
 
     case IR_OPCODE_LOAD:
-        /* LDR Xt, [Xn] — 1 1 1 1 1 0 0 1 0 1 imm12 Rn Rt (imm12=0) */
+        /* LDR Xt, [Xn] — 11 111 0 01 01 imm12 Rn Rt (imm12=0)
+         * Base = 0xF9400000 (bit 22 set for LDR) */
         src0 = operand_reg(&inst->operands[0]);
         {
-            uint32_t insn = (0xF9U << 24) | ((src0 & 31) << 5) | (dst & 31);
+            uint32_t insn = (0xF9U << 24) | (1U << 22) | ((src0 & 31) << 5) | (dst & 31);
             return emit32(&ctx->tb, insn);
         }
 
     case IR_OPCODE_STORE:
-        /* STR Xt, [Xn] — 1 1 1 1 1 0 0 1 0 0 imm12 Rn Rt */
+        /* STR Xt, [Xn] — 11 111 0 01 00 imm12 Rn Rt (imm12=0)
+         * Base = 0xF9000000 (bit 22 clear for STR)
+         * operands[0] = address (Rn), operands[1] = value (Rt) */
         src0 = operand_reg(&inst->operands[0]);
-        src1 = operand_reg(&inst->operands[1]);
+        src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 16);
         {
-            uint32_t insn = (0xF8U << 24) | ((src0 & 31) << 5) | (src1 & 31);
+            uint32_t insn = (0xF9U << 24) | ((src0 & 31) << 5) | (src1 & 31);
             return emit32(&ctx->tb, insn);
         }
 
