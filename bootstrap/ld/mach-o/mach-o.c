@@ -582,6 +582,14 @@ _export(FILE *fp, arch_code_t *code)
     if ( nw != (ssize_t)code->text.size ) {
         return -1;
     }
+    /* Write the data section (globals) */
+    if ( code->data.size > 0 ) {
+        fseeko(fp, codepoint + codesize, SEEK_SET);
+        nw = fwrite(code->data.s, 1, code->data.size, fp);
+        if ( nw != (ssize_t)code->data.size ) {
+            return -1;
+        }
+    }
     fseeko(fp, codepoint + codesize + datasize + bsssize, SEEK_SET);
 
     /* Write the relocation info */

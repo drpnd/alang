@@ -1406,7 +1406,31 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 emit32(&ctx->tb, str);
             }
 
-            /* Move arguments to argument registers X0-X7 */
+            /* Move arguments to argument registers X0-X7.
+             * We use a two-phase approach to avoid register collisions:
+             * Phase 1: Load all register arguments from the stack (where
+             *          they were saved before argument setup) into scratch
+             *          registers X8-X15.
+             * Phase 2: Move from scratch registers to argument registers.
+             * For immediate arguments, load directly into arg registers.
+             * For string arguments, emit ADR directly into arg registers. */
+            /* Phase 1: Load register args to scratch regs X8+ */
+            int scratch_base = 8;  /* X8, X9, X10, ... */
+            for (int i = 0; i < nargs && i < 8; i++) {
+                ir_operand_t *arg = &inst->operands[i];
+                if (arg->type == IR_OPERAND_REG) {
+                    int src_reg = operand_reg(arg);
+                    if (src_reg != arg_regs[i]) {
+                        /* Load from saved stack slot to avoid collision */
+                        int off = 16 + src_reg * 8;
+                        uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                                      (((off / 8) & 0xFFF) << 10) |
+                                      (31U << 5) | (scratch_base + i);
+                        emit32(&ctx->tb, ldr);
+                    }
+                }
+            }
+            /* Phase 2: Move from scratch to arg registers, or load imms */
             for (int i = 0; i < nargs && i < 8; i++) {
                 ir_operand_t *arg = &inst->operands[i];
                 if (arg->type == IR_OPERAND_IMM && arg->u.imm.type == IR_IMM_STR) {
@@ -1417,10 +1441,28 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                     uint32_t adr = (1U << 28) | (arg_regs[i] & 31);
                     emit32(&ctx->tb, adr);
                     str_patch_add(ctx, off, sid);
+                } else if (arg->type == IR_OPERAND_IMM) {
+                    /* Immediate argument: load directly */
+                    int ok;
+                    int64_t val = operand_imm(arg, &ok);
+                    if (ok) {
+                        emit_load_imm64(&ctx->tb, arg_regs[i], val);
+                    }
                 } else {
-                    int src_reg = operand_reg_or_imm_scratch(ctx, arg, arg_regs[i]);
-                    if (src_reg != arg_regs[i]) {
-                        emit_orr_reg(&ctx->tb, arg_regs[i], 31, src_reg, 1);
+                    /* Register argument: move from scratch */
+                    int src_reg = operand_reg(arg);
+                    if (src_reg == arg_regs[i]) {
+                        /* Already in the right register, but we saved it
+                         * to stack and may have clobbered it. Reload. */
+                        int off = 16 + src_reg * 8;
+                        uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                                      (((off / 8) & 0xFFF) << 10) |
+                                      (31U << 5) | arg_regs[i];
+                        emit32(&ctx->tb, ldr);
+                    } else {
+                        /* Move from scratch register */
+                        emit_orr_reg(&ctx->tb, arg_regs[i], 31,
+                                    scratch_base + i, 1);
                     }
                 }
             }
