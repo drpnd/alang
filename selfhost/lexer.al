@@ -104,7 +104,7 @@ fn main(argc: i32, argv: i64) (r: i32)
                 mut g_pos = g_pos + 1
                 mut c = __byte_load(g_src, g_pos)
             }
-            if pos >= size {
+            if g_pos >= g_size {
             } else {
                 // Skip line comments //
                 if c == 47 {
@@ -112,7 +112,7 @@ fn main(argc: i32, argv: i64) (r: i32)
                     mut next = __byte_load(g_src, g_pos + 1)
                     if next == 47 {
                         while c != 10 {
-                            if pos >= size {
+                            if g_pos >= g_size {
                             } else {
                                 mut g_pos = g_pos + 1
                                 mut c = __byte_load(g_src, g_pos)
