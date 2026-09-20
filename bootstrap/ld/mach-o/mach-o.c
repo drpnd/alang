@@ -394,12 +394,23 @@ _export(FILE *fp, arch_code_t *code)
             }
             break;
         case ARCH_SYM_FUNC:
-            /* .text */
-            nl[i].n_sect = 0x01;
-            nl[i].n_value = code->sym.syms[i].pos;
+            if ( code->sym.syms[i].pos == 0 && code->sym.syms[i].size == 0 ) {
+                /* Undefined external symbol (e.g. libc function) */
+                nl[i].n_type = N_EXT | 0;  /* N_UNDF = 0, N_EXT = external */
+                nl[i].n_sect = 0;  /* N_NO_SECT */
+                nl[i].n_value = 0;
+            } else {
+                /* .text */
+                nl[i].n_sect = 0x01;
+                nl[i].n_value = code->sym.syms[i].pos;
+            }
             break;
         }
-        nl[i].n_desc = REFERENCE_FLAG_DEFINED;
+        if ( nl[i].n_sect == 0 ) {
+            nl[i].n_desc = REFERENCE_FLAG_UNDEFINED_NON_LAZY;
+        } else {
+            nl[i].n_desc = REFERENCE_FLAG_DEFINED;
+        }
 
         /* Symbol table */
         strcpy(strtab + stroff, code->sym.syms[i].label);

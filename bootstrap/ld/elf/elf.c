@@ -632,8 +632,14 @@ _export(FILE *fp, arch_code_t *code)
             return -1;
         }
         syms[i + 4].st_other = 0;
-        syms[i + 4].st_shndx = 1; /* .text */
-        syms[i + 4].st_value = code->sym.syms[i].pos;
+        if ( code->sym.syms[i].pos == 0 && code->sym.syms[i].size == 0 ) {
+            /* Undefined external symbol (e.g. libc function) */
+            syms[i + 4].st_shndx = 0; /* SHN_UNDEF */
+            syms[i + 4].st_value = 0;
+        } else {
+            syms[i + 4].st_shndx = 1; /* .text */
+            syms[i + 4].st_value = code->sym.syms[i].pos;
+        }
         syms[i + 4].st_size = code->sym.syms[i].size;
 
         /* Symbol table */

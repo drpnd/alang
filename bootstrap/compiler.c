@@ -967,16 +967,11 @@ _expr(dfir_compiler_t *c, expr_t *e)
         if (call->callee && strcmp(call->callee, "__str_get") == 0) {
             ir_reg_t s = _ssa(c, IR_REG_PTR);
             ir_reg_t idx = _ssa(c, IR_REG_I32);
-            ir_operand_t s_ops[1], i_ops[1];
             if (call->exprs && call->exprs->head) {
                 expr_t *arg = call->exprs->head;
-                ir_reg_t sv = _expr(c, arg);
-                s_ops[0] = _op_reg(sv);
-                _emit(c, IR_OPCODE_CONST, &s, 1, s_ops);
+                s = _expr(c, arg);
                 if (arg->next) {
-                    ir_reg_t iv = _expr(c, arg->next);
-                    i_ops[0] = _op_reg(iv);
-                    _emit(c, IR_OPCODE_CONST, &idx, 1, i_ops);
+                    idx = _expr(c, arg->next);
                 }
             }
             /* LOAD8: result = load8 [s + idx] */
@@ -994,13 +989,9 @@ _expr(dfir_compiler_t *c, expr_t *e)
             ir_reg_t idx = _ssa(c, IR_REG_I32);
             if (call->exprs && call->exprs->head) {
                 expr_t *arg = call->exprs->head;
-                ir_reg_t pv = _expr(c, arg);
-                ir_operand_t p_ops[1] = {_op_reg(pv)};
-                _emit(c, IR_OPCODE_CONST, &ptr, 1, p_ops);
+                ptr = _expr(c, arg);
                 if (arg->next) {
-                    ir_reg_t iv = _expr(c, arg->next);
-                    ir_operand_t i_ops[1] = {_op_reg(iv)};
-                    _emit(c, IR_OPCODE_CONST, &idx, 1, i_ops);
+                    idx = _expr(c, arg->next);
                 }
             }
             ir_reg_t result = _ssa(c, IR_REG_I32);
@@ -1018,17 +1009,11 @@ _expr(dfir_compiler_t *c, expr_t *e)
             ir_reg_t val = _ssa(c, IR_REG_I32);
             if (call->exprs && call->exprs->head) {
                 expr_t *arg = call->exprs->head;
-                ir_reg_t pv = _expr(c, arg);
-                ir_operand_t p_ops[1] = {_op_reg(pv)};
-                _emit(c, IR_OPCODE_CONST, &ptr, 1, p_ops);
+                ptr = _expr(c, arg);
                 if (arg->next) {
-                    ir_reg_t iv = _expr(c, arg->next);
-                    ir_operand_t i_ops[1] = {_op_reg(iv)};
-                    _emit(c, IR_OPCODE_CONST, &idx, 1, i_ops);
+                    idx = _expr(c, arg->next);
                     if (arg->next->next) {
-                        ir_reg_t vv = _expr(c, arg->next->next);
-                        ir_operand_t v_ops[1] = {_op_reg(vv)};
-                        _emit(c, IR_OPCODE_CONST, &val, 1, v_ops);
+                        val = _expr(c, arg->next->next);
                     }
                 }
             }

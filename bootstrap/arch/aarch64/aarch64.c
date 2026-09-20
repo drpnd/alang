@@ -1480,6 +1480,56 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             return emit32(&ctx->tb, insn);
         }
 
+
+    case IR_OPCODE_LOAD8: {
+        /* LDRB Wt, [Xbase, Xidx] — load byte at base+idx
+         * Encoding: 00111000 01 011010 1 Rm Rn Rt (register offset, size=00)
+         * = 0x38606800 | (Rm << 16) | (Rn << 5) | Rt
+         * If base is a string immediate, emit ADR to X16 first. */
+        int base_reg;
+        if (inst->operands[0].type == IR_OPERAND_IMM &&
+            inst->operands[0].u.imm.type == IR_IMM_STR) {
+            const char *str = inst->operands[0].u.imm.u.str ? inst->operands[0].u.imm.u.str : "";
+            int sid = add_string(ctx, str);
+            size_t off = ctx->tb.size;
+            uint32_t adr = (1U << 28) | (16 & 31);  /* ADR X16, #0 */
+            emit32(&ctx->tb, adr);
+            str_patch_add(ctx, off, sid);
+            base_reg = 16;
+        } else {
+            base_reg = operand_reg(&inst->operands[0]);
+        }
+        int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        /* LDRB Wt, [Xbase, Xidx] */
+        uint32_t insn = 0x38606800U | ((idx_reg & 31) << 16) | ((base_reg & 31) << 5) | (dst & 31);
+        return emit32(&ctx->tb, insn);
+    }
+
+    case IR_OPCODE_STORE8: {
+        /* STRB Wt, [Xbase, Xidx] — store byte at base+idx
+         * Encoding: 00111000 00 011010 1 Rm Rn Rt (register offset, size=00)
+         * = 0x38206800 | (Rm << 16) | (Rn << 5) | Rt
+         * If base is a string immediate, emit ADR to X16 first. */
+        int base_reg;
+        if (inst->operands[0].type == IR_OPERAND_IMM &&
+            inst->operands[0].u.imm.type == IR_IMM_STR) {
+            const char *str = inst->operands[0].u.imm.u.str ? inst->operands[0].u.imm.u.str : "";
+            int sid = add_string(ctx, str);
+            size_t off = ctx->tb.size;
+            uint32_t adr = (1U << 28) | (16 & 31);  /* ADR X16, #0 */
+            emit32(&ctx->tb, adr);
+            str_patch_add(ctx, off, sid);
+            base_reg = 16;
+        } else {
+            base_reg = operand_reg(&inst->operands[0]);
+        }
+        int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[2], 18);
+        /* STRB Wval, [Xbase, Xidx] */
+        uint32_t insn = 0x38206800U | ((idx_reg & 31) << 16) | ((base_reg & 31) << 5) | (val_reg & 31);
+        return emit32(&ctx->tb, insn);
+    }
+
     case IR_OPCODE_GET_FIELD: {
         /* Struct base may be an immediate after copy propagation */
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
