@@ -245,11 +245,11 @@ spill_load(int id, int reg)
         uint32_t insn = (0xF8U << 24) | (1U << 22) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
         emit32(g_tb, insn);
     } else {
-        /* Large offset: add x9, x29, #hi; ldur xreg, [x9, #lo] */
-        int hi = (off / 4096) * 4096;
+        /* Large offset: sub/add x9, x29, #hi; ldur xreg, [x9, #lo] */
+        int hi = (off / 256) * 256;
         int lo = off - hi;
         if (hi >= 0) {
-            emit32(g_tb, (1U<<31)|(0x11U<<24)|(((hi)&0xFFF)<<10)|(29<<5)|9);
+            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|9);
         } else {
             emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|9);
         }
@@ -266,10 +266,10 @@ spill_store(int reg, int id)
         uint32_t insn = (0xF8U << 24) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
         emit32(g_tb, insn);
     } else {
-        int hi = (off / 4096) * 4096;
+        int hi = (off / 256) * 256;
         int lo = off - hi;
         if (hi >= 0) {
-            emit32(g_tb, (1U<<31)|(0x11U<<24)|(((hi)&0xFFF)<<10)|(29<<5)|9);
+            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|9);
         } else {
             emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|9);
         }
