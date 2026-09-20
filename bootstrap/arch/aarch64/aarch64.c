@@ -1855,6 +1855,8 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
     /* Walk all functions */
     func = obj->funcs;
     while (func) {
+        /* Resolve branch patches from the PREVIOUS function before clearing */
+        resolve_patches(&ctx);
         /* Clear label map and branch patches for each function
          * (labels are function-scoped, not global) */
         for (int i = 0; i < ctx.labels.count; i++) free(ctx.labels.items[i].name);
@@ -1935,7 +1937,7 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
         func = func->next;
     }
 
-    /* Resolve branch patches */
+    /* Resolve branch patches for the last function */
     resolve_patches(&ctx);
 
     /* Append string data to text section */
