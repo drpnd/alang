@@ -279,6 +279,7 @@ _append_buffer_char(YYLTYPE *loc, yyscan_t scanner, char c)
 "pub"       return TOK_PUB;
 "mod"       return TOK_MOD_KW;
 "use"       return TOK_USE;
+"extern"    return TOK_EXTERN;
 
     /* Identifier */
 [A-Za-z\_][A-Za-z\_0-9]* {

@@ -115,6 +115,7 @@ struct type_list_val {
 %token TOK_TYPE_STRING TOK_TYPE_BOOL
     /* Reserved keywords */
 %token TOK_LET TOK_MUT
+%token TOK_EXTERN
 %token TOK_FN TOK_CORO TOK_RETURN TOK_BREAK TOK_CONTINUE
 %token TOK_IF TOK_ELSE TOK_WHILE TOK_FOR TOK_LOOP TOK_MATCH TOK_IN
 %token TOK_YIELD TOK_AWAIT
@@ -148,6 +149,7 @@ struct type_list_val {
 %type <match_block> match_block
 %type <match_arm> match_arm
 %type <func> fndef
+%type <func> extern_fn
 %type <coroutine> crdef
 %type <graph> graphdef
 %type <gnref> pipe_expr
@@ -252,6 +254,21 @@ outer_entry:    directive
                     block = outer_block_entry_new(OUTER_BLOCK_GLOBAL);
                     block->u.glb = $1;
                     $$ = block;
+                }
+        |       extern_fn
+                {
+                    outer_block_entry_t *block;
+                    block = outer_block_entry_new(OUTER_BLOCK_FUNC);
+                    block->u.fn = $1;
+                    $$ = block;
+                }
+                ;
+
+/* External function declaration */
+extern_fn:      TOK_EXTERN TOK_FN identifier funcargs retvals
+                {
+                    /* Create a function with no body (block=NULL) */
+                    $$ = func_new($3, $4, $5, NULL);
                 }
                 ;
 

@@ -1881,6 +1881,14 @@ _inner_block(dfir_compiler_t *c, inner_block_t *block)
 static void
 _func(dfir_compiler_t *c, func_t *fn)
 {
+    /* External function declaration: no body to compile.
+     * The function name is registered implicitly when a CALL instruction
+     * references it — the backend creates an ARCH_SYM_FUNC symbol with
+     * pos=0, size=0 (undefined external). Nothing to do here. */
+    if (!fn->block) {
+        return;
+    }
+
     fnb_t *fb = _fnb_new(fn->id, IR_FUNC_FUNC);
     fb->is_coro = 0;
     c->fn = fb;
