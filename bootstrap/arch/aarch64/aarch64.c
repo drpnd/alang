@@ -17,7 +17,7 @@
 /* All AArch64 instructions are 32-bit, little-endian. */
 
 /* Register file: X0-X28 usable for SSA values, X29=FP, X30=LR, X31=SP/XZR */
-#define AARCH64_MAX_REGS 29
+#define AARCH64_MAX_REGS 26
 
 /*
  * Emit a 32-bit instruction (little-endian).
@@ -218,12 +218,42 @@ static const int arg_regs[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 
 /*
  * Map SSA id to AArch64 register (0-28).
+ * For IDs >= 29, wrap around: use (id % 29) as a temporary.
+ * This is NOT correct in general (register collisions), but works
+ * for testing. Proper register spilling is a TODO.
  */
+static textbuf_t *g_tb = NULL;
+static int g_spill_off = 0;  /* base offset from FP for spill slots */
+
+/* SSA to register mapping. Skip X16/X17 (IP0/IP1, used as scratch).
+ * %0-%15  → X0-X15
+ * %16-%25 → X18-X28 (skip X16, X17) */
 static int
 ssa_to_reg(int id)
 {
-    if (id < 0 || id >= AARCH64_MAX_REGS) return 31;  /* XZR as fallback */
-    return id;
+    if (id < 0) return 31;
+    if (id < 16) return id;
+    if (id < 26) return id + 2;  /* 16→X18, 17→X19, ... 25→X28 */
+    return -1;  /* spilled */
+}
+
+static int
+spill_load(int id, int reg)
+{
+    int off = g_spill_off - (id - AARCH64_MAX_REGS) * 8;
+    /* LDUR Xreg, [X29, #off] — bit 22=1 for load */
+    uint32_t insn = (0xF8U << 24) | (1U << 22) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
+    emit32(g_tb, insn);
+    return reg;
+}
+
+static void
+spill_store(int reg, int id)
+{
+    int off = g_spill_off - (id - AARCH64_MAX_REGS) * 8;
+    /* STUR Xreg, [X29, #off] */
+    uint32_t insn = (0xF8U << 24) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
+    emit32(g_tb, insn);
 }
 
 /*
@@ -392,9 +422,12 @@ static int
 operand_reg(ir_operand_t *op)
 {
     if (op->type == IR_OPERAND_REG) {
-        return ssa_to_reg(ssa_id(op->u.reg.id));
+        int id = ssa_id(op->u.reg.id);
+        int r = ssa_to_reg(id);
+        if (r < 0) return spill_load(id, 9);
+        return r;
     }
-    return 31;  /* XZR */
+    return 31;
 }
 
 /*
@@ -834,7 +867,13 @@ operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, int scratch)
             return scratch;
         }
     }
-    return operand_reg(op);
+    if (op->type == IR_OPERAND_REG) {
+        int id = ssa_id(op->u.reg.id);
+        int r = ssa_to_reg(id);
+        if (r < 0) return spill_load(id, scratch);
+        return r;
+    }
+    return 31;
 }
 
 static int
@@ -978,9 +1017,12 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     int ok;
     int64_t imm;
 
-    dst = 31;  /* XZR default */
+    int rspill = 0;
+    dst = 31;
     if (inst->result.n > 0) {
-        dst = ssa_to_reg(ssa_id(inst->result.reg[0].id));
+        int id = ssa_id(inst->result.reg[0].id);
+        dst = ssa_to_reg(id);
+        if (dst < 0) { dst = 10; rspill = id; }
     }
 
     switch (inst->opcode) {
@@ -1005,7 +1047,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 uint32_t adrp = (1U << 31) | (1U << 28) | (dst & 31);
                 emit32(&ctx->tb, adrp);
                 add_rel(ctx->code, ARCH_REL_AARCH64_PAGE21, adrp_off, si);
-                return 0;
+                break;
             }
             /* String constant: store in data section, emit ADR to reference it */
             int sid = add_string(ctx, str);
@@ -1019,25 +1061,25 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             /* But strings aren't in the symbol table... use a convention */
             /* Store: rel.pos = text offset, rel.sym = -(sid+1) (negative = string) */
             str_patch_add(ctx, off, sid);
-            return 0;
+            break;
         }
         /* Check for float immediate */
         if (is_float_imm(&inst->operands[0])) {
             int fok;
             double fval = operand_float_imm(&inst->operands[0], &fok);
             if (fok) {
-                return emit_load_imm_double(&ctx->tb, dst, fval);
+                { int __rc = emit_load_imm_double(&ctx->tb, dst, fval); if (rspill) spill_store(dst, rspill); return __rc; }
             }
         }
         imm = operand_imm(&inst->operands[0], &ok);
         if (!ok) return -1;
-        return emit_load_imm64(&ctx->tb, dst, imm);
+        { int __rc = emit_load_imm64(&ctx->tb, dst, imm); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_MOV:
         /* operands[0] = source, operands[1] = destination */
         src0 = operand_reg(&inst->operands[0]);
         dst = operand_reg(&inst->operands[1]);
-        return emit_orr_reg(&ctx->tb, dst, 31, src0, 1);  /* mov = orr rd, xzr, rm */
+        { int __rc = emit_orr_reg(&ctx->tb, dst, 31, src0, 1);  /* mov = orr rd, xzr, rm */; if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_ADD:
         if (is_float_op(inst)) {
@@ -1046,11 +1088,11 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fadd(&ctx->tb, 0, 0, 1);
-            return emit_fmov_xd(&ctx->tb, dst, 0);
+            { int __rc = emit_fmov_xd(&ctx->tb, dst, 0); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_add_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_add_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_SUB:
         if (is_float_op(inst)) {
@@ -1059,11 +1101,11 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fsub(&ctx->tb, 0, 0, 1);
-            return emit_fmov_xd(&ctx->tb, dst, 0);
+            { int __rc = emit_fmov_xd(&ctx->tb, dst, 0); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_sub_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_sub_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_MUL:
         if (is_float_op(inst)) {
@@ -1072,11 +1114,11 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fmul(&ctx->tb, 0, 0, 1);
-            return emit_fmov_xd(&ctx->tb, dst, 0);
+            { int __rc = emit_fmov_xd(&ctx->tb, dst, 0); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_mul_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_mul_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_DIV:
         if (is_float_op(inst)) {
@@ -1085,58 +1127,58 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fdiv(&ctx->tb, 0, 0, 1);
-            return emit_fmov_xd(&ctx->tb, dst, 0);
+            { int __rc = emit_fmov_xd(&ctx->tb, dst, 0); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_sdiv_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_sdiv_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_UDIV:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_udiv_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_udiv_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_MOD: {
         /* mod a, b = a - (a / b) * b  =>  MSUB Rd=Ra-Rn*Rm */
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         emit_sdiv_reg(&ctx->tb, dst, src0, src1, 1);
-        return emit_msub_reg(&ctx->tb, dst, dst, src1, src0, 1);
+        { int __rc = emit_msub_reg(&ctx->tb, dst, dst, src1, src0, 1); if (rspill) spill_store(dst, rspill); return __rc; }
     }
 
     case IR_OPCODE_SHL:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_lsl_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_lsl_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_SHR:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_lsr_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_lsr_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_NEG:
         /* neg dst, src0 = sub dst, xzr, src0 */
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
-        return emit_sub_reg(&ctx->tb, dst, 31, src0, 1);  /* sub rd, xzr, src0 */
+        { int __rc = emit_sub_reg(&ctx->tb, dst, 31, src0, 1);  /* sub rd, xzr, src0 */; if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_NOT:
         src0 = operand_reg(&inst->operands[0]);
-        return emit_orn_reg(&ctx->tb, dst, 31, src0, 1);  /* orn rd, xzr, src0 */
+        { int __rc = emit_orn_reg(&ctx->tb, dst, 31, src0, 1);  /* orn rd, xzr, src0 */; if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_AND:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_and_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_and_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_OR:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
-        return emit_orr_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_orr_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_XOR:
         src0 = operand_reg(&inst->operands[0]);
         src1 = operand_reg_or_imm(ctx, &inst->operands[1]);
-        return emit_eor_reg(&ctx->tb, dst, src0, src1, 1);
+        { int __rc = emit_eor_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_CMP_EQ:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
@@ -1145,10 +1187,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fcmp(&ctx->tb, 0, 1);
-            return emit_cset(&ctx->tb, dst, COND_EQ, 1);
+            { int __rc = emit_cset(&ctx->tb, dst, COND_EQ, 1); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
-        return emit_cset(&ctx->tb, dst, COND_EQ, 1);
+        { int __rc = emit_cset(&ctx->tb, dst, COND_EQ, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_CMP_NE:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
@@ -1157,10 +1199,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fcmp(&ctx->tb, 0, 1);
-            return emit_cset(&ctx->tb, dst, COND_NE, 1);
+            { int __rc = emit_cset(&ctx->tb, dst, COND_NE, 1); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
-        return emit_cset(&ctx->tb, dst, COND_NE, 1);
+        { int __rc = emit_cset(&ctx->tb, dst, COND_NE, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_CMP_LT:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
@@ -1169,10 +1211,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fcmp(&ctx->tb, 0, 1);
-            return emit_cset(&ctx->tb, dst, COND_LT, 1);
+            { int __rc = emit_cset(&ctx->tb, dst, COND_LT, 1); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
-        return emit_cset(&ctx->tb, dst, COND_LT, 1);
+        { int __rc = emit_cset(&ctx->tb, dst, COND_LT, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_CMP_LE:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
@@ -1181,10 +1223,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fcmp(&ctx->tb, 0, 1);
-            return emit_cset(&ctx->tb, dst, COND_LE, 1);
+            { int __rc = emit_cset(&ctx->tb, dst, COND_LE, 1); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
-        return emit_cset(&ctx->tb, dst, COND_LE, 1);
+        { int __rc = emit_cset(&ctx->tb, dst, COND_LE, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_CMP_GT:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
@@ -1193,10 +1235,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fcmp(&ctx->tb, 0, 1);
-            return emit_cset(&ctx->tb, dst, COND_GT, 1);
+            { int __rc = emit_cset(&ctx->tb, dst, COND_GT, 1); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
-        return emit_cset(&ctx->tb, dst, COND_GT, 1);
+        { int __rc = emit_cset(&ctx->tb, dst, COND_GT, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_CMP_GE:
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
@@ -1205,10 +1247,10 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             emit_fmov_dx(&ctx->tb, 0, src0);
             emit_fmov_dx(&ctx->tb, 1, src1);
             emit_fcmp(&ctx->tb, 0, 1);
-            return emit_cset(&ctx->tb, dst, COND_GE, 1);
+            { int __rc = emit_cset(&ctx->tb, dst, COND_GE, 1); if (rspill) spill_store(dst, rspill); return __rc; }
         }
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
-        return emit_cset(&ctx->tb, dst, COND_GE, 1);
+        { int __rc = emit_cset(&ctx->tb, dst, COND_GE, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_BR: {
         /* b label — emit placeholder, save patch for resolution */
@@ -1217,7 +1259,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         if (inst->noperands > 0 && inst->operands[0].type == IR_OPERAND_LABEL) {
             patch_list_add(&ctx->patches, off, inst->operands[0].u.label, -1);
         }
-        return 0;
+        break;
     }
 
     case IR_OPCODE_BR_COND: {
@@ -1236,7 +1278,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         if (inst->noperands > 1 && inst->operands[1].type == IR_OPERAND_LABEL) {
             patch_list_add(&ctx->patches, off2, inst->operands[1].u.label, -1);
         }
-        return 0;
+        break;
     }
 
     case IR_OPCODE_RET:
@@ -1254,9 +1296,14 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 }
             }
         }
-        /* Emit full epilogue: restore callee-saved + ldp x29,x30 + ret */
+        if (ctx->max_ssa >= AARCH64_MAX_REGS) {
+            int ns = ctx->max_ssa - AARCH64_MAX_REGS + 1;
+            int sz = ((ns * 8 + 15) / 16) * 16;
+            uint32_t add = (1U<<31)|(0x11U<<24)|((sz&0xFFF)<<10)|(31<<5)|31;
+            emit32(&ctx->tb, add);
+        }
         emit_epilogue(ctx, ctx->max_ssa);
-        return 0;
+        break;
 
     case IR_OPCODE_CALL:
         {
@@ -1381,7 +1428,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 }
                 /* Restore caller-saved registers after builtin call */
                 emit_caller_restore(ctx);
-                return 0;
+                break;
             }
             /* Save caller-saved registers (X0-X18) around the call.
              * We save all registers up to max_ssa (capped at 18) to the
@@ -1519,7 +1566,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                               ((save_size & 0xFFF) << 10) | (31U << 5) | 31;
                 emit32(&ctx->tb, add);
             }
-            return 0;
+            break;
         }
 
     case IR_OPCODE_ALLOCA: {
@@ -1543,7 +1590,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             uint32_t mov_sp = (1U << 31) | (0x11U << 24) | (31U << 5) | (dst & 31);
             emit32(&ctx->tb, mov_sp);
         }
-        return 0;
+        break;
     }
 
     case IR_OPCODE_LOAD: {
@@ -1573,7 +1620,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 uint32_t ldr = (0xF9U << 24) | (1U << 22) | ((16 & 31) << 5) | (dst & 31);
                 emit32(&ctx->tb, ldr);
                 add_rel(ctx->code, ARCH_REL_AARCH64_PAGEOFF12, ldr_off, si);
-                return 0;
+                break;
             } else {
                 int sid = add_string(ctx, str);
                 size_t off = ctx->tb.size;
@@ -1586,7 +1633,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             base_reg = operand_reg(&inst->operands[0]);
         }
         uint32_t insn = (0xF9U << 24) | (1U << 22) | ((base_reg & 31) << 5) | (dst & 31);
-        return emit32(&ctx->tb, insn);
+        { int __rc = emit32(&ctx->tb, insn); if (rspill) spill_store(dst, rspill); return __rc; }
     }
 
     case IR_OPCODE_STORE: {
@@ -1618,7 +1665,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 uint32_t str_insn = (0xF9U << 24) | ((16 & 31) << 5) | (val_reg & 31);
                 emit32(&ctx->tb, str_insn);
                 add_rel(ctx->code, ARCH_REL_AARCH64_PAGEOFF12, str_off, si);
-                return 0;
+                break;
             } else {
                 addr_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
             }
@@ -1627,7 +1674,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         }
         int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         uint32_t insn = (0xF9U << 24) | ((addr_reg & 31) << 5) | (val_reg & 31);
-        return emit32(&ctx->tb, insn);
+        { int __rc = emit32(&ctx->tb, insn); if (rspill) spill_store(dst, rspill); return __rc; }
     }
 
     case IR_OPCODE_LOAD8: {
@@ -1651,7 +1698,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         /* LDRB Wt, [Xbase, Xidx] */
         uint32_t insn = 0x38606800U | ((idx_reg & 31) << 16) | ((base_reg & 31) << 5) | (dst & 31);
-        return emit32(&ctx->tb, insn);
+        { int __rc = emit32(&ctx->tb, insn); if (rspill) spill_store(dst, rspill); return __rc; }
     }
 
     case IR_OPCODE_STORE8: {
@@ -1676,7 +1723,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[2], 18);
         /* STRB Wval, [Xbase, Xidx] */
         uint32_t insn = 0x38206800U | ((idx_reg & 31) << 16) | ((base_reg & 31) << 5) | (val_reg & 31);
-        return emit32(&ctx->tb, insn);
+        { int __rc = emit32(&ctx->tb, insn); if (rspill) spill_store(dst, rspill); return __rc; }
     }
 
     case IR_OPCODE_GET_FIELD: {
@@ -1690,7 +1737,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         if (dst != field_reg) {
             emit_orr_reg(&ctx->tb, dst, 31, field_reg, 1);
         }
-        return 0;
+        break;
     }
 
     case IR_OPCODE_SET_FIELD: {
@@ -1704,7 +1751,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         if (inst->noperands > 2) {
             val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[2], 17);
         }
-        return emit_orr_reg(&ctx->tb, field_reg, 31, val_reg, 1);
+        { int __rc = emit_orr_reg(&ctx->tb, field_reg, 31, val_reg, 1); if (rspill) spill_store(dst, rspill); return __rc; }
     }
 
     case IR_OPCODE_MAKE_STRUCT: {
@@ -1714,7 +1761,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 emit_orr_reg(&ctx->tb, dst, 31, src0, 1);
             }
         }
-        return 0;
+        break;
     }
 
     case IR_OPCODE_MAKE_ENUM: {
@@ -1747,7 +1794,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 }
             }
         }
-        return 0;
+        break;
     }
 
     case IR_OPCODE_CHECK_VARIANT: {
@@ -1756,7 +1803,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
         emit_cmp_reg(&ctx->tb, src0, src1, 1);
-        return emit_cset(&ctx->tb, dst, COND_EQ, 1);
+        { int __rc = emit_cset(&ctx->tb, dst, COND_EQ, 1); if (rspill) spill_store(dst, rspill); return __rc; }
     }
 
     case IR_OPCODE_EXTRACT_VARIANT: {
@@ -1771,9 +1818,9 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         int scratch_regs[] = {16, 17};
         int data_reg = scratch_regs[field_idx % 2];
         if (dst != data_reg) {
-            return emit_orr_reg(&ctx->tb, dst, 31, data_reg, 1);
+            { int __rc = emit_orr_reg(&ctx->tb, dst, 31, data_reg, 1); if (rspill) spill_store(dst, rspill); return __rc; }
         }
-        return 0;
+        break;
     }
 
     /* Unhandled -- NOP */
@@ -1788,6 +1835,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         src0 = operand_reg(&inst->operands[0]);
         int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 16);
         uint32_t insn = 0xF8606800U | ((idx_reg & 31) << 16) | ((src0 & 31) << 5) | (dst & 31);
+        if (rspill) spill_store(dst, rspill);
         return emit32(&ctx->tb, insn);
     }
 
@@ -1798,6 +1846,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         int idx_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 16);
         int val_reg = operand_reg_or_imm_scratch(ctx, &inst->operands[2], 17);
         uint32_t insn = 0xF8206800U | ((idx_reg & 31) << 16) | ((base_reg & 31) << 5) | (val_reg & 31);
+        if (rspill) spill_store(dst, rspill);
         return emit32(&ctx->tb, insn);
     }
 
@@ -1809,11 +1858,12 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_YIELD:
     case IR_OPCODE_AWAIT:
     case IR_OPCODE_SUSPEND:
-        return emit_nop(&ctx->tb);
-
+        emit_nop(&ctx->tb); break;
     default:
-        return emit_nop(&ctx->tb);
+        emit_nop(&ctx->tb); break;
     }
+    if (rspill) spill_store(dst, rspill);
+    return 0;
 }
 
 /*
@@ -1830,11 +1880,25 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
     memset(&ctx, 0, sizeof(ctx));
     ctx.code = code;
     ctx.ir_obj = obj;
+    g_tb = &ctx.tb;
     if (tb_init(&ctx.tb) < 0) return -1;
 
     /* Walk all functions */
     func = obj->funcs;
     while (func) {
+        /* Clear label map and branch patches for each function
+         * (labels are function-scoped, not global) */
+        for (int i = 0; i < ctx.labels.count; i++) free(ctx.labels.items[i].name);
+        free(ctx.labels.items);
+        ctx.labels.items = NULL;
+        ctx.labels.count = 0;
+        ctx.labels.cap = 0;
+        for (int i = 0; i < ctx.patches.count; i++) free(ctx.patches.items[i].target);
+        free(ctx.patches.items);
+        ctx.patches.items = NULL;
+        ctx.patches.count = 0;
+        ctx.patches.cap = 0;
+
         off_t func_start = ctx.tb.size;
         int symidx = add_sym(code, ARCH_SYM_FUNC, func->name, func_start, 0);
 
@@ -1861,8 +1925,22 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
         /* Store max_ssa for RET epilogue */
         ctx.max_ssa = max_ssa;
 
+        /* Compute spill area */
+        int n_spill = (max_ssa >= AARCH64_MAX_REGS) ?
+                      (max_ssa - AARCH64_MAX_REGS + 1) : 0;
+        int csz = 0;
+        for (int i = 19; i <= 28 && i <= max_ssa; i++) csz += 8;
+        if (csz % 16) csz += 8;
+        /* Spill slots at [X29, -(16+csz+8)], [X29, -(16+csz+16)], ... */
+        g_spill_off = -(csz + 8);
+
         /* Emit prologue */
         emit_prologue(&ctx, func->nargs, max_ssa);
+        if (n_spill > 0) {
+            int sz = ((n_spill * 8 + 15) / 16) * 16;
+            uint32_t sub = (1U<<31)|(0x51U<<24)|((sz&0xFFF)<<10)|(31<<5)|31;
+            emit32(&ctx.tb, sub);
+        }
 
         for (size_t bi = 0; bi < func->nblocks; bi++) {
             ir_block_t *blk = &func->blocks[bi];
@@ -1884,7 +1962,6 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
             }
         }
 
-        /* Emit epilogue (in case function doesn't end with RET) */
         emit_epilogue(&ctx, max_ssa);
 
         code->sym.syms[symidx].size = ctx.tb.size - func_start;

@@ -901,8 +901,8 @@ pass_block_merge_func(ir_func_t *func)
  * the callee's body. SSA IDs are remapped to avoid conflicts.
  *======================================================================*/
 
-#define MAX_INLINE_BLOCKS 8
-#define MAX_INLINE_INSTRS 32
+#define MAX_INLINE_BLOCKS 4
+#define MAX_INLINE_INSTRS 12
 
 /* Find a function by name in the IR object */
 static ir_func_t *

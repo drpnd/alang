@@ -1944,6 +1944,19 @@ x86_64_assemble(ir_object_t *obj, arch_code_t *code)
     /* Walk all functions */
     func = obj->funcs;
     while (func) {
+        /* Clear label map and branch patches for each function
+         * (labels are function-scoped, not global) */
+        for (int i = 0; i < ctx.labels.count; i++) free(ctx.labels.items[i].name);
+        free(ctx.labels.items);
+        ctx.labels.items = NULL;
+        ctx.labels.count = 0;
+        ctx.labels.cap = 0;
+        for (int i = 0; i < ctx.patches.count; i++) free(ctx.patches.items[i].target);
+        free(ctx.patches.items);
+        ctx.patches.items = NULL;
+        ctx.patches.count = 0;
+        ctx.patches.cap = 0;
+
         off_t func_start = ctx.tb.size;
         int symidx = add_sym(code, ARCH_SYM_FUNC, func->name, func_start, 0);
 
