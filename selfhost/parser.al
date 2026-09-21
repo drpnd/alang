@@ -338,14 +338,39 @@ fn parse_primary() (r: i32)
     } else {
         if t == 3 {
             print_indent()
-        puts("STR")
+            puts("STR")
             mut r = advance()
         } else {
             if t == 1 {
-                print_indent()
-                print_str(cur_val())
-                putchar(10)
+                let name: i64 = 0
+                mut name = cur_val()
                 mut r = advance()
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    print_indent()
+                    puts("CALL")
+                    mut g_indent = g_indent + 1
+                    print_indent()
+                    print_str(name)
+                    putchar(10)
+                    if is_op(41) == 0 {
+                        mut r = parse_expr()
+                        while is_op(44) == 1 {
+                            mut r = advance()
+                            mut r = parse_expr()
+                        }
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                    mut g_indent = g_indent - 1
+                } else {
+                    print_indent()
+                    puts("IDENT")
+                    mut g_indent = g_indent + 1
+                    print_indent()
+                    print_str(name)
+                    putchar(10)
+                    mut g_indent = g_indent - 1
+                }
             } else {
                 if is_op(40) == 1 {
                     mut r = advance()
