@@ -1,6 +1,6 @@
 # DFIR — Data Flow IR Specification
 
-> **Version:** 0.3 (implemented)
+> **Version:** 0.4 (implemented)
 >
 > **Status:** Bootstrap compiler implemented with aarch64 and x86-64 backends
 
@@ -14,7 +14,7 @@ both functions and coroutines as first-class constructs.
 
 | Goal | Description |
 |------|-------------|
-| Minimal | 44 instructions total across three layers |
+| Minimal | 48 instructions total across three layers |
 | SSA | Every value is assigned exactly once |
 | Data-flow-native | Channels, `yield`, `await` are IR-level instructions |
 | Backend-agnostic | Lowerable to Cranelift, C, or an interpreter |
@@ -882,7 +882,7 @@ fn main() (r: i32) {
 | 43 | `await` | Async | coro | `%r = await %future` |
 | 44 | `suspend` | Async | coro | `suspend` |
 
-**Total: 44 instructions** (across all categories and layers).
+**Total: 48 instructions** (across all categories and layers).
 
 ### Implementation Status
 
@@ -911,11 +911,11 @@ fn main() (r: i32) {
 | Suite | Tests | Status |
 |-------|-------|--------|
 | IR unit tests | 22 | ✅ All pass |
-| aarch64 example tests | 50 | ✅ All pass |
+| aarch64 example tests | 57 | ✅ All pass |
 | x86-64 example tests | 44 | ✅ All pass |
-| **Total** | **116** | **0 failures** |
+| **Total** | **123** | **0 failures** |
 
-### Example Programs (50 total)
+### Example Programs (57 total)
 
 | Category | Examples |
 |----------|---------|
@@ -935,8 +935,8 @@ fn main() (r: i32) {
 ### Compiler Architecture
 
 ```
-compiler.c (2,254 lines)     — AST → DFIR compiler
-optimize.c (1,418 lines)     — 9 optimizer passes (const fold, copy prop, DCE, etc.)
+compiler.c (2,707 lines)     — AST → DFIR compiler
+optimize.c (1,420 lines)     — 7 optimizer passes (const fold, copy prop, DCE, etc.)
 ir.c/ir.h (407 lines)        — DFIR data structures and utilities
 arch/aarch64/aarch64.c       — AArch64 backend (Mach-O)
 arch/x86-64/x86-64.c         — x86-64 backend (Mach-O/ELF)
