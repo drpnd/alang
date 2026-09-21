@@ -24,6 +24,7 @@ let g_str_pos: i64 = 0
 
 // Indent for printing
 let g_indent: i64 = 0
+let g_done: i64 = 0
 
 // Token types: 0=EOF 1=IDENT 2=INT 3=STR 4=OP 5=KW
 // Keyword IDs: 1=fn 2=let 3=mut 4=if 5=else 6=while 7=for
@@ -31,13 +32,14 @@ let g_indent: i64 = 0
 
 fn is_alpha(c: i32) (r: i32)
 {
+    mut r = 0
     if c >= 65 {
-        if c <= 90 { mut r = 1 } else {
-            if c >= 97 { if c <= 122 { mut r = 1 } else { mut r = 0 } }
-        }
-    } else {
-        if c == 95 { mut r = 1 } else { mut r = 0 }
+        if c <= 90 { mut r = 1 }
     }
+    if c >= 97 {
+        if c <= 122 { mut r = 1 }
+    }
+    if c == 95 { mut r = 1 }
 }
 
 fn is_digit(c: i32) (r: i32)
@@ -388,6 +390,39 @@ fn parse_primary() (r: i32)
     }
 }
 
+fn parse_postfix() (r: i32)
+{
+    mut r = parse_primary()
+    mut g_done = 0
+    while g_done == 0 {
+        if is_op(46) == 1 {
+            mut r = advance()
+            print_indent()
+            puts("FIELD")
+            mut g_indent = g_indent + 1
+            if cur_type() == 1 {
+                print_indent()
+                print_str(cur_val())
+                putchar(10)
+                mut r = advance()
+            }
+            mut g_indent = g_indent - 1
+        } else {
+            if is_op(91) == 1 {
+                mut r = advance()
+                print_indent()
+                puts("INDEX")
+                mut g_indent = g_indent + 1
+                mut r = parse_expr()
+                if is_op(93) == 1 { mut r = advance() }
+                mut g_indent = g_indent - 1
+            } else {
+                mut g_done = 1
+            }
+        }
+    }
+}
+
 fn parse_unary() (r: i32)
 {
     if is_op(45) == 1 {
@@ -406,7 +441,7 @@ fn parse_unary() (r: i32)
             mut r = parse_unary()
             mut g_indent = g_indent - 1
         } else {
-            mut r = parse_primary()
+            mut r = parse_postfix()
         }
     }
 }
@@ -572,12 +607,39 @@ fn parse_assign() (r: i32)
         print_str(cur_val())
         putchar(10)
         mut r = advance()
+        mut g_done = 0
+        while g_done == 0 {
+            if is_op(46) == 1 {
+                mut r = advance()
+                print_indent()
+                puts("FIELD")
+                mut g_indent = g_indent + 1
+                if cur_type() == 1 {
+                    print_indent()
+                    print_str(cur_val())
+                    putchar(10)
+                    mut r = advance()
+                }
+                mut g_indent = g_indent - 1
+            } else {
+                if is_op(91) == 1 {
+                    mut r = advance()
+                    print_indent()
+                    puts("INDEX")
+                    mut g_indent = g_indent + 1
+                    mut r = parse_expr()
+                    if is_op(93) == 1 { mut r = advance() }
+                    mut g_indent = g_indent - 1
+                } else {
+                    mut g_done = 1
+                }
+            }
+        }
     }
     if is_op(61) == 1 { mut r = advance() }
     mut r = parse_expr()
     mut g_indent = g_indent - 1
 }
-
 fn parse_if() (r: i32)
 {
     mut r = advance()
