@@ -1648,14 +1648,14 @@ fn gen_func(nd: i64) (r: i64)
     mut r = 0
 }
 
-fn write_header(fp: i64) (r: i64)
+fn write_header(fp: i64, ncmds: i64, sizeofcmds: i64) (r: i64)
 {
     mut r = write32(fp, 0xFEEDFACF)
     mut r = write32(fp, 0x0100000C)
     mut r = write32(fp, 0)
     mut r = write32(fp, 1)
-    mut r = write32(fp, 2)
-    mut r = write32(fp, 176)
+    mut r = write32(fp, ncmds)
+    mut r = write32(fp, sizeofcmds)
     mut r = write32(fp, 0)
     mut r = write32(fp, 0)
     mut r = 0
@@ -1663,31 +1663,30 @@ fn write_header(fp: i64) (r: i64)
 
 fn write_segment(fp: i64, text_off: i64, code_size: i64) (r: i64)
 {
-    let vm_size: i64 = 0
-    let file_size: i64 = 0
-    mut vm_size = text_off + code_size
-    mut file_size = text_off + code_size + 32
+    let total: i64 = 0
+    mut total = code_size + 32
     mut r = write32(fp, 0x19)
     mut r = write32(fp, 152)
     mut r = write_str(fp, "__TEXT")
     mut r = write64(fp, 0)
-    mut r = write64(fp, vm_size)
-    mut r = write64(fp, 0)
-    mut r = write64(fp, file_size)
+    mut r = write64(fp, total)
+    mut r = write64(fp, text_off)
+    mut r = write64(fp, total)
     mut r = write32(fp, 7)
     mut r = write32(fp, 7)
     mut r = write32(fp, 1)
     mut r = write32(fp, 0)
     mut r = 0
 }
+
 fn write_section(fp: i64, text_off: i64, code_size: i64) (r: i64)
 {
     mut r = write_str(fp, "__text")
     mut r = write_str(fp, "__TEXT")
-    mut r = write64(fp, find_main())
+    mut r = write64(fp, 0)
     mut r = write64(fp, code_size)
     mut r = write32(fp, text_off)
-    mut r = write32(fp, 2)
+    mut r = write32(fp, 4)
     mut r = write32(fp, 0)
     mut r = write32(fp, 0)
     mut r = write32(fp, 0x80000400)
@@ -1697,6 +1696,72 @@ fn write_section(fp: i64, text_off: i64, code_size: i64) (r: i64)
     mut r = 0
 }
 
+fn write_version(fp: i64) (r: i64)
+{
+    mut r = write32(fp, 0x24)
+    mut r = write32(fp, 16)
+    mut r = write32(fp, 0xA0C00)
+    mut r = write32(fp, 0)
+    mut r = 0
+}
+fn write_macho(path: i64, code_size: i64) (r: i64)
+{
+    let fp: i64 = 0
+    let text_off: i64 = 0
+    let sym_off: i64 = 0
+    let str_off: i64 = 0
+    mut fp = fopen(path, "w")
+    if fp == 0 {
+        puts("Cannot open output file")
+        mut r = 1
+    } else {
+        mut text_off = 32 + 152 + 16 + 24
+        mut sym_off = text_off + code_size
+        mut str_off = sym_off + 16
+        mut r = write_header(fp, 3, 152 + 16 + 24)
+        mut r = write_segment(fp, text_off, code_size)
+        mut r = write_section(fp, text_off, code_size)
+        mut r = write_version(fp)
+        mut r = write_symtab_header(fp, sym_off, str_off)
+        mut r = write_code_bytes(fp, code_size)
+        mut r = write_nlist(fp, 0)
+        mut r = write_main_sym(fp)
+        mut r = fclose(fp)
+        puts("Mach-O written")
+        mut r = 0
+    }
+}
+fn find_main_name() (r: i64)
+{
+    let i: i64 = 0
+    let n: i64 = 0
+    let found: i64 = 0
+    mut i = 0
+    while i < g_fn_count {
+        mut n = __mem_load(g_fn_name + i * 8)
+        if __str_eq(n, "main") == 1 {
+            mut found = n
+        }
+        mut i = i + 1
+    }
+    mut r = found
+}
+fn find_main() (r: i64)
+{
+    let i: i64 = 0
+    let n: i64 = 0
+    let found: i64 = 0
+    mut i = 0
+    mut r = 0
+    while i < g_fn_count {
+        mut n = __mem_load(g_fn_name + i * 8)
+        if __str_eq(n, "main") == 1 {
+            mut found = __mem_load(g_fn_off + i * 8)
+        }
+        mut i = i + 1
+    }
+    mut r = found
+}
 fn write_symtab_header(fp: i64, sym_off: i64, str_off: i64) (r: i64)
 {
     mut r = write32(fp, 2)
@@ -1719,69 +1784,13 @@ fn write_code_bytes(fp: i64, code_size: i64) (r: i64)
     mut r = 0
 }
 
-fn write_nlist(fp: i64, text_off: i64) (r: i64)
+fn write_nlist(fp: i64, code_off: i64) (r: i64)
 {
-    mut r = write32(fp, 1)
+    mut r = write32(fp, 0)
     mut r = write_byte(fp, 0x0F)
     mut r = write_byte(fp, 1)
     mut r = write16(fp, 0)
-    mut r = write64(fp, find_main())
-    mut r = 0
-}
-
-fn write_macho(path: i64, code_size: i64) (r: i64)
-{
-    let fp: i64 = 0
-    let text_off: i64 = 0
-    let sym_off: i64 = 0
-    let str_off: i64 = 0
-    mut fp = fopen(path, "w")
-    if fp == 0 {
-        puts("Cannot open output file")
-        mut r = 1
-    } else {
-        mut text_off = 208
-        mut sym_off = text_off + code_size
-        mut str_off = sym_off + 16
-        mut r = write_header(fp)
-        mut r = write_segment(fp, text_off, code_size)
-        mut r = write_section(fp, text_off, code_size)
-        mut r = write_symtab_header(fp, sym_off, str_off)
-        mut r = write_code_bytes(fp, code_size)
-        mut r = write_nlist(fp, text_off)
-        mut r = write_main_sym(fp)
-        puts("Mach-O written")
-        mut r = 0
-    }
-}
-
-fn find_main_name() (r: i64)
-{
-    let i: i64 = 0
-    let n: i64 = 0
-    mut i = 0
-    while i < g_fn_count {
-        mut n = __mem_load(g_fn_name + i * 8)
-        if __str_eq(n, "main") == 1 {
-            mut r = n
-        }
-        mut i = i + 1
-    }
-    mut r = 0
-}
-
-fn find_main() (r: i64)
-{
-    let i: i64 = 0
-    let n: i64 = 0
-    mut i = 0
-    while i < g_fn_count {
-        mut n = __mem_load(g_fn_name + i * 8)
-        if __str_eq(n, "main") == 1 {
-            mut r = __mem_load(g_fn_off + i * 8)
-        }
-        mut i = i + 1
-    }
+    mut r = write64(fp, code_off + find_main())
     mut r = 0
 }
 
