@@ -39,6 +39,7 @@ let g_ast_b: i64 = 0
 let g_ast_c: i64 = 0
 let g_ast_count: i64 = 0
 let g_first_fn: i64 = 0
+let g_func_list: i64 = 0
 
 // Token types: 0=EOF 1=IDENT 2=INT 3=STR 4=OP 5=KW
 // Keyword IDs: 1=fn 2=let 3=mut 4=if 5=else 6=while 7=for
@@ -939,6 +940,7 @@ fn parse_fn() (r: i32)
     mut body = parse_block()
     mut fnode = emit_func(name, params, rets, body)
     if g_first_fn == 0 { mut g_first_fn = fnode }
+    mut g_func_list = emit_stmtlist(fnode, g_func_list)
     mut r = fnode
 }
 fn parse_program() (r: i32)
@@ -1205,6 +1207,63 @@ fn fn_add(name: i64, offset: i64) (r: i64)
 // === Expression code generator ===
 // Result is always in X0
 
+fn gen_binop(op: i64) (r: i64)
+{
+    // X1 = left, X0 = right (from gen_expr + push/pop)
+    if op == 43 {
+        mut r = gen_add(0, 1, 0)
+    } else {
+        if op == 45 {
+            mut r = gen_sub(0, 1, 0)
+        } else {
+            if op == 42 {
+                mut r = gen_mul(0, 1, 0)
+            } else {
+                if op == 47 {
+                    mut r = gen_sdiv(0, 1, 0)
+                } else {
+                    if op == 37 {
+                        mut r = gen_sdiv(2, 1, 0)
+                        mut r = gen_msub(0, 2, 0, 1)
+                    } else {
+                        mut r = gen_cmpop(op)
+                    }
+                }
+            }
+        }
+    }
+    mut r = 0
+}
+
+fn gen_cmpop(op: i64) (r: i64)
+{
+    mut r = gen_cmp(1, 0)
+    if op == 60 {
+        mut r = gen_cset(0, 11)
+    } else {
+        if op == 62 {
+            mut r = gen_cset(0, 12)
+        } else {
+            if op == 15677 {
+                mut r = gen_cset(0, 0)
+            } else {
+                if op == 8645 {
+                    mut r = gen_cset(0, 1)
+                } else {
+                    if op == 15485 {
+                        mut r = gen_cset(0, 13)
+                    } else {
+                        if op == 15997 {
+                            mut r = gen_cset(0, 10)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    mut r = 0
+}
+
 fn gen_expr(nd: i64) (r: i64)
 {
     let k: i64 = 0
@@ -1212,17 +1271,14 @@ fn gen_expr(nd: i64) (r: i64)
     let a: i64 = 0
     let b: i64 = 0
     let off: i64 = 0
-    let fn_off: i64 = 0
     mut k = __mem_load(g_ast_kind + nd * 8)
     mut v = __mem_load(g_ast_val + nd * 8)
     mut a = __mem_load(g_ast_a + nd * 8)
     mut b = __mem_load(g_ast_b + nd * 8)
     if k == 1 {
-        // INT
         mut r = gen_movz(0, v)
     } else {
         if k == 3 {
-            // IDENT
             mut off = var_lookup(v)
             if off > 0 {
                 mut r = gen_ldr(0, 29, off)
@@ -1231,75 +1287,16 @@ fn gen_expr(nd: i64) (r: i64)
             }
         } else {
             if k == 5 {
-                // BINOP
                 mut r = gen_expr(a)
                 mut r = gen_push()
                 mut r = gen_expr(b)
                 mut r = gen_pop_x1()
-                if v == 43 {
-                    mut r = gen_add(0, 1, 0)
-                } else {
-                    if v == 45 {
-                        mut r = gen_sub(0, 1, 0)
-                    } else {
-                        if v == 42 {
-                            mut r = gen_mul(0, 1, 0)
-                        } else {
-                            if v == 47 {
-                                mut r = gen_sdiv(0, 1, 0)
-                            } else {
-                                if v == 37 {
-                                    // MOD: X0 = X1 - (X1 / X0) * X0
-                                    mut r = gen_sdiv(2, 1, 0)
-                                    mut r = gen_msub(0, 2, 0, 1)
-                                } else {
-                                    if v == 60 {
-                                        // LT
-                                        mut r = gen_cmp(1, 0)
-                                        mut r = gen_cset(0, 11)
-                                    } else {
-                                        if v == 62 {
-                                            // GT
-                                            mut r = gen_cmp(1, 0)
-                                            mut r = gen_cset(0, 12)
-                                        } else {
-                                            if v == 15677 {
-                                                // EQ
-                                                mut r = gen_cmp(1, 0)
-                                                mut r = gen_cset(0, 0)
-                                            } else {
-                                                if v == 8645 {
-                                                    // NE
-                                                    mut r = gen_cmp(1, 0)
-                                                    mut r = gen_cset(0, 1)
-                                                } else {
-                                                    if v == 15485 {
-                                                        // LE
-                                                        mut r = gen_cmp(1, 0)
-                                                        mut r = gen_cset(0, 13)
-                                                    } else {
-                                                        if v == 15997 {
-                                                            // GE
-                                                            mut r = gen_cmp(1, 0)
-                                                            mut r = gen_cset(0, 10)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                mut r = gen_binop(v)
             } else {
                 if k == 4 {
-                    // CALL
                     mut r = gen_call(v, a)
                 } else {
                     if k == 9 {
-                        // ASSIGN (as expression)
                         mut r = gen_expr(b)
                         mut off = var_lookup(__mem_load(g_ast_val + a * 8))
                         if off > 0 {
@@ -1581,51 +1578,18 @@ fn emit32_at(pos: i64, val: i64) (r: i64)
 }
 
 // === Function code generator ===
-fn gen_func(nd: i64) (r: i64)
+fn gen_params(params: i64) (r: i64)
 {
-    let name: i64 = 0
-    let params: i64 = 0
-    let body: i64 = 0
-    let func_off: i64 = 0
-    let var_off: i64 = 0
-    let i: i64 = 0
-    mut name = __mem_load(g_ast_val + nd * 8)
-    mut params = __mem_load(g_ast_a + nd * 8)
-    mut body = __mem_load(g_ast_c + nd * 8)
-    mut func_off = g_code_pos
-    mut r = fn_add(name, func_off)
-    // Reset variable table
-    mut g_var_count = 0
-    // Prologue: STP X29, X30, [SP, #-16]!; ADD X29, SP, #0; SUB SP, SP, #32
-    mut r = gen_stp_pre(29, 30, 31, 65520)  // -16 as unsigned 7-bit
-    mut r = gen_add_imm(29, 31, 0)  // MOV X29, SP
-    mut r = gen_sub_imm(31, 31, 32)  // SUB SP, SP, #32 (room for 4 locals)
-    // Set up parameters: X0=arg0, X1=arg1, etc. stored to stack
-    mut var_off = 4  // offset in 8-byte units from FP, starts at FP+32 (backwards)
-    mut i = 0
-    // Walk params (they're in reverse STMTLIST order)
-    let param_count: i64 = 0
     let p: i64 = 0
-    mut p = params
-    mut param_count = 0
-    while p > 0 {
-        mut param_count = param_count + 1
-        let pk: i64 = 0
-        mut pk = __mem_load(g_ast_kind + p * 8)
-        if pk == 20 {
-            mut p = __mem_load(g_ast_b + p * 8)
-        } else {
-            mut p = 0
-        }
-    }
-    // Store params in reverse
     let reg: i64 = 0
+    let pk: i64 = 0
+    let pname: i64 = 0
+    let slot: i64 = 0
     mut reg = 0
     mut p = params
     while p > 0 {
-        let pname: i64 = 0
-        let pk: i64 = 0
         mut pk = __mem_load(g_ast_kind + p * 8)
+        mut pname = 0
         if pk == 20 {
             mut pname = __mem_load(g_ast_val + (__mem_load(g_ast_a + p * 8)) * 8)
             mut p = __mem_load(g_ast_b + p * 8)
@@ -1638,156 +1602,194 @@ fn gen_func(nd: i64) (r: i64)
             }
         }
         if pname > 0 {
-            // Parameter is at FP + var_off*8 (positive offset from FP going up)
-            // Actually we store below FP: FP - (var_off*8)
-            let slot: i64 = 0
-            mut slot = 4 - reg  // slots 4,3,2,1 for params 0,1,2,3
+            mut slot = 4 - reg
             mut r = var_add(pname, slot)
-            // Store X{reg} to [FP, #slot*8] -> but slot is negative offset
-            // We use STR X{reg}, [FP, #-slot*8]
-            mut r = gen_str(reg, 29, 4 - reg)
+            mut r = gen_str(reg, 29, slot)
             mut reg = reg + 1
         }
     }
-    // Generate body
+    mut r = 0
+}
+
+fn gen_all_funcs() (r: i64)
+{
+    let list: i64 = 0
+    let nd: i64 = 0
+    mut list = g_func_list
+    while list > 0 {
+        mut nd = __mem_load(g_ast_a + list * 8)
+        if nd > 0 {
+            mut r = gen_func(nd)
+        }
+        mut list = __mem_load(g_ast_b + list * 8)
+    }
+    mut r = 0
+}
+fn gen_func(nd: i64) (r: i64)
+{
+    let name: i64 = 0
+    let params: i64 = 0
+    let body: i64 = 0
+    let func_off: i64 = 0
+    mut name = __mem_load(g_ast_val + nd * 8)
+    mut params = __mem_load(g_ast_a + nd * 8)
+    mut body = __mem_load(g_ast_c + nd * 8)
+    mut func_off = g_code_pos
+    mut r = fn_add(name, func_off)
+    mut g_var_count = 0
+    mut r = gen_stp_pre(29, 30, 31, 65534)
+    mut r = gen_add_imm(29, 31, 0)
+    mut r = gen_sub_imm(31, 31, 32)
+    mut r = gen_params(params)
     mut r = gen_block(body)
-    // Epilogue: ADD SP, SP, #32; LDP X29, X30, [SP], #16; RET
     mut r = gen_add_imm(31, 31, 32)
-    mut r = gen_ldp_post(29, 30, 31, 2)  // 2 * 8 = 16
+    mut r = gen_ldp_post(29, 30, 31, 2)
     mut r = gen_ret()
     mut r = 0
 }
 
-// === Mach-O writer ===
+fn write_header(fp: i64) (r: i64)
+{
+    mut r = write32(fp, 0xFEEDFACF)
+    mut r = write32(fp, 0x0100000C)
+    mut r = write32(fp, 0)
+    mut r = write32(fp, 1)
+    mut r = write32(fp, 2)
+    mut r = write32(fp, 176)
+    mut r = write32(fp, 0)
+    mut r = write32(fp, 0)
+    mut r = 0
+}
+
+fn write_segment(fp: i64, text_off: i64, code_size: i64) (r: i64)
+{
+    let vm_size: i64 = 0
+    let file_size: i64 = 0
+    mut vm_size = text_off + code_size
+    mut file_size = text_off + code_size + 32
+    mut r = write32(fp, 0x19)
+    mut r = write32(fp, 152)
+    mut r = write_str(fp, "__TEXT")
+    mut r = write64(fp, 0)
+    mut r = write64(fp, vm_size)
+    mut r = write64(fp, 0)
+    mut r = write64(fp, file_size)
+    mut r = write32(fp, 7)
+    mut r = write32(fp, 7)
+    mut r = write32(fp, 1)
+    mut r = write32(fp, 0)
+    mut r = 0
+}
+fn write_section(fp: i64, text_off: i64, code_size: i64) (r: i64)
+{
+    mut r = write_str(fp, "__text")
+    mut r = write_str(fp, "__TEXT")
+    mut r = write64(fp, find_main())
+    mut r = write64(fp, code_size)
+    mut r = write32(fp, text_off)
+    mut r = write32(fp, 2)
+    mut r = write32(fp, 0)
+    mut r = write32(fp, 0)
+    mut r = write32(fp, 0x80000400)
+    mut r = write32(fp, 0)
+    mut r = write32(fp, 0)
+    mut r = write32(fp, 0)
+    mut r = 0
+}
+
+fn write_symtab_header(fp: i64, sym_off: i64, str_off: i64) (r: i64)
+{
+    mut r = write32(fp, 2)
+    mut r = write32(fp, 24)
+    mut r = write32(fp, sym_off)
+    mut r = write32(fp, 1)
+    mut r = write32(fp, str_off)
+    mut r = write32(fp, 16)
+    mut r = 0
+}
+
+fn write_code_bytes(fp: i64, code_size: i64) (r: i64)
+{
+    let i: i64 = 0
+    mut i = 0
+    while i < code_size {
+        mut r = write_byte(fp, __byte_load(g_code, i))
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
+fn write_nlist(fp: i64, text_off: i64) (r: i64)
+{
+    mut r = write32(fp, 1)
+    mut r = write_byte(fp, 0x0F)
+    mut r = write_byte(fp, 1)
+    mut r = write16(fp, 0)
+    mut r = write64(fp, find_main())
+    mut r = 0
+}
+
 fn write_macho(path: i64, code_size: i64) (r: i64)
 {
     let fp: i64 = 0
+    let text_off: i64 = 0
+    let sym_off: i64 = 0
+    let str_off: i64 = 0
     mut fp = fopen(path, "w")
     if fp == 0 {
         puts("Cannot open output file")
         mut r = 1
     } else {
-        // Calculate sizes
-        let header_size: i64 = 0
-        mut header_size = 32 + 72 + 80 + 24 + 16 + 8  // header + segment + section + symtab + nlist + strtab
-        // Write Mach-O header (mach_header_64)
-        let base: i64 = 0
-        mut base = 0
-        // magic = 0xFEEDFACF (MH_MAGIC_64)
-        mut r = write32(fp, 0xFEEDFACF)
-        // cputype = 0x0100000C (CPU_TYPE_ARM64)
-        mut r = write32(fp, 0x0100000C)
-        // cpusubtype = 0 (CPU_SUBTYPE_ARM64_ALL)
-        mut r = write32(fp, 0)
-        // filetype = 1 (MH_OBJECT)
-        mut r = write32(fp, 1)
-        // ncmds = 2 (segment + symtab)
-        mut r = write32(fp, 2)
-        // sizeofcmds
-        mut r = write32(fp, 72 + 80 + 24)
-        // flags = 0
-        mut r = write32(fp, 0)
-        // reserved = 0
-        mut r = write32(fp, 0)
-        // LC_SEGMENT_64
-        let text_off: i64 = 0
-        mut text_off = 32 + 72 + 80  // after header + segment + section
-        let file_size: i64 = 0
-        mut file_size = text_off + code_size
-        // cmd = 0x19 (LC_SEGMENT_64)
-        mut r = write32(fp, 0x19)
-        // cmdsize = 72 + 80 = 152
-        mut r = write32(fp, 152)
-        // segname (16 bytes, "__TEXT\0")
-        mut r = write_str(fp, "__TEXT")
-        // vmaddr = 0
-        mut r = write64(fp, 0)
-        // vmsize = file_size
-        mut r = write64(fp, file_size)
-        // fileoff = 0
-        mut r = write64(fp, 0)
-        // filesize = file_size
-        mut r = write64(fp, file_size)
-        // maxprot = 7 (rwx)
-        mut r = write32(fp, 7)
-        // initprot = 7
-        mut r = write32(fp, 7)
-        // nsects = 1
-        mut r = write32(fp, 1)
-        // flags = 0
-        mut r = write32(fp, 0)
-        // Section header (__text)
-        // sectname (16 bytes)
-        mut r = write_str(fp, "__text")
-        // segname (16 bytes)
-        mut r = write_str(fp, "__TEXT")
-        // addr = text_off
-        mut r = write64(fp, text_off)
-        // size = code_size
-        mut r = write64(fp, code_size)
-        // offset = text_off
-        mut r = write32(fp, text_off)
-        // align = 2 (4-byte aligned)
-        mut r = write32(fp, 2)
-        // reloff = 0
-        mut r = write32(fp, 0)
-        // nreloc = 0
-        mut r = write32(fp, 0)
-        // flags = 0x80000400 (S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS)
-        mut r = write32(fp, 0x80000400)
-        // reserved1 = 0
-        mut r = write32(fp, 0)
-        // reserved2 = 0
-        mut r = write32(fp, 0)
-        // reserved3 = 0
-        mut r = write32(fp, 0)
-        // LC_SYMTAB
-        let sym_off: i64 = 0
+        mut text_off = 208
         mut sym_off = text_off + code_size
-        let str_off: i64 = 0
-        mut str_off = sym_off + 16  // 1 symbol * 16 bytes
-        // cmd = 2 (LC_SYMTAB)
-        mut r = write32(fp, 2)
-        // cmdsize = 24
-        mut r = write32(fp, 24)
-        // symoff
-        mut r = write32(fp, sym_off)
-        // nsyms = 1
-        mut r = write32(fp, 1)
-        // stroff
-        mut r = write32(fp, str_off)
-        // strsize
-        mut r = write32(fp, 16)
-        // Write machine code
-        let i: i64 = 0
-        mut i = 0
-        while i < code_size {
-            mut r = write_byte(fp, __byte_load(g_code, i))
-            mut i = i + 1
-        }
-        // Write symbol table entry (nlist_64 for _main)
-        let main_str_off: i64 = 0
-        mut main_str_off = 1  // offset in string table
-        // n_strx
-        mut r = write32(fp, main_str_off)
-        // n_type = 0x0F (N_EXT | N_SECT)
-        mut r = write_byte(fp, 0x0F)
-        // n_sect = 1
-        mut r = write_byte(fp, 1)
-        // n_desc = 0
-        mut r = write16(fp, 0)
-        // n_value = text_off (address of _main)
-        mut r = write64(fp, text_off)
-        // Write string table: \0_main\0
-        mut r = write_byte(fp, 0)
-        mut r = write_str(fp, "_main")
-        mut r = write_byte(fp, 0)
-        mut r = fclose(fp)
+        mut str_off = sym_off + 16
+        mut r = write_header(fp)
+        mut r = write_segment(fp, text_off, code_size)
+        mut r = write_section(fp, text_off, code_size)
+        mut r = write_symtab_header(fp, sym_off, str_off)
+        mut r = write_code_bytes(fp, code_size)
+        mut r = write_nlist(fp, text_off)
+        mut r = write_main_sym(fp)
         puts("Mach-O written")
         mut r = 0
     }
 }
 
+fn find_main_name() (r: i64)
+{
+    let i: i64 = 0
+    let n: i64 = 0
+    mut i = 0
+    while i < g_fn_count {
+        mut n = __mem_load(g_fn_name + i * 8)
+        if __str_eq(n, "main") == 1 {
+            mut r = n
+        }
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
+fn find_main() (r: i64)
+{
+    let i: i64 = 0
+    let n: i64 = 0
+    mut i = 0
+    while i < g_fn_count {
+        mut n = __mem_load(g_fn_name + i * 8)
+        if __str_eq(n, "main") == 1 {
+            mut r = __mem_load(g_fn_off + i * 8)
+        }
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
+fn write_main_sym(fp: i64) (r: i64)
+{
+    mut r = write_str(fp, "_main")
+    mut r = 0
+}
 fn write32(fp: i64, val: i64) (r: i64)
 {
     let buf: i64 = 0
@@ -1913,21 +1915,17 @@ fn print_ast(nd: i64, depth: i64) (r: i64)
     if k == 1 {
         puts("INT ")
         print_int(v)
-        putchar(10)
     } else {
         if k == 2 {
             puts("STR")
-            putchar(10)
         } else {
             if k == 3 {
                 puts("IDENT ")
                 print_str(v)
-                putchar(10)
             } else {
                 if k == 4 {
                     puts("CALL ")
                     print_str(v)
-                    putchar(10)
                     if a > 0 { mut r = print_ast(a, depth + 1) }
                     if b > 0 { mut r = print_ast(b, depth + 1) }
                 } else {
@@ -1944,7 +1942,6 @@ fn print_ast(nd: i64, depth: i64) (r: i64)
                             if k == 19 {
                                 puts("FUNC ")
                                 print_str(v)
-                                putchar(10)
                                 if c > 0 { mut r = print_ast(c, depth + 1) }
                             } else {
                                 if k == 20 {
@@ -1953,7 +1950,6 @@ fn print_ast(nd: i64, depth: i64) (r: i64)
                                 } else {
                                     puts("NODE ")
                                     print_int(k)
-                                    putchar(10)
                                 }
                             }
                         }
@@ -2045,7 +2041,7 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut r = parse_program()
         puts("PARSE DONE")
         mut r = init_codegen()
-        mut r = gen_func(g_first_fn)
+        mut r = gen_all_funcs()
         puts("GEN DONE")
         mut r = patch_calls()
         let arg2_ptr: i64 = 0
