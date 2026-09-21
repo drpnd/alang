@@ -2035,75 +2035,6 @@ fn print_int(val: i64) (r: i64)
     free(buf)
 }
 
-fn print_ast(nd: i64, depth: i64) (r: i64)
-{
-    let k: i64 = 0
-    mut k = __mem_load(g_ast_kind + nd * 8)
-    let v: i64 = 0
-    mut v = __mem_load(g_ast_val + nd * 8)
-    let a: i64 = 0
-    mut a = __mem_load(g_ast_a + nd * 8)
-    let b: i64 = 0
-    mut b = __mem_load(g_ast_b + nd * 8)
-    let c: i64 = 0
-    mut c = __mem_load(g_ast_c + nd * 8)
-    let i: i64 = 0
-    mut i = 0
-    while i < depth {
-        putchar(32)
-        putchar(32)
-        mut i = i + 1
-    }
-    if k == 1 {
-        puts("INT ")
-        print_int(v)
-    } else {
-        if k == 2 {
-            puts("STR")
-        } else {
-            if k == 3 {
-                puts("IDENT ")
-                print_str(v)
-            } else {
-                if k == 4 {
-                    puts("CALL ")
-                    print_str(v)
-                    if a > 0 { mut r = print_ast(a, depth + 1) }
-                    if b > 0 { mut r = print_ast(b, depth + 1) }
-                } else {
-                    if k == 5 {
-                        puts("BINOP")
-                        if a > 0 { mut r = print_ast(a, depth + 1) }
-                        if b > 0 { mut r = print_ast(b, depth + 1) }
-                    } else {
-                        if k == 9 {
-                            puts("ASSIGN")
-                            if a > 0 { mut r = print_ast(a, depth + 1) }
-                            if b > 0 { mut r = print_ast(b, depth + 1) }
-                        } else {
-                            if k == 19 {
-                                puts("FUNC ")
-                                print_str(v)
-                                if c > 0 { mut r = print_ast(c, depth + 1) }
-                            } else {
-                                if k == 20 {
-                                    if a > 0 { mut r = print_ast(a, depth) }
-                                    if b > 0 { mut r = print_ast(b, depth) }
-                                } else {
-                                    puts("NODE ")
-                                    print_int(k)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    mut r = 0
-}
-
-
 fn init_parser() (r: i64)
 {
     mut g_tok_type = malloc(16384)
@@ -2138,14 +2069,8 @@ fn init_codegen() (r: i64)
     mut g_patch_count = 0
     mut r = 0
 }
-fn main(argc: i32, argv: i64) (r: i32)
-
+fn do_parse(arg1_ptr: i64) (r: i64)
 {
-    let argv_ptr: i64 = 0
-    mut argv_ptr = argv
-    let arg1_ptr: i64 = 0
-    mut arg1_ptr = __mem_load(argv_ptr + 8)
-    let arg2_ptr: i64 = 0
     let fp: i64 = 0
     mut fp = fopen(arg1_ptr, "r")
     if fp == 0 {
@@ -2160,12 +2085,32 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut g_tok_idx = 0
         mut r = parse_program()
         puts("PARSE DONE")
-        mut r = init_codegen()
-        mut r = gen_all_funcs()
-        puts("GEN DONE")
-        mut r = patch_calls()
-        mut arg2_ptr = __mem_load(argv_ptr + 16)
-        mut r = write_macho(arg2_ptr, g_code_pos)
-        mut r = 0
     }
+    mut r = 0
+}
+
+fn do_codegen(argv_ptr: i64) (r: i64)
+{
+    let arg2_ptr: i64 = 0
+    mut r = init_codegen()
+    mut r = gen_all_funcs()
+    puts("GEN DONE")
+    mut r = patch_calls()
+    mut arg2_ptr = __mem_load(argv_ptr + 16)
+    mut r = write_macho(arg2_ptr, g_code_pos)
+    mut r = 0
+}
+
+fn run_compiler(argv_ptr: i64) (r: i64)
+{
+    let arg1_ptr: i64 = 0
+    mut arg1_ptr = __mem_load(argv_ptr + 8)
+    mut r = do_parse(arg1_ptr)
+    mut r = do_codegen(argv_ptr)
+    mut r = 0
+}
+
+fn main(argc: i32, argv: i64) (r: i32)
+{
+    mut r = run_compiler(argv)
 }
