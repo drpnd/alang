@@ -26,6 +26,18 @@ let g_str_pos: i64 = 0
 let g_indent: i64 = 0
 let g_done: i64 = 0
 
+// AST nd storage (5 parallel arrays, indexed by nd id)
+// Node kinds: 1=INT 2=STR 3=IDENT 4=CALL 5=BINOP 6=UNOP 7=FIELD
+//   8=INDEX 9=ASSIGN 10=LET 11=IF 12=WHILE 13=FOR 14=RETURN
+//   15=BREAK 16=CONTINUE 17=MATCH 18=CASE 19=FUNC 20=STMTLIST
+//   21=PARAM 22=ELSEIF
+let g_ast_kind: i64 = 0
+let g_ast_val: i64 = 0
+let g_ast_a: i64 = 0
+let g_ast_b: i64 = 0
+let g_ast_c: i64 = 0
+let g_ast_count: i64 = 0
+
 // Token types: 0=EOF 1=IDENT 2=INT 3=STR 4=OP 5=KW
 // Keyword IDs: 1=fn 2=let 3=mut 4=if 5=else 6=while 7=for
 //   8=match 9=return 10=break 11=continue 12=struct 13=enum 14=extern
@@ -331,208 +343,312 @@ fn print_str(s: i64) (r: i32)
 // === Expression parser (precedence climbing) ===
 // Prints expressions as they're parsed
 
+fn emit_node(kind: i64, val: i64, a: i64, b: i64, c: i64) (r: i64)
+{
+    let base: i64 = 0
+    mut base = g_ast_count * 8
+    __mem_store(g_ast_kind + base, kind)
+    __mem_store(g_ast_val + base, val)
+    __mem_store(g_ast_a + base, a)
+    __mem_store(g_ast_b + base, b)
+    __mem_store(g_ast_c + base, c)
+    mut g_ast_count = g_ast_count + 1
+    mut r = g_ast_count - 1
+}
+
+fn emit_int(val: i64) (r: i64)
+{
+    mut r = emit_node(1, val, 0, 0, 0)
+}
+
+fn emit_str(val: i64) (r: i64)
+{
+    mut r = emit_node(2, val, 0, 0, 0)
+}
+
+fn emit_ident(val: i64) (r: i64)
+{
+    mut r = emit_node(3, val, 0, 0, 0)
+}
+
+fn emit_binop(op: i64, left: i64, right: i64) (r: i64)
+{
+    mut r = emit_node(5, op, left, right, 0)
+}
+
+fn emit_unop(op: i64, operand: i64) (r: i64)
+{
+    mut r = emit_node(6, op, operand, 0, 0)
+}
+
+fn emit_call(name: i64, first_arg: i64) (r: i64)
+{
+    mut r = emit_node(4, name, first_arg, 0, 0)
+}
+
+fn emit_field(name: i64, obj: i64) (r: i64)
+{
+    mut r = emit_node(7, name, obj, 0, 0)
+}
+
+fn emit_index(arr: i64, idx: i64) (r: i64)
+{
+    mut r = emit_node(8, 0, arr, idx, 0)
+}
+
+fn emit_assign(target: i64, val: i64) (r: i64)
+{
+    mut r = emit_node(9, 0, target, val, 0)
+}
+
+fn emit_let(name: i64, ty: i64, init: i64) (r: i64)
+{
+    mut r = emit_node(10, name, ty, init, 0)
+}
+
+fn emit_if(cond: i64, then_blk: i64, else_blk: i64) (r: i64)
+{
+    mut r = emit_node(11, 0, cond, then_blk, else_blk)
+}
+
+fn emit_while(cond: i64, body: i64) (r: i64)
+{
+    mut r = emit_node(12, 0, cond, body, 0)
+}
+
+fn emit_for(var_name: i64, start: i64, end_val: i64, body: i64) (r: i64)
+{
+    mut r = emit_node(13, var_name, start, end_val, body)
+}
+
+fn emit_return(val: i64) (r: i64)
+{
+    mut r = emit_node(14, 0, val, 0, 0)
+}
+
+fn emit_break() (r: i64)
+{
+    mut r = emit_node(15, 0, 0, 0, 0)
+}
+
+fn emit_continue() (r: i64)
+{
+    mut r = emit_node(16, 0, 0, 0, 0)
+}
+
+fn emit_match(scrutinee: i64, first_case: i64) (r: i64)
+{
+    mut r = emit_node(17, 0, scrutinee, first_case, 0)
+}
+
+fn emit_case(pattern: i64, bind_var: i64, body: i64) (r: i64)
+{
+    mut r = emit_node(18, pattern, bind_var, body, 0)
+}
+
+fn emit_func(name: i64, params: i64, rets: i64, body: i64) (r: i64)
+{
+    mut r = emit_node(19, name, params, rets, body)
+}
+
+fn emit_stmtlist(stmt: i64, next: i64) (r: i64)
+{
+    mut r = emit_node(20, 0, stmt, next, 0)
+}
+
+fn emit_param(name: i64, ty: i64) (r: i64)
+{
+    mut r = emit_node(21, name, ty, 0, 0)
+}
+
+fn emit_elseif(cond: i64, then_blk: i64, next_else: i64) (r: i64)
+{
+    mut r = emit_node(22, 0, cond, then_blk, next_else)
+}
+
 fn parse_primary() (r: i32)
 {
     let t: i64 = 0
+    let nd: i64 = 0
+    let name: i64 = 0
+    let first_arg: i64 = 0
+    let next_arg: i64 = 0
     mut t = cur_type()
     if t == 2 {
-        print_indent()
-        puts("INT")
+        mut nd = emit_int(cur_val())
         mut r = advance()
     } else {
         if t == 3 {
-            print_indent()
-            puts("STR")
+            mut nd = emit_str(cur_val())
             mut r = advance()
         } else {
             if t == 1 {
-                let name: i64 = 0
                 mut name = cur_val()
                 mut r = advance()
                 if is_op(40) == 1 {
                     mut r = advance()
-                    print_indent()
-                    puts("CALL")
-                    mut g_indent = g_indent + 1
-                    print_indent()
-                    print_str(name)
-                    putchar(10)
                     if is_op(41) == 0 {
-                        mut r = parse_expr()
+                        mut first_arg = parse_expr()
                         while is_op(44) == 1 {
                             mut r = advance()
-                            mut r = parse_expr()
+                            mut next_arg = parse_expr()
+                            mut first_arg = emit_stmtlist(next_arg, first_arg)
                         }
                     }
                     if is_op(41) == 1 { mut r = advance() }
-                    mut g_indent = g_indent - 1
+                    mut nd = emit_call(name, first_arg)
                 } else {
-                    print_indent()
-                    puts("IDENT")
-                    mut g_indent = g_indent + 1
-                    print_indent()
-                    print_str(name)
-                    putchar(10)
-                    mut g_indent = g_indent - 1
+                    mut nd = emit_ident(name)
                 }
             } else {
                 if is_op(40) == 1 {
                     mut r = advance()
-                    mut r = parse_expr()
+                    mut nd = parse_expr()
                     if is_op(41) == 1 { mut r = advance() }
                 } else {
-                    print_indent()
-                    puts("ERROR: unexpected token in expr")
+                    mut nd = emit_node(0, 0, 0, 0, 0)
                     mut r = advance()
                 }
             }
         }
     }
+    mut r = nd
 }
-
 fn parse_postfix() (r: i32)
 {
-    mut r = parse_primary()
+    let nd: i64 = 0
+    let fname: i64 = 0
+    let idx: i64 = 0
+    mut nd = parse_primary()
     mut g_done = 0
     while g_done == 0 {
         if is_op(46) == 1 {
             mut r = advance()
-            print_indent()
-            puts("FIELD")
-            mut g_indent = g_indent + 1
+            mut fname = 0
             if cur_type() == 1 {
-                print_indent()
-                print_str(cur_val())
-                putchar(10)
+                mut fname = cur_val()
                 mut r = advance()
             }
-            mut g_indent = g_indent - 1
+            mut nd = emit_field(fname, nd)
         } else {
             if is_op(91) == 1 {
                 mut r = advance()
-                print_indent()
-                puts("INDEX")
-                mut g_indent = g_indent + 1
-                mut r = parse_expr()
+                mut idx = parse_expr()
                 if is_op(93) == 1 { mut r = advance() }
-                mut g_indent = g_indent - 1
+                mut nd = emit_index(nd, idx)
             } else {
                 mut g_done = 1
             }
         }
     }
+    mut r = nd
 }
 
 fn parse_unary() (r: i32)
 {
+    let nd: i64 = 0
+    let operand: i64 = 0
     if is_op(45) == 1 {
         mut r = advance()
-        print_indent()
-        puts("NEG")
-        mut g_indent = g_indent + 1
-        mut r = parse_unary()
-        mut g_indent = g_indent - 1
+        mut operand = parse_unary()
+        mut nd = emit_unop(45, operand)
     } else {
         if is_op(33) == 1 {
             mut r = advance()
-            print_indent()
-            puts("NOT")
-            mut g_indent = g_indent + 1
-            mut r = parse_unary()
-            mut g_indent = g_indent - 1
+            mut operand = parse_unary()
+            mut nd = emit_unop(33, operand)
         } else {
-            mut r = parse_postfix()
+            mut nd = parse_postfix()
         }
     }
+    mut r = nd
 }
-
 fn parse_mul() (r: i32)
 {
-    mut r = parse_unary()
+    let nd: i64 = 0
+    let rhs: i64 = 0
+    mut nd = parse_unary()
     while is_op(42) == 1 {
         mut r = advance()
-        mut r = parse_unary()
-        print_indent()
-        puts("MUL")
+        mut rhs = parse_unary()
+        mut nd = emit_binop(42, nd, rhs)
     }
     while is_op(47) == 1 {
         mut r = advance()
-        mut r = parse_unary()
-        print_indent()
-        puts("DIV")
+        mut rhs = parse_unary()
+        mut nd = emit_binop(47, nd, rhs)
     }
     while is_op(37) == 1 {
         mut r = advance()
-        mut r = parse_unary()
-        print_indent()
-        puts("MOD")
+        mut rhs = parse_unary()
+        mut nd = emit_binop(37, nd, rhs)
     }
+    mut r = nd
 }
 
 fn parse_add() (r: i32)
 {
-    mut r = parse_mul()
+    let nd: i64 = 0
+    let rhs: i64 = 0
+    mut nd = parse_mul()
     while is_op(43) == 1 {
         mut r = advance()
-        mut r = parse_mul()
-        print_indent()
-        puts("ADD")
+        mut rhs = parse_mul()
+        mut nd = emit_binop(43, nd, rhs)
     }
     while is_op(45) == 1 {
         mut r = advance()
-        mut r = parse_mul()
-        print_indent()
-        puts("SUB")
+        mut rhs = parse_mul()
+        mut nd = emit_binop(45, nd, rhs)
     }
+    mut r = nd
 }
 
 fn parse_cmp() (r: i32)
 {
-    mut r = parse_add()
+    let nd: i64 = 0
+    let rhs: i64 = 0
+    mut nd = parse_add()
     while is_op(60) == 1 {
         mut r = advance()
-        mut r = parse_add()
-        print_indent()
-        puts("LT")
+        mut rhs = parse_add()
+        mut nd = emit_binop(60, nd, rhs)
     }
     while is_op(62) == 1 {
         mut r = advance()
-        mut r = parse_add()
-        print_indent()
-        puts("GT")
+        mut rhs = parse_add()
+        mut nd = emit_binop(62, nd, rhs)
     }
     while is_op(15485) == 1 {
         mut r = advance()
-        mut r = parse_add()
-        print_indent()
-        puts("LE")
+        mut rhs = parse_add()
+        mut nd = emit_binop(15485, nd, rhs)
     }
     while is_op(15997) == 1 {
         mut r = advance()
-        mut r = parse_add()
-        print_indent()
-        puts("GE")
+        mut rhs = parse_add()
+        mut nd = emit_binop(15997, nd, rhs)
     }
+    mut r = nd
 }
 
 fn parse_expr() (r: i32)
 {
-    mut r = parse_cmp()
+    let nd: i64 = 0
+    let rhs: i64 = 0
+    mut nd = parse_cmp()
     while is_op(15677) == 1 {
         mut r = advance()
-        mut r = parse_cmp()
-        print_indent()
-        puts("EQ")
+        mut rhs = parse_cmp()
+        mut nd = emit_binop(15677, nd, rhs)
     }
     while is_op(8645) == 1 {
         mut r = advance()
-        mut r = parse_cmp()
-        print_indent()
-        puts("NE")
+        mut rhs = parse_cmp()
+        mut nd = emit_binop(8645, nd, rhs)
     }
+    mut r = nd
 }
-
-// === Statement parser ===
 
 fn parse_type() (r: i32)
 {
@@ -905,6 +1021,111 @@ fn parse_program() (r: i32)
         }
     }
 }
+fn print_int(val: i64) (r: i64)
+{
+    let buf: i64 = 0
+    mut buf = malloc(32)
+    let neg: i64 = 0
+    let v: i64 = 0
+    mut v = val
+    if v < 0 {
+        mut neg = 1
+        mut v = 0 - v
+    }
+    let pos: i64 = 30
+    __byte_store(buf, pos, 0)
+    mut pos = pos - 1
+    if v == 0 {
+        __byte_store(buf, pos, 48)
+    } else {
+        while v > 0 {
+            __byte_store(buf, pos, 48 + v % 10)
+            mut v = v / 10
+            mut pos = pos - 1
+        }
+    }
+    if neg == 1 {
+        __byte_store(buf, pos, 45)
+        mut pos = pos - 1
+    }
+    mut r = puts(buf + pos + 1)
+    free(buf)
+}
+
+fn print_ast(nd: i64, depth: i64) (r: i64)
+{
+    let k: i64 = 0
+    mut k = __mem_load(g_ast_kind + nd * 8)
+    let v: i64 = 0
+    mut v = __mem_load(g_ast_val + nd * 8)
+    let a: i64 = 0
+    mut a = __mem_load(g_ast_a + nd * 8)
+    let b: i64 = 0
+    mut b = __mem_load(g_ast_b + nd * 8)
+    let c: i64 = 0
+    mut c = __mem_load(g_ast_c + nd * 8)
+    let i: i64 = 0
+    mut i = 0
+    while i < depth {
+        putchar(32)
+        putchar(32)
+        mut i = i + 1
+    }
+    if k == 1 {
+        puts("INT ")
+        print_int(v)
+        putchar(10)
+    } else {
+        if k == 2 {
+            puts("STR")
+            putchar(10)
+        } else {
+            if k == 3 {
+                puts("IDENT ")
+                print_str(v)
+                putchar(10)
+            } else {
+                if k == 4 {
+                    puts("CALL ")
+                    print_str(v)
+                    putchar(10)
+                    if a > 0 { mut r = print_ast(a, depth + 1) }
+                    if b > 0 { mut r = print_ast(b, depth + 1) }
+                } else {
+                    if k == 5 {
+                        puts("BINOP")
+                        if a > 0 { mut r = print_ast(a, depth + 1) }
+                        if b > 0 { mut r = print_ast(b, depth + 1) }
+                    } else {
+                        if k == 9 {
+                            puts("ASSIGN")
+                            if a > 0 { mut r = print_ast(a, depth + 1) }
+                            if b > 0 { mut r = print_ast(b, depth + 1) }
+                        } else {
+                            if k == 19 {
+                                puts("FUNC ")
+                                print_str(v)
+                                putchar(10)
+                                if c > 0 { mut r = print_ast(c, depth + 1) }
+                            } else {
+                                if k == 20 {
+                                    if a > 0 { mut r = print_ast(a, depth) }
+                                    if b > 0 { mut r = print_ast(b, depth) }
+                                } else {
+                                    puts("NODE ")
+                                    print_int(k)
+                                    putchar(10)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    mut r = 0
+}
+
 
 fn main(argc: i32, argv: i64) (r: i32)
 {
@@ -922,6 +1143,12 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut g_size = fread(g_src, 1, 65535, fp)
         fclose(fp)
         mut g_tok_type = malloc(16384)
+        mut g_ast_kind = malloc(65536)
+        mut g_ast_val = malloc(65536)
+        mut g_ast_a = malloc(65536)
+        mut g_ast_b = malloc(65536)
+        mut g_ast_c = malloc(65536)
+        mut g_ast_count = 0
         mut g_tok_val = malloc(16384)
         mut g_str_pool = malloc(65536)
         mut g_str_pos = 0
@@ -932,6 +1159,8 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut g_tok_idx = 0
         mut r = parse_program()
         puts("PARSE DONE")
+        print_int(g_ast_count)
+        putchar(10)
         mut r = 0
     }
 }
