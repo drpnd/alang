@@ -1278,9 +1278,55 @@ fn patch_calls() (r: i64)
     }
     mut r = 0
 }
+fn gen_cmpop_eq(op: i64) (r: i64)
+{
+    if op == 15677 {
+        mut r = gen_cset(0, 0)
+    } else {
+        if op == 8645 {
+            mut r = gen_cset(0, 1)
+        }
+    }
+    mut r = 0
+}
+
+fn gen_cmpop_lt(op: i64) (r: i64)
+{
+    if op == 60 {
+        mut r = gen_cset(0, 11)
+    } else {
+        if op == 62 {
+            mut r = gen_cset(0, 12)
+        } else {
+            if op == 15485 {
+                mut r = gen_cset(0, 13)
+            } else {
+                if op == 15997 {
+                    mut r = gen_cset(0, 10)
+                }
+            }
+        }
+    }
+    mut r = 0
+}
+
+fn gen_cmpop(op: i64) (r: i64)
+{
+    mut r = gen_cmp(1, 0)
+    if op == 15677 {
+        mut r = gen_cset(0, 0)
+    } else {
+        if op == 8645 {
+            mut r = gen_cset(0, 1)
+        } else {
+            mut r = gen_cmpop_lt(op)
+        }
+    }
+    mut r = 0
+}
+
 fn gen_binop(op: i64) (r: i64)
 {
-    // X1 = left, X0 = right (from gen_expr + push/pop)
     if op == 43 {
         mut r = gen_add(0, 1, 0)
     } else {
@@ -1305,36 +1351,6 @@ fn gen_binop(op: i64) (r: i64)
     }
     mut r = 0
 }
-
-fn gen_cmpop(op: i64) (r: i64)
-{
-    mut r = gen_cmp(1, 0)
-    if op == 60 {
-        mut r = gen_cset(0, 11)
-    } else {
-        if op == 62 {
-            mut r = gen_cset(0, 12)
-        } else {
-            if op == 15677 {
-                mut r = gen_cset(0, 0)
-            } else {
-                if op == 8645 {
-                    mut r = gen_cset(0, 1)
-                } else {
-                    if op == 15485 {
-                        mut r = gen_cset(0, 13)
-                    } else {
-                        if op == 15997 {
-                            mut r = gen_cset(0, 10)
-                        }
-                    }
-                }
-            }
-        }
-    }
-    mut r = 0
-}
-
 fn gen_expr(nd: i64) (r: i64)
 {
     let k: i64 = 0

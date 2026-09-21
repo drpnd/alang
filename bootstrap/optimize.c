@@ -436,27 +436,14 @@ pass_copy_prop_block(ir_func_t *func, ir_block_t *blk)
 
                 if (prev) {
                     ir_instr_t *pinst = &prev->inst;
-                    /* Don't propagate if the register is redefined in another
-                     * block (cross-block variable reassignment). */
-                    const char *dst_id = NULL;
-                    if (pinst->opcode == IR_OPCODE_MOV && pinst->noperands >= 2 &&
-                        pinst->operands[1].type == IR_OPERAND_REG) {
-                        dst_id = pinst->operands[1].u.reg.id;
-                    } else if (pinst->result.n > 0) {
-                        dst_id = pinst->result.reg[0].id;
-                    }
-                    int cross_block = 0;
-                    if (dst_id) {
-                        cross_block = is_redefined_in_other_blocks(func, blk, dst_id);
-                    }
-                    if (!cross_block && pinst->opcode == IR_OPCODE_MOV &&
+                    if (pinst->opcode == IR_OPCODE_MOV &&
                         pinst->noperands >= 2 &&
                         pinst->operands[0].type == IR_OPERAND_REG &&
                         pinst->operands[0].u.reg.id) {
                         /* mov %src, %dst → replace uses of %dst with %src */
                         inst->operands[i].u.reg = pinst->operands[0].u.reg;
                         changed = 1;
-                    } else if (!cross_block && pinst->opcode == IR_OPCODE_CONST &&
+                    } else if (pinst->opcode == IR_OPCODE_CONST &&
                                pinst->noperands >= 1 &&
                                pinst->operands[0].type == IR_OPERAND_IMM) {
                         /* const %dst, imm → replace uses of %dst with imm */
