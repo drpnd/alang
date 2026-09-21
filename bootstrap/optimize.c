@@ -349,8 +349,30 @@ cpmap_add(copy_map_t *m, const char *dst_id, const char *src_id,
 
 /* Simplified: just use a find-replace approach within the block */
 
+/* Check if a register is defined by a MOV in any block other than the given one.
+ * If so, the register is a cross-block variable and copy propagation should
+ * not replace its uses (the MOV in another block may override it). */
 static int
-pass_copy_prop_block(ir_block_t *blk)
+is_redefined_in_other_blocks(ir_func_t *func, ir_block_t *blk, const char *reg_id)
+{
+    for (size_t bi = 0; bi < func->nblocks; bi++) {
+        if (&func->blocks[bi] == blk) continue;
+        ir_instr_ent_t *ent = func->blocks[bi].instrs;
+        while (ent) {
+            if (ent->inst.opcode == IR_OPCODE_MOV &&
+                ent->inst.noperands >= 2 &&
+                ent->inst.operands[1].type == IR_OPERAND_REG &&
+                ent->inst.operands[1].u.reg.id &&
+                strcmp(ent->inst.operands[1].u.reg.id, reg_id) == 0) {
+                return 1;
+            }
+            ent = ent->next;
+        }
+    }
+    return 0;
+}
+static int
+pass_copy_prop_block(ir_func_t *func, ir_block_t *blk)
 {
     int changed = 0;
 
@@ -408,14 +430,27 @@ pass_copy_prop_block(ir_block_t *blk)
 
                 if (prev) {
                     ir_instr_t *pinst = &prev->inst;
-                    if (pinst->opcode == IR_OPCODE_MOV &&
+                    /* Don't propagate if the register is redefined in another
+                     * block (cross-block variable reassignment). */
+                    const char *dst_id = NULL;
+                    if (pinst->opcode == IR_OPCODE_MOV && pinst->noperands >= 2 &&
+                        pinst->operands[1].type == IR_OPERAND_REG) {
+                        dst_id = pinst->operands[1].u.reg.id;
+                    } else if (pinst->result.n > 0) {
+                        dst_id = pinst->result.reg[0].id;
+                    }
+                    int cross_block = 0;
+                    if (dst_id) {
+                        cross_block = is_redefined_in_other_blocks(func, blk, dst_id);
+                    }
+                    if (!cross_block && pinst->opcode == IR_OPCODE_MOV &&
                         pinst->noperands >= 2 &&
                         pinst->operands[0].type == IR_OPERAND_REG &&
                         pinst->operands[0].u.reg.id) {
                         /* mov %src, %dst → replace uses of %dst with %src */
                         inst->operands[i].u.reg = pinst->operands[0].u.reg;
                         changed = 1;
-                    } else if (pinst->opcode == IR_OPCODE_CONST &&
+                    } else if (!cross_block && pinst->opcode == IR_OPCODE_CONST &&
                                pinst->noperands >= 1 &&
                                pinst->operands[0].type == IR_OPERAND_IMM) {
                         /* const %dst, imm → replace uses of %dst with imm */
@@ -543,6 +578,26 @@ pass_dce_func(ir_func_t *func)
                     if (strcmp(used[j], inst->operands[1].u.reg.id) == 0) {
                         is_used = 1;
                         break;
+                    }
+                }
+                /* Don't remove MOV if the same register is defined by a MOV
+                 * in a DIFFERENT block (cross-block variable reassignment). */
+                if (!is_used) {
+                    for (size_t bj = 0; bj < func->nblocks && !is_used; bj++) {
+                        if (bj == bi) continue;
+                        ir_instr_ent_t *e2 = func->blocks[bj].instrs;
+                        while (e2) {
+                            if (e2->inst.opcode == IR_OPCODE_MOV &&
+                                e2->inst.noperands >= 2 &&
+                                e2->inst.operands[1].type == IR_OPERAND_REG &&
+                                e2->inst.operands[1].u.reg.id &&
+                                strcmp(e2->inst.operands[1].u.reg.id,
+                                       inst->operands[1].u.reg.id) == 0) {
+                                is_used = 1;
+                                break;
+                            }
+                            e2 = e2->next;
+                        }
                     }
                 }
                 if (!is_used) can_remove = 1;
@@ -1261,7 +1316,7 @@ ir_optimize(ir_object_t *obj)
 
                 /* Run passes in order */
                 iter_changes += pass_const_fold_block(blk);
-                iter_changes += pass_copy_prop_block(blk);
+                iter_changes += pass_copy_prop_block(func, blk);
             }
             iter_changes += pass_inline_func(obj, func);
             iter_changes += pass_const_branch_func(func);
