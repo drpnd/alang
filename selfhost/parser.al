@@ -37,6 +37,7 @@ let g_ast_a: i64 = 0
 let g_ast_b: i64 = 0
 let g_ast_c: i64 = 0
 let g_ast_count: i64 = 0
+let g_first_fn: i64 = 0
 
 // Token types: 0=EOF 1=IDENT 2=INT 3=STR 4=OP 5=KW
 // Keyword IDs: 1=fn 2=let 3=mut 4=if 5=else 6=while 7=for
@@ -652,100 +653,110 @@ fn parse_expr() (r: i32)
 
 fn parse_type() (r: i32)
 {
+    let t: i64 = 0
     if cur_type() == 1 {
-        print_indent()
-        puts("TYPE: ")
-        print_str(cur_val())
-        putchar(10)
+        mut t = cur_val()
         mut r = advance()
     }
+    mut r = t
 }
 
 fn parse_params() (r: i32)
 {
+    let pname: i64 = 0
+    let pty: i64 = 0
+    let first: i64 = 0
+    let last: i64 = 0
     if is_op(40) == 1 { mut r = advance() }
     while is_op(41) == 0 {
         if cur_type() == 1 {
-            print_indent()
-            puts("PARAM: ")
-            print_str(cur_val())
-            putchar(10)
+            mut pname = cur_val()
             mut r = advance()
             if is_op(58) == 1 { mut r = advance() }
-            mut r = parse_type()
+            mut pty = parse_type()
+            let p: i64 = 0
+            mut p = emit_param(pname, pty)
+            if first == 0 {
+                mut first = p
+            } else {
+                mut first = emit_stmtlist(p, first)
+            }
         }
         if is_op(44) == 1 { mut r = advance() }
         if cur_type() == 0 { mut r = 1 }
     }
     if is_op(41) == 1 { mut r = advance() }
+    mut r = first
 }
 
 fn parse_block() (r: i32)
 {
+    let first: i64 = 0
+    let s: i64 = 0
     if is_op(123) == 1 { mut r = advance() }
-    mut g_indent = g_indent + 1
     while is_op(125) == 0 {
-        if cur_type() == 0 { mut r = 1 } else { mut r = parse_stmt() }
+        if cur_type() == 0 {
+            mut r = 1
+        } else {
+            mut s = parse_stmt()
+            if first == 0 {
+                mut first = s
+            } else {
+                mut first = emit_stmtlist(s, first)
+            }
+        }
     }
-    mut g_indent = g_indent - 1
     if is_op(125) == 1 { mut r = advance() }
+    mut r = first
 }
 
 fn parse_let() (r: i32)
 {
+    let name: i64 = 0
+    let ty: i64 = 0
+    let init: i64 = 0
     mut r = advance()
-    print_indent()
-    puts("LET")
-    mut g_indent = g_indent + 1
     if cur_type() == 1 {
-        print_indent()
-        print_str(cur_val())
-        putchar(10)
+        mut name = cur_val()
         mut r = advance()
     }
     if is_op(58) == 1 { mut r = advance() }
-    if cur_type() == 1 { mut r = parse_type() }
+    if cur_type() == 1 { mut ty = parse_type() }
     if is_op(61) == 1 {
         mut r = advance()
-        mut r = parse_expr()
+        mut init = parse_expr()
     }
-    mut g_indent = g_indent - 1
+    mut r = emit_let(name, ty, init)
 }
 
 fn parse_assign() (r: i32)
 {
+    let name: i64 = 0
+    let fname: i64 = 0
+    let idx: i64 = 0
+    let target: i64 = 0
+    let val: i64 = 0
     mut r = advance()
-    print_indent()
-    puts("ASSIGN")
-    mut g_indent = g_indent + 1
     if cur_type() == 1 {
-        print_indent()
-        print_str(cur_val())
-        putchar(10)
+        mut name = cur_val()
+        mut target = emit_ident(name)
         mut r = advance()
         mut g_done = 0
         while g_done == 0 {
             if is_op(46) == 1 {
                 mut r = advance()
-                print_indent()
-                puts("FIELD")
-                mut g_indent = g_indent + 1
+                mut fname = 0
                 if cur_type() == 1 {
-                    print_indent()
-                    print_str(cur_val())
-                    putchar(10)
+                    mut fname = cur_val()
                     mut r = advance()
                 }
-                mut g_indent = g_indent - 1
+                mut target = emit_field(fname, target)
             } else {
                 if is_op(91) == 1 {
                     mut r = advance()
-                    print_indent()
-                    puts("INDEX")
-                    mut g_indent = g_indent + 1
-                    mut r = parse_expr()
+                    mut idx = parse_expr()
                     if is_op(93) == 1 { mut r = advance() }
-                    mut g_indent = g_indent - 1
+                    mut target = emit_index(target, idx)
                 } else {
                     mut g_done = 1
                 }
@@ -753,113 +764,107 @@ fn parse_assign() (r: i32)
         }
     }
     if is_op(61) == 1 { mut r = advance() }
-    mut r = parse_expr()
-    mut g_indent = g_indent - 1
+    mut val = parse_expr()
+    mut r = emit_assign(target, val)
 }
+
 fn parse_if() (r: i32)
 {
+    let cond: i64 = 0
+    let then_blk: i64 = 0
+    let else_blk: i64 = 0
     mut r = advance()
-    print_indent()
-    puts("IF")
-    mut g_indent = g_indent + 1
-    mut r = parse_expr()
-    mut r = parse_block()
+    mut cond = parse_expr()
+    mut then_blk = parse_block()
     if is_kw(5) == 1 {
         mut r = advance()
-        print_indent()
-        puts("ELSE")
-        mut r = parse_block()
+        mut else_blk = parse_block()
     }
-    mut g_indent = g_indent - 1
+    mut r = emit_if(cond, then_blk, else_blk)
 }
 
 fn parse_while() (r: i32)
 {
+    let cond: i64 = 0
+    let body: i64 = 0
     mut r = advance()
-    print_indent()
-    puts("WHILE")
-    mut g_indent = g_indent + 1
-    mut r = parse_expr()
-    mut r = parse_block()
-    mut g_indent = g_indent - 1
+    mut cond = parse_expr()
+    mut body = parse_block()
+    mut r = emit_while(cond, body)
 }
 
 fn parse_return() (r: i32)
 {
+    let val: i64 = 0
     mut r = advance()
-    print_indent()
-    puts("RETURN")
-    mut g_indent = g_indent + 1
     if is_op(125) == 0 {
-        if cur_type() == 0 { } else { mut r = parse_expr() }
+        if cur_type() == 0 {
+        } else {
+            mut val = parse_expr()
+        }
     }
-    mut g_indent = g_indent - 1
+    mut r = emit_return(val)
 }
 
 fn parse_for() (r: i32)
 {
+    let var_name: i64 = 0
+    let start: i64 = 0
+    let end_val: i64 = 0
+    let body: i64 = 0
     mut r = advance()
-    print_indent()
-    puts("FOR")
-    mut g_indent = g_indent + 1
     if cur_type() == 1 {
-        print_indent()
-        puts("VAR")
-        mut g_indent = g_indent + 1
-        print_indent()
-        print_str(cur_val())
-        putchar(10)
-        mut g_indent = g_indent - 1
+        mut var_name = cur_val()
         mut r = advance()
     }
     if cur_type() == 1 { mut r = advance() }
-    mut r = parse_expr()
+    mut start = parse_expr()
     if is_op(11822) == 1 {
         mut r = advance()
-        print_indent()
-        puts("RANGE")
-        mut g_indent = g_indent + 1
-        mut r = parse_expr()
-        mut g_indent = g_indent - 1
+        mut end_val = parse_expr()
     }
-    mut r = parse_block()
-    mut g_indent = g_indent - 1
+    mut body = parse_block()
+    mut r = emit_for(var_name, start, end_val, body)
 }
 
 fn parse_match() (r: i32)
 {
+    let scrutinee: i64 = 0
+    let pattern: i64 = 0
+    let bind_var: i64 = 0
+    let body: i64 = 0
+    let first_case: i64 = 0
+    let c: i64 = 0
     mut r = advance()
-    print_indent()
-    puts("MATCH")
-    mut g_indent = g_indent + 1
-    mut r = parse_expr()
+    mut scrutinee = parse_expr()
     if is_op(123) == 1 { mut r = advance() }
     while is_op(125) == 0 {
-        if cur_type() == 0 { mut r = 1 } else {
+        if cur_type() == 0 {
+            mut r = 1
+        } else {
             if cur_type() == 1 {
-                print_indent()
-                puts("CASE")
-                mut g_indent = g_indent + 1
-                print_indent()
-                print_str(cur_val())
-                putchar(10)
+                mut pattern = cur_val()
                 mut r = advance()
+                mut bind_var = 0
                 if is_op(40) == 1 {
                     mut r = advance()
-                    print_indent()
-                    puts("BIND")
                     if cur_type() == 1 {
-                        print_indent()
-                        print_str(cur_val())
-                        putchar(10)
+                        mut bind_var = cur_val()
                         mut r = advance()
                     }
                     if is_op(41) == 1 { mut r = advance() }
                 }
-                if is_op(125) == 1 { mut r = 1 } else {
+                if is_op(125) == 1 {
+                    mut r = 1
+                } else {
                     if is_op(15742) == 1 { mut r = advance() }
-                    mut r = parse_stmt()
-                    mut g_indent = g_indent - 1
+                    mut body = parse_stmt()
+                    mut c = emit_case(pattern, bind_var, body)
+                    if first_case == 0 {
+                        mut first_case = c
+                    } else {
+                        mut first_case = emit_stmtlist(c, first_case)
+                    }
                     if is_op(44) == 1 { mut r = advance() }
                 }
             } else {
@@ -868,7 +873,7 @@ fn parse_match() (r: i32)
         }
     }
     if is_op(125) == 1 { mut r = advance() }
-    mut g_indent = g_indent - 1
+    mut r = emit_match(scrutinee, first_case)
 }
 
 fn parse_stmt() (r: i32)
@@ -896,13 +901,11 @@ fn parse_stmt() (r: i32)
                             } else {
                                 if is_kw(10) == 1 {
                                     mut r = advance()
-                                    print_indent()
-                                    puts("BREAK")
+                                    mut r = emit_break()
                                 } else {
                                     if is_kw(11) == 1 {
                                         mut r = advance()
-                                        print_indent()
-                                        puts("CONTINUE")
+                                        mut r = emit_continue()
                                     } else {
                                         mut r = parse_expr()
                                     }
@@ -918,29 +921,25 @@ fn parse_stmt() (r: i32)
 
 fn parse_fn() (r: i32)
 {
+    let name: i64 = 0
+    let fnode: i64 = 0
+    let params: i64 = 0
+    let rets: i64 = 0
+    let body: i64 = 0
     mut r = advance()
-    print_indent()
-    puts("FUNC")
-    mut g_indent = g_indent + 1
     if cur_type() == 1 {
-        print_indent()
-        print_str(cur_val())
-        putchar(10)
+        mut name = cur_val()
         mut r = advance()
     }
-    mut r = parse_params()
-    // Return types: (name: type) or nothing
+    mut params = parse_params()
     if is_op(40) == 1 {
-        print_indent()
-        puts("RETS")
-        mut g_indent = g_indent + 1
-        mut r = parse_params()
-        mut g_indent = g_indent - 1
+        mut rets = parse_params()
     }
-    mut r = parse_block()
-    mut g_indent = g_indent - 1
+    mut body = parse_block()
+    mut fnode = emit_func(name, params, rets, body)
+    if g_first_fn == 0 { mut g_first_fn = fnode }
+    mut r = fnode
 }
-
 fn parse_program() (r: i32)
 {
     while cur_type() != 0 {
@@ -953,55 +952,30 @@ fn parse_program() (r: i32)
             } else {
                 if is_kw(12) == 1 {
                     mut r = advance()
-                    print_indent()
-                    puts("STRUCT")
-                    mut g_indent = g_indent + 1
-                    if cur_type() == 1 {
-                        print_indent()
-                        print_str(cur_val())
-                        putchar(10)
-                        mut r = advance()
-                    }
+                    if cur_type() == 1 { mut r = advance() }
                     if is_op(123) == 1 { mut r = advance() }
                     while is_op(125) == 0 {
                         if cur_type() == 0 { mut r = 1 } else {
-                            if cur_type() == 1 {
-                                print_indent()
-                                puts("FIELD:")
-                                mut r = advance()
-                            }
+                            if cur_type() == 1 { mut r = advance() }
                             if is_op(58) == 1 { mut r = advance() }
                             if cur_type() == 1 { mut r = parse_type() }
                             if is_op(44) == 1 { mut r = advance() }
                         }
                     }
                     if is_op(125) == 1 { mut r = advance() }
-                    mut g_indent = g_indent - 1
                 } else {
                     if is_kw(13) == 1 {
                         mut r = advance()
-                        print_indent()
-                        puts("ENUM")
-                        mut g_indent = g_indent + 1
-                        if cur_type() == 1 {
-                            print_indent()
-                            print_str(cur_val())
-                            putchar(10)
-                            mut r = advance()
-                        }
+                        if cur_type() == 1 { mut r = advance() }
                         if is_op(123) == 1 { mut r = advance() }
                         while is_op(125) == 0 {
                             if cur_type() == 0 { mut r = 1 } else {
                                 if cur_type() == 1 {
-                                    print_indent()
-                                    puts("VARIANT:")
                                     mut r = advance()
                                     if is_op(40) == 1 {
                                         mut r = advance()
                                         while is_op(41) == 0 {
-                                            if cur_type() == 0 { mut r = 1 } else {
-                                                mut r = advance()
-                                            }
+                                            if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
                                         }
                                         if is_op(41) == 1 { mut r = advance() }
                                     }
@@ -1010,10 +984,7 @@ fn parse_program() (r: i32)
                             }
                         }
                         if is_op(125) == 1 { mut r = advance() }
-                        mut g_indent = g_indent - 1
                     } else {
-                        print_indent()
-                        puts("ERROR: expected fn/struct/enum")
                         mut r = advance()
                     }
                 }
