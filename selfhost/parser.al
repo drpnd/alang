@@ -1327,37 +1327,70 @@ fn gen_cmpop(op: i64) (r: i64)
 
 fn gen_binop(op: i64) (r: i64)
 {
+    let done: i64 = 0
+    mut done = 0
     if op == 43 {
         mut r = gen_add(0, 1, 0)
-    } else {
+        mut done = 1
+    }
+    if done == 0 {
         if op == 45 {
             mut r = gen_sub(0, 1, 0)
-        } else {
-            if op == 42 {
-                mut r = gen_mul(0, 1, 0)
-            } else {
-                if op == 47 {
-                    mut r = gen_sdiv(0, 1, 0)
-                } else {
-                    if op == 37 {
-                        mut r = gen_sdiv(2, 1, 0)
-                        mut r = gen_msub(0, 2, 0, 1)
-                    } else {
-                        mut r = gen_cmpop(op)
-                    }
-                }
-            }
+            mut done = 1
         }
+    }
+    if done == 0 {
+        if op == 42 {
+            mut r = gen_mul(0, 1, 0)
+            mut done = 1
+        }
+    }
+    if done == 0 {
+        if op == 47 {
+            mut r = gen_sdiv(0, 1, 0)
+            mut done = 1
+        }
+    }
+    if done == 0 {
+        if op == 37 {
+            mut r = gen_sdiv(2, 1, 0)
+            mut r = gen_msub(0, 2, 0, 1)
+            mut done = 1
+        }
+    }
+    if done == 0 {
+        mut r = gen_cmpop(op)
     }
     mut r = 0
 }
+fn gen_expr_ident(v: i64) (r: i64)
+{
+    let off: i64 = 0
+    if off > 0 {
+        mut r = gen_ldr(0, 31, off)
+    } else {
+        mut r = gen_movz(0, 0)
+    }
+    mut r = 0
+}
+
+fn gen_expr_assign(a: i64, b: i64) (r: i64)
+{
+    let off: i64 = 0
+    mut r = gen_expr(b)
+    mut off = var_lookup(__mem_load(g_ast_val + a * 8))
+    if off > 0 {
+        mut r = gen_str(0, 31, off)
+    }
+    mut r = 0
+}
+
 fn gen_expr(nd: i64) (r: i64)
 {
     let k: i64 = 0
     let v: i64 = 0
     let a: i64 = 0
     let b: i64 = 0
-    let off: i64 = 0
     mut k = __mem_load(g_ast_kind + nd * 8)
     mut v = __mem_load(g_ast_val + nd * 8)
     mut a = __mem_load(g_ast_a + nd * 8)
@@ -1366,12 +1399,7 @@ fn gen_expr(nd: i64) (r: i64)
         mut r = gen_movz(0, v)
     } else {
         if k == 3 {
-            mut off = var_lookup(v)
-            if off > 0 {
-                mut r = gen_ldr(0, 31, off)
-            } else {
-                mut r = gen_movz(0, 0)
-            }
+            mut r = gen_expr_ident(v)
         } else {
             if k == 5 {
                 mut r = gen_expr(a)
@@ -1384,11 +1412,7 @@ fn gen_expr(nd: i64) (r: i64)
                     mut r = gen_call(v, a)
                 } else {
                     if k == 9 {
-                        mut r = gen_expr(b)
-                        mut off = var_lookup(__mem_load(g_ast_val + a * 8))
-                        if off > 0 {
-                            mut r = gen_str(0, 31, off)
-                        }
+                        mut r = gen_expr_assign(a, b)
                     } else {
                         mut r = gen_movz(0, 0)
                     }
@@ -1398,7 +1422,6 @@ fn gen_expr(nd: i64) (r: i64)
     }
     mut r = 0
 }
-
 // CSET Xd, cond (set Xd to 1 if condition, 0 otherwise)
 fn gen_cset(rd: i64, cond: i64) (r: i64)
 {
