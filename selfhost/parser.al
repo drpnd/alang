@@ -663,7 +663,7 @@ fn parse_type() (r: i32)
     mut r = t
 }
 
-fn parse_params() (r: i32)
+fn parse_params() (r: i64)
 {
     let pname: i64 = 0
     let pty: i64 = 0
@@ -1186,16 +1186,18 @@ fn var_add(name: i64, offset: i64) (r: i64)
 fn fn_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
+    let n: i64 = 0
+    let found: i64 = 0
     mut i = 0
-    mut r = 0
     while i < g_fn_count {
-        if __mem_load(g_fn_name + i * 8) == name {
-            mut r = __mem_load(g_fn_off + i * 8)
+        mut n = __mem_load(g_fn_name + i * 8)
+        if __str_eq(n, name) == 1 {
+            mut found = __mem_load(g_fn_off + i * 8)
         }
         mut i = i + 1
     }
+    mut r = found
 }
-
 fn fn_add(name: i64, offset: i64) (r: i64)
 {
     __mem_store(g_fn_name + g_fn_count * 8, name)
@@ -1281,7 +1283,7 @@ fn gen_expr(nd: i64) (r: i64)
         if k == 3 {
             mut off = var_lookup(v)
             if off > 0 {
-                mut r = gen_ldr(0, 29, off)
+                mut r = gen_ldr(0, 31, off)
             } else {
                 mut r = gen_movz(0, 0)
             }
@@ -1300,7 +1302,7 @@ fn gen_expr(nd: i64) (r: i64)
                         mut r = gen_expr(b)
                         mut off = var_lookup(__mem_load(g_ast_val + a * 8))
                         if off > 0 {
-                            mut r = gen_str(0, 29, off)
+                            mut r = gen_str(0, 31, off)
                         }
                     } else {
                         mut r = gen_movz(0, 0)
@@ -1328,16 +1330,25 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
     let arg_nd: i64 = 0
     let fn_off: i64 = 0
     let i: i64 = 0
-    // Count and evaluate arguments, push them
+    let k: i64 = 0
+    let actual: i64 = 0
     mut arg_count = 0
     mut arg_nd = first_arg
     while arg_nd > 0 {
-        mut r = gen_expr(arg_nd)
+        mut k = __mem_load(g_ast_kind + arg_nd * 8)
+        mut actual = arg_nd
+        if k == 20 {
+            mut actual = __mem_load(g_ast_a + arg_nd * 8)
+        }
+        mut r = gen_expr(actual)
         mut r = gen_push()
         mut arg_count = arg_count + 1
-        mut arg_nd = __mem_load(g_ast_b + arg_nd * 8)
+        if k == 20 {
+            mut arg_nd = __mem_load(g_ast_b + arg_nd * 8)
+        } else {
+            mut arg_nd = 0
+        }
     }
-    // Pop arguments into X0, X1, X2, ... (reverse order)
     mut i = arg_count
     while i > 0 {
         mut i = i - 1
@@ -1357,15 +1368,12 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
             }
         }
     }
-    // Look up function
     mut fn_off = fn_lookup(name)
     if fn_off > 0 {
-        // Known function - emit BL with correct offset
         let rel: i64 = 0
         mut rel = fn_off - g_code_pos
         mut r = gen_bl(rel)
     } else {
-        // Unknown function - emit BL with 0 and add patch
         __mem_store(g_patch_pos + g_patch_count * 8, g_code_pos)
         __mem_store(g_patch_name + g_patch_count * 8, name)
         mut g_patch_count = g_patch_count + 1
@@ -1373,8 +1381,6 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
     }
     mut r = 0
 }
-
-// Pop to X0
 fn gen_pop_x0() (r: i64)
 {
     mut r = emit32(0xF84107E0)
@@ -1413,12 +1419,12 @@ fn gen_stmt(nd: i64) (r: i64)
         } else {
             mut r = gen_movz(0, 0)
         }
-        mut r = gen_str(0, 29, v)
+        mut r = gen_str(0, 31, v)
     } else {
         if k == 9 {
             // ASSIGN
             mut r = gen_expr(b)
-            mut r = gen_str(0, 29, var_lookup(__mem_load(g_ast_val + a * 8)))
+            mut r = gen_str(0, 31, var_lookup(__mem_load(g_ast_val + a * 8)))
         } else {
             if k == 14 {
                 // RETURN
@@ -1582,16 +1588,17 @@ fn gen_params(params: i64) (r: i64)
 {
     let p: i64 = 0
     let reg: i64 = 0
-    let pk: i64 = 0
     let pname: i64 = 0
-    let slot: i64 = 0
     mut reg = 0
     mut p = params
     while p > 0 {
-        mut pk = __mem_load(g_ast_kind + p * 8)
         mut pname = 0
+        let pk: i64 = 0
+        mut pk = __mem_load(g_ast_kind + p * 8)
         if pk == 20 {
-            mut pname = __mem_load(g_ast_val + (__mem_load(g_ast_a + p * 8)) * 8)
+            let inner: i64 = 0
+            mut inner = __mem_load(g_ast_a + p * 8)
+            mut pname = __mem_load(g_ast_val + inner * 8)
             mut p = __mem_load(g_ast_b + p * 8)
         } else {
             if pk == 21 {
@@ -1602,12 +1609,64 @@ fn gen_params(params: i64) (r: i64)
             }
         }
         if pname > 0 {
-            mut slot = 4 - reg
-            mut r = var_add(pname, slot)
-            mut r = gen_str(reg, 29, slot)
+            mut r = var_add(pname, reg)
+            mut r = gen_str(reg, 31, reg)
             mut reg = reg + 1
         }
     }
+    mut r = 0
+}
+fn gen_retval(rets: i64) (r: i64)
+{
+    let p: i64 = 0
+    let pname: i64 = 0
+    let off: i64 = 0
+    let pk: i64 = 0
+    let inner: i64 = 0
+    mut p = rets
+    if p > 0 {
+        mut pk = __mem_load(g_ast_kind + p * 8)
+        if pk == 20 {
+            mut inner = __mem_load(g_ast_a + p * 8)
+            mut pname = __mem_load(g_ast_val + inner * 8)
+        } else {
+            if pk == 21 {
+                mut pname = __mem_load(g_ast_val + p * 8)
+            }
+        }
+        if pname > 0 {
+            mut off = var_lookup(pname)
+            if off > 0 {
+                mut r = gen_ldr(0, 31, off)
+            }
+        }
+    }
+    mut r = 0
+}
+fn gen_func(nd: i64) (r: i64)
+{
+    let name: i64 = 0
+    let params: i64 = 0
+    let rets: i64 = 0
+    let body: i64 = 0
+    let func_off: i64 = 0
+    mut name = __mem_load(g_ast_val + nd * 8)
+    mut params = __mem_load(g_ast_a + nd * 8)
+    mut rets = __mem_load(g_ast_b + nd * 8)
+    mut body = __mem_load(g_ast_c + nd * 8)
+    mut func_off = g_code_pos
+    mut r = fn_add(name, func_off)
+    mut g_var_count = 0
+    mut r = gen_stp_pre(29, 30, 31, 65534)
+    mut r = gen_add_imm(29, 31, 0)
+    mut r = gen_sub_imm(31, 31, 32)
+    mut r = gen_params(params)
+    mut r = gen_params(rets)
+    mut r = gen_block(body)
+    mut r = gen_retval(rets)
+    mut r = gen_add_imm(31, 31, 32)
+    mut r = gen_ldp_post(29, 30, 31, 2)
+    mut r = gen_ret()
     mut r = 0
 }
 
@@ -1625,29 +1684,6 @@ fn gen_all_funcs() (r: i64)
     }
     mut r = 0
 }
-fn gen_func(nd: i64) (r: i64)
-{
-    let name: i64 = 0
-    let params: i64 = 0
-    let body: i64 = 0
-    let func_off: i64 = 0
-    mut name = __mem_load(g_ast_val + nd * 8)
-    mut params = __mem_load(g_ast_a + nd * 8)
-    mut body = __mem_load(g_ast_c + nd * 8)
-    mut func_off = g_code_pos
-    mut r = fn_add(name, func_off)
-    mut g_var_count = 0
-    mut r = gen_stp_pre(29, 30, 31, 65534)
-    mut r = gen_add_imm(29, 31, 0)
-    mut r = gen_sub_imm(31, 31, 32)
-    mut r = gen_params(params)
-    mut r = gen_block(body)
-    mut r = gen_add_imm(31, 31, 32)
-    mut r = gen_ldp_post(29, 30, 31, 2)
-    mut r = gen_ret()
-    mut r = 0
-}
-
 fn write_header(fp: i64, ncmds: i64, sizeofcmds: i64) (r: i64)
 {
     mut r = write32(fp, 0xFEEDFACF)
@@ -1706,6 +1742,7 @@ fn write_version(fp: i64) (r: i64)
 }
 fn write_macho(path: i64, code_size: i64) (r: i64)
 {
+    let arg2_ptr: i64 = 0
     let fp: i64 = 0
     let text_off: i64 = 0
     let sym_off: i64 = 0
@@ -2035,6 +2072,7 @@ fn main(argc: i32, argv: i64) (r: i32)
     mut argv_ptr = argv
     let arg1_ptr: i64 = 0
     mut arg1_ptr = __mem_load(argv_ptr + 8)
+    let arg2_ptr: i64 = 0
     let fp: i64 = 0
     mut fp = fopen(arg1_ptr, "r")
     if fp == 0 {
@@ -2053,7 +2091,6 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut r = gen_all_funcs()
         puts("GEN DONE")
         mut r = patch_calls()
-        let arg2_ptr: i64 = 0
         mut arg2_ptr = __mem_load(argv_ptr + 16)
         mut r = write_macho(arg2_ptr, g_code_pos)
         mut r = 0
