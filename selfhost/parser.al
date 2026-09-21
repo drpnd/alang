@@ -4,6 +4,7 @@ extern fn fopen(path: str, mode: str) (fp: i64)
 extern fn fclose(fp: i64) (r: i32)
 extern fn fread(buf: i64, size: i64, count: i64, fp: i64) (r: i64)
 extern fn malloc(size: i64) (ptr: i64)
+extern fn fwrite(buf: i64, size: i64, count: i64, fp: i64) (r: i64)
 extern fn free(ptr: i64)
 extern fn puts(s: str) (r: i32)
 extern fn putchar(c: i32) (r: i32)
@@ -992,6 +993,873 @@ fn parse_program() (r: i32)
         }
     }
 }
+// === Code Generator: AST -> aarch64 machine code -> Mach-O ===
+// Stack machine approach: expressions evaluated into X0, temps on stack
+
+// Machine code buffer
+let g_code: i64 = 0
+let g_code_pos: i64 = 0
+
+// Variable table (name string offset -> stack offset from FP)
+let g_var_name: i64 = 0
+let g_var_off: i64 = 0
+let g_var_count: i64 = 0
+
+// Function table (name string offset -> code offset)
+let g_fn_name: i64 = 0
+let g_fn_off: i64 = 0
+let g_fn_count: i64 = 0
+
+// Patch table for BL instructions (position -> function name)
+let g_patch_pos: i64 = 0
+let g_patch_name: i64 = 0
+let g_patch_count: i64 = 0
+
+// String table for Mach-O symbols
+let g_symtab: i64 = 0
+let g_symtab_pos: i64 = 0
+
+// Emit a 32-bit instruction (little-endian)
+fn emit32(val: i64) (r: i64)
+{
+    __byte_store(g_code, g_code_pos, val & 255)
+    __byte_store(g_code, g_code_pos + 1, (val >> 8) & 255)
+    __byte_store(g_code, g_code_pos + 2, (val >> 16) & 255)
+    __byte_store(g_code, g_code_pos + 3, (val >> 24) & 255)
+    mut g_code_pos = g_code_pos + 4
+    mut r = 0
+}
+
+// === aarch64 instruction encoders ===
+
+// MOVZ Xd, #imm16 (64-bit)
+fn gen_movz(rd: i64, imm16: i64) (r: i64)
+{
+    mut r = emit32(0xD2800000 | ((imm16 & 65535) << 5) | (rd & 31))
+}
+
+// ADD Xd, Xn, Xm (64-bit register)
+fn gen_add(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0x8B000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// SUB Xd, Xn, Xm
+fn gen_sub(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0xCB000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// MUL Xd, Xn, Xm
+fn gen_mul(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0x9B007C00 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// MOV Xd, Xm (ORR Xd, XZR, Xm)
+fn gen_mov(rd: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0xAA0003E0 | ((rm & 31) << 16) | (rd & 31))
+}
+
+// RET
+fn gen_ret() (r: i64)
+{
+    mut r = emit32(0xD65F03C0)
+}
+
+// ADD Xd, Xn, #imm12
+fn gen_add_imm(rd: i64, rn: i64, imm12: i64) (r: i64)
+{
+    mut r = emit32(0x91000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// SUB Xd, Xn, #imm12
+fn gen_sub_imm(rd: i64, rn: i64, imm12: i64) (r: i64)
+{
+    mut r = emit32(0xD1000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// STR Xt, [Xn, #imm12*8]
+fn gen_str(rt: i64, rn: i64, imm12: i64) (r: i64)
+{
+    mut r = emit32(0xF9000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
+}
+
+// LDR Xt, [Xn, #imm12*8]
+fn gen_ldr(rt: i64, rn: i64, imm12: i64) (r: i64)
+{
+    mut r = emit32(0xF9400000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
+}
+
+// STP Xt1, Xt2, [Xn, #imm7*8]! (pre-index)
+fn gen_stp_pre(rt1: i64, rt2: i64, rn: i64, imm7: i64) (r: i64)
+{
+    mut r = emit32(0xA9800000 | ((imm7 & 127) << 15) | ((rt2 & 31) << 10) | ((rn & 31) << 5) | (rt1 & 31))
+}
+
+// LDP Xt1, Xt2, [Xn], #imm7*8 (post-index)
+fn gen_ldp_post(rt1: i64, rt2: i64, rn: i64, imm7: i64) (r: i64)
+{
+    mut r = emit32(0xA8C00000 | ((imm7 & 127) << 15) | ((rt2 & 31) << 10) | ((rn & 31) << 5) | (rt1 & 31))
+}
+
+// CMP Xn, Xm (SUBS XZR, Xn, Xm)
+fn gen_cmp(rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0xEB00001F | ((rm & 31) << 16) | ((rn & 31) << 5))
+}
+
+// B.cond offset (condition codes: 0=EQ, 1=NE, 10=GE, 11=LT, 12=GT, 13=LE)
+fn gen_bcond(cond: i64, offset: i64) (r: i64)
+{
+    let off26: i64 = 0
+    mut off26 = (offset >> 2) & 0x7FFFF
+    mut r = emit32(0x54000000 | (off26) | ((cond & 15) << 12))
+}
+
+// B offset (unconditional)
+fn gen_b(offset: i64) (r: i64)
+{
+    let off26: i64 = 0
+    mut off26 = (offset >> 2) & 0x3FFFFFF
+    mut r = emit32(0x14000000 | off26)
+}
+
+// BL offset
+fn gen_bl(offset: i64) (r: i64)
+{
+    let off26: i64 = 0
+    mut off26 = (offset >> 2) & 0x3FFFFFF
+    mut r = emit32(0x94000000 | off26)
+}
+
+// SDIV Xd, Xn, Xm
+fn gen_sdiv(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0x9AC00C00 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// MSUB Xd, Xn, Xm, X0 (for modulo: result = X0 - Xn * Xm)
+fn gen_msub(rd: i64, rn: i64, rm: i64, ra: i64) (r: i64)
+{
+    mut r = emit32(0x9B008000 | ((rm & 31) << 16) | ((ra & 31) << 10) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// Push X0 to stack (STR X0, [SP, #-16]!)
+fn gen_push() (r: i64)
+{
+    mut r = emit32(0xF81F0FE0)  // STR X0, [SP, #-16]!
+}
+
+// Pop to X1 (LDR X1, [SP], #16)
+fn gen_pop_x1() (r: i64)
+{
+    mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16
+}
+
+// === Variable table ===
+fn var_lookup(name: i64) (r: i64)
+{
+    let i: i64 = 0
+    mut i = 0
+    mut r = 0
+    while i < g_var_count {
+        if __mem_load(g_var_name + i * 8) == name {
+            mut r = __mem_load(g_var_off + i * 8)
+        }
+        mut i = i + 1
+    }
+}
+
+fn var_add(name: i64, offset: i64) (r: i64)
+{
+    __mem_store(g_var_name + g_var_count * 8, name)
+    __mem_store(g_var_off + g_var_count * 8, offset)
+    mut g_var_count = g_var_count + 1
+    mut r = 0
+}
+
+// === Function table ===
+fn fn_lookup(name: i64) (r: i64)
+{
+    let i: i64 = 0
+    mut i = 0
+    mut r = 0
+    while i < g_fn_count {
+        if __mem_load(g_fn_name + i * 8) == name {
+            mut r = __mem_load(g_fn_off + i * 8)
+        }
+        mut i = i + 1
+    }
+}
+
+fn fn_add(name: i64, offset: i64) (r: i64)
+{
+    __mem_store(g_fn_name + g_fn_count * 8, name)
+    __mem_store(g_fn_off + g_fn_count * 8, offset)
+    mut g_fn_count = g_fn_count + 1
+    mut r = 0
+}
+
+// === Expression code generator ===
+// Result is always in X0
+
+fn gen_expr(nd: i64) (r: i64)
+{
+    let k: i64 = 0
+    let v: i64 = 0
+    let a: i64 = 0
+    let b: i64 = 0
+    let off: i64 = 0
+    let fn_off: i64 = 0
+    mut k = __mem_load(g_ast_kind + nd * 8)
+    mut v = __mem_load(g_ast_val + nd * 8)
+    mut a = __mem_load(g_ast_a + nd * 8)
+    mut b = __mem_load(g_ast_b + nd * 8)
+    if k == 1 {
+        // INT
+        mut r = gen_movz(0, v)
+    } else {
+        if k == 3 {
+            // IDENT
+            mut off = var_lookup(v)
+            if off > 0 {
+                mut r = gen_ldr(0, 29, off)
+            } else {
+                mut r = gen_movz(0, 0)
+            }
+        } else {
+            if k == 5 {
+                // BINOP
+                mut r = gen_expr(a)
+                mut r = gen_push()
+                mut r = gen_expr(b)
+                mut r = gen_pop_x1()
+                if v == 43 {
+                    mut r = gen_add(0, 1, 0)
+                } else {
+                    if v == 45 {
+                        mut r = gen_sub(0, 1, 0)
+                    } else {
+                        if v == 42 {
+                            mut r = gen_mul(0, 1, 0)
+                        } else {
+                            if v == 47 {
+                                mut r = gen_sdiv(0, 1, 0)
+                            } else {
+                                if v == 37 {
+                                    // MOD: X0 = X1 - (X1 / X0) * X0
+                                    mut r = gen_sdiv(2, 1, 0)
+                                    mut r = gen_msub(0, 2, 0, 1)
+                                } else {
+                                    if v == 60 {
+                                        // LT
+                                        mut r = gen_cmp(1, 0)
+                                        mut r = gen_cset(0, 11)
+                                    } else {
+                                        if v == 62 {
+                                            // GT
+                                            mut r = gen_cmp(1, 0)
+                                            mut r = gen_cset(0, 12)
+                                        } else {
+                                            if v == 15677 {
+                                                // EQ
+                                                mut r = gen_cmp(1, 0)
+                                                mut r = gen_cset(0, 0)
+                                            } else {
+                                                if v == 8645 {
+                                                    // NE
+                                                    mut r = gen_cmp(1, 0)
+                                                    mut r = gen_cset(0, 1)
+                                                } else {
+                                                    if v == 15485 {
+                                                        // LE
+                                                        mut r = gen_cmp(1, 0)
+                                                        mut r = gen_cset(0, 13)
+                                                    } else {
+                                                        if v == 15997 {
+                                                            // GE
+                                                            mut r = gen_cmp(1, 0)
+                                                            mut r = gen_cset(0, 10)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                if k == 4 {
+                    // CALL
+                    mut r = gen_call(v, a)
+                } else {
+                    if k == 9 {
+                        // ASSIGN (as expression)
+                        mut r = gen_expr(b)
+                        mut off = var_lookup(__mem_load(g_ast_val + a * 8))
+                        if off > 0 {
+                            mut r = gen_str(0, 29, off)
+                        }
+                    } else {
+                        mut r = gen_movz(0, 0)
+                    }
+                }
+            }
+        }
+    }
+    mut r = 0
+}
+
+// CSET Xd, cond (set Xd to 1 if condition, 0 otherwise)
+fn gen_cset(rd: i64, cond: i64) (r: i64)
+{
+    // CSINC Xd, XZR, XZR, invert(cond)
+    let inv: i64 = 0
+    mut inv = cond ^ 1
+    mut r = emit32(0x9A800400 | ((inv & 15) << 12) | (rd & 31))
+}
+
+// Generate function call
+fn gen_call(name: i64, first_arg: i64) (r: i64)
+{
+    let arg_count: i64 = 0
+    let arg_nd: i64 = 0
+    let fn_off: i64 = 0
+    let i: i64 = 0
+    // Count and evaluate arguments, push them
+    mut arg_count = 0
+    mut arg_nd = first_arg
+    while arg_nd > 0 {
+        mut r = gen_expr(arg_nd)
+        mut r = gen_push()
+        mut arg_count = arg_count + 1
+        mut arg_nd = __mem_load(g_ast_b + arg_nd * 8)
+    }
+    // Pop arguments into X0, X1, X2, ... (reverse order)
+    mut i = arg_count
+    while i > 0 {
+        mut i = i - 1
+        if i == 0 {
+            mut r = gen_pop_x0()
+        } else {
+            if i == 1 {
+                mut r = gen_pop_x1()
+            } else {
+                if i == 2 {
+                    mut r = gen_pop_x2()
+                } else {
+                    if i == 3 {
+                        mut r = gen_pop_x3()
+                    }
+                }
+            }
+        }
+    }
+    // Look up function
+    mut fn_off = fn_lookup(name)
+    if fn_off > 0 {
+        // Known function - emit BL with correct offset
+        let rel: i64 = 0
+        mut rel = fn_off - g_code_pos
+        mut r = gen_bl(rel)
+    } else {
+        // Unknown function - emit BL with 0 and add patch
+        __mem_store(g_patch_pos + g_patch_count * 8, g_code_pos)
+        __mem_store(g_patch_name + g_patch_count * 8, name)
+        mut g_patch_count = g_patch_count + 1
+        mut r = gen_bl(0)
+    }
+    mut r = 0
+}
+
+// Pop to X0
+fn gen_pop_x0() (r: i64)
+{
+    mut r = emit32(0xF84107E0)
+}
+
+// Pop to X2
+fn gen_pop_x2() (r: i64)
+{
+    mut r = emit32(0xF84107E2)
+}
+
+// Pop to X3
+fn gen_pop_x3() (r: i64)
+{
+    mut r = emit32(0xF84107E3)
+}
+
+// === Statement code generator ===
+
+fn gen_stmt(nd: i64) (r: i64)
+{
+    let k: i64 = 0
+    let v: i64 = 0
+    let a: i64 = 0
+    let b: i64 = 0
+    let c: i64 = 0
+    mut k = __mem_load(g_ast_kind + nd * 8)
+    mut v = __mem_load(g_ast_val + nd * 8)
+    mut a = __mem_load(g_ast_a + nd * 8)
+    mut b = __mem_load(g_ast_b + nd * 8)
+    mut c = __mem_load(g_ast_c + nd * 8)
+    if k == 10 {
+        // LET
+        if c > 0 {
+            mut r = gen_expr(b)
+        } else {
+            mut r = gen_movz(0, 0)
+        }
+        mut r = gen_str(0, 29, v)
+    } else {
+        if k == 9 {
+            // ASSIGN
+            mut r = gen_expr(b)
+            mut r = gen_str(0, 29, var_lookup(__mem_load(g_ast_val + a * 8)))
+        } else {
+            if k == 14 {
+                // RETURN
+                if a > 0 {
+                    mut r = gen_expr(a)
+                } else {
+                    mut r = gen_movz(0, 0)
+                }
+                mut r = gen_ret()
+            } else {
+                if k == 11 {
+                    // IF
+                    mut r = gen_if(nd)
+                } else {
+                    if k == 12 {
+                        // WHILE
+                        mut r = gen_while(nd)
+                    } else {
+                        if k == 20 {
+                            // STMTLIST
+                            mut r = gen_block(nd)
+                        } else {
+                            if k == 4 {
+                                // CALL as statement
+                                mut r = gen_call(v, a)
+                            } else {
+                                if k > 0 {
+                                    mut r = gen_expr(nd)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    mut r = 0
+}
+
+fn gen_block(nd: i64) (r: i64)
+{
+    let s: i64 = 0
+    mut s = nd
+    while s > 0 {
+        let k: i64 = 0
+        mut k = __mem_load(g_ast_kind + s * 8)
+        if k == 20 {
+            // STMTLIST: a = stmt, b = next
+            let stmt: i64 = 0
+            mut stmt = __mem_load(g_ast_a + s * 8)
+            if stmt > 0 {
+                mut r = gen_stmt(stmt)
+            }
+            mut s = __mem_load(g_ast_b + s * 8)
+        } else {
+            mut r = gen_stmt(s)
+            mut s = 0
+        }
+    }
+    mut r = 0
+}
+
+fn gen_if(nd: i64) (r: i64)
+{
+    let cond: i64 = 0
+    let then_blk: i64 = 0
+    let else_blk: i64 = 0
+    let cmp_pos: i64 = 0
+    let beq_pos: i64 = 0
+    let else_pos: i64 = 0
+    let bend_pos: i64 = 0
+    mut cond = __mem_load(g_ast_a + nd * 8)
+    mut then_blk = __mem_load(g_ast_b + nd * 8)
+    mut else_blk = __mem_load(g_ast_c + nd * 8)
+    // Evaluate condition
+    mut r = gen_expr(cond)
+    mut r = gen_cmp(0, 31)  // CMP X0, XZR (compare with zero)
+    // BEQ to else (if condition is false/zero)
+    mut beq_pos = g_code_pos
+    mut r = gen_bcond(0, 8)  // placeholder: skip to else (will patch)
+    // Then block
+    mut r = gen_block(then_blk)
+    if else_blk > 0 {
+        // B to end
+        mut bend_pos = g_code_pos
+        mut r = gen_b(0)  // placeholder
+        // Patch BEQ to jump here (else block)
+        let else_off: i64 = 0
+        mut else_off = g_code_pos - beq_pos
+        mut r = patch_bcond(beq_pos, else_off)
+        // Else block
+        mut r = gen_block(else_blk)
+        // Patch B to jump here (end)
+        let end_off: i64 = 0
+        mut end_off = g_code_pos - bend_pos
+        mut r = patch_b(bend_pos, end_off)
+    } else {
+        // Patch BEQ to jump here (end)
+        let end_off: i64 = 0
+        mut end_off = g_code_pos - beq_pos
+        mut r = patch_bcond(beq_pos, end_off)
+    }
+    mut r = 0
+}
+
+fn gen_while(nd: i64) (r: i64)
+{
+    let cond: i64 = 0
+    let body: i64 = 0
+    let loop_start: i64 = 0
+    let beq_pos: i64 = 0
+    mut cond = __mem_load(g_ast_a + nd * 8)
+    mut body = __mem_load(g_ast_b + nd * 8)
+    mut loop_start = g_code_pos
+    mut r = gen_expr(cond)
+    mut r = gen_cmp(0, 31)
+    mut beq_pos = g_code_pos
+    mut r = gen_bcond(0, 0)  // placeholder: BEQ to end
+    mut r = gen_block(body)
+    // B back to loop_start
+    let back_off: i64 = 0
+    mut back_off = loop_start - g_code_pos
+    mut r = gen_b(back_off)
+    // Patch BEQ to jump here (end)
+    let end_off: i64 = 0
+    mut end_off = g_code_pos - beq_pos
+    mut r = patch_bcond(beq_pos, end_off)
+    mut r = 0
+}
+
+// Patch a B.cond instruction at pos with new offset
+fn patch_bcond(pos: i64, offset: i64) (r: i64)
+{
+    let off19: i64 = 0
+    mut off19 = (offset >> 2) & 0x7FFFF
+    mut r = emit32_at(pos, 0x54000000 | off19 | (__byte_load(g_code, pos + 3) & 0xF0) << 4)
+    mut r = 0
+}
+
+// Patch a B instruction at pos with new offset
+fn patch_b(pos: i64, offset: i64) (r: i64)
+{
+    let off26: i64 = 0
+    mut off26 = (offset >> 2) & 0x3FFFFFF
+    mut r = emit32_at(pos, 0x14000000 | off26)
+    mut r = 0
+}
+
+// Emit a 32-bit value at a specific position (patching)
+fn emit32_at(pos: i64, val: i64) (r: i64)
+{
+    __byte_store(g_code, pos, val & 255)
+    __byte_store(g_code, pos + 1, (val >> 8) & 255)
+    __byte_store(g_code, pos + 2, (val >> 16) & 255)
+    __byte_store(g_code, pos + 3, (val >> 24) & 255)
+    mut r = 0
+}
+
+// === Function code generator ===
+fn gen_func(nd: i64) (r: i64)
+{
+    let name: i64 = 0
+    let params: i64 = 0
+    let body: i64 = 0
+    let func_off: i64 = 0
+    let var_off: i64 = 0
+    let i: i64 = 0
+    mut name = __mem_load(g_ast_val + nd * 8)
+    mut params = __mem_load(g_ast_a + nd * 8)
+    mut body = __mem_load(g_ast_c + nd * 8)
+    mut func_off = g_code_pos
+    mut r = fn_add(name, func_off)
+    // Reset variable table
+    mut g_var_count = 0
+    // Prologue: STP X29, X30, [SP, #-16]!; ADD X29, SP, #0; SUB SP, SP, #32
+    mut r = gen_stp_pre(29, 30, 31, 65520)  // -16 as unsigned 7-bit
+    mut r = gen_add_imm(29, 31, 0)  // MOV X29, SP
+    mut r = gen_sub_imm(31, 31, 32)  // SUB SP, SP, #32 (room for 4 locals)
+    // Set up parameters: X0=arg0, X1=arg1, etc. stored to stack
+    mut var_off = 4  // offset in 8-byte units from FP, starts at FP+32 (backwards)
+    mut i = 0
+    // Walk params (they're in reverse STMTLIST order)
+    let param_count: i64 = 0
+    let p: i64 = 0
+    mut p = params
+    mut param_count = 0
+    while p > 0 {
+        mut param_count = param_count + 1
+        let pk: i64 = 0
+        mut pk = __mem_load(g_ast_kind + p * 8)
+        if pk == 20 {
+            mut p = __mem_load(g_ast_b + p * 8)
+        } else {
+            mut p = 0
+        }
+    }
+    // Store params in reverse
+    let reg: i64 = 0
+    mut reg = 0
+    mut p = params
+    while p > 0 {
+        let pname: i64 = 0
+        let pk: i64 = 0
+        mut pk = __mem_load(g_ast_kind + p * 8)
+        if pk == 20 {
+            mut pname = __mem_load(g_ast_val + (__mem_load(g_ast_a + p * 8)) * 8)
+            mut p = __mem_load(g_ast_b + p * 8)
+        } else {
+            if pk == 21 {
+                mut pname = __mem_load(g_ast_val + p * 8)
+                mut p = 0
+            } else {
+                mut p = 0
+            }
+        }
+        if pname > 0 {
+            // Parameter is at FP + var_off*8 (positive offset from FP going up)
+            // Actually we store below FP: FP - (var_off*8)
+            let slot: i64 = 0
+            mut slot = 4 - reg  // slots 4,3,2,1 for params 0,1,2,3
+            mut r = var_add(pname, slot)
+            // Store X{reg} to [FP, #slot*8] -> but slot is negative offset
+            // We use STR X{reg}, [FP, #-slot*8]
+            mut r = gen_str(reg, 29, 4 - reg)
+            mut reg = reg + 1
+        }
+    }
+    // Generate body
+    mut r = gen_block(body)
+    // Epilogue: ADD SP, SP, #32; LDP X29, X30, [SP], #16; RET
+    mut r = gen_add_imm(31, 31, 32)
+    mut r = gen_ldp_post(29, 30, 31, 2)  // 2 * 8 = 16
+    mut r = gen_ret()
+    mut r = 0
+}
+
+// === Mach-O writer ===
+fn write_macho(path: i64, code_size: i64) (r: i64)
+{
+    let fp: i64 = 0
+    mut fp = fopen(path, "w")
+    if fp == 0 {
+        puts("Cannot open output file")
+        mut r = 1
+    } else {
+        // Calculate sizes
+        let header_size: i64 = 0
+        mut header_size = 32 + 72 + 80 + 24 + 16 + 8  // header + segment + section + symtab + nlist + strtab
+        // Write Mach-O header (mach_header_64)
+        let base: i64 = 0
+        mut base = 0
+        // magic = 0xFEEDFACF (MH_MAGIC_64)
+        mut r = write32(fp, 0xFEEDFACF)
+        // cputype = 0x0100000C (CPU_TYPE_ARM64)
+        mut r = write32(fp, 0x0100000C)
+        // cpusubtype = 0 (CPU_SUBTYPE_ARM64_ALL)
+        mut r = write32(fp, 0)
+        // filetype = 1 (MH_OBJECT)
+        mut r = write32(fp, 1)
+        // ncmds = 2 (segment + symtab)
+        mut r = write32(fp, 2)
+        // sizeofcmds
+        mut r = write32(fp, 72 + 80 + 24)
+        // flags = 0
+        mut r = write32(fp, 0)
+        // reserved = 0
+        mut r = write32(fp, 0)
+        // LC_SEGMENT_64
+        let text_off: i64 = 0
+        mut text_off = 32 + 72 + 80  // after header + segment + section
+        let file_size: i64 = 0
+        mut file_size = text_off + code_size
+        // cmd = 0x19 (LC_SEGMENT_64)
+        mut r = write32(fp, 0x19)
+        // cmdsize = 72 + 80 = 152
+        mut r = write32(fp, 152)
+        // segname (16 bytes, "__TEXT\0")
+        mut r = write_str(fp, "__TEXT")
+        // vmaddr = 0
+        mut r = write64(fp, 0)
+        // vmsize = file_size
+        mut r = write64(fp, file_size)
+        // fileoff = 0
+        mut r = write64(fp, 0)
+        // filesize = file_size
+        mut r = write64(fp, file_size)
+        // maxprot = 7 (rwx)
+        mut r = write32(fp, 7)
+        // initprot = 7
+        mut r = write32(fp, 7)
+        // nsects = 1
+        mut r = write32(fp, 1)
+        // flags = 0
+        mut r = write32(fp, 0)
+        // Section header (__text)
+        // sectname (16 bytes)
+        mut r = write_str(fp, "__text")
+        // segname (16 bytes)
+        mut r = write_str(fp, "__TEXT")
+        // addr = text_off
+        mut r = write64(fp, text_off)
+        // size = code_size
+        mut r = write64(fp, code_size)
+        // offset = text_off
+        mut r = write32(fp, text_off)
+        // align = 2 (4-byte aligned)
+        mut r = write32(fp, 2)
+        // reloff = 0
+        mut r = write32(fp, 0)
+        // nreloc = 0
+        mut r = write32(fp, 0)
+        // flags = 0x80000400 (S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS)
+        mut r = write32(fp, 0x80000400)
+        // reserved1 = 0
+        mut r = write32(fp, 0)
+        // reserved2 = 0
+        mut r = write32(fp, 0)
+        // reserved3 = 0
+        mut r = write32(fp, 0)
+        // LC_SYMTAB
+        let sym_off: i64 = 0
+        mut sym_off = text_off + code_size
+        let str_off: i64 = 0
+        mut str_off = sym_off + 16  // 1 symbol * 16 bytes
+        // cmd = 2 (LC_SYMTAB)
+        mut r = write32(fp, 2)
+        // cmdsize = 24
+        mut r = write32(fp, 24)
+        // symoff
+        mut r = write32(fp, sym_off)
+        // nsyms = 1
+        mut r = write32(fp, 1)
+        // stroff
+        mut r = write32(fp, str_off)
+        // strsize
+        mut r = write32(fp, 16)
+        // Write machine code
+        let i: i64 = 0
+        mut i = 0
+        while i < code_size {
+            mut r = write_byte(fp, __byte_load(g_code, i))
+            mut i = i + 1
+        }
+        // Write symbol table entry (nlist_64 for _main)
+        let main_str_off: i64 = 0
+        mut main_str_off = 1  // offset in string table
+        // n_strx
+        mut r = write32(fp, main_str_off)
+        // n_type = 0x0F (N_EXT | N_SECT)
+        mut r = write_byte(fp, 0x0F)
+        // n_sect = 1
+        mut r = write_byte(fp, 1)
+        // n_desc = 0
+        mut r = write16(fp, 0)
+        // n_value = text_off (address of _main)
+        mut r = write64(fp, text_off)
+        // Write string table: \0_main\0
+        mut r = write_byte(fp, 0)
+        mut r = write_str(fp, "_main")
+        mut r = write_byte(fp, 0)
+        mut r = fclose(fp)
+        puts("Mach-O written")
+        mut r = 0
+    }
+}
+
+fn write32(fp: i64, val: i64) (r: i64)
+{
+    let buf: i64 = 0
+    mut buf = malloc(4)
+    __byte_store(buf, 0, val & 255)
+    __byte_store(buf, 1, (val >> 8) & 255)
+    __byte_store(buf, 2, (val >> 16) & 255)
+    __byte_store(buf, 3, (val >> 24) & 255)
+    mut r = fwrite(buf, 1, 4, fp)
+    free(buf)
+}
+
+fn write16(fp: i64, val: i64) (r: i64)
+{
+    let buf: i64 = 0
+    mut buf = malloc(2)
+    __byte_store(buf, 0, val & 255)
+    __byte_store(buf, 1, (val >> 8) & 255)
+    mut r = fwrite(buf, 1, 2, fp)
+    free(buf)
+}
+
+fn write64(fp: i64, val: i64) (r: i64)
+{
+    let buf: i64 = 0
+    mut buf = malloc(8)
+    let i: i64 = 0
+    mut i = 0
+    while i < 8 {
+        __byte_store(buf, i, (val >> (i * 8)) & 255)
+        mut i = i + 1
+    }
+    mut r = fwrite(buf, 1, 8, fp)
+    free(buf)
+}
+
+fn write_byte(fp: i64, val: i64) (r: i64)
+{
+    let buf: i64 = 0
+    mut buf = malloc(1)
+    __byte_store(buf, 0, val & 255)
+    mut r = fwrite(buf, 1, 1, fp)
+    free(buf)
+}
+
+fn write_str(fp: i64, s: i64) (r: i64)
+{
+    let len: i64 = 0
+    mut len = 0
+    let c: i32 = 0
+    mut c = __byte_load(s, 0)
+    while c != 0 {
+        mut len = len + 1
+        mut c = __byte_load(s + len, 0)
+    }
+    let buf: i64 = 0
+    mut buf = malloc(16)
+    let i: i64 = 0
+    mut i = 0
+    while i < len {
+        __byte_store(buf, i, __byte_load(s, i))
+        mut i = i + 1
+    }
+    mut i = len
+    while i < 16 {
+        __byte_store(buf, i, 0)
+        mut i = i + 1
+    }
+    mut r = fwrite(buf, 1, 16, fp)
+    free(buf)
+}
+
 fn print_int(val: i64) (r: i64)
 {
     let buf: i64 = 0
@@ -1098,6 +1966,64 @@ fn print_ast(nd: i64, depth: i64) (r: i64)
 }
 
 
+fn init_parser() (r: i64)
+{
+    mut g_tok_type = malloc(16384)
+    mut g_tok_val = malloc(16384)
+    mut g_ast_kind = malloc(65536)
+    mut g_ast_val = malloc(65536)
+    mut g_ast_a = malloc(65536)
+    mut g_ast_b = malloc(65536)
+    mut g_ast_c = malloc(65536)
+    mut g_ast_count = 0
+    mut g_str_pool = malloc(65536)
+    mut g_str_pos = 0
+    mut g_tok_count = 0
+    mut g_tok_idx = 0
+    mut g_indent = 0
+    mut g_first_fn = 0
+    mut r = 0
+}
+
+fn init_codegen() (r: i64)
+{
+    mut g_code = malloc(65536)
+    mut g_code_pos = 0
+    mut g_var_name = malloc(4096)
+    mut g_var_off = malloc(4096)
+    mut g_var_count = 0
+    mut g_fn_name = malloc(4096)
+    mut g_fn_off = malloc(4096)
+    mut g_fn_count = 0
+    mut g_patch_pos = malloc(4096)
+    mut g_patch_name = malloc(4096)
+    mut g_patch_count = 0
+    mut r = 0
+}
+
+fn patch_calls() (r: i64)
+{
+    let i: i64 = 0
+    let ppos: i64 = 0
+    let pname: i64 = 0
+    let foff: i64 = 0
+    let rel: i64 = 0
+    let off26: i64 = 0
+    mut i = 0
+    while i < g_patch_count {
+        mut ppos = __mem_load(g_patch_pos + i * 8)
+        mut pname = __mem_load(g_patch_name + i * 8)
+        mut foff = fn_lookup(pname)
+        if foff > 0 {
+            mut rel = foff - ppos
+            mut off26 = (rel >> 2) & 0x3FFFFFF
+            mut r = emit32_at(ppos, 0x94000000 | off26)
+        }
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
 fn main(argc: i32, argv: i64) (r: i32)
 {
     let argv_ptr: i64 = 0
@@ -1113,25 +2039,18 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut g_src = malloc(65536)
         mut g_size = fread(g_src, 1, 65535, fp)
         fclose(fp)
-        mut g_tok_type = malloc(16384)
-        mut g_ast_kind = malloc(65536)
-        mut g_ast_val = malloc(65536)
-        mut g_ast_a = malloc(65536)
-        mut g_ast_b = malloc(65536)
-        mut g_ast_c = malloc(65536)
-        mut g_ast_count = 0
-        mut g_tok_val = malloc(16384)
-        mut g_str_pool = malloc(65536)
-        mut g_str_pos = 0
-        mut g_tok_count = 0
-        mut g_tok_idx = 0
-        mut g_indent = 0
+        mut r = init_parser()
         mut r = lex()
         mut g_tok_idx = 0
         mut r = parse_program()
         puts("PARSE DONE")
-        print_int(g_ast_count)
-        putchar(10)
+        mut r = init_codegen()
+        mut r = gen_func(g_first_fn)
+        puts("GEN DONE")
+        mut r = patch_calls()
+        let arg2_ptr: i64 = 0
+        mut arg2_ptr = __mem_load(argv_ptr + 16)
+        mut r = write_macho(arg2_ptr, g_code_pos)
         mut r = 0
     }
 }
