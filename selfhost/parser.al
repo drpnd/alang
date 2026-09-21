@@ -1324,31 +1324,9 @@ fn gen_cset(rd: i64, cond: i64) (r: i64)
 }
 
 // Generate function call
-fn gen_call(name: i64, first_arg: i64) (r: i64)
+fn gen_pop_args(arg_count: i64) (r: i64)
 {
-    let arg_count: i64 = 0
-    let arg_nd: i64 = 0
-    let fn_off: i64 = 0
     let i: i64 = 0
-    let k: i64 = 0
-    let actual: i64 = 0
-    mut arg_count = 0
-    mut arg_nd = first_arg
-    while arg_nd > 0 {
-        mut k = __mem_load(g_ast_kind + arg_nd * 8)
-        mut actual = arg_nd
-        if k == 20 {
-            mut actual = __mem_load(g_ast_a + arg_nd * 8)
-        }
-        mut r = gen_expr(actual)
-        mut r = gen_push()
-        mut arg_count = arg_count + 1
-        if k == 20 {
-            mut arg_nd = __mem_load(g_ast_b + arg_nd * 8)
-        } else {
-            mut arg_nd = 0
-        }
-    }
     mut i = arg_count
     while i > 0 {
         mut i = i - 1
@@ -1368,6 +1346,33 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
             }
         }
     }
+    mut r = 0
+}
+
+fn gen_call(name: i64, first_arg: i64) (r: i64)
+{
+    let arg_count: i64 = 0
+    let arg_nd: i64 = 0
+    let fn_off: i64 = 0
+    let k: i64 = 0
+    let actual: i64 = 0
+    let next_arg: i64 = 0
+    mut arg_count = 0
+    mut arg_nd = first_arg
+    while arg_nd > 0 {
+        mut k = __mem_load(g_ast_kind + arg_nd * 8)
+        mut actual = arg_nd
+        mut next_arg = 0
+        if k == 20 {
+            mut actual = __mem_load(g_ast_a + arg_nd * 8)
+            mut next_arg = __mem_load(g_ast_b + arg_nd * 8)
+        }
+        mut r = gen_expr(actual)
+        mut r = gen_push()
+        mut arg_count = arg_count + 1
+        mut arg_nd = next_arg
+    }
+    mut r = gen_pop_args(arg_count)
     mut fn_off = fn_lookup(name)
     if fn_off > 0 {
         let rel: i64 = 0
@@ -1584,6 +1589,34 @@ fn emit32_at(pos: i64, val: i64) (r: i64)
 }
 
 // === Function code generator ===
+fn extract_name(p: i64) (r: i64)
+{
+    let pk: i64 = 0
+    let inner: i64 = 0
+    let result: i64 = 0
+    mut pk = __mem_load(g_ast_kind + p * 8)
+    if pk == 20 {
+        mut inner = __mem_load(g_ast_a + p * 8)
+        mut result = __mem_load(g_ast_val + inner * 8)
+    } else {
+        if pk == 21 {
+            mut result = __mem_load(g_ast_val + p * 8)
+        }
+    }
+    mut r = result
+}
+
+fn extract_next(p: i64) (r: i64)
+{
+    let pk: i64 = 0
+    let result: i64 = 0
+    mut pk = __mem_load(g_ast_kind + p * 8)
+    if pk == 20 {
+        mut result = __mem_load(g_ast_b + p * 8)
+    }
+    mut r = result
+}
+
 fn gen_params(params: i64) (r: i64)
 {
     let p: i64 = 0
@@ -1592,48 +1625,25 @@ fn gen_params(params: i64) (r: i64)
     mut reg = 0
     mut p = params
     while p > 0 {
-        mut pname = 0
-        let pk: i64 = 0
-        mut pk = __mem_load(g_ast_kind + p * 8)
-        if pk == 20 {
-            let inner: i64 = 0
-            mut inner = __mem_load(g_ast_a + p * 8)
-            mut pname = __mem_load(g_ast_val + inner * 8)
-            mut p = __mem_load(g_ast_b + p * 8)
-        } else {
-            if pk == 21 {
-                mut pname = __mem_load(g_ast_val + p * 8)
-                mut p = 0
-            } else {
-                mut p = 0
-            }
-        }
+        mut pname = extract_name(p)
         if pname > 0 {
             mut r = var_add(pname, reg)
             mut r = gen_str(reg, 31, reg)
             mut reg = reg + 1
         }
+        mut p = extract_next(p)
     }
     mut r = 0
 }
+
 fn gen_retval(rets: i64) (r: i64)
 {
     let p: i64 = 0
     let pname: i64 = 0
     let off: i64 = 0
-    let pk: i64 = 0
-    let inner: i64 = 0
     mut p = rets
     if p > 0 {
-        mut pk = __mem_load(g_ast_kind + p * 8)
-        if pk == 20 {
-            mut inner = __mem_load(g_ast_a + p * 8)
-            mut pname = __mem_load(g_ast_val + inner * 8)
-        } else {
-            if pk == 21 {
-                mut pname = __mem_load(g_ast_val + p * 8)
-            }
-        }
+        mut pname = extract_name(p)
         if pname > 0 {
             mut off = var_lookup(pname)
             if off > 0 {
