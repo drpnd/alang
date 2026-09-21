@@ -1075,11 +1075,31 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         if (!ok) return -1;
         { int __rc = emit_load_imm64(&ctx->tb, dst, imm); if (rspill) spill_store(dst, rspill); return __rc; }
 
-    case IR_OPCODE_MOV:
-        /* operands[0] = source, operands[1] = destination */
+    case IR_OPCODE_MOV: {
+        /* operands[0] = source, operands[1] = destination.
+         * Bug fix: when destination is spilled, operand_reg loads the OLD
+         * value from the spill slot into X16, clobbering the source if it
+         * was also loaded into X16. Fix: use X17 for source, X16 for dest. */
+        if (inst->operands[1].type == IR_OPERAND_REG) {
+            int mov_dst_id = ssa_id(inst->operands[1].u.reg.id);
+            int mov_dst_reg = ssa_to_reg(mov_dst_id);
+            if (mov_dst_reg < 0) {
+                /* Destination is spilled: load source into X17, copy to X16,
+                 * then store X16 to destination spill slot */
+                src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 17);
+                emit_orr_reg(&ctx->tb, 16, 31, src0, 1);  /* mov x16, src0 */
+                spill_store(16, mov_dst_id);
+                return 0;
+            }
+            /* Destination is in a register: normal path */
+            src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
+            { int __rc = emit_orr_reg(&ctx->tb, mov_dst_reg, 31, src0, 1); if (rspill) spill_store(mov_dst_reg, rspill); return __rc; }
+        }
+        /* Fallback for non-register destination (shouldn't happen for MOV) */
         src0 = operand_reg(&inst->operands[0]);
         dst = operand_reg(&inst->operands[1]);
-        { int __rc = emit_orr_reg(&ctx->tb, dst, 31, src0, 1);  /* mov = orr rd, xzr, rm */; if (rspill) spill_store(dst, rspill); return __rc; }
+        { int __rc = emit_orr_reg(&ctx->tb, dst, 31, src0, 1); if (rspill) spill_store(dst, rspill); return __rc; }
+    }
 
     case IR_OPCODE_ADD:
         if (is_float_op(inst)) {

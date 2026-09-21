@@ -1327,39 +1327,27 @@ fn gen_cmpop(op: i64) (r: i64)
 
 fn gen_binop(op: i64) (r: i64)
 {
-    let done: i64 = 0
-    mut done = 0
     if op == 43 {
         mut r = gen_add(0, 1, 0)
-        mut done = 1
-    }
-    if done == 0 {
+    } else {
         if op == 45 {
             mut r = gen_sub(0, 1, 0)
-            mut done = 1
+        } else {
+            if op == 42 {
+                mut r = gen_mul(0, 1, 0)
+            } else {
+                if op == 47 {
+                    mut r = gen_sdiv(0, 1, 0)
+                } else {
+                    if op == 37 {
+                        mut r = gen_sdiv(2, 1, 0)
+                        mut r = gen_msub(0, 2, 0, 1)
+                    } else {
+                        mut r = gen_cmpop(op)
+                    }
+                }
+            }
         }
-    }
-    if done == 0 {
-        if op == 42 {
-            mut r = gen_mul(0, 1, 0)
-            mut done = 1
-        }
-    }
-    if done == 0 {
-        if op == 47 {
-            mut r = gen_sdiv(0, 1, 0)
-            mut done = 1
-        }
-    }
-    if done == 0 {
-        if op == 37 {
-            mut r = gen_sdiv(2, 1, 0)
-            mut r = gen_msub(0, 2, 0, 1)
-            mut done = 1
-        }
-    }
-    if done == 0 {
-        mut r = gen_cmpop(op)
     }
     mut r = 0
 }
@@ -2134,8 +2122,8 @@ fn do_parse(arg1_ptr: i64) (r: i64)
         mut g_tok_idx = 0
         mut r = parse_program()
         puts("PARSE DONE")
+        mut r = 0
     }
-    mut r = 0
 }
 
 fn do_codegen(argv_ptr: i64) (r: i64)
@@ -2153,9 +2141,15 @@ fn do_codegen(argv_ptr: i64) (r: i64)
 fn run_compiler(argv_ptr: i64) (r: i64)
 {
     let arg1_ptr: i64 = 0
+    let status: i64 = 0
+    let arg1_ptr: i64 = 0
     mut arg1_ptr = __mem_load(argv_ptr + 8)
-    mut r = do_parse(arg1_ptr)
-    mut r = do_codegen(argv_ptr)
+    mut status = do_parse(arg1_ptr)
+    if status == 0 {
+        mut r = do_codegen(argv_ptr)
+    } else {
+        mut r = status
+    }
     mut r = 0
 }
 
