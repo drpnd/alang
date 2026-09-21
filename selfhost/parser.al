@@ -1183,6 +1183,28 @@ fn var_add(name: i64, offset: i64) (r: i64)
 }
 
 // === Function table ===
+fn my_str_eq(s1: i64, s2: i64) (r: i64)
+{
+    let c1: i64 = 0
+    let c2: i64 = 0
+    let result: i64 = 0
+    mut c1 = __byte_load(s1, 0)
+    mut c2 = __byte_load(s2, 0)
+    mut result = 1
+    while c1 != 0 {
+        if c1 != c2 {
+            mut result = 0
+        }
+        mut s1 = s1 + 1
+        mut s2 = s2 + 1
+        mut c1 = __byte_load(s1, 0)
+        mut c2 = __byte_load(s2, 0)
+    }
+    if c2 != 0 {
+        mut result = 0
+    }
+    mut r = result
+}
 fn fn_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
@@ -1191,7 +1213,7 @@ fn fn_lookup(name: i64) (r: i64)
     mut i = 0
     while i < g_fn_count {
         mut stored = __mem_load(g_fn_name + i * 8)
-        if __str_eq(stored, name) == 1 {
+        if my_str_eq(stored, name) == 1 {
             mut result = __mem_load(g_fn_off + i * 8)
         }
         mut i = i + 1
@@ -1212,7 +1234,6 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
     }
     mut r = 0
 }
-
 fn patch_calls() (r: i64)
 {
     let i: i64 = 0
@@ -1706,6 +1727,23 @@ fn gen_func(nd: i64) (r: i64)
     mut r = gen_add_imm(31, 31, 32)
     mut r = gen_ldp_post(29, 30, 31, 2)
     mut r = gen_ret()
+    mut r = 0
+}
+
+fn register_funcs() (r: i64)
+{
+    let list: i64 = 0
+    let nd: i64 = 0
+    let name: i64 = 0
+    mut list = g_func_list
+    while list > 0 {
+        mut nd = __mem_load(g_ast_a + list * 8)
+        if nd > 0 {
+            mut name = __mem_load(g_ast_val + nd * 8)
+            mut r = fn_add(name, 0)
+        }
+        mut list = __mem_load(g_ast_b + list * 8)
+    }
     mut r = 0
 }
 
