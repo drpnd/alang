@@ -469,7 +469,7 @@ fn emit_elseif(cond: i64, then_blk: i64, next_else: i64) (r: i64)
     mut r = emit_node(22, 0, cond, then_blk, next_else)
 }
 
-fn parse_primary() (r: i32)
+fn parse_primary() (r: i64)
 {
     let t: i64 = 0
     let nd: i64 = 0
@@ -517,7 +517,7 @@ fn parse_primary() (r: i32)
     }
     mut r = nd
 }
-fn parse_postfix() (r: i32)
+fn parse_postfix() (r: i64)
 {
     let nd: i64 = 0
     let fname: i64 = 0
@@ -547,7 +547,7 @@ fn parse_postfix() (r: i32)
     mut r = nd
 }
 
-fn parse_unary() (r: i32)
+fn parse_unary() (r: i64)
 {
     let nd: i64 = 0
     let operand: i64 = 0
@@ -566,7 +566,7 @@ fn parse_unary() (r: i32)
     }
     mut r = nd
 }
-fn parse_mul() (r: i32)
+fn parse_mul() (r: i64)
 {
     let nd: i64 = 0
     let rhs: i64 = 0
@@ -589,7 +589,7 @@ fn parse_mul() (r: i32)
     mut r = nd
 }
 
-fn parse_add() (r: i32)
+fn parse_add() (r: i64)
 {
     let nd: i64 = 0
     let rhs: i64 = 0
@@ -607,7 +607,7 @@ fn parse_add() (r: i32)
     mut r = nd
 }
 
-fn parse_cmp() (r: i32)
+fn parse_cmp() (r: i64)
 {
     let nd: i64 = 0
     let rhs: i64 = 0
@@ -635,7 +635,7 @@ fn parse_cmp() (r: i32)
     mut r = nd
 }
 
-fn parse_expr() (r: i32)
+fn parse_expr() (r: i64)
 {
     let nd: i64 = 0
     let rhs: i64 = 0
@@ -653,7 +653,7 @@ fn parse_expr() (r: i32)
     mut r = nd
 }
 
-fn parse_type() (r: i32)
+fn parse_type() (r: i64)
 {
     let t: i64 = 0
     if cur_type() == 1 {
@@ -691,7 +691,7 @@ fn parse_params() (r: i64)
     mut r = first
 }
 
-fn parse_block() (r: i32)
+fn parse_block() (r: i64)
 {
     let first: i64 = 0
     let s: i64 = 0
@@ -712,7 +712,7 @@ fn parse_block() (r: i32)
     mut r = first
 }
 
-fn parse_let() (r: i32)
+fn parse_let() (r: i64)
 {
     let name: i64 = 0
     let ty: i64 = 0
@@ -731,7 +731,7 @@ fn parse_let() (r: i32)
     mut r = emit_let(name, ty, init)
 }
 
-fn parse_assign() (r: i32)
+fn parse_assign() (r: i64)
 {
     let name: i64 = 0
     let fname: i64 = 0
@@ -770,7 +770,7 @@ fn parse_assign() (r: i32)
     mut r = emit_assign(target, val)
 }
 
-fn parse_if() (r: i32)
+fn parse_if() (r: i64)
 {
     let cond: i64 = 0
     let then_blk: i64 = 0
@@ -785,7 +785,7 @@ fn parse_if() (r: i32)
     mut r = emit_if(cond, then_blk, else_blk)
 }
 
-fn parse_while() (r: i32)
+fn parse_while() (r: i64)
 {
     let cond: i64 = 0
     let body: i64 = 0
@@ -795,7 +795,7 @@ fn parse_while() (r: i32)
     mut r = emit_while(cond, body)
 }
 
-fn parse_return() (r: i32)
+fn parse_return() (r: i64)
 {
     let val: i64 = 0
     mut r = advance()
@@ -808,7 +808,7 @@ fn parse_return() (r: i32)
     mut r = emit_return(val)
 }
 
-fn parse_for() (r: i32)
+fn parse_for() (r: i64)
 {
     let var_name: i64 = 0
     let start: i64 = 0
@@ -829,7 +829,7 @@ fn parse_for() (r: i32)
     mut r = emit_for(var_name, start, end_val, body)
 }
 
-fn parse_match() (r: i32)
+fn parse_match() (r: i64)
 {
     let scrutinee: i64 = 0
     let pattern: i64 = 0
@@ -878,7 +878,7 @@ fn parse_match() (r: i32)
     mut r = emit_match(scrutinee, first_case)
 }
 
-fn parse_stmt() (r: i32)
+fn parse_stmt() (r: i64)
 {
     if is_kw(2) == 1 {
         mut r = parse_let()
@@ -921,7 +921,7 @@ fn parse_stmt() (r: i32)
     }
 }
 
-fn parse_fn() (r: i32)
+fn parse_fn() (r: i64)
 {
     let name: i64 = 0
     let fnode: i64 = 0
@@ -943,7 +943,7 @@ fn parse_fn() (r: i32)
     mut g_func_list = emit_stmtlist(fnode, g_func_list)
     mut r = fnode
 }
-fn parse_program() (r: i32)
+fn parse_program() (r: i64)
 {
     while cur_type() != 0 {
         if is_kw(14) == 1 {
@@ -1186,17 +1186,46 @@ fn var_add(name: i64, offset: i64) (r: i64)
 fn fn_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
-    let n: i64 = 0
-    let found: i64 = 0
+    let stored: i64 = 0
+    let result: i64 = 0
     mut i = 0
     while i < g_fn_count {
-        mut n = __mem_load(g_fn_name + i * 8)
-        if __str_eq(n, name) == 1 {
-            mut found = __mem_load(g_fn_off + i * 8)
+        mut stored = __mem_load(g_fn_name + i * 8)
+        if __str_eq(stored, name) == 1 {
+            mut result = __mem_load(g_fn_off + i * 8)
         }
         mut i = i + 1
     }
-    mut r = found
+    mut r = result
+}
+
+fn patch_one(ppos: i64, pname: i64) (r: i64)
+{
+    let foff: i64 = 0
+    let rel: i64 = 0
+    let off26: i64 = 0
+    mut foff = fn_lookup(pname)
+    if foff > 0 {
+        mut rel = foff - ppos
+        mut off26 = (rel >> 2) & 0x3FFFFFF
+        mut r = emit32_at(ppos, 0x94000000 | off26)
+    }
+    mut r = 0
+}
+
+fn patch_calls() (r: i64)
+{
+    let i: i64 = 0
+    let ppos: i64 = 0
+    let pname: i64 = 0
+    mut i = 0
+    while i < g_patch_count {
+        mut ppos = __mem_load(g_patch_pos + i * 8)
+        mut pname = __mem_load(g_patch_name + i * 8)
+        mut r = patch_one(ppos, pname)
+        mut i = i + 1
+    }
+    mut r = 0
 }
 fn fn_add(name: i64, offset: i64) (r: i64)
 {
@@ -1669,9 +1698,9 @@ fn gen_func(nd: i64) (r: i64)
     mut g_var_count = 0
     mut r = gen_stp_pre(29, 30, 31, 65534)
     mut r = gen_add_imm(29, 31, 0)
-    mut r = gen_sub_imm(31, 31, 32)
     mut r = gen_params(params)
     mut r = gen_params(rets)
+    mut r = gen_sub_imm(31, 31, 32)
     mut r = gen_block(body)
     mut r = gen_retval(rets)
     mut r = gen_add_imm(31, 31, 32)
@@ -2052,31 +2081,8 @@ fn init_codegen() (r: i64)
     mut g_patch_count = 0
     mut r = 0
 }
-
-fn patch_calls() (r: i64)
-{
-    let i: i64 = 0
-    let ppos: i64 = 0
-    let pname: i64 = 0
-    let foff: i64 = 0
-    let rel: i64 = 0
-    let off26: i64 = 0
-    mut i = 0
-    while i < g_patch_count {
-        mut ppos = __mem_load(g_patch_pos + i * 8)
-        mut pname = __mem_load(g_patch_name + i * 8)
-        mut foff = fn_lookup(pname)
-        if foff > 0 {
-            mut rel = foff - ppos
-            mut off26 = (rel >> 2) & 0x3FFFFFF
-            mut r = emit32_at(ppos, 0x94000000 | off26)
-        }
-        mut i = i + 1
-    }
-    mut r = 0
-}
-
 fn main(argc: i32, argv: i64) (r: i32)
+
 {
     let argv_ptr: i64 = 0
     mut argv_ptr = argv
