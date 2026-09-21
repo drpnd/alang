@@ -1474,6 +1474,35 @@ fn gen_pop_x3() (r: i64)
 
 // === Statement code generator ===
 
+fn gen_let_stmt(v: i64, b: i64, c: i64) (r: i64)
+{
+    if c > 0 {
+        mut r = gen_expr(b)
+    } else {
+        mut r = gen_movz(0, 0)
+    }
+    mut r = gen_str(0, 31, v)
+    mut r = 0
+}
+
+fn gen_assign_stmt(a: i64, b: i64) (r: i64)
+{
+    mut r = gen_expr(b)
+    mut r = gen_str(0, 31, var_lookup(__mem_load(g_ast_val + a * 8)))
+    mut r = 0
+}
+
+fn gen_return_stmt(a: i64) (r: i64)
+{
+    if a > 0 {
+        mut r = gen_expr(a)
+    } else {
+        mut r = gen_movz(0, 0)
+    }
+    mut r = gen_ret()
+    mut r = 0
+}
+
 fn gen_stmt(nd: i64) (r: i64)
 {
     let k: i64 = 0
@@ -1487,42 +1516,24 @@ fn gen_stmt(nd: i64) (r: i64)
     mut b = __mem_load(g_ast_b + nd * 8)
     mut c = __mem_load(g_ast_c + nd * 8)
     if k == 10 {
-        // LET
-        if c > 0 {
-            mut r = gen_expr(b)
-        } else {
-            mut r = gen_movz(0, 0)
-        }
-        mut r = gen_str(0, 31, v)
+        mut r = gen_let_stmt(v, b, c)
     } else {
         if k == 9 {
-            // ASSIGN
-            mut r = gen_expr(b)
-            mut r = gen_str(0, 31, var_lookup(__mem_load(g_ast_val + a * 8)))
+            mut r = gen_assign_stmt(a, b)
         } else {
             if k == 14 {
-                // RETURN
-                if a > 0 {
-                    mut r = gen_expr(a)
-                } else {
-                    mut r = gen_movz(0, 0)
-                }
-                mut r = gen_ret()
+                mut r = gen_return_stmt(a)
             } else {
                 if k == 11 {
-                    // IF
                     mut r = gen_if(nd)
                 } else {
                     if k == 12 {
-                        // WHILE
                         mut r = gen_while(nd)
                     } else {
                         if k == 20 {
-                            // STMTLIST
                             mut r = gen_block(nd)
                         } else {
                             if k == 4 {
-                                // CALL as statement
                                 mut r = gen_call(v, a)
                             } else {
                                 if k > 0 {
@@ -1537,7 +1548,6 @@ fn gen_stmt(nd: i64) (r: i64)
     }
     mut r = 0
 }
-
 fn gen_block(nd: i64) (r: i64)
 {
     let s: i64 = 0
