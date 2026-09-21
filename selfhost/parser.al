@@ -1205,21 +1205,50 @@ fn my_str_eq(s1: i64, s2: i64) (r: i64)
     }
     mut r = result
 }
+fn str_hash(s: i64) (r: i64)
+{
+    let h: i64 = 0
+    let c: i64 = 0
+    let i: i64 = 0
+    mut h = 5381
+    mut i = 0
+    mut c = __byte_load(s, 0)
+    while c != 0 {
+        mut h = h * 33 + c
+        mut i = i + 1
+        mut c = __byte_load(s + i, 0)
+    }
+    mut r = h
+}
+
+fn fn_add(name: i64, offset: i64) (r: i64)
+{
+    let h: i64 = 0
+    mut h = str_hash(name)
+    __mem_store(g_fn_name + g_fn_count * 8, h)
+    __mem_store(g_fn_off + g_fn_count * 8, offset)
+    mut g_fn_count = g_fn_count + 1
+    mut r = 0
+}
+
 fn fn_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
+    let h: i64 = 0
     let stored: i64 = 0
     let result: i64 = 0
+    mut h = str_hash(name)
     mut i = 0
     while i < g_fn_count {
         mut stored = __mem_load(g_fn_name + i * 8)
-        if my_str_eq(stored, name) == 1 {
+        if stored == h {
             mut result = __mem_load(g_fn_off + i * 8)
         }
         mut i = i + 1
     }
     mut r = result
 }
+
 
 fn patch_one(ppos: i64, pname: i64) (r: i64)
 {
@@ -1234,6 +1263,7 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
     }
     mut r = 0
 }
+
 fn patch_calls() (r: i64)
 {
     let i: i64 = 0
@@ -1248,17 +1278,6 @@ fn patch_calls() (r: i64)
     }
     mut r = 0
 }
-fn fn_add(name: i64, offset: i64) (r: i64)
-{
-    __mem_store(g_fn_name + g_fn_count * 8, name)
-    __mem_store(g_fn_off + g_fn_count * 8, offset)
-    mut g_fn_count = g_fn_count + 1
-    mut r = 0
-}
-
-// === Expression code generator ===
-// Result is always in X0
-
 fn gen_binop(op: i64) (r: i64)
 {
     // X1 = left, X0 = right (from gen_expr + push/pop)
