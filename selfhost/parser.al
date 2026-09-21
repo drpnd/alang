@@ -113,6 +113,7 @@ fn check_kw2(s: i64) (r: i64)
     mut r = 0
     if __str_eq(s, "while") == 1 { mut r = 6 }
     if __str_eq(s, "for") == 1 { mut r = 7 }
+    if __str_eq(s, "match") == 1 { mut r = 8 }
     if __str_eq(s, "return") == 1 { mut r = 9 }
     if __str_eq(s, "break") == 1 { mut r = 10 }
     if __str_eq(s, "continue") == 1 { mut r = 11 }
@@ -198,6 +199,7 @@ fn lex_op(c: i32) (r: i64)
         if c == 33 { if n == 61 { mut code = 8645 } }
         if c == 60 { if n == 61 { mut code = 15485 } }
         if c == 62 { if n == 61 { mut code = 15997 } }
+        if c == 46 { if n == 46 { mut code = 11822 } }
         if c == 45 {
             if n == 62 { mut code = 11582 }
         }
@@ -616,6 +618,81 @@ fn parse_return() (r: i32)
     mut g_indent = g_indent - 1
 }
 
+fn parse_for() (r: i32)
+{
+    mut r = advance()
+    print_indent()
+    puts("FOR")
+    mut g_indent = g_indent + 1
+    if cur_type() == 1 {
+        print_indent()
+        puts("VAR")
+        mut g_indent = g_indent + 1
+        print_indent()
+        print_str(cur_val())
+        putchar(10)
+        mut g_indent = g_indent - 1
+        mut r = advance()
+    }
+    if cur_type() == 1 { mut r = advance() }
+    mut r = parse_expr()
+    if is_op(11822) == 1 {
+        mut r = advance()
+        print_indent()
+        puts("RANGE")
+        mut g_indent = g_indent + 1
+        mut r = parse_expr()
+        mut g_indent = g_indent - 1
+    }
+    mut r = parse_block()
+    mut g_indent = g_indent - 1
+}
+
+fn parse_match() (r: i32)
+{
+    mut r = advance()
+    print_indent()
+    puts("MATCH")
+    mut g_indent = g_indent + 1
+    mut r = parse_expr()
+    if is_op(123) == 1 { mut r = advance() }
+    while is_op(125) == 0 {
+        if cur_type() == 0 { mut r = 1 } else {
+            if cur_type() == 1 {
+                print_indent()
+                puts("CASE")
+                mut g_indent = g_indent + 1
+                print_indent()
+                print_str(cur_val())
+                putchar(10)
+                mut r = advance()
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    print_indent()
+                    puts("BIND")
+                    if cur_type() == 1 {
+                        print_indent()
+                        print_str(cur_val())
+                        putchar(10)
+                        mut r = advance()
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                }
+                if is_op(125) == 1 { mut r = 1 } else {
+                    if is_op(15742) == 1 { mut r = advance() }
+                    mut r = parse_stmt()
+                    mut g_indent = g_indent - 1
+                    if is_op(44) == 1 { mut r = advance() }
+                }
+            } else {
+                mut r = advance()
+            }
+        }
+    }
+    if is_op(125) == 1 { mut r = advance() }
+    mut g_indent = g_indent - 1
+}
+
 fn parse_stmt() (r: i32)
 {
     if is_kw(2) == 1 {
@@ -630,20 +707,28 @@ fn parse_stmt() (r: i32)
                 if is_kw(6) == 1 {
                     mut r = parse_while()
                 } else {
-                    if is_kw(9) == 1 {
-                        mut r = parse_return()
+                    if is_kw(7) == 1 {
+                        mut r = parse_for()
                     } else {
-                        if is_kw(10) == 1 {
-                            mut r = advance()
-                            print_indent()
-                            puts("BREAK")
+                        if is_kw(8) == 1 {
+                            mut r = parse_match()
                         } else {
-                            if is_kw(11) == 1 {
-                                mut r = advance()
-                                print_indent()
-                                puts("CONTINUE")
+                            if is_kw(9) == 1 {
+                                mut r = parse_return()
                             } else {
-                                mut r = parse_expr()
+                                if is_kw(10) == 1 {
+                                    mut r = advance()
+                                    print_indent()
+                                    puts("BREAK")
+                                } else {
+                                    if is_kw(11) == 1 {
+                                        mut r = advance()
+                                        print_indent()
+                                        puts("CONTINUE")
+                                    } else {
+                                        mut r = parse_expr()
+                                    }
+                                }
                             }
                         }
                     }
@@ -733,6 +818,15 @@ fn parse_program() (r: i32)
                                     print_indent()
                                     puts("VARIANT:")
                                     mut r = advance()
+                                    if is_op(40) == 1 {
+                                        mut r = advance()
+                                        while is_op(41) == 0 {
+                                            if cur_type() == 0 { mut r = 1 } else {
+                                                mut r = advance()
+                                            }
+                                        }
+                                        if is_op(41) == 1 { mut r = advance() }
+                                    }
                                 }
                                 if is_op(44) == 1 { mut r = advance() }
                             }
