@@ -1402,13 +1402,11 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
 
 fn ext_find(name: i64) (r: i64)
 {
-    let h: i64 = 0
     let i: i64 = 0
-    mut h = str_hash(name)
     mut r = -1
     mut i = 0
     while i < g_ext_count {
-        if __mem_load(g_ext_name + i * 8) == h {
+        if __str_eq(__mem_load(g_ext_name + i * 8), name) == 1 {
             mut r = i
         }
         mut i = i + 1
@@ -1421,7 +1419,7 @@ fn ext_add(name: i64, pos: i64) (r: i64)
     mut idx = ext_find(name)
     if idx < 0 {
         mut idx = g_ext_count
-        __mem_store(g_ext_name + g_ext_count * 8, str_hash(name))
+        __mem_store(g_ext_name + g_ext_count * 8, name)
         mut g_ext_count = g_ext_count + 1
     }
     __mem_store(g_ext_pos + idx * 8, pos)
@@ -2353,8 +2351,6 @@ fn write_ext_nlist(fp: i64) (r: i64)
 {
     let i: i64 = 0
     let stroff: i64 = 0
-    let j: i64 = 0
-    let h: i64 = 0
     let pname: i64 = 0
     let len: i64 = 0
     mut stroff = 17
@@ -2365,8 +2361,7 @@ fn write_ext_nlist(fp: i64) (r: i64)
         mut r = write_byte(fp, 0)
         mut r = write16(fp, 0)
         mut r = write64(fp, 0)
-        mut h = __mem_load(g_ext_name + i * 8)
-        mut pname = find_patch_name(h)
+        mut pname = __mem_load(g_ext_name + i * 8)
         mut len = 0
         if pname > 0 {
             while __byte_load(pname + len, 0) != 0 {
@@ -2398,12 +2393,10 @@ fn write_ext_names(fp: i64) (r: i64)
 {
     let i: i64 = 0
     let j: i64 = 0
-    let h: i64 = 0
     let pname: i64 = 0
     mut i = 0
     while i < g_ext_count {
-        mut h = __mem_load(g_ext_name + i * 8)
-        mut pname = find_patch_name(h)
+        mut pname = __mem_load(g_ext_name + i * 8)
         if pname > 0 {
             mut r = write_byte(fp, 95)
             mut j = 0
@@ -2422,15 +2415,12 @@ fn count_ext_str() (r: i64)
 {
     let total: i64 = 0
     let i: i64 = 0
-    let j: i64 = 0
-    let h: i64 = 0
     let pname: i64 = 0
     let len: i64 = 0
     mut total = 17
     mut i = 0
     while i < g_ext_count {
-        mut h = __mem_load(g_ext_name + i * 8)
-        mut pname = find_patch_name(h)
+        mut pname = __mem_load(g_ext_name + i * 8)
         if pname > 0 {
             mut len = 0
             while __byte_load(pname + len, 0) != 0 {
@@ -2706,10 +2696,10 @@ fn init_codegen1() (r: i64)
 
 fn init_codegen2() (r: i64)
 {
-    mut g_patch_pos = malloc(4096)
-    mut g_patch_name = malloc(4096)
-    mut g_ext_name = malloc(4096)
-    mut g_ext_pos = malloc(4096)
+    mut g_patch_pos = malloc(65536)
+    mut g_patch_name = malloc(65536)
+    mut g_ext_name = malloc(65536)
+    mut g_ext_pos = malloc(65536)
     mut r = 0
 }
 
