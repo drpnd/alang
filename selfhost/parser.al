@@ -677,6 +677,7 @@ fn parse_params() (r: i64)
     let last: i64 = 0
     if is_op(40) == 1 { mut r = advance() }
     while is_op(41) == 0 {
+        if cur_type() == 0 { mut r = 1 }
         if cur_type() == 1 {
             mut pname = cur_val()
             mut r = advance()
@@ -689,9 +690,15 @@ fn parse_params() (r: i64)
             } else {
                 mut first = emit_stmtlist(p, first)
             }
+        } else {
+            if is_op(44) == 1 {
+                mut r = advance()
+            } else {
+                if is_op(41) == 0 {
+                    mut r = advance()
+                }
+            }
         }
-        if is_op(44) == 1 { mut r = advance() }
-        if cur_type() == 0 { mut r = 1 }
     }
     if is_op(41) == 1 { mut r = advance() }
     mut r = first
@@ -2368,13 +2375,28 @@ fn write_version(fp: i64) (r: i64)
 fn write_ext_nlist(fp: i64) (r: i64)
 {
     let i: i64 = 0
+    let stroff: i64 = 0
+    let j: i64 = 0
+    let h: i64 = 0
+    let pname: i64 = 0
+    let len: i64 = 0
+    mut stroff = 17
     mut i = 0
     while i < g_ext_count {
-        mut r = write32(fp, 17 + i * 16)
+        mut r = write32(fp, stroff)
         mut r = write_byte(fp, 0x01)
         mut r = write_byte(fp, 0)
         mut r = write16(fp, 0)
         mut r = write64(fp, 0)
+        mut h = __mem_load(g_ext_name + i * 8)
+        mut pname = find_patch_name(h)
+        mut len = 0
+        if pname > 0 {
+            while __byte_load(pname + len, 0) != 0 {
+                mut len = len + 1
+            }
+        }
+        mut stroff = stroff + len + 2
         mut i = i + 1
     }
     mut r = 0
@@ -2451,6 +2473,7 @@ fn write_ext_relocs(fp: i64) (r: i64)
     mut i = 0
     while i < g_ext_count {
         mut pos = __mem_load(g_ext_pos + i * 8)
+        mut r = emit32_at(pos, 0x94000000)
         mut r = write32(fp, pos)
         mut r = write32(fp, ((i + 1) & 0xFFFFFF) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
         mut i = i + 1
