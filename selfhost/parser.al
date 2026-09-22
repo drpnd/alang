@@ -1020,6 +1020,9 @@ let g_fn_count: i64 = 0
 let g_patch_pos: i64 = 0
 let g_patch_name: i64 = 0
 let g_patch_count: i64 = 0
+let g_ext_name: i64 = 0
+let g_ext_pos: i64 = 0
+let g_ext_count: i64 = 0
 
 // String table for Mach-O symbols
 let g_symtab: i64 = 0
@@ -1300,8 +1303,38 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
         mut rel = foff - ppos
         mut off26 = (rel >> 2) & 0x3FFFFFF
         mut r = emit32_at(ppos, 0x94000000 | off26)
+    } else {
+        mut r = ext_add(pname, ppos)
     }
     mut r = 0
+}
+
+fn ext_find(name: i64) (r: i64)
+{
+    let h: i64 = 0
+    let i: i64 = 0
+    mut h = str_hash(name)
+    mut r = -1
+    mut i = 0
+    while i < g_ext_count {
+        if __mem_load(g_ext_name + i * 8) == h {
+            mut r = i
+        }
+        mut i = i + 1
+    }
+}
+
+fn ext_add(name: i64, pos: i64) (r: i64)
+{
+    let idx: i64 = 0
+    mut idx = ext_find(name)
+    if idx < 0 {
+        mut idx = g_ext_count
+        __mem_store(g_ext_name + g_ext_count * 8, str_hash(name))
+        mut g_ext_count = g_ext_count + 1
+    }
+    __mem_store(g_ext_pos + idx * 8, pos)
+    mut r = idx
 }
 
 fn patch_calls() (r: i64)
@@ -1532,8 +1565,14 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
     if b2 == 98 {
         if b3 == 121 {
             if __byte_load(name, 7) == 108 {
+                mut r = gen_mov(2, 0)
+                mut r = gen_mov(0, 1)
+                mut r = gen_mov(1, 2)
                 mut r = gen_ldrb_reg(0, 0, 1)
             } else {
+                mut r = gen_mov(3, 0)
+                mut r = gen_mov(0, 2)
+                mut r = gen_mov(2, 3)
                 mut r = gen_strb_reg(2, 0, 1)
             }
         }
@@ -1543,6 +1582,9 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
                 if __byte_load(name, 6) == 108 {
                     mut r = gen_ldr_reg(0, 0)
                 } else {
+                    mut r = gen_mov(2, 0)
+                    mut r = gen_mov(0, 1)
+                    mut r = gen_mov(1, 2)
                     mut r = gen_str_reg(1, 0)
                 }
             }
@@ -1987,7 +2029,7 @@ fn write_segment(fp: i64, text_off: i64, code_size: i64) (r: i64)
     mut r = 0
 }
 
-fn write_section(fp: i64, text_off: i64, code_size: i64) (r: i64)
+fn write_section2(fp: i64, text_off: i64, code_size: i64, reloc_off: i64, nreloc: i64) (r: i64)
 {
     mut r = write_str(fp, "__text")
     mut r = write_str(fp, "__TEXT")
@@ -1995,8 +2037,8 @@ fn write_section(fp: i64, text_off: i64, code_size: i64) (r: i64)
     mut r = write64(fp, code_size)
     mut r = write32(fp, text_off)
     mut r = write32(fp, 4)
-    mut r = write32(fp, 0)
-    mut r = write32(fp, 0)
+    mut r = write32(fp, reloc_off)
+    mut r = write32(fp, nreloc)
     mut r = write32(fp, 0x80000400)
     mut r = write32(fp, 0)
     mut r = write32(fp, 0)
@@ -2012,6 +2054,99 @@ fn write_version(fp: i64) (r: i64)
     mut r = write32(fp, 0)
     mut r = 0
 }
+fn write_ext_nlist(fp: i64) (r: i64)
+{
+    let i: i64 = 0
+    mut i = 0
+    while i < g_ext_count {
+        mut r = write32(fp, 17 + i * 16)
+        mut r = write_byte(fp, 0x01)
+        mut r = write_byte(fp, 0)
+        mut r = write16(fp, 0)
+        mut r = write64(fp, 0)
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
+fn find_patch_name(h: i64) (r: i64)
+{
+    let j: i64 = 0
+    let pname: i64 = 0
+    mut r = 0
+    mut j = 0
+    while j < g_patch_count {
+        mut pname = __mem_load(g_patch_name + j * 8)
+        if str_hash(pname) == h {
+            mut r = pname
+        }
+        mut j = j + 1
+    }
+}
+
+fn write_ext_names(fp: i64) (r: i64)
+{
+    let i: i64 = 0
+    let j: i64 = 0
+    let h: i64 = 0
+    let pname: i64 = 0
+    mut i = 0
+    while i < g_ext_count {
+        mut h = __mem_load(g_ext_name + i * 8)
+        mut pname = find_patch_name(h)
+        if pname > 0 {
+            mut r = write_byte(fp, 95)
+            mut j = 0
+            while __byte_load(pname + j, 0) != 0 {
+                mut r = write_byte(fp, __byte_load(pname + j, 0))
+                mut j = j + 1
+            }
+            mut r = write_byte(fp, 0)
+        }
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
+fn count_ext_str() (r: i64)
+{
+    let total: i64 = 0
+    let i: i64 = 0
+    let j: i64 = 0
+    let h: i64 = 0
+    let pname: i64 = 0
+    let len: i64 = 0
+    mut total = 17
+    mut i = 0
+    while i < g_ext_count {
+        mut h = __mem_load(g_ext_name + i * 8)
+        mut pname = find_patch_name(h)
+        if pname > 0 {
+            mut len = 0
+            while __byte_load(pname + len, 0) != 0 {
+                mut len = len + 1
+            }
+            mut total = total + len + 2
+        }
+        mut i = i + 1
+    }
+    mut r = total
+}
+
+fn write_ext_relocs(fp: i64) (r: i64)
+{
+    let i: i64 = 0
+    let pos: i64 = 0
+    mut i = 0
+    while i < g_ext_count {
+        mut pos = __mem_load(g_ext_pos + i * 8)
+        mut r = write32(fp, pos)
+        mut r = write32(fp, ((i + 1) & 0xFFFFFF) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
 fn write_macho(path: i64, code_size: i64) (r: i64)
 {
     let arg2_ptr: i64 = 0
@@ -2019,22 +2154,29 @@ fn write_macho(path: i64, code_size: i64) (r: i64)
     let text_off: i64 = 0
     let sym_off: i64 = 0
     let str_off: i64 = 0
+    let str_size: i64 = 0
+    let reloc_off: i64 = 0
     mut fp = fopen(path, "w")
     if fp == 0 {
         puts("Cannot open output file")
         mut r = 1
     } else {
         mut text_off = 32 + 152 + 16 + 24
-        mut sym_off = text_off + code_size
-        mut str_off = sym_off + 16
+        mut reloc_off = text_off + code_size
+        mut sym_off = reloc_off + g_ext_count * 8
+        mut str_off = sym_off + (1 + g_ext_count) * 16
+        mut str_size = count_ext_str()
         mut r = write_header(fp, 3, 152 + 16 + 24)
         mut r = write_segment(fp, text_off, code_size)
-        mut r = write_section(fp, text_off, code_size)
+        mut r = write_section2(fp, text_off, code_size, reloc_off, g_ext_count)
         mut r = write_version(fp)
-        mut r = write_symtab_header(fp, sym_off, str_off)
+        mut r = write_symtab_header2(fp, sym_off, 1 + g_ext_count, str_off, str_size)
         mut r = write_code_bytes(fp, code_size)
+        mut r = write_ext_relocs(fp)
         mut r = write_nlist(fp, 0)
+        mut r = write_ext_nlist(fp)
         mut r = write_main_sym(fp)
+        mut r = write_ext_names(fp)
         mut r = fclose(fp)
         puts("Mach-O written")
         mut r = 0
@@ -2060,14 +2202,14 @@ fn find_main() (r: i64)
     mut r = fn_lookup("main")
 }
 
-fn write_symtab_header(fp: i64, sym_off: i64, str_off: i64) (r: i64)
+fn write_symtab_header2(fp: i64, sym_off: i64, nsyms: i64, str_off: i64, str_size: i64) (r: i64)
 {
     mut r = write32(fp, 2)
     mut r = write32(fp, 24)
     mut r = write32(fp, sym_off)
-    mut r = write32(fp, 1)
+    mut r = write32(fp, nsyms)
     mut r = write32(fp, str_off)
-    mut r = write32(fp, 16)
+    mut r = write32(fp, str_size)
     mut r = 0
 }
 
@@ -2084,7 +2226,7 @@ fn write_code_bytes(fp: i64, code_size: i64) (r: i64)
 
 fn write_nlist(fp: i64, code_off: i64) (r: i64)
 {
-    mut r = write32(fp, 0)
+    mut r = write32(fp, 1)
     mut r = write_byte(fp, 0x0F)
     mut r = write_byte(fp, 1)
     mut r = write16(fp, 0)
@@ -2094,6 +2236,7 @@ fn write_nlist(fp: i64, code_off: i64) (r: i64)
 
 fn write_main_sym(fp: i64) (r: i64)
 {
+    mut r = write_byte(fp, 0)
     mut r = write_str(fp, "_main")
     mut r = 0
 }
@@ -2233,6 +2376,9 @@ fn init_codegen() (r: i64)
     mut g_patch_pos = malloc(4096)
     mut g_patch_name = malloc(4096)
     mut g_patch_count = 0
+    mut g_ext_name = malloc(4096)
+    mut g_ext_pos = malloc(4096)
+    mut g_ext_count = 0
     mut r = 0
 }
 fn do_parse(arg1_ptr: i64) (r: i64)
