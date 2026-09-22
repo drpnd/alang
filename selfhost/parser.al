@@ -1525,6 +1525,17 @@ fn gen_glob_store(off: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_expr_glob(v: i64) (r: i64)
+{
+    let goff: i64 = 0
+    mut goff = glob_lookup(v)
+    if goff >= 0 {
+        mut r = gen_glob_load(goff)
+    } else {
+        mut r = gen_movz(0, 0)
+    }
+}
+
 fn gen_expr_ident(v: i64) (r: i64)
 {
     let off: i64 = 0
@@ -1532,13 +1543,7 @@ fn gen_expr_ident(v: i64) (r: i64)
     if off >= 0 {
         mut r = gen_ldur(0, 29, 0 - (off + 1) * 8)
     } else {
-        let goff: i64 = 0
-        mut goff = glob_lookup(v)
-        if goff >= 0 {
-            mut r = gen_glob_load(goff)
-        } else {
-            mut r = gen_movz(0, 0)
-        }
+        mut r = gen_expr_glob(v)
     }
     mut r = 0
 }
