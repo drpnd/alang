@@ -1800,12 +1800,13 @@ fn gen_caller_save2() (r: i64)
 
 fn gen_caller_save() (r: i64)
 {
-    mut r = emit32(0xD10243FF)
+    mut r = emit32(0xD10263FF)
     mut r = emit32(2835417056)
     mut r = emit32(2835484642)
     mut r = emit32(2835552228)
     mut r = emit32(2835619814)
     mut r = gen_caller_save2()
+    mut r = emit32(0xF9004BF2)
     mut r = 0
 }
 
@@ -1836,13 +1837,13 @@ fn gen_caller_restore() (r: i64)
 }
 fn gen_add_sp() (r: i64)
 {
-    mut r = emit32(0x910243FF)
+    mut r = emit32(0x910263FF)
     mut r = 0
 }
 
 fn gen_load_retval() (r: i64)
 {
-    mut r = emit32(0xF94003F2)
+    mut r = emit32(0xF9404BF2)
     mut r = emit32(0xF94007E0)
     mut r = 0
 }
