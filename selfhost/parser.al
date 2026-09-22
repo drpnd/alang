@@ -1069,6 +1069,7 @@ let g_var_count: i64 = 0
 let g_glob_name: i64 = 0
 let g_glob_off: i64 = 0
 let g_glob_count: i64 = 0
+let g_main_done: i64 = 0
 
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
@@ -2277,7 +2278,8 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
     mut r = fn_add(name, g_code_pos)
     mut g_var_count = 0
     mut r = gen_prologue()
-    if is_main == 1 {
+    if g_main_done == 0 {
+        mut g_main_done = 1
         mut r = gen_main_init()
     }
     mut r = gen_params(params)
@@ -2294,13 +2296,11 @@ fn gen_func(nd: i64) (r: i64)
     let params: i64 = 0
     let rets: i64 = 0
     let body: i64 = 0
-    let is_main: i64 = 0
     mut name = ast_field(nd, g_ast_val)
     mut params = ast_field(nd, g_ast_a)
     mut rets = ast_field(nd, g_ast_b)
     mut body = ast_field(nd, g_ast_c)
-    if is_main_name(name) == 1 { mut is_main = 1 }
-    mut r = gen_func_body(name, params, rets, body, is_main)
+    mut r = gen_func_body(name, params, rets, body, 0)
     mut r = 0
 }
 fn gen_all_funcs() (r: i64)
