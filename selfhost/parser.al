@@ -1070,6 +1070,7 @@ let g_glob_name: i64 = 0
 let g_glob_off: i64 = 0
 let g_glob_count: i64 = 0
 let g_main_done: i64 = 0
+let g_call_name: i64 = 0
 
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
@@ -1360,22 +1361,42 @@ fn fn_store(h: i64, offset: i64) (r: i64)
 
 fn fn_add(name: i64, offset: i64) (r: i64)
 {
-    let h: i64 = 0
-    mut h = str_hash(name)
-    mut r = fn_store(h, offset)
+    mut r = fn_store(name, offset)
+}
+
+fn fn_name_eq(a: i64, b: i64) (r: i64)
+{
+    let i: i64 = 0
+    let ca: i64 = 0
+    let cb: i64 = 0
+    mut r = 1
+    mut i = 0
+    mut ca = __byte_load(a, 0)
+    mut cb = __byte_load(b, 0)
+    while ca != 0 {
+        if ca != cb {
+            mut r = 0
+            mut ca = 0
+        } else {
+            mut i = i + 1
+            mut ca = __byte_load(a + i, 0)
+            mut cb = __byte_load(b + i, 0)
+        }
+    }
+    if cb != 0 {
+        mut r = 0
+    }
 }
 
 fn fn_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
-    let h: i64 = 0
     let stored: i64 = 0
     let result: i64 = 0
-    mut h = str_hash(name)
     mut i = 0
     while i < g_fn_count {
         mut stored = __mem_load(g_fn_name + i * 8)
-        if stored == h {
+        if fn_name_eq(stored, name) == 1 {
             mut result = __mem_load(g_fn_off + i * 8)
         }
         mut i = i + 1
@@ -1730,11 +1751,11 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
     mut r = gen_pop_args(arg_count)
     let b2: i64 = 0
     let b3: i64 = 0
-    mut b2 = __byte_load(name, 2)
-    mut b3 = __byte_load(name, 3)
+    mut b2 = __byte_load(g_call_name, 2)
+    mut b3 = __byte_load(g_call_name, 3)
     if b2 == 98 {
         if b3 == 121 {
-            if __byte_load(name, 7) == 108 {
+            if __byte_load(g_call_name, 7) == 108 {
                 mut r = gen_mov(2, 0)
                 mut r = gen_mov(0, 1)
                 mut r = gen_mov(1, 2)
@@ -1749,7 +1770,7 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
     } else {
         if b2 == 109 {
             if b3 == 101 {
-                if __byte_load(name, 6) == 108 {
+                if __byte_load(g_call_name, 6) == 108 {
                     mut r = gen_ldr_reg(0, 0)
                 } else {
                     mut r = gen_mov(2, 0)
@@ -1826,22 +1847,23 @@ fn gen_load_retval() (r: i64)
     mut r = 0
 }
 
-fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
+fn gen_extern_call() (r: i64)
 {
-    let fn_off: i64 = 0
-    mut r = gen_pop_args(arg_count)
-    mut r = gen_caller_save()
-    mut fn_off = fn_lookup(name)
-    if fn_off > 0 {
-        let rel: i64 = 0
-        mut rel = fn_off - g_code_pos
-        mut r = gen_bl(rel)
-    } else {
-        __mem_store(g_patch_pos + g_patch_count * 8, g_code_pos)
-        __mem_store(g_patch_name + g_patch_count * 8, name)
-        mut g_patch_count = g_patch_count + 1
-        mut r = gen_bl(0)
-    }
+    __mem_store(g_patch_pos + g_patch_count * 8, g_code_pos)
+    __mem_store(g_patch_name + g_patch_count * 8, g_call_name)
+    mut g_patch_count = g_patch_count + 1
+    mut r = gen_bl(0)
+}
+
+fn gen_direct_call(fn_off: i64) (r: i64)
+{
+    let rel: i64 = 0
+    mut rel = fn_off - g_code_pos
+    mut r = gen_bl(rel)
+}
+
+fn gen_call_finish() (r: i64)
+{
     mut r = gen_save_retval()
     mut r = gen_caller_restore()
     mut r = gen_load_retval()
@@ -1849,14 +1871,32 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
+{
+    let fn_off: i64 = 0
+    mut r = gen_pop_args(arg_count)
+    mut r = gen_caller_save()
+    mut fn_off = fn_lookup(g_call_name)
+    if fn_off > 0 {
+        mut r = gen_direct_call(fn_off)
+    } else {
+        mut r = gen_extern_call()
+    }
+    mut r = gen_call_finish()
+}
+
 fn gen_call(name: i64, first_arg: i64) (r: i64)
 {
     let arg_count: i64 = 0
+    let saved_name: i64 = 0
+    mut saved_name = name
+    mut g_call_name = name
     mut arg_count = gen_eval_args(first_arg)
-    if is_builtin_name(name) == 1 {
-        mut r = gen_call_builtin(name, arg_count)
+    mut g_call_name = saved_name
+    if is_builtin_name(g_call_name) == 1 {
+        mut r = gen_call_builtin(g_call_name, arg_count)
     } else {
-        mut r = gen_call_normal2(name, arg_count)
+        mut r = gen_call_normal2(g_call_name, arg_count)
     }
     mut r = 0
 }
