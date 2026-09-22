@@ -970,7 +970,24 @@ fn parse_program() (r: i64)
     while cur_type() != 0 {
         if is_kw(14) == 1 {
             mut r = advance()
-            if is_kw(1) == 1 { mut r = parse_fn() }
+            if is_kw(1) == 1 {
+                mut r = advance()
+                if cur_type() == 1 { mut r = advance() }
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    while is_op(41) == 0 {
+                        if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                }
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    while is_op(41) == 0 {
+                        if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                }
+            }
         } else {
             if is_kw(1) == 1 {
                 mut r = parse_fn()
