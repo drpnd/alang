@@ -269,17 +269,18 @@ spill_store(int reg, int id)
         uint32_t insn = (0xF8U << 24) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
         emit32(g_tb, insn);
     } else {
-        /* Large offset: sub/add x16, x29, #hi; stur xreg, [x16, #lo]
-         * X16 (IP0) is never used for SSA values, so it is always safe.
-         * (Previously used X9, which clobbers SSA value 9.) */
+        /* Large offset: sub/add xtmp, x29, #hi; stur xreg, [xtmp, #lo]
+         * Use X17 as address temp to avoid conflict when reg == X16.
+         * X16/X17 (IP0/IP1) are never used for SSA values. */
+        int tmp = (reg == 16) ? 17 : 16;
         int hi = (off / 256) * 256;
         int lo = off - hi;
         if (hi >= 0) {
-            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|16);
+            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|tmp);
         } else {
-            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|16);
+            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|tmp);
         }
-        emit32(g_tb, (0xF8U<<24)|((lo&0x1FF)<<12)|(16<<5)|(reg&31));
+        emit32(g_tb, (0xF8U<<24)|((lo&0x1FF)<<12)|((tmp&31)<<5)|(reg&31));
     }
 }
 
@@ -424,7 +425,7 @@ operand_reg(ir_operand_t *op)
     if (op->type == IR_OPERAND_REG) {
         int id = ssa_id(op->u.reg.id);
         int r = ssa_to_reg(id);
-        if (r < 0) return spill_load(id, 16);
+        if (r < 0) return spill_load(id, 17);
         return r;
     }
     return 31;
@@ -1022,7 +1023,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     if (inst->result.n > 0) {
         int id = ssa_id(inst->result.reg[0].id);
         dst = ssa_to_reg(id);
-        if (dst < 0) { dst = 10; rspill = id; }
+        if (dst < 0) { dst = 16; rspill = id; }
     }
 
     switch (inst->opcode) {
