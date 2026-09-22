@@ -63,6 +63,13 @@ fn is_digit(c: i32) (r: i32)
     else { mut r = 0 }
 }
 
+fn is_ident_char(c: i32) (r: i32)
+{
+    mut r = 0
+    if is_alpha(c) == 1 { mut r = 1 }
+    if is_digit(c) == 1 { mut r = 1 }
+}
+
 fn is_space(c: i32) (r: i32)
 {
     if c == 32 { mut r = 1 } else {
@@ -156,7 +163,7 @@ fn lex_ident(c: i32) (r: i64)
     let start: i64 = 0
     mut start = g_pos
     while is_alpha(c) == 1 { mut c = next_ch() }
-    while is_digit(c) == 1 { mut c = next_ch() }
+    while is_ident_char(c) == 1 { mut c = next_ch() }
     let len: i64 = 0
     mut len = g_pos - start
     let s: i64 = 0
