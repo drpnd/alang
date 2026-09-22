@@ -1524,6 +1524,10 @@ fn is_builtin_name(name: i64) (r: i64)
             } else {
                 if b2 == 109 {
                     mut r = check_bytes(name, 95, 95, 109, 101)
+                } else {
+                    if b2 == 115 {
+                        mut r = check_bytes(name, 95, 95, 115, 116)
+                    }
                 }
             }
         }
@@ -1553,6 +1557,37 @@ fn gen_eval_args(first_arg: i64) (r: i64)
         mut arg_nd = next_arg
     }
     mut r = count
+}
+
+fn gen_str_eq_inline() (r: i64)
+{
+    let loop_pos: i64 = 0
+    let end_pos: i64 = 0
+    let ne_pos: i64 = 0
+    let bcond_pos: i64 = 0
+    let ne_off: i64 = 0
+    mut r = gen_mov(2, 0)
+    mut r = gen_mov(0, 1)
+    mut r = gen_mov(1, 2)
+    mut loop_pos = g_code_pos
+    mut r = gen_ldrb_reg(3, 0, 4)
+    mut r = gen_ldrb_reg(4, 1, 4)
+    mut r = gen_cmp(3, 4)
+    mut r = gen_bcond(1, 24)
+    mut r = gen_cmp(3, 31)
+    mut r = gen_bcond(0, 16)
+    mut r = gen_add_imm(0, 0, 1)
+    mut r = gen_add_imm(1, 1, 1)
+    mut r = gen_b(loop_pos - g_code_pos)
+    mut r = gen_movz(0, 1)
+    mut end_pos = g_code_pos
+    mut r = gen_b(8)
+    mut ne_pos = g_code_pos
+    mut bcond_pos = end_pos - 8
+    mut ne_off = ne_pos - bcond_pos
+    mut r = patch_bcond(bcond_pos, ne_off)
+    mut r = gen_movz(0, 0)
+    mut r = 0
 }
 
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
@@ -1586,6 +1621,12 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
                     mut r = gen_mov(0, 1)
                     mut r = gen_mov(1, 2)
                     mut r = gen_str_reg(1, 0)
+                }
+            }
+        } else {
+            if b2 == 115 {
+                if b3 == 116 {
+                    mut r = gen_str_eq_inline()
                 }
             }
         }
