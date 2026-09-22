@@ -1475,16 +1475,32 @@ fn gen_cmp_ge() (r: i64) { mut r = emit32(2594158560) mut r = 0 }
 fn gen_cmp_eq2() (r: i64) { mut r = emit32(2594117600) mut r = 0 }
 fn gen_cmp_ne() (r: i64) { mut r = emit32(2594113504) mut r = 0 }
 
-fn gen_cmpop(op: i64) (r: i64)
+fn gen_cmp_eq_op(op: i64) (r: i64)
 {
-    mut r = gen_cmp(1, 0)
     if op == 15677 { mut r = gen_cmp_eq2() }
     if op == 8645 { mut r = gen_cmp_ne() }
+}
+
+fn gen_cmp_rel_op(op: i64) (r: i64)
+{
     if op == 60 { mut r = gen_cmp_lt() }
     if op == 62 { mut r = gen_cmp_gt() }
     if op == 15485 { mut r = gen_cmp_le() }
     if op == 15997 { mut r = gen_cmp_ge() }
+}
+
+fn gen_cmpop(op: i64) (r: i64)
+{
+    mut r = gen_cmp(1, 0)
+    mut r = gen_cmp_eq_op(op)
+    mut r = gen_cmp_rel_op(op)
     mut r = 0
+}
+
+fn gen_mod() (r: i64)
+{
+    mut r = gen_sdiv(2, 1, 0)
+    mut r = gen_msub(0, 2, 0, 1)
 }
 
 fn gen_binop(op: i64) (r: i64)
@@ -1502,8 +1518,7 @@ fn gen_binop(op: i64) (r: i64)
                     mut r = gen_sdiv(0, 1, 0)
                 } else {
                     if op == 37 {
-                        mut r = gen_sdiv(2, 1, 0)
-                        mut r = gen_msub(0, 2, 0, 1)
+                        mut r = gen_mod()
                     } else {
                         mut r = gen_cmpop(op)
                     }
@@ -1548,6 +1563,16 @@ fn gen_expr_ident(v: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_assign_glob(name: i64) (r: i64)
+{
+    let goff: i64 = 0
+    mut goff = glob_lookup(name)
+    if goff >= 0 {
+        mut r = gen_glob_store(goff)
+    }
+    mut r = 0
+}
+
 fn gen_expr_assign(a: i64, b: i64) (r: i64)
 {
     let off: i64 = 0
@@ -1556,11 +1581,7 @@ fn gen_expr_assign(a: i64, b: i64) (r: i64)
     if off >= 0 {
         mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
     } else {
-        let goff: i64 = 0
-        mut goff = glob_lookup(__mem_load(g_ast_val + a * 8))
-        if goff >= 0 {
-            mut r = gen_glob_store(goff)
-        }
+        mut r = gen_assign_glob(__mem_load(g_ast_val + a * 8))
     }
     mut r = 0
 }
@@ -1575,16 +1596,8 @@ fn gen_expr_binop(nd: i64) (r: i64)
     mut r = 0
 }
 
-fn gen_expr(nd: i64) (r: i64)
+fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
 {
-    let k: i64 = 0
-    let v: i64 = 0
-    let a: i64 = 0
-    let b: i64 = 0
-    mut k = ast_field(nd, g_ast_kind)
-    mut v = ast_field(nd, g_ast_val)
-    mut a = ast_field(nd, g_ast_a)
-    mut b = ast_field(nd, g_ast_b)
     if k == 1 {
         mut r = gen_movz(0, v)
     } else {
@@ -1592,7 +1605,7 @@ fn gen_expr(nd: i64) (r: i64)
             mut r = gen_expr_ident(v)
         } else {
             if k == 5 {
-                mut r = gen_expr_binop(nd)
+                mut r = gen_expr_binop(a)
             } else {
                 if k == 4 {
                     mut r = gen_call(v, a)
@@ -1606,6 +1619,19 @@ fn gen_expr(nd: i64) (r: i64)
             }
         }
     }
+}
+
+fn gen_expr(nd: i64) (r: i64)
+{
+    let k: i64 = 0
+    let v: i64 = 0
+    let a: i64 = 0
+    let b: i64 = 0
+    mut k = ast_field(nd, g_ast_kind)
+    mut v = ast_field(nd, g_ast_val)
+    mut a = ast_field(nd, g_ast_a)
+    mut b = ast_field(nd, g_ast_b)
+    mut r = gen_expr_dispatch(k, v, a, b)
     mut r = 0
 }
 // CSET Xd, cond (set Xd to 1 if condition, 0 otherwise)
@@ -1758,37 +1784,57 @@ fn gen_str_eq_inline() (r: i64)
     mut r = 0
 }
 
+fn gen_byte_load_builtin() (r: i64)
+{
+    mut r = gen_mov(2, 0)
+    mut r = gen_mov(0, 1)
+    mut r = gen_mov(1, 2)
+    mut r = gen_ldrb_reg(0, 0, 1)
+}
+
+fn gen_byte_store_builtin() (r: i64)
+{
+    mut r = gen_mov(3, 0)
+    mut r = gen_mov(0, 2)
+    mut r = gen_mov(2, 3)
+    mut r = gen_strb_reg(2, 0, 1)
+}
+
+fn gen_mem_load_builtin() (r: i64)
+{
+    mut r = gen_ldr_reg(0, 0)
+}
+
+fn gen_mem_store_builtin() (r: i64)
+{
+    mut r = gen_mov(2, 0)
+    mut r = gen_mov(0, 1)
+    mut r = gen_mov(1, 2)
+    mut r = gen_str_reg(1, 0)
+}
+
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
-    mut r = gen_pop_args(arg_count)
     let b2: i64 = 0
     let b3: i64 = 0
+    mut r = gen_pop_args(arg_count)
     mut b2 = __byte_load(g_call_name, 2)
     mut b3 = __byte_load(g_call_name, 3)
     if b2 == 98 {
         if b3 == 121 {
             if __byte_load(g_call_name, 7) == 108 {
-                mut r = gen_mov(2, 0)
-                mut r = gen_mov(0, 1)
-                mut r = gen_mov(1, 2)
-                mut r = gen_ldrb_reg(0, 0, 1)
+                mut r = gen_byte_load_builtin()
             } else {
-                mut r = gen_mov(3, 0)
-                mut r = gen_mov(0, 2)
-                mut r = gen_mov(2, 3)
-                mut r = gen_strb_reg(2, 0, 1)
+                mut r = gen_byte_store_builtin()
             }
         }
     } else {
         if b2 == 109 {
             if b3 == 101 {
                 if __byte_load(g_call_name, 6) == 108 {
-                    mut r = gen_ldr_reg(0, 0)
+                    mut r = gen_mem_load_builtin()
                 } else {
-                    mut r = gen_mov(2, 0)
-                    mut r = gen_mov(0, 1)
-                    mut r = gen_mov(1, 2)
-                    mut r = gen_str_reg(1, 0)
+                    mut r = gen_mem_store_builtin()
                 }
             }
         } else {
