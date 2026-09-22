@@ -1254,19 +1254,12 @@ fn var_add(name: i64, offset: i64) (r: i64)
     mut r = 0
 }
 
-fn glob_store(h: i64) (r: i64)
+fn glob_add(name: i64) (r: i64)
 {
-    __mem_store(g_glob_name + g_glob_count * 8, h)
+    __mem_store(g_glob_name + g_glob_count * 8, name)
     __mem_store(g_glob_off + g_glob_count * 8, g_glob_count)
     mut g_glob_count = g_glob_count + 1
     mut r = g_glob_count - 1
-}
-
-fn glob_add(name: i64) (r: i64)
-{
-    let h: i64 = 0
-    mut h = str_hash(name)
-    mut r = glob_store(h)
 }
 
 fn glob_lookup(name: i64) (r: i64)
