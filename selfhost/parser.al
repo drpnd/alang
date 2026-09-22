@@ -346,15 +346,21 @@ fn print_str(s: i64) (r: i32)
 // === Expression parser (precedence climbing) ===
 // Prints expressions as they're parsed
 
+fn store_field(arr: i64, base: i64, val: i64) (r: i64)
+{
+    __mem_store(arr + base, val)
+    mut r = 0
+}
+
 fn emit_node(kind: i64, val: i64, a: i64, b: i64, c: i64) (r: i64)
 {
     let base: i64 = 0
     mut base = g_ast_count * 8
-    __mem_store(g_ast_kind + base, kind)
-    __mem_store(g_ast_val + base, val)
-    __mem_store(g_ast_a + base, a)
-    __mem_store(g_ast_b + base, b)
-    __mem_store(g_ast_c + base, c)
+    mut r = store_field(g_ast_kind, base, kind)
+    mut r = store_field(g_ast_val, base, val)
+    mut r = store_field(g_ast_a, base, a)
+    mut r = store_field(g_ast_b, base, b)
+    mut r = store_field(g_ast_c, base, c)
     mut g_ast_count = g_ast_count + 1
     mut r = g_ast_count - 1
 }
@@ -1075,12 +1081,18 @@ let g_symtab: i64 = 0
 let g_symtab_pos: i64 = 0
 
 // Emit a 32-bit instruction (little-endian)
+fn emit_byte_off(off: i64, val: i64) (r: i64)
+{
+    __byte_store(g_code, g_code_pos + off, val)
+    mut r = 0
+}
+
 fn emit32(val: i64) (r: i64)
 {
-    __byte_store(g_code, g_code_pos, val & 255)
-    __byte_store(g_code, g_code_pos + 1, (val >> 8) & 255)
-    __byte_store(g_code, g_code_pos + 2, (val >> 16) & 255)
-    __byte_store(g_code, g_code_pos + 3, (val >> 24) & 255)
+    mut r = emit_byte_off(0, val & 255)
+    mut r = emit_byte_off(1, (val >> 8) & 255)
+    mut r = emit_byte_off(2, (val >> 16) & 255)
+    mut r = emit_byte_off(3, (val >> 24) & 255)
     mut g_code_pos = g_code_pos + 4
     mut r = 0
 }
@@ -1261,14 +1273,19 @@ fn var_lookup(name: i64) (r: i64)
     }
 }
 
-fn var_add(name: i64, offset: i64) (r: i64)
+fn var_store(h: i64, offset: i64) (r: i64)
 {
-    let h: i64 = 0
-    mut h = str_hash(name)
     __mem_store(g_var_name + g_var_count * 8, h)
     __mem_store(g_var_off + g_var_count * 8, offset)
     mut g_var_count = g_var_count + 1
     mut r = 0
+}
+
+fn var_add(name: i64, offset: i64) (r: i64)
+{
+    let h: i64 = 0
+    mut h = str_hash(name)
+    mut r = var_store(h, offset)
 }
 
 fn glob_add(name: i64) (r: i64)
@@ -1331,14 +1348,19 @@ fn str_hash(s: i64) (r: i64)
     mut r = h
 }
 
-fn fn_add(name: i64, offset: i64) (r: i64)
+fn fn_store(h: i64, offset: i64) (r: i64)
 {
-    let h: i64 = 0
-    mut h = str_hash(name)
     __mem_store(g_fn_name + g_fn_count * 8, h)
     __mem_store(g_fn_off + g_fn_count * 8, offset)
     mut g_fn_count = g_fn_count + 1
     mut r = 0
+}
+
+fn fn_add(name: i64, offset: i64) (r: i64)
+{
+    let h: i64 = 0
+    mut h = str_hash(name)
+    mut r = fn_store(h, offset)
 }
 
 fn fn_lookup(name: i64) (r: i64)
@@ -2075,12 +2097,18 @@ fn patch_b(pos: i64, offset: i64) (r: i64)
 }
 
 // Emit a 32-bit value at a specific position (patching)
+fn store_byte_at(pos: i64, val: i64) (r: i64)
+{
+    __byte_store(g_code, pos, val)
+    mut r = 0
+}
+
 fn emit32_at(pos: i64, val: i64) (r: i64)
 {
-    __byte_store(g_code, pos, val & 255)
-    __byte_store(g_code, pos + 1, (val >> 8) & 255)
-    __byte_store(g_code, pos + 2, (val >> 16) & 255)
-    __byte_store(g_code, pos + 3, (val >> 24) & 255)
+    mut r = store_byte_at(pos, val & 255)
+    mut r = store_byte_at(pos + 1, (val >> 8) & 255)
+    mut r = store_byte_at(pos + 2, (val >> 16) & 255)
+    mut r = store_byte_at(pos + 3, (val >> 24) & 255)
     mut r = 0
 }
 
@@ -2282,6 +2310,18 @@ fn write_header(fp: i64, ncmds: i64, sizeofcmds: i64) (r: i64)
     mut r = 0
 }
 
+fn write_segment2(fp: i64, total: i64, text_off: i64) (r: i64)
+{
+    mut r = write64(fp, total)
+    mut r = write64(fp, text_off)
+    mut r = write64(fp, total)
+    mut r = write32(fp, 7)
+    mut r = write32(fp, 7)
+    mut r = write32(fp, 1)
+    mut r = write32(fp, 0)
+    mut r = 0
+}
+
 fn write_segment(fp: i64, text_off: i64, code_size: i64) (r: i64)
 {
     let total: i64 = 0
@@ -2290,12 +2330,17 @@ fn write_segment(fp: i64, text_off: i64, code_size: i64) (r: i64)
     mut r = write32(fp, 152)
     mut r = write_str(fp, "__TEXT")
     mut r = write64(fp, 0)
-    mut r = write64(fp, total)
-    mut r = write64(fp, text_off)
-    mut r = write64(fp, total)
-    mut r = write32(fp, 7)
-    mut r = write32(fp, 7)
-    mut r = write32(fp, 1)
+    mut r = write_segment2(fp, total, text_off)
+    mut r = 0
+}
+
+fn write_section3(fp: i64, reloc_off: i64, nreloc: i64) (r: i64)
+{
+    mut r = write32(fp, reloc_off)
+    mut r = write32(fp, nreloc)
+    mut r = write32(fp, 0x80000400)
+    mut r = write32(fp, 0)
+    mut r = write32(fp, 0)
     mut r = write32(fp, 0)
     mut r = 0
 }
@@ -2308,12 +2353,7 @@ fn write_section2(fp: i64, text_off: i64, code_size: i64, reloc_off: i64, nreloc
     mut r = write64(fp, code_size)
     mut r = write32(fp, text_off)
     mut r = write32(fp, 4)
-    mut r = write32(fp, reloc_off)
-    mut r = write32(fp, nreloc)
-    mut r = write32(fp, 0x80000400)
-    mut r = write32(fp, 0)
-    mut r = write32(fp, 0)
-    mut r = write32(fp, 0)
+    mut r = write_section3(fp, reloc_off, nreloc)
     mut r = 0
 }
 
@@ -2511,14 +2551,20 @@ fn write_main_sym(fp: i64) (r: i64)
     mut r = write_str(fp, "_main")
     mut r = 0
 }
+fn write_byte_val(buf: i64, idx: i64, val: i64) (r: i64)
+{
+    __byte_store(buf, idx, val)
+    mut r = 0
+}
+
 fn write32(fp: i64, val: i64) (r: i64)
 {
     let buf: i64 = 0
     mut buf = malloc(4)
-    __byte_store(buf, 0, val & 255)
-    __byte_store(buf, 1, (val >> 8) & 255)
-    __byte_store(buf, 2, (val >> 16) & 255)
-    __byte_store(buf, 3, (val >> 24) & 255)
+    mut r = write_byte_val(buf, 0, val & 255)
+    mut r = write_byte_val(buf, 1, (val >> 8) & 255)
+    mut r = write_byte_val(buf, 2, (val >> 16) & 255)
+    mut r = write_byte_val(buf, 3, (val >> 24) & 255)
     mut r = fwrite(buf, 1, 4, fp)
     free(buf)
 }
