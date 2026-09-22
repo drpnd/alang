@@ -2662,10 +2662,10 @@ fn print_int(val: i64) (r: i64)
 
 fn init_parser1() (r: i64)
 {
-    mut g_tok_type = malloc(32768)
-    mut g_tok_val = malloc(32768)
-    mut g_ast_kind = malloc(131072)
-    mut g_ast_val = malloc(131072)
+    mut g_tok_type = malloc(262144)
+    mut g_tok_val = malloc(262144)
+    mut g_ast_kind = malloc(524288)
+    mut g_ast_val = malloc(524288)
     mut g_glob_name = malloc(4096)
     mut g_glob_off = malloc(4096)
     mut r = 0
@@ -2673,10 +2673,10 @@ fn init_parser1() (r: i64)
 
 fn init_parser2() (r: i64)
 {
-    mut g_ast_a = malloc(131072)
-    mut g_ast_b = malloc(131072)
-    mut g_ast_c = malloc(131072)
-    mut g_str_pool = malloc(131072)
+    mut g_ast_a = malloc(524288)
+    mut g_ast_b = malloc(524288)
+    mut g_ast_c = malloc(524288)
+    mut g_str_pool = malloc(524288)
     mut r = 0
 }
 
@@ -2696,7 +2696,7 @@ fn init_parser() (r: i64)
 
 fn init_codegen1() (r: i64)
 {
-    mut g_code = malloc(131072)
+    mut g_code = malloc(524288)
     mut g_var_name = malloc(4096)
     mut g_var_off = malloc(4096)
     mut g_fn_name = malloc(4096)
