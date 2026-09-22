@@ -1655,10 +1655,71 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
     }
 }
 
+fn gen_caller_save() (r: i64)
+{
+    mut r = emit32(3506586623)
+    mut r = emit32(4177529824)
+    mut r = emit32(4177530849)
+    mut r = emit32(4177531874)
+    mut r = emit32(4177532899)
+    mut r = emit32(4177533924)
+    mut r = emit32(4177534949)
+    mut r = emit32(4177535974)
+    mut r = emit32(4177536999)
+    mut r = emit32(4177538024)
+    mut r = emit32(4177539049)
+    mut r = emit32(4177540074)
+    mut r = emit32(4177541099)
+    mut r = emit32(4177542124)
+    mut r = emit32(4177543149)
+    mut r = emit32(4177544174)
+    mut r = emit32(4177545199)
+    mut r = 0
+}
+
+fn gen_save_retval() (r: i64)
+{
+    mut r = emit32(4177528800)
+    mut r = 0
+}
+
+fn gen_caller_restore() (r: i64)
+{
+    mut r = emit32(4181724128)
+    mut r = emit32(4181725153)
+    mut r = emit32(4181726178)
+    mut r = emit32(4181727203)
+    mut r = emit32(4181728228)
+    mut r = emit32(4181729253)
+    mut r = emit32(4181730278)
+    mut r = emit32(4181731303)
+    mut r = emit32(4181732328)
+    mut r = emit32(4181733353)
+    mut r = emit32(4181734378)
+    mut r = emit32(4181735403)
+    mut r = emit32(4181736428)
+    mut r = emit32(4181737453)
+    mut r = emit32(4181738478)
+    mut r = emit32(4181739503)
+    mut r = 0
+}
+fn gen_add_sp() (r: i64)
+{
+    mut r = emit32(0x910243FF)
+    mut r = 0
+}
+
+fn gen_load_retval() (r: i64)
+{
+    mut r = emit32(4181723104)
+    mut r = 0
+}
+
 fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
 {
     let fn_off: i64 = 0
     mut r = gen_pop_args(arg_count)
+    mut r = gen_caller_save()
     mut fn_off = fn_lookup(name)
     if fn_off > 0 {
         let rel: i64 = 0
@@ -1670,6 +1731,10 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
         mut g_patch_count = g_patch_count + 1
         mut r = gen_bl(0)
     }
+    mut r = gen_save_retval()
+    mut r = gen_caller_restore()
+    mut r = gen_load_retval()
+    mut r = gen_add_sp()
     mut r = 0
 }
 
