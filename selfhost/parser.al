@@ -346,9 +346,13 @@ fn print_str(s: i64) (r: i32)
 // === Expression parser (precedence climbing) ===
 // Prints expressions as they're parsed
 
-fn store_field(arr: i64, base: i64, val: i64) (r: i64)
+fn store_node_fields(base: i64, kind: i64, val: i64, a: i64, b: i64, c: i64) (r: i64)
 {
-    __mem_store(arr + base, val)
+    __mem_store(g_ast_kind + base, kind)
+    __mem_store(g_ast_val + base, val)
+    __mem_store(g_ast_a + base, a)
+    __mem_store(g_ast_b + base, b)
+    __mem_store(g_ast_c + base, c)
     mut r = 0
 }
 
@@ -356,11 +360,7 @@ fn emit_node(kind: i64, val: i64, a: i64, b: i64, c: i64) (r: i64)
 {
     let base: i64 = 0
     mut base = g_ast_count * 8
-    mut r = store_field(g_ast_kind, base, kind)
-    mut r = store_field(g_ast_val, base, val)
-    mut r = store_field(g_ast_a, base, a)
-    mut r = store_field(g_ast_b, base, b)
-    mut r = store_field(g_ast_c, base, c)
+    mut r = store_node_fields(base, kind, val, a, b, c)
     mut g_ast_count = g_ast_count + 1
     mut r = g_ast_count - 1
 }
@@ -1088,18 +1088,30 @@ let g_symtab: i64 = 0
 let g_symtab_pos: i64 = 0
 
 // Emit a 32-bit instruction (little-endian)
-fn emit_byte_off(off: i64, val: i64) (r: i64)
+fn emit32_bytes_lo(val: i64) (r: i64)
 {
-    __byte_store(g_code, g_code_pos + off, val)
+    __byte_store(g_code, g_code_pos, val & 255)
+    __byte_store(g_code, g_code_pos + 1, (val >> 8) & 255)
+    mut r = 0
+}
+
+fn emit32_bytes_hi(val: i64) (r: i64)
+{
+    __byte_store(g_code, g_code_pos + 2, (val >> 16) & 255)
+    __byte_store(g_code, g_code_pos + 3, (val >> 24) & 255)
+    mut r = 0
+}
+
+fn emit32_bytes(val: i64) (r: i64)
+{
+    mut r = emit32_bytes_lo(val)
+    mut r = emit32_bytes_hi(val)
     mut r = 0
 }
 
 fn emit32(val: i64) (r: i64)
 {
-    mut r = emit_byte_off(0, val & 255)
-    mut r = emit_byte_off(1, (val >> 8) & 255)
-    mut r = emit_byte_off(2, (val >> 16) & 255)
-    mut r = emit_byte_off(3, (val >> 24) & 255)
+    mut r = emit32_bytes(val)
     mut g_code_pos = g_code_pos + 4
     mut r = 0
 }
@@ -1931,46 +1943,44 @@ fn gen_return_stmt(a: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_stmt2(nd: i64, k: i64) (r: i64)
+{
+    if k == 11 {
+        mut r = gen_if(nd)
+    } else {
+        if k == 12 {
+            mut r = gen_while(nd)
+        } else {
+            if k == 20 {
+                mut r = gen_block(nd)
+            } else {
+                if k == 4 {
+                    mut r = gen_call(ast_field(nd, g_ast_val), ast_field(nd, g_ast_a))
+                } else {
+                    if k > 0 {
+                        mut r = gen_expr(nd)
+                    }
+                }
+            }
+        }
+    }
+    mut r = 0
+}
+
 fn gen_stmt(nd: i64) (r: i64)
 {
     let k: i64 = 0
-    let v: i64 = 0
-    let a: i64 = 0
-    let b: i64 = 0
-    let c: i64 = 0
-    mut k = __mem_load(g_ast_kind + nd * 8)
-    mut v = __mem_load(g_ast_val + nd * 8)
-    mut a = __mem_load(g_ast_a + nd * 8)
-    mut b = __mem_load(g_ast_b + nd * 8)
-    mut c = __mem_load(g_ast_c + nd * 8)
+    mut k = ast_field(nd, g_ast_kind)
     if k == 10 {
-        mut r = gen_let_stmt(v, b, c)
+        mut r = gen_let_stmt(ast_field(nd, g_ast_val), ast_field(nd, g_ast_b), ast_field(nd, g_ast_c))
     } else {
         if k == 9 {
-            mut r = gen_assign_stmt(a, b)
+            mut r = gen_assign_stmt(ast_field(nd, g_ast_a), ast_field(nd, g_ast_b))
         } else {
             if k == 14 {
-                mut r = gen_return_stmt(a)
+                mut r = gen_return_stmt(ast_field(nd, g_ast_a))
             } else {
-                if k == 11 {
-                    mut r = gen_if(nd)
-                } else {
-                    if k == 12 {
-                        mut r = gen_while(nd)
-                    } else {
-                        if k == 20 {
-                            mut r = gen_block(nd)
-                        } else {
-                            if k == 4 {
-                                mut r = gen_call(v, a)
-                            } else {
-                                if k > 0 {
-                                    mut r = gen_expr(nd)
-                                }
-                            }
-                        }
-                    }
-                }
+                mut r = gen_stmt2(nd, k)
             }
         }
     }
@@ -2104,18 +2114,30 @@ fn patch_b(pos: i64, offset: i64) (r: i64)
 }
 
 // Emit a 32-bit value at a specific position (patching)
-fn store_byte_at(pos: i64, val: i64) (r: i64)
+fn emit32_at_lo(pos: i64, val: i64) (r: i64)
 {
-    __byte_store(g_code, pos, val)
+    __byte_store(g_code, pos, val & 255)
+    __byte_store(g_code, pos + 1, (val >> 8) & 255)
+    mut r = 0
+}
+
+fn emit32_at_hi(pos: i64, val: i64) (r: i64)
+{
+    __byte_store(g_code, pos + 2, (val >> 16) & 255)
+    __byte_store(g_code, pos + 3, (val >> 24) & 255)
+    mut r = 0
+}
+
+fn emit32_at_bytes(pos: i64, val: i64) (r: i64)
+{
+    mut r = emit32_at_lo(pos, val)
+    mut r = emit32_at_hi(pos, val)
     mut r = 0
 }
 
 fn emit32_at(pos: i64, val: i64) (r: i64)
 {
-    mut r = store_byte_at(pos, val & 255)
-    mut r = store_byte_at(pos + 1, (val >> 8) & 255)
-    mut r = store_byte_at(pos + 2, (val >> 16) & 255)
-    mut r = store_byte_at(pos + 3, (val >> 24) & 255)
+    mut r = emit32_at_bytes(pos, val)
     mut r = 0
 }
 
@@ -2574,9 +2596,12 @@ fn write_main_sym(fp: i64) (r: i64)
     mut r = write_str(fp, "_main")
     mut r = 0
 }
-fn write_byte_val(buf: i64, idx: i64, val: i64) (r: i64)
+fn write32_bytes(buf: i64, val: i64) (r: i64)
 {
-    __byte_store(buf, idx, val)
+    __byte_store(buf, 0, val & 255)
+    __byte_store(buf, 1, (val >> 8) & 255)
+    __byte_store(buf, 2, (val >> 16) & 255)
+    __byte_store(buf, 3, (val >> 24) & 255)
     mut r = 0
 }
 
@@ -2584,10 +2609,7 @@ fn write32(fp: i64, val: i64) (r: i64)
 {
     let buf: i64 = 0
     mut buf = malloc(4)
-    mut r = write_byte_val(buf, 0, val & 255)
-    mut r = write_byte_val(buf, 1, (val >> 8) & 255)
-    mut r = write_byte_val(buf, 2, (val >> 16) & 255)
-    mut r = write_byte_val(buf, 3, (val >> 24) & 255)
+    mut r = write32_bytes(buf, val)
     mut r = fwrite(buf, 1, 4, fp)
     free(buf)
 }
