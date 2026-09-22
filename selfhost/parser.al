@@ -947,6 +947,24 @@ fn parse_fn() (r: i64)
     mut g_func_list = emit_stmtlist(fnode, g_func_list)
     mut r = fnode
 }
+fn parse_glob_decl() (r: i64)
+{
+    mut r = advance()
+    if cur_type() == 1 {
+        mut r = glob_add(cur_val())
+        mut r = advance()
+    }
+    if is_op(58) == 1 {
+        mut r = advance()
+        if cur_type() == 1 { mut r = parse_type() }
+    }
+    if is_op(61) == 1 {
+        mut r = advance()
+        if cur_type() != 0 { mut r = parse_expr() }
+    }
+    mut r = 0
+}
+
 fn parse_program() (r: i64)
 {
     while cur_type() != 0 {
@@ -957,42 +975,50 @@ fn parse_program() (r: i64)
             if is_kw(1) == 1 {
                 mut r = parse_fn()
             } else {
-                if is_kw(12) == 1 {
-                    mut r = advance()
-                    if cur_type() == 1 { mut r = advance() }
-                    if is_op(123) == 1 { mut r = advance() }
-                    while is_op(125) == 0 {
-                        if cur_type() == 0 { mut r = 1 } else {
-                            if cur_type() == 1 { mut r = advance() }
-                            if is_op(58) == 1 { mut r = advance() }
-                            if cur_type() == 1 { mut r = parse_type() }
-                            if is_op(44) == 1 { mut r = advance() }
-                        }
-                    }
-                    if is_op(125) == 1 { mut r = advance() }
+                if is_kw(2) == 1 {
+                    mut r = parse_glob_decl()
                 } else {
-                    if is_kw(13) == 1 {
-                        mut r = advance()
-                        if cur_type() == 1 { mut r = advance() }
-                        if is_op(123) == 1 { mut r = advance() }
-                        while is_op(125) == 0 {
-                            if cur_type() == 0 { mut r = 1 } else {
-                                if cur_type() == 1 {
-                                    mut r = advance()
-                                    if is_op(40) == 1 {
-                                        mut r = advance()
-                                        while is_op(41) == 0 {
-                                            if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
+                    if is_kw(3) == 1 {
+                        mut r = parse_glob_decl()
+                    } else {
+                        if is_kw(12) == 1 {
+                            mut r = advance()
+                            if cur_type() == 1 { mut r = advance() }
+                            if is_op(123) == 1 { mut r = advance() }
+                            while is_op(125) == 0 {
+                                if cur_type() == 0 { mut r = 1 } else {
+                                    if cur_type() == 1 { mut r = advance() }
+                                    if is_op(58) == 1 { mut r = advance() }
+                                    if cur_type() == 1 { mut r = parse_type() }
+                                    if is_op(44) == 1 { mut r = advance() }
+                                }
+                            }
+                            if is_op(125) == 1 { mut r = advance() }
+                        } else {
+                            if is_kw(13) == 1 {
+                                mut r = advance()
+                                if cur_type() == 1 { mut r = advance() }
+                                if is_op(123) == 1 { mut r = advance() }
+                                while is_op(125) == 0 {
+                                    if cur_type() == 0 { mut r = 1 } else {
+                                        if cur_type() == 1 {
+                                            mut r = advance()
+                                            if is_op(40) == 1 {
+                                                mut r = advance()
+                                                while is_op(41) == 0 {
+                                                    if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
+                                                }
+                                                if is_op(41) == 1 { mut r = advance() }
+                                            }
                                         }
-                                        if is_op(41) == 1 { mut r = advance() }
+                                        if is_op(44) == 1 { mut r = advance() }
                                     }
                                 }
-                                if is_op(44) == 1 { mut r = advance() }
+                                if is_op(125) == 1 { mut r = advance() }
+                            } else {
+                                mut r = advance()
                             }
                         }
-                        if is_op(125) == 1 { mut r = advance() }
-                    } else {
-                        mut r = advance()
                     }
                 }
             }
@@ -1010,6 +1036,9 @@ let g_code_pos: i64 = 0
 let g_var_name: i64 = 0
 let g_var_off: i64 = 0
 let g_var_count: i64 = 0
+let g_glob_name: i64 = 0
+let g_glob_off: i64 = 0
+let g_glob_count: i64 = 0
 
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
@@ -1225,6 +1254,31 @@ fn var_add(name: i64, offset: i64) (r: i64)
     mut r = 0
 }
 
+fn glob_add(name: i64) (r: i64)
+{
+    let h: i64 = 0
+    mut h = str_hash(name)
+    __mem_store(g_glob_name + g_glob_count * 8, h)
+    __mem_store(g_glob_off + g_glob_count * 8, g_glob_count)
+    mut g_glob_count = g_glob_count + 1
+    mut r = g_glob_count - 1
+}
+
+fn glob_lookup(name: i64) (r: i64)
+{
+    let h: i64 = 0
+    let i: i64 = 0
+    mut h = str_hash(name)
+    mut r = -1
+    mut i = 0
+    while i < g_glob_count {
+        if __mem_load(g_glob_name + i * 8) == h {
+            mut r = __mem_load(g_glob_off + i * 8)
+        }
+        mut i = i + 1
+    }
+}
+
 // === Function table ===
 fn my_str_eq(s1: i64, s2: i64) (r: i64)
 {
@@ -1396,6 +1450,18 @@ fn gen_binop(op: i64) (r: i64)
     }
     mut r = 0
 }
+fn gen_glob_load(off: i64) (r: i64)
+{
+    mut r = gen_ldr(0, 18, off)
+    mut r = 0
+}
+
+fn gen_glob_store(off: i64) (r: i64)
+{
+    mut r = gen_str(0, 18, off)
+    mut r = 0
+}
+
 fn gen_expr_ident(v: i64) (r: i64)
 {
     let off: i64 = 0
@@ -1403,7 +1469,13 @@ fn gen_expr_ident(v: i64) (r: i64)
     if off >= 0 {
         mut r = gen_ldur(0, 29, 0 - (off + 1) * 8)
     } else {
-        mut r = gen_movz(0, 0)
+        let goff: i64 = 0
+        mut goff = glob_lookup(v)
+        if goff >= 0 {
+            mut r = gen_glob_load(goff)
+        } else {
+            mut r = gen_movz(0, 0)
+        }
     }
     mut r = 0
 }
@@ -1415,6 +1487,12 @@ fn gen_expr_assign(a: i64, b: i64) (r: i64)
     mut off = var_lookup(__mem_load(g_ast_val + a * 8))
     if off >= 0 {
         mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
+    } else {
+        let goff: i64 = 0
+        mut goff = glob_lookup(__mem_load(g_ast_val + a * 8))
+        if goff >= 0 {
+            mut r = gen_glob_store(goff)
+        }
     }
     mut r = 0
 }
@@ -1792,6 +1870,12 @@ fn gen_assign_stmt(a: i64, b: i64) (r: i64)
     mut off = var_lookup(__mem_load(g_ast_val + a * 8))
     if off >= 0 {
         mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
+    } else {
+        let goff: i64 = 0
+        mut goff = glob_lookup(__mem_load(g_ast_val + a * 8))
+        if goff >= 0 {
+            mut r = gen_glob_store(goff)
+        }
     }
     mut r = 0
 }
@@ -2092,24 +2176,72 @@ fn gen_prologue() (r: i64)
     mut r = 0
 }
 
+fn is_main_name(name: i64) (r: i64)
+{
+    if __byte_load(name, 0) == 109 {
+        if __byte_load(name, 1) == 97 {
+            if __byte_load(name, 2) == 105 {
+                if __byte_load(name, 3) == 110 {
+                    if __byte_load(name, 4) == 0 {
+                        mut r = 1
+                    }
+                }
+            }
+        }
+    }
+    mut r = 0
+}
+
+fn gen_main_init2() (r: i64)
+{
+    mut r = gen_save_retval()
+    mut r = gen_caller_restore()
+    mut r = gen_load_retval()
+    mut r = gen_add_sp()
+    mut r = gen_mov(18, 0)
+    mut r = 0
+}
+
+fn gen_main_init() (r: i64)
+{
+    if g_glob_count > 0 {
+        mut r = gen_movz(0, g_glob_count * 8)
+        mut r = gen_caller_save()
+        mut r = gen_call_normal2("malloc", 1)
+        mut r = gen_main_init2()
+    }
+    mut r = 0
+}
+
+fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r: i64)
+{
+    mut r = fn_add(name, g_code_pos)
+    mut g_var_count = 0
+    mut r = gen_prologue()
+    if is_main == 1 {
+        mut r = gen_main_init()
+    }
+    mut r = gen_params(params)
+    mut r = gen_rets(rets)
+    mut r = gen_block(body)
+    mut r = gen_retval(rets)
+    mut r = gen_epilogue()
+    mut r = 0
+}
+
 fn gen_func(nd: i64) (r: i64)
 {
     let name: i64 = 0
     let params: i64 = 0
     let rets: i64 = 0
     let body: i64 = 0
+    let is_main: i64 = 0
     mut name = ast_field(nd, g_ast_val)
     mut params = ast_field(nd, g_ast_a)
     mut rets = ast_field(nd, g_ast_b)
     mut body = ast_field(nd, g_ast_c)
-    mut r = fn_add(name, g_code_pos)
-    mut g_var_count = 0
-    mut r = gen_prologue()
-    mut r = gen_params(params)
-    mut r = gen_rets(rets)
-    mut r = gen_block(body)
-    mut r = gen_retval(rets)
-    mut r = gen_epilogue()
+    if is_main_name(name) == 1 { mut is_main = 1 }
+    mut r = gen_func_body(name, params, rets, body, is_main)
     mut r = 0
 }
 fn gen_all_funcs() (r: i64)
@@ -2507,6 +2639,9 @@ fn init_codegen() (r: i64)
     mut g_ext_name = malloc(4096)
     mut g_ext_pos = malloc(4096)
     mut g_ext_count = 0
+    mut g_glob_name = malloc(4096)
+    mut g_glob_off = malloc(4096)
+    mut g_glob_count = 0
     mut r = 0
 }
 fn do_parse(arg1_ptr: i64) (r: i64)
