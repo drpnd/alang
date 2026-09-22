@@ -1098,6 +1098,18 @@ fn gen_ldr(rt: i64, rn: i64, imm12: i64) (r: i64)
     mut r = emit32(0xF9400000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
 }
 
+// STUR Xt, [Xn, #imm9] (signed offset)
+fn gen_stur(rt: i64, rn: i64, imm9: i64) (r: i64)
+{
+    mut r = emit32(0xF8000000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
+}
+
+// LDUR Xt, [Xn, #imm9] (signed offset)
+fn gen_ldur(rt: i64, rn: i64, imm9: i64) (r: i64)
+{
+    mut r = emit32(0xF8400000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
+}
+
 // STP Xt1, Xt2, [Xn, #imm7*8]! (pre-index)
 fn gen_stp_pre(rt1: i64, rt2: i64, rn: i64, imm7: i64) (r: i64)
 {
@@ -1336,7 +1348,7 @@ fn gen_expr_ident(v: i64) (r: i64)
     let off: i64 = 0
     mut off = var_lookup(v)
     if off >= 0 {
-        mut r = gen_ldr(0, 29, off + 2)
+        mut r = gen_ldur(0, 29, 0 - (off + 1) * 8)
     } else {
         mut r = gen_movz(0, 0)
     }
@@ -1349,7 +1361,7 @@ fn gen_expr_assign(a: i64, b: i64) (r: i64)
     mut r = gen_expr(b)
     mut off = var_lookup(__mem_load(g_ast_val + a * 8))
     if off >= 0 {
-        mut r = gen_str(0, 29, off + 2)
+        mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
     }
     mut r = 0
 }
@@ -1502,7 +1514,7 @@ fn gen_let_stmt(v: i64, b: i64, c: i64) (r: i64)
     } else {
         mut r = gen_movz(0, 0)
     }
-    mut r = gen_str(0, 29, off + 2)
+    mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
     mut r = 0
 }
 
@@ -1512,7 +1524,7 @@ fn gen_assign_stmt(a: i64, b: i64) (r: i64)
     mut r = gen_expr(b)
     mut off = var_lookup(__mem_load(g_ast_val + a * 8))
     if off >= 0 {
-        mut r = gen_str(0, 29, off + 2)
+        mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
     }
     mut r = 0
 }
@@ -1750,8 +1762,25 @@ fn gen_params(params: i64) (r: i64)
         mut pname = extract_name(p)
         if pname > 0 {
             mut r = var_add(pname, reg)
-            mut r = gen_str(reg, 29, reg + 2)
+            mut r = gen_stur(reg, 29, 0 - (reg + 1) * 8)
             mut reg = reg + 1
+        }
+        mut p = extract_next(p)
+    }
+    mut r = 0
+}
+
+fn gen_rets(rets: i64) (r: i64)
+{
+    let p: i64 = 0
+    let pname: i64 = 0
+    let off: i64 = 0
+    mut p = rets
+    while p > 0 {
+        mut pname = extract_name(p)
+        if pname > 0 {
+            mut off = g_var_count
+            mut r = var_add(pname, off)
         }
         mut p = extract_next(p)
     }
@@ -1769,7 +1798,7 @@ fn gen_retval(rets: i64) (r: i64)
         if pname > 0 {
             mut off = var_lookup(pname)
             if off >= 0 {
-                mut r = gen_ldr(0, 29, off + 2)
+                mut r = gen_ldur(0, 29, 0 - (off + 1) * 8)
             }
         }
     }
@@ -1810,7 +1839,7 @@ fn gen_func(nd: i64) (r: i64)
     mut g_var_count = 0
     mut r = gen_prologue()
     mut r = gen_params(params)
-    mut r = gen_params(rets)
+    mut r = gen_rets(rets)
     mut r = gen_block(body)
     mut r = gen_retval(rets)
     mut r = gen_epilogue()
