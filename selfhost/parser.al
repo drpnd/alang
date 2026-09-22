@@ -2260,23 +2260,14 @@ fn is_main_name(name: i64) (r: i64)
     mut r = 0
 }
 
-fn gen_main_init2() (r: i64)
-{
-    mut r = gen_save_retval()
-    mut r = gen_caller_restore()
-    mut r = gen_load_retval()
-    mut r = gen_add_sp()
-    mut r = gen_mov(18, 0)
-    mut r = 0
-}
-
 fn gen_main_init() (r: i64)
 {
     if g_glob_count > 0 {
         mut r = gen_movz(0, g_glob_count * 8)
-        mut r = gen_caller_save()
+        mut r = gen_push()
         mut r = gen_call_normal2("malloc", 1)
-        mut r = gen_main_init2()
+        mut r = gen_pop_x0()
+        mut r = gen_mov(18, 0)
     }
     mut r = 0
 }
