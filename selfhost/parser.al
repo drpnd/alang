@@ -1078,6 +1078,8 @@ let g_glob_off: i64 = 0
 let g_glob_count: i64 = 0
 let g_main_done: i64 = 0
 let g_call_name: i64 = 0
+let g_tmp1: i64 = 0
+let g_tmp2: i64 = 0
 
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
@@ -1586,13 +1588,22 @@ fn gen_expr_assign(a: i64, b: i64) (r: i64)
     mut r = 0
 }
 
+fn load_binop_fields(nd: i64) (r: i64)
+{
+    mut g_tmp1 = ast_field(nd, g_ast_a)
+    mut g_tmp2 = ast_field(nd, g_ast_b)
+    mut r = ast_field(nd, g_ast_val)
+}
+
 fn gen_expr_binop(nd: i64) (r: i64)
 {
-    mut r = gen_expr(ast_field(nd, g_ast_a))
+    let op: i64 = 0
+    mut op = load_binop_fields(nd)
+    mut r = gen_expr(g_tmp1)
     mut r = gen_push()
-    mut r = gen_expr(ast_field(nd, g_ast_b))
+    mut r = gen_expr(g_tmp2)
     mut r = gen_pop_x1()
-    mut r = gen_binop(ast_field(nd, g_ast_val))
+    mut r = gen_binop(op)
     mut r = 0
 }
 
@@ -1706,27 +1717,29 @@ fn is_builtin_name(name: i64) (r: i64)
     }
 }
 
-fn gen_eval_args(first_arg: i64) (r: i64)
+fn gen_eval_one(arg_nd: i64) (r: i64)
 {
-    let arg_nd: i64 = 0
     let k: i64 = 0
     let actual: i64 = 0
-    let next_arg: i64 = 0
+    mut k = __mem_load(g_ast_kind + arg_nd * 8)
+    mut actual = arg_nd
+    mut g_tmp1 = 0
+    if k == 20 {
+        mut actual = __mem_load(g_ast_a + arg_nd * 8)
+        mut g_tmp1 = __mem_load(g_ast_b + arg_nd * 8)
+    }
+    mut r = gen_expr(actual)
+    mut r = gen_push()
+}
+
+fn gen_eval_args(first_arg: i64) (r: i64)
+{
     let count: i64 = 0
     mut count = 0
-    mut arg_nd = first_arg
-    while arg_nd > 0 {
-            mut k = __mem_load(g_ast_kind + arg_nd * 8)
-        mut actual = arg_nd
-        mut next_arg = 0
-        if k == 20 {
-            mut actual = __mem_load(g_ast_a + arg_nd * 8)
-            mut next_arg = __mem_load(g_ast_b + arg_nd * 8)
-        }
-            mut r = gen_expr(actual)
-            mut r = gen_push()
+    mut g_tmp1 = first_arg
+    while g_tmp1 > 0 {
+        mut r = gen_eval_one(g_tmp1)
         mut count = count + 1
-        mut arg_nd = next_arg
     }
     mut r = count
 }
