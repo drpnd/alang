@@ -26,8 +26,6 @@ let g_str_pos: i64 = 0
 // Indent for printing
 let g_indent: i64 = 0
 let g_done: i64 = 0
-let g_tmp1: i64 = 0
-let g_tmp2: i64 = 0
 
 // AST nd storage (5 parallel arrays, indexed by nd id)
 // Node kinds: 1=INT 2=STR 3=IDENT 4=CALL 5=BINOP 6=UNOP 7=FIELD
@@ -230,75 +228,58 @@ fn lex_op(c: i32) (r: i64)
     mut r = next_ch()
 }
 
-fn skip_line_comment() (r: i64)
-{
-    let c: i32 = 0
-    mut g_pos = g_pos + 1
-    mut c = next_ch()
-    while c != 10 {
-        if g_pos >= g_size { mut c = 10 }
-        else { mut c = next_ch() }
-    }
-    mut r = skip_ws(c)
-}
-
-fn skip_block_comment() (r: i64)
-{
-    let c: i32 = 0
-    let n2: i32 = 0
-    mut g_pos = g_pos + 1
-    mut c = next_ch()
-    while g_pos < g_size {
-        if c == 42 {
-            mut n2 = peek(1)
-            if n2 == 47 {
-                mut g_pos = g_pos + 1
-                mut c = next_ch()
-                break
-            } else { mut c = next_ch() }
-        } else { mut c = next_ch() }
-    }
-    mut r = skip_ws(c)
-}
-
-fn lex_char(c: i32) (r: i32)
-{
-    if is_alpha(c) == 1 {
-        mut r = lex_ident(c)
-    } else {
-        if is_digit(c) == 1 {
-            mut r = lex_number(c)
-        } else {
-            if c == 34 {
-                mut r = lex_string()
-            } else {
-                if c == 47 {
-                    let n: i32 = 0
-                    mut n = peek(1)
-                    if n == 47 {
-                        mut r = skip_line_comment()
-                    } else {
-                        if n == 42 {
-                            mut r = skip_block_comment()
-                        } else {
-                            mut r = lex_op(c)
-                        }
-                    }
-                } else {
-                    mut r = lex_op(c)
-                }
-            }
-        }
-    }
-}
-
 fn lex() (r: i64)
 {
     let c: i32 = 0
     mut c = __byte_load(g_src, g_pos)
     mut c = skip_ws(c)
     while g_pos < g_size {
-        mut c = lex_char(c)
+        if is_alpha(c) == 1 {
+            mut c = lex_ident(c)
+        } else {
+            if is_digit(c) == 1 {
+                mut c = lex_number(c)
+            } else {
+                if c == 34 {
+                    mut c = lex_string()
+                } else {
+                    if c == 47 {
+                        let n: i32 = 0
+                        mut n = peek(1)
+                        if n == 47 {
+                            mut g_pos = g_pos + 1
+                            mut c = next_ch()
+                            while c != 10 {
+                                if g_pos >= g_size { mut c = 10 }
+                                else { mut c = next_ch() }
+                            }
+                            mut c = skip_ws(c)
+                        } else {
+                            if n == 42 {
+                                mut g_pos = g_pos + 1
+                                mut c = next_ch()
+                                while g_pos < g_size {
+                                    if c == 42 {
+                                        let n2: i32 = 0
+                                        mut n2 = peek(1)
+                                        if n2 == 47 {
+                                            mut g_pos = g_pos + 1
+                                            mut c = next_ch()
+                                            break
+                                        } else { mut c = next_ch() }
+                                    } else { mut c = next_ch() }
+                                }
+                                mut c = skip_ws(c)
+                            } else {
+                                mut c = lex_op(c)
+                            }
+                        }
+                    } else {
+                        mut c = lex_op(c)
+                    }
+                }
+            }
+        }
         mut c = skip_ws(c)
     }
     mut r = emit_tok(0, 0)
@@ -494,76 +475,82 @@ fn emit_elseif(cond: i64, then_blk: i64, next_else: i64) (r: i64)
     mut r = emit_node(22, 0, cond, then_blk, next_else)
 }
 
-fn parse_call_args() (r: i64)
-{
-    let first_arg: i64 = 0
-    let next_arg: i64 = 0
-    mut r = advance()
-    if is_op(41) == 0 {
-        mut first_arg = parse_expr()
-        while is_op(44) == 1 {
-            mut r = advance()
-            mut next_arg = parse_expr()
-            mut first_arg = emit_stmtlist(next_arg, first_arg)
-        }
-    }
-    if is_op(41) == 1 { mut r = advance() }
-    mut r = first_arg
-}
-
-fn parse_primary_ident(name: i64) (r: i64)
-{
-    let nd: i64 = 0
-    mut r = advance()
-    if is_op(40) == 1 {
-        let args: i64 = 0
-        mut args = parse_call_args()
-        mut nd = emit_call(name, args)
-    } else {
-        mut nd = emit_ident(name)
-    }
-    mut r = nd
-}
-
-fn parse_paren_expr() (r: i64)
-{
-    let nd: i64 = 0
-    mut r = advance()
-    mut nd = parse_expr()
-    if is_op(41) == 1 { mut r = advance() }
-    mut r = nd
-}
-
 fn parse_primary() (r: i64)
 {
     let t: i64 = 0
+    let nd: i64 = 0
+    let name: i64 = 0
+    let first_arg: i64 = 0
+    let next_arg: i64 = 0
     mut t = cur_type()
     if t == 2 {
-        mut r = emit_int(cur_val())
+        mut nd = emit_int(cur_val())
         mut r = advance()
     } else {
         if t == 3 {
-            mut r = emit_str(cur_val())
+            mut nd = emit_str(cur_val())
             mut r = advance()
         } else {
             if t == 1 {
-                mut r = parse_primary_ident(cur_val())
+                mut name = cur_val()
+                mut r = advance()
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    if is_op(41) == 0 {
+                        mut first_arg = parse_expr()
+                        while is_op(44) == 1 {
+                            mut r = advance()
+                            mut next_arg = parse_expr()
+                            mut first_arg = emit_stmtlist(next_arg, first_arg)
+                        }
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                    mut nd = emit_call(name, first_arg)
+                } else {
+                    mut nd = emit_ident(name)
+                }
             } else {
                 if is_op(40) == 1 {
-                    mut r = parse_paren_expr()
+                    mut r = advance()
+                    mut nd = parse_expr()
+                    if is_op(41) == 1 { mut r = advance() }
                 } else {
-                    mut r = emit_node(0, 0, 0, 0, 0)
+                    mut nd = emit_node(0, 0, 0, 0, 0)
                     mut r = advance()
                 }
             }
         }
     }
+    mut r = nd
 }
 fn parse_postfix() (r: i64)
 {
     let nd: i64 = 0
+    let fname: i64 = 0
+    let idx: i64 = 0
     mut nd = parse_primary()
-    mut r = parse_field_chain(nd)
+    mut g_done = 0
+    while g_done == 0 {
+        if is_op(46) == 1 {
+            mut r = advance()
+            mut fname = 0
+            if cur_type() == 1 {
+                mut fname = cur_val()
+                mut r = advance()
+            }
+            mut nd = emit_field(fname, nd)
+        } else {
+            if is_op(91) == 1 {
+                mut r = advance()
+                mut idx = parse_expr()
+                if is_op(93) == 1 { mut r = advance() }
+                mut nd = emit_index(nd, idx)
+            } else {
+                mut g_done = 1
+            }
+        }
+    }
+    mut r = nd
 }
 
 fn parse_unary() (r: i64)
@@ -682,31 +669,27 @@ fn parse_type() (r: i64)
     mut r = t
 }
 
-fn parse_one_param(first: i64) (r: i64)
+fn parse_params() (r: i64)
 {
     let pname: i64 = 0
     let pty: i64 = 0
-    let p: i64 = 0
-    mut pname = cur_val()
-    mut r = advance()
-    if is_op(58) == 1 { mut r = advance() }
-    mut pty = parse_type()
-    mut p = emit_param(pname, pty)
-    if first == 0 {
-        mut r = p
-    } else {
-        mut r = emit_stmtlist(p, first)
-    }
-}
-
-fn parse_params() (r: i64)
-{
     let first: i64 = 0
+    let last: i64 = 0
     if is_op(40) == 1 { mut r = advance() }
     while is_op(41) == 0 {
         if cur_type() == 0 { mut r = 1 }
         if cur_type() == 1 {
-            mut first = parse_one_param(first)
+            mut pname = cur_val()
+            mut r = advance()
+            if is_op(58) == 1 { mut r = advance() }
+            mut pty = parse_type()
+            let p: i64 = 0
+            mut p = emit_param(pname, pty)
+            if first == 0 {
+                mut first = p
+            } else {
+                mut first = emit_stmtlist(p, first)
+            }
         } else {
             if is_op(44) == 1 {
                 mut r = advance()
@@ -746,11 +729,12 @@ fn parse_block() (r: i64)
     mut r = first
 }
 
-fn parse_let_name() (r: i64)
+fn parse_let() (r: i64)
 {
     let name: i64 = 0
     let ty: i64 = 0
     let init: i64 = 0
+    mut r = advance()
     if cur_type() == 1 {
         mut name = cur_val()
         mut r = advance()
@@ -764,43 +748,11 @@ fn parse_let_name() (r: i64)
     mut r = emit_let(name, ty, init)
 }
 
-fn parse_let() (r: i64)
-{
-    mut r = advance()
-    mut r = parse_let_name()
-}
-
-fn parse_field_chain(target: i64) (r: i64)
-{
-    let fname: i64 = 0
-    let idx: i64 = 0
-    mut r = target
-    mut g_done = 0
-    while g_done == 0 {
-        if is_op(46) == 1 {
-            mut r = advance()
-            mut fname = 0
-            if cur_type() == 1 {
-                mut fname = cur_val()
-                mut r = advance()
-            }
-            mut r = emit_field(fname, r)
-        } else {
-            if is_op(91) == 1 {
-                mut r = advance()
-                mut idx = parse_expr()
-                if is_op(93) == 1 { mut r = advance() }
-                mut r = emit_index(r, idx)
-            } else {
-                mut g_done = 1
-            }
-        }
-    }
-}
-
 fn parse_assign() (r: i64)
 {
     let name: i64 = 0
+    let fname: i64 = 0
+    let idx: i64 = 0
     let target: i64 = 0
     let val: i64 = 0
     mut r = advance()
@@ -808,7 +760,27 @@ fn parse_assign() (r: i64)
         mut name = cur_val()
         mut target = emit_ident(name)
         mut r = advance()
-        mut target = parse_field_chain(target)
+        mut g_done = 0
+        while g_done == 0 {
+            if is_op(46) == 1 {
+                mut r = advance()
+                mut fname = 0
+                if cur_type() == 1 {
+                    mut fname = cur_val()
+                    mut r = advance()
+                }
+                mut target = emit_field(fname, target)
+            } else {
+                if is_op(91) == 1 {
+                    mut r = advance()
+                    mut idx = parse_expr()
+                    if is_op(93) == 1 { mut r = advance() }
+                    mut target = emit_index(target, idx)
+                } else {
+                    mut g_done = 1
+                }
+            }
+        }
     }
     if is_op(61) == 1 { mut r = advance() }
     mut val = parse_expr()
@@ -853,11 +825,13 @@ fn parse_return() (r: i64)
     mut r = emit_return(val)
 }
 
-fn parse_for_header() (r: i64)
+fn parse_for() (r: i64)
 {
     let var_name: i64 = 0
     let start: i64 = 0
     let end_val: i64 = 0
+    let body: i64 = 0
+    mut r = advance()
     if cur_type() == 1 {
         mut var_name = cur_val()
         mut r = advance()
@@ -868,66 +842,18 @@ fn parse_for_header() (r: i64)
         mut r = advance()
         mut end_val = parse_expr()
     }
-    mut g_tmp1 = var_name
-    mut g_tmp2 = start
-    mut r = end_val
-}
-
-fn parse_for() (r: i64)
-{
-    let body: i64 = 0
-    mut r = advance()
-    mut r = parse_for_header()
     mut body = parse_block()
-    mut r = emit_for(g_tmp1, g_tmp2, r, body)
-}
-
-fn parse_case_pattern() (r: i64)
-{
-    let pattern: i64 = 0
-    let bind_var: i64 = 0
-    mut pattern = cur_val()
-    mut r = advance()
-    mut bind_var = 0
-    if is_op(40) == 1 {
-        mut r = advance()
-        if cur_type() == 1 {
-            mut bind_var = cur_val()
-            mut r = advance()
-        }
-        if is_op(41) == 1 { mut r = advance() }
-    }
-    mut r = pattern
-    mut g_tmp1 = bind_var
-}
-
-fn parse_match_case(first_case: i64) (r: i64)
-{
-    let pattern: i64 = 0
-    let bind_var: i64 = 0
-    let body: i64 = 0
-    let c: i64 = 0
-    mut pattern = parse_case_pattern()
-    mut bind_var = g_tmp1
-    if is_op(125) == 1 {
-        mut r = first_case
-    } else {
-        if is_op(15742) == 1 { mut r = advance() }
-        mut body = parse_stmt()
-        mut c = emit_case(pattern, bind_var, body)
-        if first_case == 0 {
-            mut r = c
-        } else {
-            mut r = emit_stmtlist(c, first_case)
-        }
-        if is_op(44) == 1 { mut r = advance() }
-    }
+    mut r = emit_for(var_name, start, end_val, body)
 }
 
 fn parse_match() (r: i64)
 {
     let scrutinee: i64 = 0
+    let pattern: i64 = 0
+    let bind_var: i64 = 0
+    let body: i64 = 0
     let first_case: i64 = 0
+    let c: i64 = 0
     mut r = advance()
     mut scrutinee = parse_expr()
     if is_op(123) == 1 { mut r = advance() }
@@ -936,7 +862,30 @@ fn parse_match() (r: i64)
             mut r = 1
         } else {
             if cur_type() == 1 {
-                mut first_case = parse_match_case(first_case)
+                mut pattern = cur_val()
+                mut r = advance()
+                mut bind_var = 0
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    if cur_type() == 1 {
+                        mut bind_var = cur_val()
+                        mut r = advance()
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                }
+                if is_op(125) == 1 {
+                    mut r = 1
+                } else {
+                    if is_op(15742) == 1 { mut r = advance() }
+                    mut body = parse_stmt()
+                    mut c = emit_case(pattern, bind_var, body)
+                    if first_case == 0 {
+                        mut first_case = c
+                    } else {
+                        mut first_case = emit_stmtlist(c, first_case)
+                    }
+                    if is_op(44) == 1 { mut r = advance() }
+                }
             } else {
                 mut r = advance()
             }
@@ -944,18 +893,6 @@ fn parse_match() (r: i64)
     }
     if is_op(125) == 1 { mut r = advance() }
     mut r = emit_match(scrutinee, first_case)
-}
-
-fn parse_break_stmt() (r: i64)
-{
-    mut r = advance()
-    mut r = emit_break()
-}
-
-fn parse_continue_stmt() (r: i64)
-{
-    mut r = advance()
-    mut r = emit_continue()
 }
 
 fn parse_stmt() (r: i64)
@@ -982,10 +919,12 @@ fn parse_stmt() (r: i64)
                                 mut r = parse_return()
                             } else {
                                 if is_kw(10) == 1 {
-                                    mut r = parse_break_stmt()
+                                    mut r = advance()
+                                    mut r = emit_break()
                                 } else {
                                     if is_kw(11) == 1 {
-                                        mut r = parse_continue_stmt()
+                                        mut r = advance()
+                                        mut r = emit_continue()
                                     } else {
                                         mut r = parse_expr()
                                     }
@@ -1039,74 +978,29 @@ fn parse_glob_decl() (r: i64)
     mut r = 0
 }
 
-fn skip_parens() (r: i64)
-{
-    mut r = advance()
-    while is_op(41) == 0 {
-        if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
-    }
-    if is_op(41) == 1 { mut r = advance() }
-}
-
-fn parse_extern_block() (r: i64)
-{
-    mut r = advance()
-    if is_kw(1) == 1 {
-        mut r = advance()
-        if cur_type() == 1 { mut r = advance() }
-        if is_op(40) == 1 { mut r = skip_parens() }
-        if is_op(40) == 1 { mut r = skip_parens() }
-    }
-}
-
-fn parse_struct_field() (r: i64)
-{
-    if cur_type() == 1 { mut r = advance() }
-    if is_op(58) == 1 { mut r = advance() }
-    if cur_type() == 1 { mut r = parse_type() }
-    if is_op(44) == 1 { mut r = advance() }
-}
-
-fn parse_struct_block() (r: i64)
-{
-    mut r = advance()
-    if cur_type() == 1 { mut r = advance() }
-    if is_op(123) == 1 { mut r = advance() }
-    while is_op(125) == 0 {
-        if cur_type() == 0 { mut r = 1 } else {
-            mut r = parse_struct_field()
-        }
-    }
-    if is_op(125) == 1 { mut r = advance() }
-}
-
-fn parse_enum_variant() (r: i64)
-{
-    if cur_type() == 1 {
-        mut r = advance()
-        if is_op(40) == 1 { mut r = skip_parens() }
-    }
-    if is_op(44) == 1 { mut r = advance() }
-}
-
-fn parse_enum_block() (r: i64)
-{
-    mut r = advance()
-    if cur_type() == 1 { mut r = advance() }
-    if is_op(123) == 1 { mut r = advance() }
-    while is_op(125) == 0 {
-        if cur_type() == 0 { mut r = 1 } else {
-            mut r = parse_enum_variant()
-        }
-    }
-    if is_op(125) == 1 { mut r = advance() }
-}
-
 fn parse_program() (r: i64)
 {
     while cur_type() != 0 {
         if is_kw(14) == 1 {
-            mut r = parse_extern_block()
+            mut r = advance()
+            if is_kw(1) == 1 {
+                mut r = advance()
+                if cur_type() == 1 { mut r = advance() }
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    while is_op(41) == 0 {
+                        if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                }
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    while is_op(41) == 0 {
+                        if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                }
+            }
         } else {
             if is_kw(1) == 1 {
                 mut r = parse_fn()
@@ -1118,10 +1012,39 @@ fn parse_program() (r: i64)
                         mut r = parse_glob_decl()
                     } else {
                         if is_kw(12) == 1 {
-                            mut r = parse_struct_block()
+                            mut r = advance()
+                            if cur_type() == 1 { mut r = advance() }
+                            if is_op(123) == 1 { mut r = advance() }
+                            while is_op(125) == 0 {
+                                if cur_type() == 0 { mut r = 1 } else {
+                                    if cur_type() == 1 { mut r = advance() }
+                                    if is_op(58) == 1 { mut r = advance() }
+                                    if cur_type() == 1 { mut r = parse_type() }
+                                    if is_op(44) == 1 { mut r = advance() }
+                                }
+                            }
+                            if is_op(125) == 1 { mut r = advance() }
                         } else {
                             if is_kw(13) == 1 {
-                                mut r = parse_enum_block()
+                                mut r = advance()
+                                if cur_type() == 1 { mut r = advance() }
+                                if is_op(123) == 1 { mut r = advance() }
+                                while is_op(125) == 0 {
+                                    if cur_type() == 0 { mut r = 1 } else {
+                                        if cur_type() == 1 {
+                                            mut r = advance()
+                                            if is_op(40) == 1 {
+                                                mut r = advance()
+                                                while is_op(41) == 0 {
+                                                    if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
+                                                }
+                                                if is_op(41) == 1 { mut r = advance() }
+                                            }
+                                        }
+                                        if is_op(44) == 1 { mut r = advance() }
+                                    }
+                                }
+                                if is_op(125) == 1 { mut r = advance() }
                             } else {
                                 mut r = advance()
                             }
@@ -1545,36 +1468,19 @@ fn gen_cmp_ge() (r: i64) { mut r = emit32(2594158560) mut r = 0 }
 fn gen_cmp_eq2() (r: i64) { mut r = emit32(2594117600) mut r = 0 }
 fn gen_cmp_ne() (r: i64) { mut r = emit32(2594113504) mut r = 0 }
 
-fn gen_cmp_eq_op(op: i64) (r: i64)
-{
-    if op == 15677 { mut r = gen_cmp_eq2() }
-    if op == 8645 { mut r = gen_cmp_ne() }
-}
-
-fn gen_cmp_rel_op(op: i64) (r: i64)
-{
-    if op == 60 { mut r = gen_cmp_lt() }
-    if op == 62 { mut r = gen_cmp_gt() }
-    if op == 15485 { mut r = gen_cmp_le() }
-    if op == 15997 { mut r = gen_cmp_ge() }
-}
-
 fn gen_cmpop(op: i64) (r: i64)
 {
     mut r = gen_cmp(1, 0)
     if op == 15677 { mut r = gen_cmp_eq2() }
     if op == 8645 { mut r = gen_cmp_ne() }
-    mut r = gen_cmp_rel_op(op)
+    if op == 60 { mut r = gen_cmp_lt() }
+    if op == 62 { mut r = gen_cmp_gt() }
+    if op == 15485 { mut r = gen_cmp_le() }
+    if op == 15997 { mut r = gen_cmp_ge() }
     mut r = 0
 }
 
-fn gen_mod() (r: i64)
-{
-    mut r = gen_sdiv(2, 1, 0)
-    mut r = gen_msub(0, 2, 0, 1)
-}
-
-fn gen_arith(op: i64) (r: i64)
+fn gen_binop(op: i64) (r: i64)
 {
     if op == 43 {
         mut r = gen_add(0, 1, 0)
@@ -1589,7 +1495,8 @@ fn gen_arith(op: i64) (r: i64)
                     mut r = gen_sdiv(0, 1, 0)
                 } else {
                     if op == 37 {
-                        mut r = gen_mod()
+                        mut r = gen_sdiv(2, 1, 0)
+                        mut r = gen_msub(0, 2, 0, 1)
                     } else {
                         mut r = gen_cmpop(op)
                     }
@@ -1597,11 +1504,6 @@ fn gen_arith(op: i64) (r: i64)
             }
         }
     }
-}
-
-fn gen_binop(op: i64) (r: i64)
-{
-    mut r = gen_arith(op)
     mut r = 0
 }
 fn gen_glob_load(off: i64) (r: i64)
@@ -1661,8 +1563,16 @@ fn gen_expr_binop(nd: i64) (r: i64)
     mut r = 0
 }
 
-fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
+fn gen_expr(nd: i64) (r: i64)
 {
+    let k: i64 = 0
+    let v: i64 = 0
+    let a: i64 = 0
+    let b: i64 = 0
+    mut k = ast_field(nd, g_ast_kind)
+    mut v = ast_field(nd, g_ast_val)
+    mut a = ast_field(nd, g_ast_a)
+    mut b = ast_field(nd, g_ast_b)
     if k == 1 {
         mut r = gen_movz(0, v)
     } else {
@@ -1670,7 +1580,7 @@ fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
             mut r = gen_expr_ident(v)
         } else {
             if k == 5 {
-                mut r = gen_expr_binop(a)
+                mut r = gen_expr_binop(nd)
             } else {
                 if k == 4 {
                     mut r = gen_call(v, a)
@@ -1684,19 +1594,6 @@ fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
             }
         }
     }
-}
-
-fn gen_expr(nd: i64) (r: i64)
-{
-    let k: i64 = 0
-    let v: i64 = 0
-    let a: i64 = 0
-    let b: i64 = 0
-    mut k = ast_field(nd, g_ast_kind)
-    mut v = ast_field(nd, g_ast_val)
-    mut a = ast_field(nd, g_ast_a)
-    mut b = ast_field(nd, g_ast_b)
-    mut r = gen_expr_dispatch(k, v, a, b)
     mut r = 0
 }
 // CSET Xd, cond (set Xd to 1 if condition, 0 otherwise)
@@ -1849,57 +1746,37 @@ fn gen_str_eq_inline() (r: i64)
     mut r = 0
 }
 
-fn gen_byte_load_builtin() (r: i64)
-{
-    mut r = gen_mov(2, 0)
-    mut r = gen_mov(0, 1)
-    mut r = gen_mov(1, 2)
-    mut r = gen_ldrb_reg(0, 0, 1)
-}
-
-fn gen_byte_store_builtin() (r: i64)
-{
-    mut r = gen_mov(3, 0)
-    mut r = gen_mov(0, 2)
-    mut r = gen_mov(2, 3)
-    mut r = gen_strb_reg(2, 0, 1)
-}
-
-fn gen_mem_load_builtin() (r: i64)
-{
-    mut r = gen_ldr_reg(0, 0)
-}
-
-fn gen_mem_store_builtin() (r: i64)
-{
-    mut r = gen_mov(2, 0)
-    mut r = gen_mov(0, 1)
-    mut r = gen_mov(1, 2)
-    mut r = gen_str_reg(1, 0)
-}
-
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
+    mut r = gen_pop_args(arg_count)
     let b2: i64 = 0
     let b3: i64 = 0
-    mut r = gen_pop_args(arg_count)
     mut b2 = __byte_load(g_call_name, 2)
     mut b3 = __byte_load(g_call_name, 3)
     if b2 == 98 {
         if b3 == 121 {
             if __byte_load(g_call_name, 7) == 108 {
-                mut r = gen_byte_load_builtin()
+                mut r = gen_mov(2, 0)
+                mut r = gen_mov(0, 1)
+                mut r = gen_mov(1, 2)
+                mut r = gen_ldrb_reg(0, 0, 1)
             } else {
-                mut r = gen_byte_store_builtin()
+                mut r = gen_mov(3, 0)
+                mut r = gen_mov(0, 2)
+                mut r = gen_mov(2, 3)
+                mut r = gen_strb_reg(2, 0, 1)
             }
         }
     } else {
         if b2 == 109 {
             if b3 == 101 {
                 if __byte_load(g_call_name, 6) == 108 {
-                    mut r = gen_mem_load_builtin()
+                    mut r = gen_ldr_reg(0, 0)
                 } else {
-                    mut r = gen_mem_store_builtin()
+                    mut r = gen_mov(2, 0)
+                    mut r = gen_mov(0, 1)
+                    mut r = gen_mov(1, 2)
+                    mut r = gen_str_reg(1, 0)
                 }
             }
         } else {
