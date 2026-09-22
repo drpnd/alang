@@ -1758,7 +1758,8 @@ fn gen_caller_save() (r: i64)
 
 fn gen_save_retval() (r: i64)
 {
-    mut r = emit32(4177528800)
+    mut r = emit32(0xF90003F2)
+    mut r = emit32(0xF90007E0)
     mut r = 0
 }
 
@@ -1788,7 +1789,8 @@ fn gen_add_sp() (r: i64)
 
 fn gen_load_retval() (r: i64)
 {
-    mut r = emit32(4181723104)
+    mut r = emit32(0xF94003F2)
+    mut r = emit32(0xF94007E0)
     mut r = 0
 }
 
