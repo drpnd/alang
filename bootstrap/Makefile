@@ -51,7 +51,7 @@ minica: y.tab.o lex.yy.o syntax.o syntax_debug.o $(LD_OBJS) $(ARCH_OBJS)
 minica_test_ld: tests/minica_test_ld.o $(LD_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-minica_test_asm: tests/minica_test_asm.o arch.o $(ARCH_OBJS) $(LD_OBJS)
+minica_test_asm: tests/minica_test_asm.o arch.o ir.o $(ARCH_OBJS) $(LD_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 minica_test_parser: tests/minica_test_parser.o y.tab.o lex.yy.o syntax.o syntax_debug.o optimize.o ir.o arch.o $(LD_OBJS) $(ARCH_OBJS)
