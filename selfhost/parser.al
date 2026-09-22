@@ -694,18 +694,22 @@ fn parse_params() (r: i64)
 fn parse_block() (r: i64)
 {
     let first: i64 = 0
+    let last: i64 = 0
     let s: i64 = 0
+    let wrapper: i64 = 0
     if is_op(123) == 1 { mut r = advance() }
     while is_op(125) == 0 {
         if cur_type() == 0 {
             mut r = 1
         } else {
             mut s = parse_stmt()
+            mut wrapper = emit_stmtlist(s, 0)
             if first == 0 {
-                mut first = s
+                mut first = wrapper
             } else {
-                mut first = emit_stmtlist(s, first)
+                __mem_store(g_ast_b + last * 8, wrapper)
             }
+            mut last = wrapper
         }
     }
     if is_op(125) == 1 { mut r = advance() }
@@ -884,7 +888,7 @@ fn parse_stmt() (r: i64)
         mut r = parse_let()
     } else {
         if is_kw(3) == 1 {
-            mut r = parse_assign()
+            mut r = parse_let()
         } else {
             if is_kw(4) == 1 {
                 mut r = parse_if()
@@ -1115,9 +1119,9 @@ fn gen_cmp(rn: i64, rm: i64) (r: i64)
 // B.cond offset (condition codes: 0=EQ, 1=NE, 10=GE, 11=LT, 12=GT, 13=LE)
 fn gen_bcond(cond: i64, offset: i64) (r: i64)
 {
-    let off26: i64 = 0
-    mut off26 = (offset >> 2) & 0x7FFFF
-    mut r = emit32(0x54000000 | (off26) | ((cond & 15) << 12))
+    let off19: i64 = 0
+    mut off19 = (offset >> 2) & 0x7FFFF
+    mut r = emit32(0x54000000 | (off19 << 5) | (cond & 15))
 }
 
 // B offset (unconditional)
@@ -1164,10 +1168,12 @@ fn gen_pop_x1() (r: i64)
 fn var_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
+    let h: i64 = 0
+    mut h = str_hash(name)
     mut i = 0
-    mut r = 0
+    mut r = -1
     while i < g_var_count {
-        if __mem_load(g_var_name + i * 8) == name {
+        if __mem_load(g_var_name + i * 8) == h {
             mut r = __mem_load(g_var_off + i * 8)
         }
         mut i = i + 1
@@ -1176,7 +1182,9 @@ fn var_lookup(name: i64) (r: i64)
 
 fn var_add(name: i64, offset: i64) (r: i64)
 {
-    __mem_store(g_var_name + g_var_count * 8, name)
+    let h: i64 = 0
+    mut h = str_hash(name)
+    __mem_store(g_var_name + g_var_count * 8, h)
     __mem_store(g_var_off + g_var_count * 8, offset)
     mut g_var_count = g_var_count + 1
     mut r = 0
@@ -1278,50 +1286,22 @@ fn patch_calls() (r: i64)
     }
     mut r = 0
 }
-fn gen_cmpop_eq(op: i64) (r: i64)
-{
-    if op == 15677 {
-        mut r = gen_cset(0, 0)
-    } else {
-        if op == 8645 {
-            mut r = gen_cset(0, 1)
-        }
-    }
-    mut r = 0
-}
-
-fn gen_cmpop_lt(op: i64) (r: i64)
-{
-    if op == 60 {
-        mut r = gen_cset(0, 11)
-    } else {
-        if op == 62 {
-            mut r = gen_cset(0, 12)
-        } else {
-            if op == 15485 {
-                mut r = gen_cset(0, 13)
-            } else {
-                if op == 15997 {
-                    mut r = gen_cset(0, 10)
-                }
-            }
-        }
-    }
-    mut r = 0
-}
+fn gen_cmp_lt() (r: i64) { mut r = emit32(2594154464) mut r = 0 }
+fn gen_cmp_gt() (r: i64) { mut r = emit32(2594166752) mut r = 0 }
+fn gen_cmp_le() (r: i64) { mut r = emit32(2594162656) mut r = 0 }
+fn gen_cmp_ge() (r: i64) { mut r = emit32(2594158560) mut r = 0 }
+fn gen_cmp_eq2() (r: i64) { mut r = emit32(2594117600) mut r = 0 }
+fn gen_cmp_ne() (r: i64) { mut r = emit32(2594113504) mut r = 0 }
 
 fn gen_cmpop(op: i64) (r: i64)
 {
     mut r = gen_cmp(1, 0)
-    if op == 15677 {
-        mut r = gen_cset(0, 0)
-    } else {
-        if op == 8645 {
-            mut r = gen_cset(0, 1)
-        } else {
-            mut r = gen_cmpop_lt(op)
-        }
-    }
+    if op == 15677 { mut r = gen_cmp_eq2() }
+    if op == 8645 { mut r = gen_cmp_ne() }
+    if op == 60 { mut r = gen_cmp_lt() }
+    if op == 62 { mut r = gen_cmp_gt() }
+    if op == 15485 { mut r = gen_cmp_le() }
+    if op == 15997 { mut r = gen_cmp_ge() }
     mut r = 0
 }
 
@@ -1354,8 +1334,9 @@ fn gen_binop(op: i64) (r: i64)
 fn gen_expr_ident(v: i64) (r: i64)
 {
     let off: i64 = 0
-    if off > 0 {
-        mut r = gen_ldr(0, 31, off)
+    mut off = var_lookup(v)
+    if off >= 0 {
+        mut r = gen_ldr(0, 29, off + 2)
     } else {
         mut r = gen_movz(0, 0)
     }
@@ -1367,9 +1348,19 @@ fn gen_expr_assign(a: i64, b: i64) (r: i64)
     let off: i64 = 0
     mut r = gen_expr(b)
     mut off = var_lookup(__mem_load(g_ast_val + a * 8))
-    if off > 0 {
-        mut r = gen_str(0, 31, off)
+    if off >= 0 {
+        mut r = gen_str(0, 29, off + 2)
     }
+    mut r = 0
+}
+
+fn gen_expr_binop(nd: i64) (r: i64)
+{
+    mut r = gen_expr(ast_field(nd, g_ast_a))
+    mut r = gen_push()
+    mut r = gen_expr(ast_field(nd, g_ast_b))
+    mut r = gen_pop_x1()
+    mut r = gen_binop(ast_field(nd, g_ast_val))
     mut r = 0
 }
 
@@ -1379,10 +1370,10 @@ fn gen_expr(nd: i64) (r: i64)
     let v: i64 = 0
     let a: i64 = 0
     let b: i64 = 0
-    mut k = __mem_load(g_ast_kind + nd * 8)
-    mut v = __mem_load(g_ast_val + nd * 8)
-    mut a = __mem_load(g_ast_a + nd * 8)
-    mut b = __mem_load(g_ast_b + nd * 8)
+    mut k = ast_field(nd, g_ast_kind)
+    mut v = ast_field(nd, g_ast_val)
+    mut a = ast_field(nd, g_ast_a)
+    mut b = ast_field(nd, g_ast_b)
     if k == 1 {
         mut r = gen_movz(0, v)
     } else {
@@ -1390,11 +1381,7 @@ fn gen_expr(nd: i64) (r: i64)
             mut r = gen_expr_ident(v)
         } else {
             if k == 5 {
-                mut r = gen_expr(a)
-                mut r = gen_push()
-                mut r = gen_expr(b)
-                mut r = gen_pop_x1()
-                mut r = gen_binop(v)
+                mut r = gen_expr_binop(nd)
             } else {
                 if k == 4 {
                     mut r = gen_call(v, a)
@@ -1413,10 +1400,11 @@ fn gen_expr(nd: i64) (r: i64)
 // CSET Xd, cond (set Xd to 1 if condition, 0 otherwise)
 fn gen_cset(rd: i64, cond: i64) (r: i64)
 {
-    // CSINC Xd, XZR, XZR, invert(cond)
+    // CSET Xd, cond = CSINC Xd, XZR, XZR, invert(cond)
+    // 0x9A9F07E0 = base with Rm=31(XZR), Rn=31(XZR), op2=01(CSINC)
     let inv: i64 = 0
     mut inv = cond ^ 1
-    mut r = emit32(0x9A800400 | ((inv & 15) << 12) | (rd & 31))
+    mut r = emit32(0x9A9F07E0 | ((inv & 15) << 12) | (rd & 31))
 }
 
 // Generate function call
@@ -1503,19 +1491,29 @@ fn gen_pop_x3() (r: i64)
 
 fn gen_let_stmt(v: i64, b: i64, c: i64) (r: i64)
 {
-    if c > 0 {
+    let off: i64 = 0
+    mut off = var_lookup(v)
+    if off < 0 {
+        mut off = g_var_count
+        mut r = var_add(v, off)
+    }
+    if b > 0 {
         mut r = gen_expr(b)
     } else {
         mut r = gen_movz(0, 0)
     }
-    mut r = gen_str(0, 31, v)
+    mut r = gen_str(0, 29, off + 2)
     mut r = 0
 }
 
 fn gen_assign_stmt(a: i64, b: i64) (r: i64)
 {
+    let off: i64 = 0
     mut r = gen_expr(b)
-    mut r = gen_str(0, 31, var_lookup(__mem_load(g_ast_val + a * 8)))
+    mut off = var_lookup(__mem_load(g_ast_val + a * 8))
+    if off >= 0 {
+        mut r = gen_str(0, 29, off + 2)
+    }
     mut r = 0
 }
 
@@ -1598,71 +1596,87 @@ fn gen_block(nd: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_else_patch(beq_pos: i64) (r: i64)
+{
+    mut r = patch_bcond(beq_pos, g_code_pos - beq_pos)
+    mut r = 0
+}
+
+fn gen_end_patch(bend_pos: i64) (r: i64)
+{
+    mut r = patch_b(bend_pos, g_code_pos - bend_pos)
+    mut r = 0
+}
+
+fn gen_if_with_else(beq_pos: i64, else_blk: i64) (r: i64)
+{
+    let bend_pos: i64 = 0
+    mut bend_pos = g_code_pos
+    mut r = gen_b(0)
+    mut r = gen_else_patch(beq_pos)
+    mut r = gen_block(else_blk)
+    mut r = gen_end_patch(bend_pos)
+    mut r = 0
+}
+
+fn gen_if_else(beq_pos: i64, else_blk: i64) (r: i64)
+{
+    if else_blk > 0 {
+        mut r = gen_if_with_else(beq_pos, else_blk)
+    } else {
+        mut r = gen_else_patch(beq_pos)
+    }
+    mut r = 0
+}
+
+fn gen_if_cond(nd: i64) (r: i64)
+{
+    mut r = gen_expr(ast_field(nd, g_ast_a))
+    mut r = gen_cmp(0, 31)
+    mut r = 0
+}
+
 fn gen_if(nd: i64) (r: i64)
 {
-    let cond: i64 = 0
-    let then_blk: i64 = 0
-    let else_blk: i64 = 0
-    let cmp_pos: i64 = 0
     let beq_pos: i64 = 0
-    let else_pos: i64 = 0
-    let bend_pos: i64 = 0
-    mut cond = __mem_load(g_ast_a + nd * 8)
-    mut then_blk = __mem_load(g_ast_b + nd * 8)
-    mut else_blk = __mem_load(g_ast_c + nd * 8)
-    // Evaluate condition
-    mut r = gen_expr(cond)
-    mut r = gen_cmp(0, 31)  // CMP X0, XZR (compare with zero)
-    // BEQ to else (if condition is false/zero)
+    mut r = gen_if_cond(nd)
     mut beq_pos = g_code_pos
-    mut r = gen_bcond(0, 8)  // placeholder: skip to else (will patch)
-    // Then block
-    mut r = gen_block(then_blk)
-    if else_blk > 0 {
-        // B to end
-        mut bend_pos = g_code_pos
-        mut r = gen_b(0)  // placeholder
-        // Patch BEQ to jump here (else block)
-        let else_off: i64 = 0
-        mut else_off = g_code_pos - beq_pos
-        mut r = patch_bcond(beq_pos, else_off)
-        // Else block
-        mut r = gen_block(else_blk)
-        // Patch B to jump here (end)
-        let end_off: i64 = 0
-        mut end_off = g_code_pos - bend_pos
-        mut r = patch_b(bend_pos, end_off)
-    } else {
-        // Patch BEQ to jump here (end)
-        let end_off: i64 = 0
-        mut end_off = g_code_pos - beq_pos
-        mut r = patch_bcond(beq_pos, end_off)
-    }
+    mut r = gen_bcond(0, 8)
+    mut r = gen_block(ast_field(nd, g_ast_b))
+    mut r = gen_if_else(beq_pos, ast_field(nd, g_ast_c))
+    mut r = 0
+}
+
+fn gen_while_back(loop_start: i64) (r: i64)
+{
+    mut r = gen_b(loop_start - g_code_pos)
+    mut r = 0
+}
+
+fn gen_while_cond(nd: i64) (r: i64)
+{
+    mut r = gen_expr(ast_field(nd, g_ast_a))
+    mut r = gen_cmp(0, 31)
+    mut r = 0
+}
+
+fn gen_while_body(nd: i64, loop_start: i64) (r: i64)
+{
+    mut r = gen_block(ast_field(nd, g_ast_b))
+    mut r = gen_while_back(loop_start)
     mut r = 0
 }
 
 fn gen_while(nd: i64) (r: i64)
 {
-    let cond: i64 = 0
-    let body: i64 = 0
     let loop_start: i64 = 0
     let beq_pos: i64 = 0
-    mut cond = __mem_load(g_ast_a + nd * 8)
-    mut body = __mem_load(g_ast_b + nd * 8)
     mut loop_start = g_code_pos
-    mut r = gen_expr(cond)
-    mut r = gen_cmp(0, 31)
+    mut r = gen_while_cond(nd)
     mut beq_pos = g_code_pos
-    mut r = gen_bcond(0, 0)  // placeholder: BEQ to end
-    mut r = gen_block(body)
-    // B back to loop_start
-    let back_off: i64 = 0
-    mut back_off = loop_start - g_code_pos
-    mut r = gen_b(back_off)
-    // Patch BEQ to jump here (end)
-    let end_off: i64 = 0
-    mut end_off = g_code_pos - beq_pos
-    mut r = patch_bcond(beq_pos, end_off)
+    mut r = gen_bcond(0, 0)
+    mut r = gen_while_body(nd, loop_start)
+    mut r = gen_else_patch(beq_pos)
     mut r = 0
 }
 
@@ -1670,8 +1684,10 @@ fn gen_while(nd: i64) (r: i64)
 fn patch_bcond(pos: i64, offset: i64) (r: i64)
 {
     let off19: i64 = 0
+    let old_cond: i64 = 0
     mut off19 = (offset >> 2) & 0x7FFFF
-    mut r = emit32_at(pos, 0x54000000 | off19 | (__byte_load(g_code, pos + 3) & 0xF0) << 4)
+    mut old_cond = __byte_load(g_code, pos) & 15
+    mut r = emit32_at(pos, 0x54000000 | (off19 << 5) | old_cond)
     mut r = 0
 }
 
@@ -1728,13 +1744,13 @@ fn gen_params(params: i64) (r: i64)
     let p: i64 = 0
     let reg: i64 = 0
     let pname: i64 = 0
-    mut reg = 0
+    mut reg = g_var_count
     mut p = params
     while p > 0 {
         mut pname = extract_name(p)
         if pname > 0 {
             mut r = var_add(pname, reg)
-            mut r = gen_str(reg, 31, reg)
+            mut r = gen_str(reg, 29, reg + 2)
             mut reg = reg + 1
         }
         mut p = extract_next(p)
@@ -1752,57 +1768,54 @@ fn gen_retval(rets: i64) (r: i64)
         mut pname = extract_name(p)
         if pname > 0 {
             mut off = var_lookup(pname)
-            if off > 0 {
-                mut r = gen_ldr(0, 31, off)
+            if off >= 0 {
+                mut r = gen_ldr(0, 29, off + 2)
             }
         }
     }
     mut r = 0
 }
+fn ast_field(nd: i64, field: i64) (r: i64)
+{
+    mut r = __mem_load(field + nd * 8)
+}
+
+fn gen_epilogue() (r: i64)
+{
+    mut r = gen_add_imm(31, 31, 48)
+    mut r = gen_ldp_post(29, 30, 31, 2)
+    mut r = gen_ret()
+    mut r = 0
+}
+
+fn gen_prologue() (r: i64)
+{
+    mut r = gen_stp_pre(29, 30, 31, 65534)
+    mut r = gen_add_imm(29, 31, 0)
+    mut r = gen_sub_imm(31, 31, 48)
+    mut r = 0
+}
+
 fn gen_func(nd: i64) (r: i64)
 {
     let name: i64 = 0
     let params: i64 = 0
     let rets: i64 = 0
     let body: i64 = 0
-    let func_off: i64 = 0
-    mut name = __mem_load(g_ast_val + nd * 8)
-    mut params = __mem_load(g_ast_a + nd * 8)
-    mut rets = __mem_load(g_ast_b + nd * 8)
-    mut body = __mem_load(g_ast_c + nd * 8)
-    mut func_off = g_code_pos
-    mut r = fn_add(name, func_off)
+    mut name = ast_field(nd, g_ast_val)
+    mut params = ast_field(nd, g_ast_a)
+    mut rets = ast_field(nd, g_ast_b)
+    mut body = ast_field(nd, g_ast_c)
+    mut r = fn_add(name, g_code_pos)
     mut g_var_count = 0
-    mut r = gen_stp_pre(29, 30, 31, 65534)
-    mut r = gen_add_imm(29, 31, 0)
+    mut r = gen_prologue()
     mut r = gen_params(params)
     mut r = gen_params(rets)
-    mut r = gen_sub_imm(31, 31, 32)
     mut r = gen_block(body)
     mut r = gen_retval(rets)
-    mut r = gen_add_imm(31, 31, 32)
-    mut r = gen_ldp_post(29, 30, 31, 2)
-    mut r = gen_ret()
+    mut r = gen_epilogue()
     mut r = 0
 }
-
-fn register_funcs() (r: i64)
-{
-    let list: i64 = 0
-    let nd: i64 = 0
-    let name: i64 = 0
-    mut list = g_func_list
-    while list > 0 {
-        mut nd = __mem_load(g_ast_a + list * 8)
-        if nd > 0 {
-            mut name = __mem_load(g_ast_val + nd * 8)
-            mut r = fn_add(name, 0)
-        }
-        mut list = __mem_load(g_ast_b + list * 8)
-    }
-    mut r = 0
-}
-
 fn gen_all_funcs() (r: i64)
 {
     let list: i64 = 0
@@ -1918,20 +1931,9 @@ fn find_main_name() (r: i64)
 }
 fn find_main() (r: i64)
 {
-    let i: i64 = 0
-    let n: i64 = 0
-    let found: i64 = 0
-    mut i = 0
-    mut r = 0
-    while i < g_fn_count {
-        mut n = __mem_load(g_fn_name + i * 8)
-        if __str_eq(n, "main") == 1 {
-            mut found = __mem_load(g_fn_off + i * 8)
-        }
-        mut i = i + 1
-    }
-    mut r = found
+    mut r = fn_lookup("main")
 }
+
 fn write_symtab_header(fp: i64, sym_off: i64, str_off: i64) (r: i64)
 {
     mut r = write32(fp, 2)
@@ -2082,6 +2084,7 @@ fn init_parser() (r: i64)
     mut g_ast_b = malloc(65536)
     mut g_ast_c = malloc(65536)
     mut g_ast_count = 0
+    mut r = emit_node(0, 0, 0, 0, 0)
     mut g_str_pool = malloc(65536)
     mut g_str_pos = 0
     mut g_tok_count = 0
