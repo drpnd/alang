@@ -1110,6 +1110,26 @@ fn gen_ldur(rt: i64, rn: i64, imm9: i64) (r: i64)
     mut r = emit32(0xF8400000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
 }
 
+fn gen_ldrb_reg(rt: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0x38606800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rt & 31))
+}
+
+fn gen_strb_reg(rt: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0x38206800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rt & 31))
+}
+
+fn gen_ldr_reg(rt: i64, rn: i64) (r: i64)
+{
+    mut r = emit32(0xF9400000 | ((rn & 31) << 5) | (rt & 31))
+}
+
+fn gen_str_reg(rt: i64, rn: i64) (r: i64)
+{
+    mut r = emit32(0xF9000000 | ((rn & 31) << 5) | (rt & 31))
+}
+
 // STP Xt1, Xt2, [Xn, #imm7*8]! (pre-index)
 fn gen_stp_pre(rt1: i64, rt2: i64, rn: i64, imm7: i64) (r: i64)
 {
@@ -1445,15 +1465,46 @@ fn gen_pop_args(arg_count: i64) (r: i64)
     mut r = 0
 }
 
-fn gen_call(name: i64, first_arg: i64) (r: i64)
+fn check_bytes(name: i64, b0: i64, b1: i64, b2: i64, b3: i64) (r: i64)
 {
-    let arg_count: i64 = 0
+    mut r = 0
+    if __byte_load(name, 0) == b0 {
+        if __byte_load(name, 1) == b1 {
+            if __byte_load(name, 2) == b2 {
+                if __byte_load(name, 3) == b3 {
+                    mut r = 1
+                }
+            }
+        }
+    }
+}
+
+fn is_builtin_name(name: i64) (r: i64)
+{
+    mut r = 0
+    if __byte_load(name, 0) == 95 {
+        if __byte_load(name, 1) == 95 {
+            let b2: i64 = 0
+            mut b2 = __byte_load(name, 2)
+            if b2 == 98 {
+                mut r = check_bytes(name, 95, 95, 98, 121)
+            } else {
+                if b2 == 109 {
+                    mut r = check_bytes(name, 95, 95, 109, 101)
+                }
+            }
+        }
+    }
+}
+
+fn gen_eval_args(first_arg: i64) (r: i64)
+{
     let arg_nd: i64 = 0
-    let fn_off: i64 = 0
     let k: i64 = 0
     let actual: i64 = 0
     let next_arg: i64 = 0
-    mut arg_count = 0
+    let count: i64 = 0
+    mut count = 0
     mut arg_nd = first_arg
     while arg_nd > 0 {
         mut k = __mem_load(g_ast_kind + arg_nd * 8)
@@ -1465,9 +1516,43 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
         }
         mut r = gen_expr(actual)
         mut r = gen_push()
-        mut arg_count = arg_count + 1
+        mut count = count + 1
         mut arg_nd = next_arg
     }
+    mut r = count
+}
+
+fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
+{
+    mut r = gen_pop_args(arg_count)
+    let b2: i64 = 0
+    let b3: i64 = 0
+    mut b2 = __byte_load(name, 2)
+    mut b3 = __byte_load(name, 3)
+    if b2 == 98 {
+        if b3 == 121 {
+            if __byte_load(name, 7) == 108 {
+                mut r = gen_ldrb_reg(0, 0, 1)
+            } else {
+                mut r = gen_strb_reg(2, 0, 1)
+            }
+        }
+    } else {
+        if b2 == 109 {
+            if b3 == 101 {
+                if __byte_load(name, 6) == 108 {
+                    mut r = gen_ldr_reg(0, 0)
+                } else {
+                    mut r = gen_str_reg(1, 0)
+                }
+            }
+        }
+    }
+}
+
+fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
+{
+    let fn_off: i64 = 0
     mut r = gen_pop_args(arg_count)
     mut fn_off = fn_lookup(name)
     if fn_off > 0 {
@@ -1479,6 +1564,18 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
         __mem_store(g_patch_name + g_patch_count * 8, name)
         mut g_patch_count = g_patch_count + 1
         mut r = gen_bl(0)
+    }
+    mut r = 0
+}
+
+fn gen_call(name: i64, first_arg: i64) (r: i64)
+{
+    let arg_count: i64 = 0
+    mut arg_count = gen_eval_args(first_arg)
+    if is_builtin_name(name) == 1 {
+        mut r = gen_call_builtin(name, arg_count)
+    } else {
+        mut r = gen_call_normal2(name, arg_count)
     }
     mut r = 0
 }
