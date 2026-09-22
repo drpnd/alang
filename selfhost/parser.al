@@ -1254,25 +1254,28 @@ fn var_add(name: i64, offset: i64) (r: i64)
     mut r = 0
 }
 
-fn glob_add(name: i64) (r: i64)
+fn glob_store(h: i64) (r: i64)
 {
-    let h: i64 = 0
-    mut h = str_hash(name)
     __mem_store(g_glob_name + g_glob_count * 8, h)
     __mem_store(g_glob_off + g_glob_count * 8, g_glob_count)
     mut g_glob_count = g_glob_count + 1
     mut r = g_glob_count - 1
 }
 
-fn glob_lookup(name: i64) (r: i64)
+fn glob_add(name: i64) (r: i64)
 {
     let h: i64 = 0
-    let i: i64 = 0
     mut h = str_hash(name)
+    mut r = glob_store(h)
+}
+
+fn glob_lookup(name: i64) (r: i64)
+{
+    let i: i64 = 0
     mut r = -1
     mut i = 0
     while i < g_glob_count {
-        if __mem_load(g_glob_name + i * 8) == h {
+        if __str_eq(__mem_load(g_glob_name + i * 8), name) == 1 {
             mut r = __mem_load(g_glob_off + i * 8)
         }
         mut i = i + 1
@@ -2599,18 +2602,32 @@ fn print_int(val: i64) (r: i64)
     free(buf)
 }
 
-fn init_parser() (r: i64)
+fn init_parser1() (r: i64)
 {
     mut g_tok_type = malloc(16384)
     mut g_tok_val = malloc(16384)
     mut g_ast_kind = malloc(65536)
     mut g_ast_val = malloc(65536)
+    mut g_glob_name = malloc(4096)
+    mut g_glob_off = malloc(4096)
+    mut r = 0
+}
+
+fn init_parser2() (r: i64)
+{
     mut g_ast_a = malloc(65536)
     mut g_ast_b = malloc(65536)
     mut g_ast_c = malloc(65536)
+    mut g_str_pool = malloc(65536)
+    mut r = 0
+}
+
+fn init_parser() (r: i64)
+{
+    mut r = init_parser1()
+    mut r = init_parser2()
     mut g_ast_count = 0
     mut r = emit_node(0, 0, 0, 0, 0)
-    mut g_str_pool = malloc(65536)
     mut g_str_pos = 0
     mut g_tok_count = 0
     mut g_tok_idx = 0
@@ -2619,24 +2636,34 @@ fn init_parser() (r: i64)
     mut r = 0
 }
 
-fn init_codegen() (r: i64)
+fn init_codegen1() (r: i64)
 {
     mut g_code = malloc(65536)
-    mut g_code_pos = 0
     mut g_var_name = malloc(4096)
     mut g_var_off = malloc(4096)
-    mut g_var_count = 0
     mut g_fn_name = malloc(4096)
     mut g_fn_off = malloc(4096)
-    mut g_fn_count = 0
+    mut r = 0
+}
+
+fn init_codegen2() (r: i64)
+{
     mut g_patch_pos = malloc(4096)
     mut g_patch_name = malloc(4096)
-    mut g_patch_count = 0
     mut g_ext_name = malloc(4096)
     mut g_ext_pos = malloc(4096)
+    mut r = 0
+}
+
+fn init_codegen() (r: i64)
+{
+    mut r = init_codegen1()
+    mut r = init_codegen2()
+    mut g_code_pos = 0
+    mut g_var_count = 0
+    mut g_fn_count = 0
+    mut g_patch_count = 0
     mut g_ext_count = 0
-    mut g_glob_name = malloc(4096)
-    mut g_glob_off = malloc(4096)
     mut g_glob_count = 0
     mut r = 0
 }
