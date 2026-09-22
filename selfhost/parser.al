@@ -1797,7 +1797,6 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
 {
     let fn_off: i64 = 0
     mut r = gen_pop_args(arg_count)
-    mut r = gen_caller_save()
     mut fn_off = fn_lookup(name)
     if fn_off > 0 {
         let rel: i64 = 0
@@ -1809,10 +1808,6 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
         mut g_patch_count = g_patch_count + 1
         mut r = gen_bl(0)
     }
-    mut r = gen_save_retval()
-    mut r = gen_caller_restore()
-    mut r = gen_load_retval()
-    mut r = gen_add_sp()
     mut r = 0
 }
 
