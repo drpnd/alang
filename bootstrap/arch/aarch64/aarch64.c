@@ -425,7 +425,7 @@ operand_reg(ir_operand_t *op)
     if (op->type == IR_OPERAND_REG) {
         int id = ssa_id(op->u.reg.id);
         int r = ssa_to_reg(id);
-        if (r < 0) return spill_load(id, 17);
+        if (r < 0) return spill_load(id, 16);
         return r;
     }
     return 31;

@@ -1089,30 +1089,12 @@ let g_symtab: i64 = 0
 let g_symtab_pos: i64 = 0
 
 // Emit a 32-bit instruction (little-endian)
-fn emit32_bytes_lo(val: i64) (r: i64)
+fn emit32(val: i64) (r: i64)
 {
     __byte_store(g_code, g_code_pos, val & 255)
     __byte_store(g_code, g_code_pos + 1, (val >> 8) & 255)
-    mut r = 0
-}
-
-fn emit32_bytes_hi(val: i64) (r: i64)
-{
     __byte_store(g_code, g_code_pos + 2, (val >> 16) & 255)
     __byte_store(g_code, g_code_pos + 3, (val >> 24) & 255)
-    mut r = 0
-}
-
-fn emit32_bytes(val: i64) (r: i64)
-{
-    mut r = emit32_bytes_lo(val)
-    mut r = emit32_bytes_hi(val)
-    mut r = 0
-}
-
-fn emit32(val: i64) (r: i64)
-{
-    mut r = emit32_bytes(val)
     mut g_code_pos = g_code_pos + 4
     mut r = 0
 }
@@ -1677,15 +1659,15 @@ fn gen_eval_args(first_arg: i64) (r: i64)
     mut count = 0
     mut arg_nd = first_arg
     while arg_nd > 0 {
-        mut k = __mem_load(g_ast_kind + arg_nd * 8)
+            mut k = __mem_load(g_ast_kind + arg_nd * 8)
         mut actual = arg_nd
         mut next_arg = 0
         if k == 20 {
             mut actual = __mem_load(g_ast_a + arg_nd * 8)
             mut next_arg = __mem_load(g_ast_b + arg_nd * 8)
         }
-        mut r = gen_expr(actual)
-        mut r = gen_push()
+            mut r = gen_expr(actual)
+            mut r = gen_push()
         mut count = count + 1
         mut arg_nd = next_arg
     }
@@ -2115,30 +2097,12 @@ fn patch_b(pos: i64, offset: i64) (r: i64)
 }
 
 // Emit a 32-bit value at a specific position (patching)
-fn emit32_at_lo(pos: i64, val: i64) (r: i64)
+fn emit32_at(pos: i64, val: i64) (r: i64)
 {
     __byte_store(g_code, pos, val & 255)
     __byte_store(g_code, pos + 1, (val >> 8) & 255)
-    mut r = 0
-}
-
-fn emit32_at_hi(pos: i64, val: i64) (r: i64)
-{
     __byte_store(g_code, pos + 2, (val >> 16) & 255)
     __byte_store(g_code, pos + 3, (val >> 24) & 255)
-    mut r = 0
-}
-
-fn emit32_at_bytes(pos: i64, val: i64) (r: i64)
-{
-    mut r = emit32_at_lo(pos, val)
-    mut r = emit32_at_hi(pos, val)
-    mut r = 0
-}
-
-fn emit32_at(pos: i64, val: i64) (r: i64)
-{
-    mut r = emit32_at_bytes(pos, val)
     mut r = 0
 }
 
@@ -2280,8 +2244,8 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
     mut r = gen_prologue()
     if g_main_done == 0 {
         mut g_main_done = 1
-        mut r = gen_main_init()
-    }
+            mut r = gen_main_init()
+        }
     mut r = gen_params(params)
     mut r = gen_rets(rets)
     mut r = gen_block(body)
@@ -2787,6 +2751,9 @@ fn do_codegen(argv_ptr: i64) (r: i64)
     mut r = init_codegen()
     mut r = gen_all_funcs()
     puts("GEN DONE")
+    mut r = patch_calls()
+    mut arg2_ptr = __mem_load(argv_ptr + 16)
+    mut r = write_macho(arg2_ptr, g_code_pos)
     mut r = patch_calls()
     mut arg2_ptr = __mem_load(argv_ptr + 16)
     mut r = write_macho(arg2_ptr, g_code_pos)
