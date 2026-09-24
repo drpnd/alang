@@ -1852,6 +1852,7 @@ fn gen_str_eq_ne() (r: i64)
 fn gen_str_eq_inline() (r: i64)
 {
     let loop_pos: i64 = 0
+    mut r = gen_movz(4, 0)
     mut r = gen_str_eq_swap()
     mut loop_pos = g_code_pos
     mut r = gen_str_eq_cmp()
