@@ -1092,6 +1092,9 @@ let g_tmp2: i64 = 0
 let g_op: i64 = 0
 let g_str_const: i64 = 0
 let g_str_const_count: i64 = 0
+let g_adr_patch_pos: i64 = 0
+let g_adr_patch_idx: i64 = 0
+let g_adr_patch_count: i64 = 0
 
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
@@ -1647,17 +1650,22 @@ fn str_const_add(s: i64) (r: i64)
     mut g_str_const_count = g_str_const_count + 1
 }
 
+fn str_adr_patch_add(pos: i64, idx: i64) (r: i64)
+{
+    __mem_store(g_adr_patch_pos + g_adr_patch_count * 8, pos)
+    __mem_store(g_adr_patch_idx + g_adr_patch_count * 8, idx)
+    mut g_adr_patch_count = g_adr_patch_count + 1
+    mut r = 0
+}
+
 fn gen_expr_str(v: i64) (r: i64)
 {
-    let lo: i64 = 0
-    let mid: i64 = 0
-    let hi: i64 = 0
-    mut lo = v % 65536
-    mut mid = (v / 65536) % 65536
-    mut hi = (v / 4294967296) % 65536
-    mut r = gen_movz(0, lo)
-    mut r = gen_movk(0, mid, 16)
-    mut r = gen_movk(0, hi, 32)
+    let idx: i64 = 0
+    let adr_pos: i64 = 0
+    mut idx = str_const_add(v)
+    mut adr_pos = g_code_pos
+    mut r = emit32(0x10000000)
+    mut r = str_adr_patch_add(adr_pos, idx)
     mut r = 0
 }
 
@@ -2627,6 +2635,102 @@ fn count_ext_str() (r: i64)
     mut r = total
 }
 
+fn patch_str_adrs(code_size: i64) (r: i64)
+{
+    let i: i64 = 0
+    let adr_pos: i64 = 0
+    let str_idx: i64 = 0
+    let str_off: i64 = 0
+    let rel: i64 = 0
+    let off_hi: i64 = 0
+    let off_lo: i64 = 0
+    mut i = 0
+    while i < g_adr_patch_count {
+        mut adr_pos = __mem_load(g_adr_patch_pos + i * 8)
+        mut str_idx = __mem_load(g_adr_patch_idx + i * 8)
+        mut str_off = code_size + str_str_off(str_idx)
+        mut rel = str_off - adr_pos
+        mut off_hi = (rel >> 2) & 3
+        mut off_lo = (rel >> 2) & 0x3FFFF
+        mut r = emit32_at(adr_pos, 0x10000000 | (off_hi << 29) | (off_lo << 5))
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
+fn str_str_off(idx: i64) (r: i64)
+{
+    let i: i64 = 0
+    let off: i64 = 0
+    let s: i64 = 0
+    let c: i64 = 0
+    let j: i64 = 0
+    mut i = 0
+    while i < idx {
+        mut s = __mem_load(g_str_const + i * 8)
+        mut j = 0
+        mut c = __byte_load(s, 0)
+        while c != 0 {
+            mut off = off + 1
+            mut j = j + 1
+            mut c = __byte_load(s + j, 0)
+        }
+        mut off = off + 1
+        mut i = i + 1
+    }
+    mut r = off
+}
+
+fn count_str_data() (r: i64)
+{
+    let i: i64 = 0
+    let total: i64 = 0
+    let s: i64 = 0
+    let c: i64 = 0
+    let j: i64 = 0
+    mut i = 0
+    while i < g_str_const_count {
+        mut s = __mem_load(g_str_const + i * 8)
+        mut j = 0
+        mut c = __byte_load(s, 0)
+        while c != 0 {
+            mut total = total + 1
+            mut j = j + 1
+            mut c = __byte_load(s + j, 0)
+        }
+        mut total = total + 1
+        mut i = i + 1
+    }
+    mut r = total
+}
+
+fn write_str_data(fp: i64) (r: i64)
+{
+    let i: i64 = 0
+    let s: i64 = 0
+    let j: i64 = 0
+    let c: i64 = 0
+    let buf: i64 = 0
+    mut buf = malloc(1)
+    mut i = 0
+    while i < g_str_const_count {
+        mut s = __mem_load(g_str_const + i * 8)
+        mut j = 0
+        mut c = __byte_load(s, 0)
+        while c != 0 {
+            __byte_store(buf, 0, c)
+            mut r = fwrite(buf, 1, 1, fp)
+            mut j = j + 1
+            mut c = __byte_load(s + j, 0)
+        }
+        __byte_store(buf, 0, 0)
+        mut r = fwrite(buf, 1, 1, fp)
+        mut i = i + 1
+    }
+    free(buf)
+    mut r = 0
+}
+
 fn write_ext_relocs(fp: i64) (r: i64)
 {
     let i: i64 = 0
@@ -2656,17 +2760,21 @@ fn write_macho(path: i64, code_size: i64) (r: i64)
         puts("Cannot open output file")
         mut r = 1
     } else {
+        let str_data_size: i64 = 0
         mut text_off = 32 + 152 + 16 + 24
-        mut reloc_off = text_off + code_size
+        mut str_data_size = count_str_data()
+        mut reloc_off = text_off + code_size + str_data_size
         mut sym_off = reloc_off + g_ext_count * 8
         mut str_off = sym_off + (1 + g_ext_count) * 16
         mut str_size = count_ext_str()
         mut r = write_header(fp, 3, 152 + 16 + 24)
-        mut r = write_segment(fp, text_off, code_size)
-        mut r = write_section2(fp, text_off, code_size, reloc_off, g_ext_count)
+        mut r = write_segment(fp, text_off, code_size + str_data_size)
+        mut r = write_section2(fp, text_off, code_size + str_data_size, reloc_off, g_ext_count)
         mut r = write_version(fp)
         mut r = write_symtab_header2(fp, sym_off, 1 + g_ext_count, str_off, str_size)
         mut r = write_code_bytes(fp, code_size)
+        mut r = patch_str_adrs(code_size)
+        mut r = write_str_data(fp)
         mut r = write_ext_relocs(fp)
         mut r = write_nlist(fp, 0)
         mut r = write_ext_nlist(fp)
@@ -2895,6 +3003,8 @@ fn init_codegen2() (r: i64)
     mut g_ext_name = malloc(65536)
     mut g_ext_pos = malloc(65536)
     mut g_str_const = malloc(65536)
+    mut g_adr_patch_pos = malloc(65536)
+    mut g_adr_patch_idx = malloc(65536)
     mut r = 0
 }
 
@@ -2908,6 +3018,7 @@ fn init_codegen() (r: i64)
     mut g_patch_count = 0
     mut g_ext_count = 0
     mut g_str_const_count = 0
+    mut g_adr_patch_count = 0
     mut g_glob_count = 0
     mut r = 0
 }
@@ -2937,9 +3048,6 @@ fn do_codegen(argv_ptr: i64) (r: i64)
     mut r = init_codegen()
     mut r = gen_all_funcs()
     puts("GEN DONE")
-    mut r = patch_calls()
-    mut arg2_ptr = __mem_load(argv_ptr + 16)
-    mut r = write_macho(arg2_ptr, g_code_pos)
     mut r = patch_calls()
     mut arg2_ptr = __mem_load(argv_ptr + 16)
     mut r = write_macho(arg2_ptr, g_code_pos)
