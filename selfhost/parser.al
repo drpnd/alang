@@ -1090,6 +1090,8 @@ let g_call_name: i64 = 0
 let g_tmp1: i64 = 0
 let g_tmp2: i64 = 0
 let g_op: i64 = 0
+let g_str_const: i64 = 0
+let g_str_const_count: i64 = 0
 
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
@@ -1122,6 +1124,13 @@ fn emit32(val: i64) (r: i64)
 // === aarch64 instruction encoders ===
 
 // MOVZ Xd, #imm16 (64-bit)
+fn gen_movk(rd: i64, imm16: i64, shift: i64) (r: i64)
+{
+    let hw: i64 = 0
+    mut hw = shift / 16
+    mut r = emit32(0xF2800000 | ((imm16 & 65535) << 5) | ((hw & 3) << 21) | (rd & 31))
+}
+
 fn gen_movz(rd: i64, imm16: i64) (r: i64)
 {
     mut r = emit32(0xD2800000 | ((imm16 & 65535) << 5) | (rd & 31))
@@ -1623,24 +1632,57 @@ fn gen_expr_binop(t1: i64, t2: i64, op: i64) (r: i64)
     mut r = 0
 }
 
+fn str_const_add(s: i64) (r: i64)
+{
+    let i: i64 = 0
+    mut i = 0
+    while i < g_str_const_count {
+        if __mem_load(g_str_const + i * 8) == s {
+            mut r = g_glob_count + i
+        }
+        mut i = i + 1
+    }
+    mut r = g_glob_count + g_str_const_count
+    __mem_store(g_str_const + g_str_const_count * 8, s)
+    mut g_str_const_count = g_str_const_count + 1
+}
+
+fn gen_str_const_load(off: i64) (r: i64)
+{
+    mut r = gen_ldr(0, 18, off)
+    mut r = 0
+}
+
+fn gen_expr_str(v: i64) (r: i64)
+{
+    let idx: i64 = 0
+    mut idx = str_const_add(v)
+    mut r = gen_str_const_load(idx)
+    mut r = 0
+}
+
 fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
 {
     if k == 1 {
         mut r = gen_movz(0, v)
     } else {
-        if k == 3 {
-            mut r = gen_expr_ident(v)
+        if k == 2 {
+            mut r = gen_expr_str(v)
         } else {
-            if k == 5 {
-                mut r = gen_expr_binop(a, b, v)
+            if k == 3 {
+                mut r = gen_expr_ident(v)
             } else {
-                if k == 4 {
-                    mut r = gen_call(v, a)
+                if k == 5 {
+                    mut r = gen_expr_binop(a, b, v)
                 } else {
-                    if k == 9 {
-                        mut r = gen_expr_assign(a, b)
+                    if k == 4 {
+                        mut r = gen_call(v, a)
                     } else {
-                        mut r = gen_movz(0, 0)
+                        if k == 9 {
+                            mut r = gen_expr_assign(a, b)
+                        } else {
+                            mut r = gen_movz(0, 0)
+                        }
                     }
                 }
             }
@@ -1972,10 +2014,11 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
     let fn_off: i64 = 0
     mut r = gen_pop_args(arg_count)
     mut r = gen_caller_save()
-    mut fn_off = fn_lookup(g_call_name)
+    mut fn_off = fn_lookup(name)
     if fn_off > 0 {
         mut r = gen_direct_call(fn_off)
     } else {
+        mut g_call_name = name
         mut r = gen_extern_call()
     }
     mut r = gen_call_finish()
@@ -2361,12 +2404,32 @@ fn is_main_name(name: i64) (r: i64)
 
 fn gen_main_init() (r: i64)
 {
-    if g_glob_count > 0 {
-        mut r = gen_movz(0, g_glob_count * 8)
+    let total: i64 = 0
+    mut total = g_glob_count + g_str_const_count
+    if total > 0 {
+        mut r = gen_movz(0, total * 8)
         mut r = gen_push()
         mut r = gen_call_normal2("malloc", 1)
         mut r = gen_pop_x0()
         mut r = gen_mov(18, 0)
+    }
+    mut r = 0
+}
+
+fn gen_str_const_init() (r: i64)
+{
+    let i: i64 = 0
+    mut i = 0
+    while i < g_str_const_count {
+        let soff: i64 = 0
+        let saddr: i64 = 0
+        mut soff = g_glob_count + i
+        mut saddr = __mem_load(g_str_const + i * 8)
+        mut r = gen_movz(0, saddr & 65535)
+        mut r = gen_movk(0, (saddr >> 16) & 65535, 16)
+        mut r = gen_movk(0, (saddr >> 32) & 65535, 32)
+        mut r = gen_str(0, 18, soff)
+        mut i = i + 1
     }
     mut r = 0
 }
@@ -2379,6 +2442,7 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
     if g_main_done == 0 {
         mut g_main_done = 1
             mut r = gen_main_init()
+            mut r = gen_str_const_init()
         }
     mut r = gen_params(params)
     mut r = gen_rets(rets)
@@ -2836,6 +2900,7 @@ fn init_codegen2() (r: i64)
     mut g_patch_name = malloc(65536)
     mut g_ext_name = malloc(65536)
     mut g_ext_pos = malloc(65536)
+    mut g_str_const = malloc(65536)
     mut r = 0
 }
 
@@ -2848,6 +2913,7 @@ fn init_codegen() (r: i64)
     mut g_fn_count = 0
     mut g_patch_count = 0
     mut g_ext_count = 0
+    mut g_str_const_count = 0
     mut g_glob_count = 0
     mut r = 0
 }
