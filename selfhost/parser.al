@@ -505,10 +505,16 @@ fn parse_primary() (r: i64)
                     mut r = advance()
                     if is_op(41) == 0 {
                         mut first_arg = parse_expr()
+                        let arg_last: i64 = 0
+                        mut arg_last = emit_stmtlist(first_arg, 0)
+                        mut first_arg = arg_last
                         while is_op(44) == 1 {
                             mut r = advance()
                             mut next_arg = parse_expr()
-                            mut first_arg = emit_stmtlist(next_arg, first_arg)
+                            let arg_wrapper: i64 = 0
+                            mut arg_wrapper = emit_stmtlist(next_arg, 0)
+                            __mem_store(g_ast_b + arg_last * 8, arg_wrapper)
+                            mut arg_last = arg_wrapper
                         }
                     }
                     if is_op(41) == 1 { mut r = advance() }
@@ -692,11 +698,14 @@ fn parse_params() (r: i64)
             mut pty = parse_type()
             let p: i64 = 0
             mut p = emit_param(pname, pty)
+            let wrapper: i64 = 0
+            mut wrapper = emit_stmtlist(p, 0)
             if first == 0 {
-                mut first = p
+                mut first = wrapper
             } else {
-                mut first = emit_stmtlist(p, first)
+                __mem_store(g_ast_b + last * 8, wrapper)
             }
+            mut last = wrapper
         } else {
             if is_op(44) == 1 {
                 mut r = advance()
@@ -1826,33 +1835,41 @@ fn gen_mem_store_builtin() (r: i64)
     mut r = gen_str_reg(1, 0)
 }
 
+fn gen_byte_builtin() (r: i64)
+{
+    if __byte_load(g_call_name, 7) == 108 {
+        mut r = gen_byte_load_builtin()
+    } else {
+        mut r = gen_byte_store_builtin()
+    }
+}
+
+fn gen_mem_builtin() (r: i64)
+{
+    if __byte_load(g_call_name, 6) == 108 {
+        mut r = gen_mem_load_builtin()
+    } else {
+        mut r = gen_mem_store_builtin()
+    }
+}
+
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
     let b2: i64 = 0
-    let b3: i64 = 0
     mut r = gen_pop_args(arg_count)
     mut b2 = __byte_load(g_call_name, 2)
-    mut b3 = __byte_load(g_call_name, 3)
     if b2 == 98 {
-        if b3 == 121 {
-            if __byte_load(g_call_name, 7) == 108 {
-                mut r = gen_byte_load_builtin()
-            } else {
-                mut r = gen_byte_store_builtin()
-            }
+        if __byte_load(g_call_name, 3) == 121 {
+            mut r = gen_byte_builtin()
         }
     } else {
         if b2 == 109 {
-            if b3 == 101 {
-                if __byte_load(g_call_name, 6) == 108 {
-                    mut r = gen_mem_load_builtin()
-                } else {
-                    mut r = gen_mem_store_builtin()
-                }
+            if __byte_load(g_call_name, 3) == 101 {
+                mut r = gen_mem_builtin()
             }
         } else {
             if b2 == 115 {
-                if b3 == 116 {
+                if __byte_load(g_call_name, 3) == 116 {
                     mut r = gen_str_eq_inline()
                 }
             }
@@ -1871,7 +1888,7 @@ fn gen_caller_save2() (r: i64)
 
 fn gen_caller_save() (r: i64)
 {
-    mut r = emit32(0xD10263FF)
+    mut r = emit32(0xD10283FF)
     mut r = emit32(2835417056)
     mut r = emit32(2835484642)
     mut r = emit32(2835552228)
@@ -1908,7 +1925,7 @@ fn gen_caller_restore() (r: i64)
 }
 fn gen_add_sp() (r: i64)
 {
-    mut r = emit32(0x910263FF)
+    mut r = emit32(0x910283FF)
     mut r = 0
 }
 
