@@ -1,13 +1,125 @@
 // alang self-hosting compiler: Lexer + Parser
 // Reads a source file, tokenizes, parses, prints AST
-extern fn fopen(path: str, mode: str) (fp: i64)
-extern fn fclose(fp: i64) (r: i32)
-extern fn fread(buf: i64, size: i64, count: i64, fp: i64) (r: i64)
-extern fn malloc(size: i64) (ptr: i64)
-extern fn fwrite(buf: i64, size: i64, count: i64, fp: i64) (r: i64)
-extern fn free(ptr: i64)
-extern fn puts(s: str) (r: i32)
-extern fn putchar(c: i32) (r: i32)
+// Syscall-based runtime (no libc dependency)
+// macOS aarch64: x16=syscall#, x0-x5=args, svc #0x80
+// __syscall(num, a0, a1, a2, a3, a4, a5) returns x0
+
+// Syscall numbers (macOS/BSD)
+let SC_READ: i64 = 3
+let SC_WRITE: i64 = 4
+let SC_OPEN: i64 = 5
+let SC_CLOSE: i64 = 6
+let SC_MMAP: i64 = 197
+let SC_EXIT: i64 = 1
+
+// O_RDONLY = 0, O_WRONLY = 1, O_RDWR = 2, O_CREAT = 0x200
+
+// sys_write(fd, buf, len) -> bytes written
+fn sys_write(fd: i64, buf: i64, len: i64) (r: i64)
+{
+    mut r = __syscall(SC_WRITE, fd, buf, len)
+}
+
+// sys_read(fd, buf, len) -> bytes read
+fn sys_read(fd: i64, buf: i64, len: i64) (r: i64)
+{
+    mut r = __syscall(SC_READ, fd, buf, len)
+}
+
+// sys_open(path, flags, mode) -> fd
+fn sys_open(path: i64, flags: i64, mode: i64) (r: i64)
+{
+    mut r = __syscall(SC_OPEN, path, flags, mode)
+}
+
+// sys_close(fd) -> 0 on success
+fn sys_close(fd: i64) (r: i64)
+{
+    mut r = __syscall(SC_CLOSE, fd)
+}
+
+// sys_mmap(addr, size, prot, flags, fd, offset) -> ptr
+fn sys_mmap(addr: i64, size: i64, prot: i64, flags: i64, fd: i64, offset: i64) (r: i64)
+{
+    mut r = __syscall(SC_MMAP, addr, size, prot, flags, fd, offset)
+}
+
+// sys_exit(code)
+fn sys_exit(code: i64) (r: i64)
+{
+    mut r = __syscall(SC_EXIT, code)
+}
+
+// malloc replacement: use mmap to allocate memory
+// PROT_READ|PROT_WRITE = 3, MAP_PRIVATE|MAP_ANON = 0x1002
+fn malloc(size: i64) (ptr: i64)
+{
+    mut ptr = sys_mmap(0, size, 3, 0x1002, -1, 0)
+}
+
+// free is a no-op (short-lived process, OS reclaims on exit)
+fn free(ptr: i64) (r: i64)
+{
+    mut r = 0
+}
+
+// fopen replacement: open(path, flags, mode) -> fd
+// mode "r" = O_RDONLY (0), mode "w" = O_WRONLY|O_CREAT|O_TRUNC (0x601)
+fn fopen(path: i64, mode: i64) (fp: i64)
+{
+    let flags: i64 = 0
+    mut flags = 0
+    // Check first byte of mode string: 'w' = 119
+    if __byte_load(mode, 0) == 119 {
+        mut flags = 1537  // O_WRONLY(1) | O_CREAT(0x200) | O_TRUNC(0x400) = 0x601
+    }
+    mut fp = sys_open(path, flags, 420)  // 420 = 0644 file permissions
+}
+
+// fclose replacement: close(fd)
+fn fclose(fd: i64) (r: i32)
+{
+    let res: i64 = 0
+    mut res = sys_close(fd)
+    mut r = 0
+}
+
+// fread replacement: read(fd, buf, count) -> bytes read
+fn fread(buf: i64, size: i64, count: i64, fp: i64) (r: i64)
+{
+    mut r = sys_read(fp, buf, count)
+}
+
+// fwrite replacement: write(fd, buf, count) -> bytes written
+fn fwrite(buf: i64, size: i64, count: i64, fp: i64) (r: i64)
+{
+    mut r = sys_write(fp, buf, count)
+}
+
+// puts replacement: write(1, s, strlen(s)) to stdout
+// Uses a simple strlen loop inline
+fn puts(s: i64) (r: i32)
+{
+    let len: i64 = 0
+    mut len = 0
+    while __byte_load(s, len) != 0 {
+        mut len = len + 1
+    }
+    let res: i64 = 0
+    mut res = sys_write(1, s, len)
+    mut r = 0
+}
+
+// putchar replacement: write(1, &c, 1) to stdout
+fn putchar(c: i32) (r: i32)
+{
+    let buf: i64 = 0
+    mut buf = malloc(1)
+    __byte_store(buf, 0, c)
+    let res: i64 = 0
+    mut res = sys_write(1, buf, 1)
+    mut r = 0
+}
 
 let g_src: i64 = 0
 let g_size: i64 = 0
@@ -1427,7 +1539,7 @@ fn fn_lookup(name: i64) (r: i64)
     mut i = 0
     while i < g_fn_count {
         mut stored = __mem_load(g_fn_name + i * 8)
-        if fn_name_eq(stored, name) == 1 {
+        if __str_eq(stored, name) == 1 {
             mut result = __mem_load(g_fn_off + i * 8)
         }
         mut i = i + 1
@@ -2413,10 +2525,17 @@ fn is_main_name(name: i64) (r: i64)
 
 fn gen_main_init() (r: i64)
 {
-    mut r = gen_movz(0, 4096)
-    mut r = gen_push()
-    mut r = gen_call_normal2("malloc", 1)
-    mut r = gen_mov(18, 0)
+    // Emit direct mmap syscall: mmap(0, 4096, PROT_RW, MAP_PRIVATE|ANON, -1, 0)
+    // macOS aarch64: x16=197, svc #0x80
+    mut r = gen_movz(0, 0)          // X0 = 0 (addr = NULL)
+    mut r = gen_movz(1, 4096)       // X1 = 4096 (size)
+    mut r = gen_movz(2, 3)          // X2 = 3 (PROT_READ|PROT_WRITE)
+    mut r = gen_movz(3, 4098)       // X3 = 0x1002 (MAP_PRIVATE|MAP_ANON)
+    mut r = emit32(0x92800004)      // MOV X4, #-1 (fd = -1) = MOVN X4, #0
+    mut r = gen_movz(5, 0)          // X5 = 0 (offset)
+    mut r = gen_movz(16, 197)       // X16 = 197 (SC_MMAP on macOS)
+    mut r = emit32(0xD4001001)      // SVC #0x80
+    mut r = gen_mov(18, 0)          // X18 = X0 (global base pointer)
     mut r = 0
 }
 

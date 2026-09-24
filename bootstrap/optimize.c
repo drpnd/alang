@@ -107,6 +107,7 @@ has_side_effects(ir_opcode_t opc)
     case IR_OPCODE_YIELD:
     case IR_OPCODE_SEND:
     case IR_OPCODE_SUSPEND:
+    case IR_OPCODE_SYSCALL:
         return 1;
     default:
         return 0;

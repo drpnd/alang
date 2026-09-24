@@ -204,6 +204,7 @@ int ir_num_results(ir_opcode_t o) {
     case IR_OPCODE_MAKE_ENUM: case IR_OPCODE_EXTRACT_VARIANT:
     case IR_OPCODE_CHECK_VARIANT: case IR_OPCODE_CALL:
     case IR_OPCODE_RECV: case IR_OPCODE_SEND: case IR_OPCODE_AWAIT: return 1;
+    case IR_OPCODE_SYSCALL: case IR_OPCODE_STR_EQ: return 1;
     default: return -1;
     }
 }
@@ -224,11 +225,12 @@ int ir_num_operands(ir_opcode_t o) {
     case IR_OPCODE_CMP_GT: case IR_OPCODE_CMP_GE: case IR_OPCODE_AND:
     case IR_OPCODE_OR: case IR_OPCODE_XOR: case IR_OPCODE_SHL:
     case IR_OPCODE_SHR: case IR_OPCODE_GET_ELEM:
-    case IR_OPCODE_SEND: case IR_OPCODE_YIELD: return 2;
+    case IR_OPCODE_SEND: case IR_OPCODE_YIELD: case IR_OPCODE_STR_EQ: return 2;
     case IR_OPCODE_MEMCPY: case IR_OPCODE_BR_COND:
     case IR_OPCODE_SET_FIELD: return 3;
     case IR_OPCODE_PHI: case IR_OPCODE_SWITCH:
-    case IR_OPCODE_CALL: case IR_OPCODE_MAKE_STRUCT: return -1;
+    case IR_OPCODE_CALL: case IR_OPCODE_MAKE_STRUCT:
+    case IR_OPCODE_SYSCALL: return -1;
     default: return -1;
     }
 }

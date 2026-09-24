@@ -1591,6 +1591,187 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             break;
         }
 
+    case IR_OPCODE_SYSCALL: {
+        /* __syscall(n, a0, a1, a2, a3, a4, a5)
+         * On macOS aarch64: x16 = syscall number, x0-x5 = args, svc #0x80
+         * Save caller-saved regs, set up args, svc, restore.
+         * Operand 0 = syscall number, operands 1-6 = args */
+        int nargs = inst->noperands;
+        int dst = 31;
+        if (inst->result.n > 0 && inst->result.reg[0].id) {
+            dst = ssa_to_reg(ssa_id(inst->result.reg[0].id));
+        }
+
+        /* Calculate save size (same as emit_caller_save) */
+        int max_cs = ctx->max_ssa < 18 ? ctx->max_ssa : 18;
+        int n_cs = max_cs + 1;
+        if (n_cs % 2 != 0) n_cs++;
+        int save_size = n_cs * 8 + 32;
+        int ret_off = 16 + n_cs * 8;  /* return value saved past saved regs */
+
+        /* SUB SP, SP, #save_size */
+        {
+            uint32_t sub = (1U << 31) | (0x51U << 24) |
+                          ((save_size & 0xFFF) << 10) | (31U << 5) | 31;
+            emit32(&ctx->tb, sub);
+        }
+        /* Save caller-saved registers: STR xi, [SP, #16+i*8] */
+        for (int i = 0; i <= max_cs; i++) {
+            int off = 16 + i * 8;
+            uint32_t str = (0xF9U << 24) | (((off / 8) & 0xFFF) << 10) |
+                          (31U << 5) | i;
+            emit32(&ctx->tb, str);
+        }
+
+        /* Load syscall number into X16 */
+        if (nargs > 0) {
+            ir_operand_t *num = &inst->operands[0];
+            if (num->type == IR_OPERAND_IMM) {
+                int ok;
+                int64_t val = operand_imm(num, &ok);
+                if (ok) emit_load_imm64(&ctx->tb, 16, val);
+            } else if (num->type == IR_OPERAND_REG) {
+                int src = ssa_to_reg(ssa_id(num->u.reg.id));
+                if (src >= 0 && src < 19) {
+                    int off = 16 + src * 8;
+                    uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                                  (((off / 8) & 0xFFF) << 10) | (31U << 5) | 16;
+                    emit32(&ctx->tb, ldr);
+                } else if (src < 0) {
+                    spill_load(ssa_id(num->u.reg.id), 16);
+                } else {
+                    if (src != 16) emit_orr_reg(&ctx->tb, 16, 31, src, 1);
+                }
+            }
+        }
+
+        /* Load arguments into X0-X5 */
+        int arg_regs[] = {0, 1, 2, 3, 4, 5};
+        for (int i = 1; i < nargs && i < 7; i++) {
+            ir_operand_t *arg = &inst->operands[i];
+            if (arg->type == IR_OPERAND_IMM) {
+                int ok;
+                int64_t val = operand_imm(arg, &ok);
+                if (ok) emit_load_imm64(&ctx->tb, arg_regs[i-1], val);
+            } else if (arg->type == IR_OPERAND_REG) {
+                int src = ssa_to_reg(ssa_id(arg->u.reg.id));
+                if (src >= 0 && src < 19) {
+                    int off = 16 + src * 8;
+                    uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                                  (((off / 8) & 0xFFF) << 10) | (31U << 5) | arg_regs[i-1];
+                    emit32(&ctx->tb, ldr);
+                } else if (src < 0) {
+                    spill_load(ssa_id(arg->u.reg.id), arg_regs[i-1]);
+                } else {
+                    if (src != arg_regs[i-1]) emit_orr_reg(&ctx->tb, arg_regs[i-1], 31, src, 1);
+                }
+            }
+        }
+
+        /* svc #0x80 (macOS) — 0xD4001001 */
+        emit32(&ctx->tb, 0xD4001001);
+
+        /* Save return value (X0) to extra stack slot */
+        {
+            uint32_t str = (0xF9U << 24) | (((ret_off / 8) & 0xFFF) << 10) |
+                          (31U << 5) | 0;
+            emit32(&ctx->tb, str);
+        }
+
+        /* Restore caller-saved registers: LDR xi, [SP, #16+i*8] */
+        for (int i = 0; i <= max_cs; i++) {
+            int off = 16 + i * 8;
+            uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                          (((off / 8) & 0xFFF) << 10) | (31U << 5) | i;
+            emit32(&ctx->tb, ldr);
+        }
+
+        /* Load return value from stack slot to dst (BEFORE restoring SP) */
+        if (dst != 31) {
+            uint32_t ldr = (0xF9U << 24) | (1U << 22) |
+                          (((ret_off / 8) & 0xFFF) << 10) | (31U << 5) | dst;
+            emit32(&ctx->tb, ldr);
+        }
+
+        /* ADD SP, SP, #save_size (restore SP) */
+        {
+            uint32_t add = (1U << 31) | (0x11U << 24) |
+                          ((save_size & 0xFFF) << 10) | (31U << 5) | 31;
+            emit32(&ctx->tb, add);
+        }
+        break;
+    }
+
+    case IR_OPCODE_STR_EQ: {
+        /* __str_eq(s1, s2) — inline byte-by-byte string comparison.
+         * Returns 1 if equal, 0 if not.
+         * Saves X0-X5 + X16 to stack, uses X2/X3/X4/X5 as scratch,
+         * restores all registers, loads result to dst. */
+        int dst = 31;
+        if (inst->result.n > 0 && inst->result.reg[0].id) {
+            dst = ssa_to_reg(ssa_id(inst->result.reg[0].id));
+        }
+
+        /* Step 1: Load operands into X0, X1 */
+        for (int i = 0; i < inst->noperands && i < 2; i++) {
+            ir_operand_t *arg = &inst->operands[i];
+            int target = (i == 0) ? 0 : 1;
+            if (arg->type == IR_OPERAND_IMM && arg->u.imm.type == IR_IMM_STR) {
+                const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
+                int sid = add_string(ctx, str);
+                size_t off = ctx->tb.size;
+                uint32_t adr = (1U << 28) | (target & 31);
+                emit32(&ctx->tb, adr);
+                str_patch_add(ctx, off, sid);
+            } else if (arg->type == IR_OPERAND_IMM) {
+                int ok;
+                int64_t val = operand_imm(arg, &ok);
+                if (ok) emit_load_imm64(&ctx->tb, target, val);
+            } else if (arg->type == IR_OPERAND_REG) {
+                int src = ssa_to_reg(ssa_id(arg->u.reg.id));
+                if (src >= 0) {
+                    if (src != target) emit_orr_reg(&ctx->tb, target, 31, src, 1);
+                } else {
+                    spill_load(ssa_id(arg->u.reg.id), target);
+                }
+            }
+        }
+
+        /* Step 2: Save X0-X5 and X16 to a 64-byte stack frame */
+        emit32(&ctx->tb, (1U << 31) | (0x51U << 24) | ((64 & 0xFFF) << 10) | (31U << 5) | 31);
+        emit32(&ctx->tb, 0xA90007E0);  /* STP X0, X1, [SP, #0] */
+        emit32(&ctx->tb, 0xA9010FE2);  /* STP X2, X3, [SP, #16] */
+        emit32(&ctx->tb, 0xA90217E4);  /* STP X4, X5, [SP, #32] */
+        emit32(&ctx->tb, 0xF9000000 | (6 << 10) | (31 << 5) | 16);  /* STR X16, [SP, #48] */
+
+        /* Step 3: Comparison loop (X3=index, W2=s1 byte, W4=s2 byte) */
+        emit32(&ctx->tb, 0xD2800003);  /* MOV X3, #0 */
+        size_t loop_start = ctx->tb.size;
+        emit32(&ctx->tb, 0x38606800 | (3 << 16) | (0 << 5) | 2);  /* LDRB W2, [X0, X3] */
+        emit32(&ctx->tb, 0x38606800 | (3 << 16) | (1 << 5) | 4);  /* LDRB W4, [X1, X3] */
+        emit32(&ctx->tb, 0x6B000000 | (4 << 16) | (2 << 5) | 31); /* CMP W2, W4 */
+        emit32(&ctx->tb, 0x54000001 | (4 << 5));  /* B.NE not_equal (+4) */
+        emit32(&ctx->tb, 0x34000000 | (5 << 5) | 2);  /* CBZ W2, equal (+5) */
+        emit32(&ctx->tb, 0x91000463);  /* ADD X3, X3, #1 */
+        int32_t back_offset = (int32_t)(loop_start - ctx->tb.size) / 4;
+        emit32(&ctx->tb, 0x14000000 | (back_offset & 0x03FFFFFF));  /* B loop */
+        emit32(&ctx->tb, 0x52800005);  /* not_equal: MOV W5, #0 */
+        emit32(&ctx->tb, 0x14000002);  /* B end (+2) */
+        emit32(&ctx->tb, 0x52800025);  /* equal: MOV W5, #1 */
+
+        /* Step 4: Save result, restore registers */
+        emit32(&ctx->tb, 0xB9000000 | (14 << 10) | (31 << 5) | 5);  /* STR W5, [SP, #56] */
+        emit32(&ctx->tb, 0xA94007E0);  /* LDP X0, X1, [SP, #0] */
+        emit32(&ctx->tb, 0xA9410FE2);  /* LDP X2, X3, [SP, #16] */
+        emit32(&ctx->tb, 0xA94217E4);  /* LDP X4, X5, [SP, #32] */
+        if (dst != 31) {
+            emit32(&ctx->tb, 0xB9400000 | (14 << 10) | (31 << 5) | (dst & 31));  /* LDR Wdst, [SP, #56] */
+        }
+        emit32(&ctx->tb, 0xF9400000 | (6 << 10) | (31 << 5) | 16);  /* LDR X16, [SP, #48] */
+        emit32(&ctx->tb, (1U << 31) | (0x11U << 24) | ((64 & 0xFFF) << 10) | (31U << 5) | 31);  /* ADD SP, SP, #64 */
+        break;
+    }
+
     case IR_OPCODE_ALLOCA: {
         /* Allocate stack space. Default 16 bytes, or use operand size. */
         int size = 16;

@@ -88,6 +88,8 @@ opcode_name(ir_opcode_t opc)
     case IR_OPCODE_YIELD:           return "yield";
     case IR_OPCODE_AWAIT:           return "await";
     case IR_OPCODE_SUSPEND:         return "suspend";
+    case IR_OPCODE_SYSCALL:         return "syscall";
+    case IR_OPCODE_STR_EQ:           return "str_eq";
     default:                        return "<unknown>";
     }
 }

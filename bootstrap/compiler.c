@@ -1183,9 +1183,9 @@ _expr(dfir_compiler_t *c, expr_t *e)
             return result;
         }
 
-        /* Builtin: __str_eq(s1, s2) — compare strings, return 1 if equal, 0 if not */
+        /* Builtin: __str_eq(s1, s2) — inline string comparison, return 1 if equal, 0 if not */
         if (call->callee && strcmp(call->callee, "__str_eq") == 0) {
-            ir_operand_t ops[3];
+            ir_operand_t ops[2];
             int nargs = 0;
             if (call->exprs) {
                 expr_t *arg = call->exprs->head;
@@ -1196,20 +1196,30 @@ _expr(dfir_compiler_t *c, expr_t *e)
                     arg = arg->next;
                 }
             }
-            ops[nargs] = _op_imm_str("strcmp");
-            nargs++;
-            ir_reg_t cmp_result = _ssa(c, IR_REG_I32);
-            _emit(c, IR_OPCODE_CALL, &cmp_result, nargs, ops);
-            /* strcmp returns 0 if equal; convert to 1 if equal, 0 if not */
-            ir_reg_t zero = _ssa(c, IR_REG_I32);
-            ir_operand_t zero_ops[1];
-            zero_ops[0] = _op_imm_i32(0);
-            _emit(c, IR_OPCODE_CONST, &zero, 1, zero_ops);
             ir_reg_t result = _ssa(c, IR_REG_I32);
-            ir_operand_t eq_ops[2];
-            eq_ops[0] = _op_reg(cmp_result);
-            eq_ops[1] = _op_reg(zero);
-            _emit(c, IR_OPCODE_CMP_EQ, &result, 2, eq_ops);
+            _emit(c, IR_OPCODE_STR_EQ, &result, nargs, ops);
+            return result;
+        }
+
+
+        /* Builtin: __syscall(n, a0, a1, a2, a3, a4, a5) — direct OS syscall.
+         * On macOS aarch64: x16=n, x0-x5=args, svc #0x80
+         * On Linux aarch64: x8=n, x0-x5=args, svc #0
+         * Returns result in x0. */
+        if (call->callee && strcmp(call->callee, "__syscall") == 0) {
+            ir_operand_t ops[8];
+            int nargs = 0;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 8) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
             return result;
         }
 
