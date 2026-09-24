@@ -1089,6 +1089,7 @@ let g_main_done: i64 = 0
 let g_call_name: i64 = 0
 let g_tmp1: i64 = 0
 let g_tmp2: i64 = 0
+let g_op: i64 = 0
 
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
@@ -1514,7 +1515,7 @@ fn gen_mod() (r: i64)
     mut r = gen_msub(0, 2, 0, 1)
 }
 
-fn gen_binop(op: i64) (r: i64)
+fn gen_arith_op(op: i64) (r: i64)
 {
     if op == 43 {
         mut r = gen_add(0, 1, 0)
@@ -1530,12 +1531,20 @@ fn gen_binop(op: i64) (r: i64)
                 } else {
                     if op == 37 {
                         mut r = gen_mod()
-                    } else {
-                        mut r = gen_cmpop(op)
                     }
                 }
             }
         }
+    }
+    mut r = 0
+}
+
+fn gen_binop(op: i64) (r: i64)
+{
+    if op < 60 {
+        mut r = gen_arith_op(op)
+    } else {
+        mut r = gen_cmpop(op)
     }
     mut r = 0
 }
@@ -1606,13 +1615,12 @@ fn load_binop_fields(nd: i64) (r: i64)
 
 fn gen_expr_binop(nd: i64) (r: i64)
 {
-    let op: i64 = 0
-    mut op = load_binop_fields(nd)
+    mut g_op = load_binop_fields(nd)
     mut r = gen_expr(g_tmp1)
     mut r = gen_push()
     mut r = gen_expr(g_tmp2)
     mut r = gen_pop_x1()
-    mut r = gen_binop(op)
+    mut r = gen_binop(g_op)
     mut r = 0
 }
 
