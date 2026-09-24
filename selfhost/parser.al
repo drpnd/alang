@@ -1613,14 +1613,13 @@ fn load_binop_fields(nd: i64) (r: i64)
     mut r = ast_field(nd, g_ast_val)
 }
 
-fn gen_expr_binop(nd: i64) (r: i64)
+fn gen_expr_binop(t1: i64, t2: i64, op: i64) (r: i64)
 {
-    mut g_op = load_binop_fields(nd)
-    mut r = gen_expr(g_tmp1)
+    mut r = gen_expr(t1)
     mut r = gen_push()
-    mut r = gen_expr(g_tmp2)
+    mut r = gen_expr(t2)
     mut r = gen_pop_x1()
-    mut r = gen_binop(g_op)
+    mut r = gen_binop(op)
     mut r = 0
 }
 
@@ -1633,7 +1632,7 @@ fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
             mut r = gen_expr_ident(v)
         } else {
             if k == 5 {
-                mut r = gen_expr_binop(a)
+                mut r = gen_expr_binop(a, b, v)
             } else {
                 if k == 4 {
                     mut r = gen_call(v, a)
@@ -2330,7 +2329,7 @@ fn ast_field(nd: i64, field: i64) (r: i64)
 
 fn gen_epilogue() (r: i64)
 {
-    mut r = gen_add_imm(31, 31, 48)
+    mut r = gen_add_imm(31, 31, 256)
     mut r = gen_ldp_post(29, 30, 31, 2)
     mut r = gen_ret()
     mut r = 0
@@ -2340,7 +2339,7 @@ fn gen_prologue() (r: i64)
 {
     mut r = gen_stp_pre(29, 30, 31, 65534)
     mut r = gen_add_imm(29, 31, 0)
-    mut r = gen_sub_imm(31, 31, 48)
+    mut r = gen_sub_imm(31, 31, 256)
     mut r = 0
 }
 
