@@ -1705,18 +1705,30 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     case IR_OPCODE_STR_EQ: {
         /* __str_eq(s1, s2) — inline byte-by-byte string comparison.
          * Returns 1 if equal, 0 if not.
-         * Saves X0-X5 + X16 to stack, uses X2/X3/X4/X5 as scratch,
-         * restores all registers, loads result to dst. */
+         * IMPORTANT: Save X0-X5 FIRST, then load operands from saved
+         * stack slots (same pattern as CALL). This prevents clobbering
+         * live SSA values that happen to be in X0-X5. */
         int dst = 31;
         if (inst->result.n > 0 && inst->result.reg[0].id) {
             dst = ssa_to_reg(ssa_id(inst->result.reg[0].id));
         }
 
-        /* Step 1: Load operands into X0, X1 */
+        /* Step 1: Save X0-X5 and X16 to a 64-byte stack frame FIRST */
+        emit32(&ctx->tb, (1U << 31) | (0x51U << 24) | ((64 & 0xFFF) << 10) | (31U << 5) | 31);  /* SUB SP, SP, #64 */
+        emit32(&ctx->tb, 0xA90007E0);  /* STP X0, X1, [SP, #0] */
+        emit32(&ctx->tb, 0xA9010FE2);  /* STP X2, X3, [SP, #16] */
+        emit32(&ctx->tb, 0xA90217E4);  /* STP X4, X5, [SP, #32] */
+        emit32(&ctx->tb, 0xF9000000 | (6 << 10) | (31 << 5) | 16);  /* STR X16, [SP, #48] */
+
+        /* Step 2: Load operands into X0, X1 from saved stack slots if needed.
+         * Same two-phase approach as CALL: first load to scratch (X2/X3),
+         * then move to X0/X1. */
+        int arg_regs[] = {0, 1};
         for (int i = 0; i < inst->noperands && i < 2; i++) {
             ir_operand_t *arg = &inst->operands[i];
-            int target = (i == 0) ? 0 : 1;
+            int target = arg_regs[i];
             if (arg->type == IR_OPERAND_IMM && arg->u.imm.type == IR_IMM_STR) {
+                /* String constant: emit ADR directly to target */
                 const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
                 int sid = add_string(ctx, str);
                 size_t off = ctx->tb.size;
@@ -1728,21 +1740,24 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
                 int64_t val = operand_imm(arg, &ok);
                 if (ok) emit_load_imm64(&ctx->tb, target, val);
             } else if (arg->type == IR_OPERAND_REG) {
-                int src = ssa_to_reg(ssa_id(arg->u.reg.id));
-                if (src >= 0) {
+                int id = ssa_id(arg->u.reg.id);
+                int src = ssa_to_reg(id);
+                if (src < 0) {
+                    /* Spilled: load from spill area to target */
+                    spill_load(id, target);
+                } else if (src < 6) {
+                    /* Was in X0-X5: reload from saved stack slot */
+                    int off = src * 8;
+                    emit32(&ctx->tb, 0xF9400000 | ((off / 8 & 0xFFF) << 10) | (31 << 5) | target);
+                } else if (src >= 6 && src < 19) {
+                    /* In X6-X18 (caller-saved but not clobbered by STR_EQ): move directly */
                     if (src != target) emit_orr_reg(&ctx->tb, target, 31, src, 1);
                 } else {
-                    spill_load(ssa_id(arg->u.reg.id), target);
+                    /* Callee-saved (X19-X28): move directly */
+                    if (src != target) emit_orr_reg(&ctx->tb, target, 31, src, 1);
                 }
             }
         }
-
-        /* Step 2: Save X0-X5 and X16 to a 64-byte stack frame */
-        emit32(&ctx->tb, (1U << 31) | (0x51U << 24) | ((64 & 0xFFF) << 10) | (31U << 5) | 31);
-        emit32(&ctx->tb, 0xA90007E0);  /* STP X0, X1, [SP, #0] */
-        emit32(&ctx->tb, 0xA9010FE2);  /* STP X2, X3, [SP, #16] */
-        emit32(&ctx->tb, 0xA90217E4);  /* STP X4, X5, [SP, #32] */
-        emit32(&ctx->tb, 0xF9000000 | (6 << 10) | (31 << 5) | 16);  /* STR X16, [SP, #48] */
 
         /* Step 3: Comparison loop (X3=index, W2=s1 byte, W4=s2 byte) */
         emit32(&ctx->tb, 0xD2800003);  /* MOV X3, #0 */
@@ -1759,9 +1774,9 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         emit32(&ctx->tb, 0x14000002);  /* B end (+2) */
         emit32(&ctx->tb, 0x52800025);  /* equal: MOV W5, #1 */
 
-        /* Step 4: Save result, restore registers */
+        /* Step 4: Save result, restore original X0-X5 and X16 */
         emit32(&ctx->tb, 0xB9000000 | (14 << 10) | (31 << 5) | 5);  /* STR W5, [SP, #56] */
-        emit32(&ctx->tb, 0xA94007E0);  /* LDP X0, X1, [SP, #0] */
+        emit32(&ctx->tb, 0xA94007E0);  /* LDP X0, X1, [SP, #0] — restore originals */
         emit32(&ctx->tb, 0xA9410FE2);  /* LDP X2, X3, [SP, #16] */
         emit32(&ctx->tb, 0xA94217E4);  /* LDP X4, X5, [SP, #32] */
         if (dst != 31) {

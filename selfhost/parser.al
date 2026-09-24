@@ -1851,6 +1851,16 @@ fn gen_pop_args(arg_count: i64) (r: i64)
                 } else {
                     if i == 3 {
                         mut r = gen_pop_x3()
+                    } else {
+                        if i == 4 {
+                            mut r = gen_pop_x4()
+                        } else {
+                            if i == 5 {
+                                mut r = gen_pop_x5()
+                            } else {
+                                mut r = gen_pop_discard()
+                            }
+                        }
                     }
                 }
             }
@@ -1887,7 +1897,13 @@ fn is_builtin_name(name: i64) (r: i64)
                     mut r = check_bytes(name, 95, 95, 109, 101)
                 } else {
                     if b2 == 115 {
-                        mut r = check_bytes(name, 95, 95, 115, 116)
+                        if __byte_load(name, 3) == 116 {
+                            mut r = check_bytes(name, 95, 95, 115, 116)
+                        } else {
+                            if __byte_load(name, 3) == 121 {
+                                mut r = check_bytes(name, 95, 95, 115, 121)
+                            }
+                        }
                     }
                 }
             }
@@ -2023,6 +2039,34 @@ fn gen_mem_builtin() (r: i64)
     }
 }
 
+
+fn gen_syscall_builtin() (r: i64)
+{
+    // Args are in X0-X5 from gen_pop_args
+    // X0 = syscall number, X1-X5 = args 0-4
+    // Need: X16 = syscall number, X0-X5 = args 0-5
+    // Must save/restore caller-saved regs around SVC
+    
+    // Save caller-saved registers (X0-X15, X18)
+    mut r = gen_caller_save()
+    
+    // Shift args: X16=X0(num), X0=X1, X1=X2, X2=X3, X3=X4, X4=X5, X5=0
+    mut r = gen_mov(16, 0)
+    mut r = gen_mov(0, 1)
+    mut r = gen_mov(1, 2)
+    mut r = gen_mov(2, 3)
+    mut r = gen_mov(3, 4)
+    mut r = gen_mov(4, 5)
+    mut r = gen_movz(5, 0)
+    
+    // SVC #0x80 (macOS aarch64)
+    mut r = emit32(0xD4001001)
+    
+    // Save return value and restore caller-saved registers
+    mut r = gen_call_finish()
+    mut r = 0
+}
+
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
     let b2: i64 = 0
@@ -2041,6 +2085,10 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
             if b2 == 115 {
                 if __byte_load(g_call_name, 3) == 116 {
                     mut r = gen_str_eq_inline()
+                } else {
+                    if __byte_load(g_call_name, 3) == 121 {
+                        mut r = gen_syscall_builtin()
+                    }
                 }
             }
         }
@@ -2175,6 +2223,24 @@ fn gen_pop_x2() (r: i64)
 fn gen_pop_x3() (r: i64)
 {
     mut r = emit32(0xF84107E3)
+}
+
+// Pop to X4
+fn gen_pop_x4() (r: i64)
+{
+    mut r = emit32(0xF84107E4)
+}
+
+// Pop to X5
+fn gen_pop_x5() (r: i64)
+{
+    mut r = emit32(0xF84107E5)
+}
+
+// Pop and discard (to XZR)
+fn gen_pop_discard() (r: i64)
+{
+    mut r = emit32(0xF84107FF)
 }
 
 // === Statement code generator ===
