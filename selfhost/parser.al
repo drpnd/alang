@@ -1647,17 +1647,17 @@ fn str_const_add(s: i64) (r: i64)
     mut g_str_const_count = g_str_const_count + 1
 }
 
-fn gen_str_const_load(off: i64) (r: i64)
-{
-    mut r = gen_ldr(0, 18, off)
-    mut r = 0
-}
-
 fn gen_expr_str(v: i64) (r: i64)
 {
-    let idx: i64 = 0
-    mut idx = str_const_add(v)
-    mut r = gen_str_const_load(idx)
+    let lo: i64 = 0
+    let mid: i64 = 0
+    let hi: i64 = 0
+    mut lo = v % 65536
+    mut mid = (v / 65536) % 65536
+    mut hi = (v / 4294967296) % 65536
+    mut r = gen_movz(0, lo)
+    mut r = gen_movk(0, mid, 16)
+    mut r = gen_movk(0, hi, 32)
     mut r = 0
 }
 
@@ -2404,15 +2404,10 @@ fn is_main_name(name: i64) (r: i64)
 
 fn gen_main_init() (r: i64)
 {
-    let total: i64 = 0
-    mut total = g_glob_count + g_str_const_count
-    if total > 0 {
-        mut r = gen_movz(0, total * 8)
-        mut r = gen_push()
-        mut r = gen_call_normal2("malloc", 1)
-        mut r = gen_pop_x0()
-        mut r = gen_mov(18, 0)
-    }
+    mut r = gen_movz(0, 4096)
+    mut r = gen_push()
+    mut r = gen_call_normal2("malloc", 1)
+    mut r = gen_mov(18, 0)
     mut r = 0
 }
 
@@ -2439,13 +2434,12 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
     mut r = fn_add(name, g_code_pos)
     mut g_var_count = 0
     mut r = gen_prologue()
+    mut r = gen_params(params)
+    mut r = gen_rets(rets)
     if g_main_done == 0 {
         mut g_main_done = 1
             mut r = gen_main_init()
-            mut r = gen_str_const_init()
         }
-    mut r = gen_params(params)
-    mut r = gen_rets(rets)
     mut r = gen_block(body)
     mut r = gen_retval(rets)
     mut r = gen_epilogue()
