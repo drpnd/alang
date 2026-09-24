@@ -2650,9 +2650,9 @@ fn patch_str_adrs(code_size: i64) (r: i64)
         mut str_idx = __mem_load(g_adr_patch_idx + i * 8)
         mut str_off = code_size + str_str_off(str_idx)
         mut rel = str_off - adr_pos
-        mut off_hi = (rel >> 2) & 3
-        mut off_lo = (rel >> 2) & 0x3FFFF
-        mut r = emit32_at(adr_pos, 0x10000000 | (off_hi << 29) | (off_lo << 5))
+        mut off_hi = (rel >> 2) & 0x3FFFF
+        mut off_lo = rel & 3
+        mut r = emit32_at(adr_pos, 0x10000000 | (off_lo << 29) | (off_hi << 5))
         mut i = i + 1
     }
     mut r = 0
@@ -2772,8 +2772,8 @@ fn write_macho(path: i64, code_size: i64) (r: i64)
         mut r = write_section2(fp, text_off, code_size + str_data_size, reloc_off, g_ext_count)
         mut r = write_version(fp)
         mut r = write_symtab_header2(fp, sym_off, 1 + g_ext_count, str_off, str_size)
-        mut r = write_code_bytes(fp, code_size)
         mut r = patch_str_adrs(code_size)
+        mut r = write_code_bytes(fp, code_size)
         mut r = write_str_data(fp)
         mut r = write_ext_relocs(fp)
         mut r = write_nlist(fp, 0)
