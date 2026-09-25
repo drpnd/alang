@@ -2659,13 +2659,14 @@ fn gen_str_const_init() (r: i64)
 
 fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r: i64)
 {
+    let is_main_fn: i64 = 0
     mut r = fn_add(name, g_code_pos)
     mut g_var_count = 0
     mut r = gen_prologue()
     mut r = gen_params(params)
     mut r = gen_rets(rets)
-    if g_main_done == 0 {
-        mut g_main_done = 1
+    mut is_main_fn = __str_eq(name, "main")
+    if is_main_fn == 1 {
             mut r = gen_main_init()
             mut r = gen_glob_init()
         }
@@ -2886,8 +2887,10 @@ fn str_str_off(idx: i64) (r: i64)
     let s: i64 = 0
     let c: i64 = 0
     let j: i64 = 0
+    let real_idx: i64 = 0
+    mut real_idx = idx - g_glob_count
     mut i = 0
-    while i < idx {
+    while i < real_idx {
         mut s = __mem_load(g_str_const + i * 8)
         mut j = 0
         mut c = __byte_load(s, 0)

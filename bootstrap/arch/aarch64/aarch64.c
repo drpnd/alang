@@ -2156,6 +2156,29 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
 
         /* Emit prologue */
         emit_prologue(&ctx, func->nargs, max_ssa);
+
+        /* For main function: set up X19 (global base pointer) via mmap.
+         * Must save X0 (argc) and X1 (argv) before mmap clobbers them. */
+        if (func->name && strcmp(func->name, "main") == 0) {
+            /* Save argc (X0) and argv (X1) to stack */
+            emit32(&ctx.tb, 0xF81F0FE0);  /* STR X0, [SP, #-16]! */
+            emit32(&ctx.tb, 0xF90007E1);  /* STR X1, [SP, #8] */
+            /* mmap(0, 4096, PROT_RW, MAP_PRIVATE|ANON, -1, 0) */
+            emit_load_imm64(&ctx.tb, 0, 0);       /* X0 = 0 */
+            emit_load_imm64(&ctx.tb, 1, 4096);    /* X1 = 4096 */
+            emit_load_imm64(&ctx.tb, 2, 3);       /* X2 = PROT_READ|PROT_WRITE */
+            emit_load_imm64(&ctx.tb, 3, 0x1002);  /* X3 = MAP_PRIVATE|MAP_ANON */
+            emit32(&ctx.tb, 0x92800004);          /* MOV X4, #-1 (MOVN X4, #0) */
+            emit_load_imm64(&ctx.tb, 5, 0);       /* X5 = 0 */
+            emit_load_imm64(&ctx.tb, 16, 197);    /* X16 = SYS_mmap */
+            emit32(&ctx.tb, 0xD4001001);          /* SVC #0x80 */
+            /* MOV X19, X0 (global base pointer) */
+            emit_orr_reg(&ctx.tb, 19, 31, 0, 1);
+            /* Restore argv (X1) from [SP, #8], then argc (X0) from [SP], #16 */
+            emit32(&ctx.tb, 0xF94007E1);  /* LDR X1, [SP, #8] */
+            emit32(&ctx.tb, 0xF84107E0);  /* LDR X0, [SP], #16 */
+        }
+
         if (n_spill > 0) {
             int sz = ((n_spill * 8 + 15) / 16) * 16;
             uint32_t sub = (1U<<31)|(0x51U<<24)|((sz&0xFFF)<<10)|(31<<5)|31;
