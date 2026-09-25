@@ -1682,13 +1682,13 @@ fn gen_binop(op: i64) (r: i64)
 }
 fn gen_glob_load(off: i64) (r: i64)
 {
-    mut r = gen_ldr(0, 18, off)
+    mut r = gen_ldr(0, 19, off)
     mut r = 0
 }
 
 fn gen_glob_store(off: i64) (r: i64)
 {
-    mut r = gen_str(0, 18, off)
+    mut r = gen_str(0, 19, off)
     mut r = 0
 }
 
@@ -2120,7 +2120,7 @@ fn gen_caller_save() (r: i64)
     mut r = emit32(2835552228)
     mut r = emit32(2835619814)
     mut r = gen_caller_save2()
-    mut r = emit32(0xF9004BF2)
+    mut r = emit32(0xF9004BF3)
     mut r = 0
 }
 
@@ -2157,8 +2157,8 @@ fn gen_add_sp() (r: i64)
 
 fn gen_load_retval() (r: i64)
 {
-    mut r = emit32(0xF9404BF2)
-    mut r = emit32(0xF94007E0)
+    // Only load X0 (return value). X19 is callee-saved, survives calls.
+    mut r = emit32(0xF94007E0)     // LDR X0, [SP, #0x8]
     mut r = 0
 }
 
@@ -2609,7 +2609,7 @@ fn gen_main_init() (r: i64)
     mut r = gen_movz(5, 0)          // X5 = 0 (offset)
     mut r = gen_movz(16, 197)       // X16 = 197 (SC_MMAP on macOS)
     mut r = emit32(0xD4001001)      // SVC #0x80
-    mut r = gen_mov(18, 0)          // X18 = X0 (global base pointer)
+    mut r = gen_mov(19, 0)          // X19 = X0 (global base pointer)
     mut r = 0
 }
 
@@ -2632,7 +2632,7 @@ fn gen_glob_init() (r: i64)
             if (val >> 48) & 65535 != 0 {
                 mut r = gen_movk(0, (val >> 48) & 65535, 48)
             }
-            mut r = gen_str(0, 18, i)
+            mut r = gen_str(0, 19, i)
         }
         mut i = i + 1
     }
@@ -2651,7 +2651,7 @@ fn gen_str_const_init() (r: i64)
         mut r = gen_movz(0, saddr & 65535)
         mut r = gen_movk(0, (saddr >> 16) & 65535, 16)
         mut r = gen_movk(0, (saddr >> 32) & 65535, 32)
-        mut r = gen_str(0, 18, soff)
+        mut r = gen_str(0, 19, soff)
         mut i = i + 1
     }
     mut r = 0
@@ -3241,7 +3241,6 @@ fn init_codegen() (r: i64)
     mut g_ext_count = 0
     mut g_str_const_count = 0
     mut g_adr_patch_count = 0
-    mut g_glob_count = 0
     mut r = 0
 }
 fn do_parse(arg1_ptr: i64) (r: i64)

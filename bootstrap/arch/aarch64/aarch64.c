@@ -17,7 +17,7 @@
 /* All AArch64 instructions are 32-bit, little-endian. */
 
 /* Register file: X0-X28 usable for SSA values, X29=FP, X30=LR, X31=SP/XZR */
-#define AARCH64_MAX_REGS 25
+#define AARCH64_MAX_REGS 24
 
 /*
  * Emit a 32-bit instruction (little-endian).
@@ -202,12 +202,12 @@ ssa_id(const char *id)
  * AArch64 calling convention:
  *   Arguments: X0-X7 (first 8 args)
  *   Return: X0
- *   Caller-saved (temporaries): X0-X18
+ *   Caller-saved (temporaries): X0-X15
  *   Callee-saved: X19-X28, X29 (FP), X30 (LR)
  *
  * SSA register allocation:
  *   %0-%7   → X0-X7 (argument registers, reused as temps)
- *   %8-%18  → X8-X18 (temporary registers)
+ *   %8-%15  → X8-X15 (temporary registers)
  *   %19-%28 → X19-X28 (callee-saved, need save/restore)
  */
 
@@ -225,15 +225,17 @@ static const int arg_regs[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 static textbuf_t *g_tb = NULL;
 static int g_spill_off = 0;  /* base offset from FP for spill slots */
 
-/* SSA to register mapping. Skip X16/X17 (IP0/IP1) and X18 (platform reg).
+/* SSA to register mapping. Skip X16/X17 (IP0/IP1), X18 (platform reg),
+ * and X19 (reserved as global base pointer for self-hosting compiler).
  * %0-%15  → X0-X15
- * %16-%24 → X19-X28 (skip X16, X17, X18) */
+ * %16-%23 → X20-X27 (skip X16, X17, X18, X19) */
+#define AARCH64_MAX_REGS_NEW 24
 static int
 ssa_to_reg(int id)
 {
     if (id < 0) return 31;
     if (id < 16) return id;
-    if (id < 25) return id + 3;  /* 16→X19, 17→X20, ... 24→X28 */
+    if (id < 24) return id + 4;  /* 16→X20, 17→X21, ... 23→X27 */
     return -1;  /* spilled */
 }
 
@@ -311,13 +313,13 @@ static void global_patch_add(asm_ctx_t *ctx, size_t adr_off, int sym_idx);
 static int emit_bl(textbuf_t *tb, int32_t offset);
 
 
-/* Save caller-saved registers (X0-X18) to stack.
+/* Save caller-saved registers (X0-X15) to stack.
  * Reserves 16 extra bytes at [SP] for variadic arg area (for printf).
  * Saved registers start at [SP, #16]. */
 static void
 emit_caller_save(asm_ctx_t *ctx)
 {
-    int max_cs = ctx->max_ssa < 18 ? ctx->max_ssa : 18;
+    int max_cs = ctx->max_ssa < 16 ? ctx->max_ssa : 16;
     int n_cs = max_cs + 1;
     if (n_cs % 2 != 0) n_cs++;
     int save_size = n_cs * 8 + 32;  /* +16 for variadic area, +16 for alignment */
@@ -336,7 +338,7 @@ emit_caller_save(asm_ctx_t *ctx)
 static void
 emit_caller_restore(asm_ctx_t *ctx)
 {
-    int max_cs = ctx->max_ssa < 18 ? ctx->max_ssa : 18;
+    int max_cs = ctx->max_ssa < 16 ? ctx->max_ssa : 16;
     int n_cs = max_cs + 1;
     if (n_cs % 2 != 0) n_cs++;
     int save_size = n_cs * 8 + 32;
@@ -1450,7 +1452,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
             /* Save caller-saved registers (X0-X18) around the call.
              * We save all registers up to max_ssa (capped at 18) to the
              * stack, plus one extra slot for the return value. */
-            int max_cs = ctx->max_ssa < 18 ? ctx->max_ssa : 18;
+            int max_cs = ctx->max_ssa < 16 ? ctx->max_ssa : 16;
             int n_cs = max_cs + 1;  /* X0 through X(max_cs) */
             /* Round up to even for alignment */
             if (n_cs % 2 != 0) n_cs++;
@@ -1603,7 +1605,7 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         }
 
         /* Calculate save size (same as emit_caller_save) */
-        int max_cs = ctx->max_ssa < 18 ? ctx->max_ssa : 18;
+        int max_cs = ctx->max_ssa < 16 ? ctx->max_ssa : 16;
         int n_cs = max_cs + 1;
         if (n_cs % 2 != 0) n_cs++;
         int save_size = n_cs * 8 + 32;
