@@ -1988,6 +1988,12 @@ fn gen_str_eq_ne() (r: i64)
 fn gen_str_eq_inline() (r: i64)
 {
     let loop_pos: i64 = 0
+    // Args are in X0/X1 from gen_pop_args. Save caller-saved regs.
+    mut r = gen_caller_save()
+    // Now X0/X1 are saved on stack. Reload them from saved area.
+    // gen_caller_save saved X0 at [SP, #16], X1 at [SP, #24]
+    mut r = gen_ldr(0, 31, 2)   // LDR X0, [SP, #16]
+    mut r = gen_ldr(1, 31, 3)   // LDR X1, [SP, #24]
     mut r = gen_movz(4, 0)
     mut r = gen_str_eq_swap()
     mut loop_pos = g_code_pos
@@ -1997,6 +2003,11 @@ fn gen_str_eq_inline() (r: i64)
     mut r = gen_movz(0, 1)
     mut r = gen_b(8)
     mut r = gen_str_eq_ne()
+    // Save return value and restore caller-saved regs
+    mut r = gen_save_retval()
+    mut r = gen_caller_restore()
+    mut r = gen_load_retval()
+    mut r = gen_add_sp()
     mut r = 0
 }
 
@@ -2120,7 +2131,6 @@ fn gen_caller_save() (r: i64)
     mut r = emit32(2835552228)
     mut r = emit32(2835619814)
     mut r = gen_caller_save2()
-    mut r = emit32(0xF9004BF3)
     mut r = 0
 }
 
