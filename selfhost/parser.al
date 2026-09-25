@@ -54,7 +54,7 @@ fn sys_exit(code: i64) (r: i64)
 // PROT_READ|PROT_WRITE = 3, MAP_PRIVATE|MAP_ANON = 4098
 fn malloc(size: i64) (ptr: i64)
 {
-    mut ptr = sys_mmap(0, size, 3, 4098, 0 - 1, 0)
+    mut ptr = sys_mmap(0, size, 3, 4098, -1, 0)
 }
 
 // free is a no-op (short-lived process, OS reclaims on exit)
@@ -1456,7 +1456,7 @@ fn var_lookup(name: i64) (r: i64)
     let h: i64 = 0
     mut h = str_hash(name)
     mut i = 0
-    mut r = 0 - 1
+    mut r = -1
     while i < g_var_count {
         if __mem_load(g_var_name + i * 8) == h {
             mut r = __mem_load(g_var_off + i * 8)
@@ -1492,7 +1492,7 @@ fn glob_add(name: i64) (r: i64)
 fn glob_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
-    mut r = 0 - 1
+    mut r = -1
     mut i = 0
     while i < g_glob_count {
         if my_str_eq(__mem_load(g_glob_name + i * 8), name) == 1 {
@@ -1614,7 +1614,7 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
 fn ext_find(name: i64) (r: i64)
 {
     let i: i64 = 0
-    mut r = 0 - 1
+    mut r = -1
     mut i = 0
     while i < g_ext_count {
         if my_str_eq(__mem_load(g_ext_name + i * 8), name) == 1 {
@@ -1828,6 +1828,15 @@ fn gen_expr_str(v: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_expr_unop(op: i64, a: i64) (r: i64)
+{
+    mut r = gen_expr(a)
+    if op == 45 {
+        mut r = gen_sub(0, 31, 0)
+    }
+    mut r = 0
+}
+
 fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
 {
     if k == 1 {
@@ -1845,10 +1854,14 @@ fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
                     if k == 4 {
                         mut r = gen_call(v, a)
                     } else {
-                        if k == 9 {
-                            mut r = gen_expr_assign(a, b)
+                        if k == 6 {
+                            mut r = gen_expr_unop(v, a)
                         } else {
-                            mut r = gen_movz(0, 0)
+                            if k == 9 {
+                                mut r = gen_expr_assign(a, b)
+                            } else {
+                                mut r = gen_movz(0, 0)
+                            }
                         }
                     }
                 }
