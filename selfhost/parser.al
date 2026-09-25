@@ -2269,6 +2269,7 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
     mut g_call_name = name
     mut arg_count = gen_eval_args(first_arg)
     mut g_call_name = saved_name
+
     if is_builtin_name(g_call_name) == 1 {
         mut r = gen_call_builtin(g_call_name, arg_count)
     } else {
