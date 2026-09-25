@@ -2039,10 +2039,12 @@ fn gen_str_eq_ne() (r: i64)
 fn gen_str_eq_inline() (r: i64)
 {
     let loop_pos: i64 = 0
-    // Args are in X0/X1 from gen_pop_args. Save caller-saved regs.
+    // Pop args: s2 -> X1, s1 -> X0
+    mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16
+    mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16
+    // Save caller-saved regs
     mut r = gen_caller_save()
-    // Now X0/X1 are saved on stack. Reload them from saved area.
-    // gen_caller_save saved X0 at [SP, #16], X1 at [SP, #24]
+    // Reload args from saved area
     mut r = gen_ldr(0, 31, 2)   // LDR X0, [SP, #16]
     mut r = gen_ldr(1, 31, 3)   // LDR X1, [SP, #24]
     mut r = gen_movz(4, 0)
@@ -2094,8 +2096,15 @@ fn gen_mem_store_builtin() (r: i64)
 fn gen_byte_builtin() (r: i64)
 {
     if __byte_load(g_call_name, 7) == 108 {
+        // __byte_load(ptr, idx) - 2 args
+        mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16 (idx)
+        mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16 (ptr)
         mut r = gen_byte_load_builtin()
     } else {
+        // __byte_store(ptr, idx, val) - 3 args
+        mut r = emit32(0xF84107E2)  // LDR X2, [SP], #16 (val)
+        mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16 (idx)
+        mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16 (ptr)
         mut r = gen_byte_store_builtin()
     }
 }
@@ -2103,31 +2112,45 @@ fn gen_byte_builtin() (r: i64)
 fn gen_mem_builtin() (r: i64)
 {
     if __byte_load(g_call_name, 6) == 108 {
+        // __mem_load(ptr) - 1 arg
+        mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16 (ptr)
         mut r = gen_mem_load_builtin()
     } else {
+        // __mem_store(ptr, val) - 2 args
+        mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16 (val)
+        mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16 (ptr)
         mut r = gen_mem_store_builtin()
     }
 }
 
 
-fn gen_syscall_builtin() (r: i64)
+fn gen_syscall_builtin(arg_count: i64) (r: i64)
 {
-    // Args are in X0-X5 from gen_pop_args
-    // X0 = syscall number, X1-X5 = args 0-4
-    // Need: X16 = syscall number, X0-X5 = args 0-5
-    // Must save/restore caller-saved regs around SVC
+    let n: i64 = 0
+    mut n = arg_count
+    // Pop args in reverse order (last pushed = first popped)
+    // arg_count includes the syscall number as arg 0
+    // Pop to X5, X4, X3, X2, X1, X0, X6 based on arg_count
+    if n > 6 { mut r = emit32(0xF84107E5); mut n = n - 1 }
+    if n > 5 { mut r = emit32(0xF84107E4); mut n = n - 1 }
+    if n > 4 { mut r = emit32(0xF84107E3); mut n = n - 1 }
+    if n > 3 { mut r = emit32(0xF84107E2); mut n = n - 1 }
+    if n > 2 { mut r = emit32(0xF84107E1); mut n = n - 1 }
+    if n > 1 { mut r = emit32(0xF84107E0); mut n = n - 1 }
+    // Pop syscall number to X6
+    mut r = emit32(0xF84107E6)
     
-    // Save caller-saved registers (X0-X15, X18)
+    // Save caller-saved registers
     mut r = gen_caller_save()
-    
-    // Shift args: X16=X0(num), X0=X1, X1=X2, X2=X3, X3=X4, X4=X5, X5=0
-    mut r = gen_mov(16, 0)
-    mut r = gen_mov(0, 1)
-    mut r = gen_mov(1, 2)
-    mut r = gen_mov(2, 3)
-    mut r = gen_mov(3, 4)
-    mut r = gen_mov(4, 5)
-    mut r = gen_movz(5, 0)
+    // Reload args from saved area
+    if arg_count > 1 { mut r = gen_ldr(0, 31, 2) }
+    if arg_count > 2 { mut r = gen_ldr(1, 31, 3) }
+    if arg_count > 3 { mut r = gen_ldr(2, 31, 4) }
+    if arg_count > 4 { mut r = gen_ldr(3, 31, 5) }
+    if arg_count > 5 { mut r = gen_ldr(4, 31, 6) }
+    if arg_count > 6 { mut r = gen_ldr(5, 31, 7) }
+    mut r = gen_ldr(6, 31, 8)
+    mut r = gen_mov(16, 6)
     
     // SVC #0x80 (macOS aarch64)
     mut r = emit32(0xD4001001)
@@ -2140,7 +2163,6 @@ fn gen_syscall_builtin() (r: i64)
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
     let b2: i64 = 0
-    mut r = gen_pop_args(arg_count)
     mut b2 = __byte_load(g_call_name, 2)
     if b2 == 98 {
         if __byte_load(g_call_name, 3) == 121 {
@@ -2157,7 +2179,7 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
                     mut r = gen_str_eq_inline()
                 } else {
                     if __byte_load(g_call_name, 3) == 121 {
-                        mut r = gen_syscall_builtin()
+                        mut r = gen_syscall_builtin(arg_count)
                     }
                 }
             }
