@@ -134,6 +134,10 @@ let g_tok_idx: i64 = 0
 // String pool for identifiers/strings
 let g_str_pool: i64 = 0
 let g_str_pos: i64 = 0
+let g_glob_name: i64 = 0
+let g_glob_off: i64 = 0
+let g_glob_val: i64 = 0
+let g_glob_count: i64 = 0
 
 // Indent for printing
 let g_indent: i64 = 0
@@ -1090,9 +1094,10 @@ fn parse_fn() (r: i64)
 }
 fn parse_glob_decl() (r: i64)
 {
+    let gidx: i64 = 0
     mut r = advance()
     if cur_type() == 1 {
-        mut r = glob_add(cur_val())
+        mut gidx = glob_add(cur_val())
         mut r = advance()
     }
     if is_op(58) == 1 {
@@ -1101,7 +1106,12 @@ fn parse_glob_decl() (r: i64)
     }
     if is_op(61) == 1 {
         mut r = advance()
-        if cur_type() != 0 { mut r = parse_expr() }
+        if cur_type() == 2 {
+            __mem_store(g_glob_val + gidx * 8, cur_val())
+            mut r = advance()
+        } else {
+            if cur_type() != 0 { mut r = parse_expr() }
+        }
     }
     mut r = 0
 }
@@ -1194,9 +1204,6 @@ let g_code_pos: i64 = 0
 let g_var_name: i64 = 0
 let g_var_off: i64 = 0
 let g_var_count: i64 = 0
-let g_glob_name: i64 = 0
-let g_glob_off: i64 = 0
-let g_glob_count: i64 = 0
 let g_main_done: i64 = 0
 let g_call_name: i64 = 0
 let g_tmp1: i64 = 0
@@ -1438,6 +1445,7 @@ fn glob_add(name: i64) (r: i64)
 {
     __mem_store(g_glob_name + g_glob_count * 8, name)
     __mem_store(g_glob_off + g_glob_count * 8, g_glob_count)
+    __mem_store(g_glob_val + g_glob_count * 8, 0)
     mut g_glob_count = g_glob_count + 1
     mut r = g_glob_count - 1
 }
@@ -2605,6 +2613,32 @@ fn gen_main_init() (r: i64)
     mut r = 0
 }
 
+
+fn gen_glob_init() (r: i64)
+{
+    let i: i64 = 0
+    mut i = 0
+    while i < g_glob_count {
+        let val: i64 = 0
+        mut val = __mem_load(g_glob_val + i * 8)
+        if val != 0 {
+            mut r = gen_movz(0, val & 65535)
+            if (val >> 16) & 65535 != 0 {
+                mut r = gen_movk(0, (val >> 16) & 65535, 16)
+            }
+            if (val >> 32) & 65535 != 0 {
+                mut r = gen_movk(0, (val >> 32) & 65535, 32)
+            }
+            if (val >> 48) & 65535 != 0 {
+                mut r = gen_movk(0, (val >> 48) & 65535, 48)
+            }
+            mut r = gen_str(0, 18, i)
+        }
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
 fn gen_str_const_init() (r: i64)
 {
     let i: i64 = 0
@@ -2633,6 +2667,7 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
     if g_main_done == 0 {
         mut g_main_done = 1
             mut r = gen_main_init()
+            mut r = gen_glob_init()
         }
     mut r = gen_block(body)
     mut r = gen_retval(rets)
@@ -3146,6 +3181,7 @@ fn init_parser1() (r: i64)
     mut g_ast_val = malloc(524288)
     mut g_glob_name = malloc(4096)
     mut g_glob_off = malloc(4096)
+    mut g_glob_val = malloc(4096)
     mut r = 0
 }
 
