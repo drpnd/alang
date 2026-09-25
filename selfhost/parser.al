@@ -51,10 +51,10 @@ fn sys_exit(code: i64) (r: i64)
 }
 
 // malloc replacement: use mmap to allocate memory
-// PROT_READ|PROT_WRITE = 3, MAP_PRIVATE|MAP_ANON = 0x1002
+// PROT_READ|PROT_WRITE = 3, MAP_PRIVATE|MAP_ANON = 4098
 fn malloc(size: i64) (ptr: i64)
 {
-    mut ptr = sys_mmap(0, size, 3, 0x1002, -1, 0)
+    mut ptr = sys_mmap(0, size, 3, 4098, 0 - 1, 0)
 }
 
 // free is a no-op (short-lived process, OS reclaims on exit)
@@ -297,10 +297,49 @@ fn lex_ident(c: i32) (r: i64)
 fn lex_number(c: i32) (r: i64)
 {
     let val: i64 = 0
+    let ishex: i64 = 0
+    let cont: i64 = 0
+    let dv: i64 = 0
     mut val = 0
-    while is_digit(c) == 1 {
-        mut val = val * 10 + (c - 48)
+    mut ishex = 0
+    if c == 48 {
         mut c = next_ch()
+        if c == 120 {
+            mut ishex = 1
+            mut c = next_ch()
+        }
+    }
+    if ishex == 1 {
+        mut cont = 1
+        while cont == 1 {
+            mut dv = 0
+            if c >= 48 {
+                if c <= 57 {
+                    mut dv = c - 48
+                }
+            }
+            if c >= 97 {
+                if c <= 102 {
+                    mut dv = c - 87
+                }
+            }
+            if c >= 65 {
+                if c <= 70 {
+                    mut dv = c - 55
+                }
+            }
+            if dv > 0 || c == 48 {
+                mut val = val * 16 + dv
+                mut c = next_ch()
+            } else {
+                mut cont = 0
+            }
+        }
+    } else {
+        while is_digit(c) == 1 {
+            mut val = val * 10 + (c - 48)
+            mut c = next_ch()
+        }
     }
     mut r = emit_tok(2, val)
     mut r = c
@@ -1366,7 +1405,7 @@ fn gen_cmp(rn: i64, rm: i64) (r: i64)
 fn gen_bcond(cond: i64, offset: i64) (r: i64)
 {
     let off19: i64 = 0
-    mut off19 = (offset >> 2) & 0x7FFFF
+    mut off19 = (offset >> 2) & 524287
     mut r = emit32(0x54000000 | (off19 << 5) | (cond & 15))
 }
 
@@ -1374,7 +1413,7 @@ fn gen_bcond(cond: i64, offset: i64) (r: i64)
 fn gen_b(offset: i64) (r: i64)
 {
     let off26: i64 = 0
-    mut off26 = (offset >> 2) & 0x3FFFFFF
+    mut off26 = (offset >> 2) & 67108863
     mut r = emit32(0x14000000 | off26)
 }
 
@@ -1382,7 +1421,7 @@ fn gen_b(offset: i64) (r: i64)
 fn gen_bl(offset: i64) (r: i64)
 {
     let off26: i64 = 0
-    mut off26 = (offset >> 2) & 0x3FFFFFF
+    mut off26 = (offset >> 2) & 67108863
     mut r = emit32(0x94000000 | off26)
 }
 
@@ -1417,7 +1456,7 @@ fn var_lookup(name: i64) (r: i64)
     let h: i64 = 0
     mut h = str_hash(name)
     mut i = 0
-    mut r = -1
+    mut r = 0 - 1
     while i < g_var_count {
         if __mem_load(g_var_name + i * 8) == h {
             mut r = __mem_load(g_var_off + i * 8)
@@ -1453,10 +1492,10 @@ fn glob_add(name: i64) (r: i64)
 fn glob_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
-    mut r = -1
+    mut r = 0 - 1
     mut i = 0
     while i < g_glob_count {
-        if __str_eq(__mem_load(g_glob_name + i * 8), name) == 1 {
+        if my_str_eq(__mem_load(g_glob_name + i * 8), name) == 1 {
             mut r = __mem_load(g_glob_off + i * 8)
         }
         mut i = i + 1
@@ -1547,7 +1586,7 @@ fn fn_lookup(name: i64) (r: i64)
     mut i = 0
     while i < g_fn_count {
         mut stored = __mem_load(g_fn_name + i * 8)
-        if __str_eq(stored, name) == 1 {
+        if my_str_eq(stored, name) == 1 {
             mut result = __mem_load(g_fn_off + i * 8)
         }
         mut i = i + 1
@@ -1564,7 +1603,7 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
     mut foff = fn_lookup(pname)
     if foff > 0 {
         mut rel = foff - ppos
-        mut off26 = (rel >> 2) & 0x3FFFFFF
+        mut off26 = (rel >> 2) & 67108863
         mut r = emit32_at(ppos, 0x94000000 | off26)
     } else {
         mut r = ext_add(pname, ppos)
@@ -1575,10 +1614,10 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
 fn ext_find(name: i64) (r: i64)
 {
     let i: i64 = 0
-    mut r = -1
+    mut r = 0 - 1
     mut i = 0
     while i < g_ext_count {
-        if __str_eq(__mem_load(g_ext_name + i * 8), name) == 1 {
+        if my_str_eq(__mem_load(g_ext_name + i * 8), name) == 1 {
             mut r = i
         }
         mut i = i + 1
@@ -1957,8 +1996,8 @@ fn gen_str_eq_swap() (r: i64)
 fn gen_str_eq_cmp() (r: i64)
 {
     mut r = gen_ldrb_reg(3, 0, 4)
-    mut r = gen_ldrb_reg(4, 1, 4)
-    mut r = gen_cmp(3, 4)
+    mut r = gen_ldrb_reg(5, 1, 4)
+    mut r = gen_cmp(3, 5)
     mut r = 0
 }
 
@@ -1966,14 +2005,13 @@ fn gen_str_eq_branch() (r: i64)
 {
     mut r = gen_bcond(1, 24)
     mut r = gen_cmp(3, 31)
-    mut r = gen_bcond(0, 16)
+    mut r = gen_bcond(0, 12)
     mut r = 0
 }
 
 fn gen_str_eq_inc(loop_pos: i64) (r: i64)
 {
-    mut r = gen_add_imm(0, 0, 1)
-    mut r = gen_add_imm(1, 1, 1)
+    mut r = gen_add_imm(4, 4, 1)
     mut r = gen_b(loop_pos - g_code_pos)
     mut r = 0
 }
@@ -2024,7 +2062,7 @@ fn gen_byte_store_builtin() (r: i64)
     mut r = gen_mov(3, 0)
     mut r = gen_mov(0, 2)
     mut r = gen_mov(2, 3)
-    mut r = gen_strb_reg(2, 0, 1)
+    mut r = gen_strb_reg(0, 2, 1)
 }
 
 fn gen_mem_load_builtin() (r: i64)
@@ -2037,7 +2075,7 @@ fn gen_mem_store_builtin() (r: i64)
     mut r = gen_mov(2, 0)
     mut r = gen_mov(0, 1)
     mut r = gen_mov(1, 2)
-    mut r = gen_str_reg(1, 0)
+    mut r = gen_str_reg(0, 1)
 }
 
 fn gen_byte_builtin() (r: i64)
@@ -2136,7 +2174,6 @@ fn gen_caller_save() (r: i64)
 
 fn gen_save_retval() (r: i64)
 {
-    mut r = emit32(0xF90003F2)
     mut r = emit32(0xF90007E0)
     mut r = 0
 }
@@ -2266,17 +2303,28 @@ fn gen_pop_discard() (r: i64)
 fn gen_let_stmt(v: i64, b: i64, c: i64) (r: i64)
 {
     let off: i64 = 0
-    mut off = var_lookup(v)
-    if off < 0 {
-        mut off = g_var_count
-        mut r = var_add(v, off)
-    }
-    if b > 0 {
-        mut r = gen_expr(b)
+    let goff: i64 = 0
+    mut goff = glob_lookup(v)
+    if goff >= 0 {
+        if b > 0 {
+            mut r = gen_expr(b)
+        } else {
+            mut r = gen_movz(0, 0)
+        }
+        mut r = gen_glob_store(goff)
     } else {
-        mut r = gen_movz(0, 0)
+        mut off = var_lookup(v)
+        if off < 0 {
+            mut off = g_var_count
+            mut r = var_add(v, off)
+        }
+        if b > 0 {
+            mut r = gen_expr(b)
+        } else {
+            mut r = gen_movz(0, 0)
+        }
+        mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
     }
-    mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
     mut r = 0
 }
 
@@ -2463,7 +2511,7 @@ fn patch_bcond(pos: i64, offset: i64) (r: i64)
 {
     let off19: i64 = 0
     let old_cond: i64 = 0
-    mut off19 = (offset >> 2) & 0x7FFFF
+    mut off19 = (offset >> 2) & 524287
     mut old_cond = __byte_load(g_code, pos) & 15
     mut r = emit32_at(pos, 0x54000000 | (off19 << 5) | old_cond)
     mut r = 0
@@ -2473,7 +2521,7 @@ fn patch_bcond(pos: i64, offset: i64) (r: i64)
 fn patch_b(pos: i64, offset: i64) (r: i64)
 {
     let off26: i64 = 0
-    mut off26 = (offset >> 2) & 0x3FFFFFF
+    mut off26 = (offset >> 2) & 67108863
     mut r = emit32_at(pos, 0x14000000 | off26)
     mut r = 0
 }
@@ -2614,7 +2662,7 @@ fn gen_main_init() (r: i64)
     mut r = gen_movz(0, 0)          // X0 = 0 (addr = NULL)
     mut r = gen_movz(1, 4096)       // X1 = 4096 (size)
     mut r = gen_movz(2, 3)          // X2 = 3 (PROT_READ|PROT_WRITE)
-    mut r = gen_movz(3, 4098)       // X3 = 0x1002 (MAP_PRIVATE|MAP_ANON)
+    mut r = gen_movz(3, 4098)       // X3 = 4098 (MAP_PRIVATE|MAP_ANON)
     mut r = emit32(0x92800004)      // MOV X4, #-1 (fd = -1) = MOVN X4, #0
     mut r = gen_movz(5, 0)          // X5 = 0 (offset)
     mut r = gen_movz(16, 197)       // X16 = 197 (SC_MMAP on macOS)
@@ -2675,7 +2723,7 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
     mut r = gen_prologue()
     mut r = gen_params(params)
     mut r = gen_rets(rets)
-    mut is_main_fn = __str_eq(name, "main")
+    mut is_main_fn = my_str_eq(name, "main")
     if is_main_fn == 1 {
             mut r = gen_main_init()
             mut r = gen_glob_init()
@@ -2715,8 +2763,8 @@ fn gen_all_funcs() (r: i64)
 }
 fn write_header(fp: i64, ncmds: i64, sizeofcmds: i64) (r: i64)
 {
-    mut r = write32(fp, 0xFEEDFACF)
-    mut r = write32(fp, 0x0100000C)
+    mut r = write32(fp, 4277009103)
+    mut r = write32(fp, 16777228)
     mut r = write32(fp, 0)
     mut r = write32(fp, 1)
     mut r = write32(fp, ncmds)
@@ -2882,7 +2930,7 @@ fn patch_str_adrs(code_size: i64) (r: i64)
         mut str_idx = __mem_load(g_adr_patch_idx + i * 8)
         mut str_off = code_size + str_str_off(str_idx)
         mut rel = str_off - adr_pos
-        mut off_hi = (rel >> 2) & 0x3FFFF
+        mut off_hi = (rel >> 2) & 262143
         mut off_lo = rel & 3
         mut r = emit32_at(adr_pos, 0x10000000 | (off_lo << 29) | (off_hi << 5))
         mut i = i + 1
@@ -2974,7 +3022,7 @@ fn write_ext_relocs(fp: i64) (r: i64)
         mut pos = __mem_load(g_ext_pos + i * 8)
         mut r = emit32_at(pos, 0x94000000)
         mut r = write32(fp, pos)
-        mut r = write32(fp, ((i + 1) & 0xFFFFFF) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
+        mut r = write32(fp, ((i + 1) & 16777215) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
         mut i = i + 1
     }
     mut r = 0
@@ -3027,7 +3075,7 @@ fn find_main_name() (r: i64)
     mut i = 0
     while i < g_fn_count {
         mut n = __mem_load(g_fn_name + i * 8)
-        if __str_eq(n, "main") == 1 {
+        if my_str_eq(n, "main") == 1 {
             mut found = n
         }
         mut i = i + 1
