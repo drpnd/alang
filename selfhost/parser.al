@@ -1,8 +1,14 @@
 // alang self-hosting compiler: Lexer + Parser
 // Reads a source file, tokenizes, parses, prints AST
 // Syscall-based runtime (no libc dependency)
+// Platform: 0=macOS, 1=Linux, 2=FreeBSD
 // macOS aarch64: x16=syscall#, x0-x5=args, svc #0x80
+// Linux aarch64: x8=syscall#, x0-x5=args, svc #0
+// FreeBSD aarch64: x8=syscall#, x0-x5=args, svc #0
 // __syscall(num, a0, a1, a2, a3, a4, a5) returns x0
+
+let g_target_os: i64 = 0
+let g_output_elf: i64 = 0
 
 // Syscall numbers (macOS/BSD)
 let SC_READ: i64 = 3
@@ -2306,10 +2312,13 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
     if arg_count > 5 { mut r = gen_ldr(4, 31, 6) }
     if arg_count > 6 { mut r = gen_ldr(5, 31, 7) }
     mut r = gen_ldr(6, 31, 8)
-    mut r = gen_mov(16, 6)
-    
-    // SVC #0x80 (macOS aarch64)
-    mut r = emit32(0xD4001001)
+    if g_target_os == 0 {
+        mut r = gen_mov(16, 6)
+        mut r = emit32(0xD4001001)
+    } else {
+        mut r = gen_mov(8, 6)
+        mut r = emit32(0xD4000001)
+    }
     
     // Save return value and restore caller-saved registers
     mut r = gen_call_finish()
@@ -2858,8 +2867,13 @@ fn gen_main_init() (r: i64)
     mut r = gen_movz(3, 4098)       // X3 = 4098 (MAP_PRIVATE|MAP_ANON)
     mut r = emit32(0x92800004)      // MOV X4, #-1 (fd = -1) = MOVN X4, #0
     mut r = gen_movz(5, 0)          // X5 = 0 (offset)
-    mut r = gen_movz(16, 197)       // X16 = 197 (SC_MMAP on macOS)
-    mut r = emit32(0xD4001001)      // SVC #0x80
+    if g_target_os == 0 {
+        mut r = gen_movz(16, 197)
+        mut r = emit32(0xD4001001)
+    } else {
+        mut r = gen_movz(8, 222)
+        mut r = emit32(0xD4000001)
+    }
     mut r = gen_mov(19, 0)          // X19 = X0 (global base pointer)
     mut r = 0
 }
@@ -3221,6 +3235,227 @@ fn write_ext_relocs(fp: i64) (r: i64)
     mut r = 0
 }
 
+fn write_str_raw(fp: i64, s: i64) (r: i64)
+{
+    let len: i64 = 0
+    mut len = 0
+    while __byte_load(s, len) != 0 {
+        mut len = len + 1
+    }
+    let buf: i64 = 0
+    mut buf = malloc(len)
+    let i: i64 = 0
+    mut i = 0
+    while i < len {
+        __byte_store(buf, i, __byte_load(s, i))
+        mut i = i + 1
+    }
+    mut r = fwrite(buf, 1, len, fp)
+    free(buf)
+}
+
+fn write_elf(path: i64, code_size: i64) (r: i64)
+{
+    let str_data_size: i64 = 0
+    let fp: i64 = 0
+    let code_off: i64 = 0
+    let reloc_off: i64 = 0
+    let sym_off: i64 = 0
+    let str_off: i64 = 0
+    let shstr_off: i64 = 0
+    let i: i64 = 0
+    let nreloc: i64 = 0
+    let nsyms: i64 = 0
+    let str_size: i64 = 0
+    let shstr_size: i64 = 0
+    mut fp = fopen(path, "w")
+    if fp == 0 {
+        puts("Cannot open output file")
+        mut r = 1
+    } else {
+        mut str_data_size = count_str_data()
+        mut nreloc = g_ext_count
+        mut nsyms = 2 + g_ext_count
+        mut str_size = 6
+        mut i = 0
+        while i < g_ext_count {
+            let name: i64 = 0
+            let len: i64 = 0
+            mut name = __mem_load(g_ext_name + i * 8)
+            mut len = 0
+            while __byte_load(name, len) != 0 {
+                mut len = len + 1
+            }
+            mut str_size = str_size + len + 1
+            mut i = i + 1
+        }
+        mut shstr_size = 33
+        // Layout: ELF header(64) + .text + .data(strs) + relocs + symtab + strtab + shstrtab + section headers
+        mut code_off = 64
+        mut reloc_off = code_off + code_size + str_data_size
+        mut sym_off = reloc_off + nreloc * 16
+        mut str_off = sym_off + nsyms * 24
+        mut shstr_off = str_off + str_size
+        let shdr_off: i64 = 0
+        mut shdr_off = shstr_off + shstr_size
+        // ELF header (64 bytes)
+        mut r = write32(fp, 0x464C457F)  // e_ident[0:3] magic
+        mut r = write_byte(fp, 2)        // EI_CLASS = ELFCLASS64
+        mut r = write_byte(fp, 1)        // EI_DATA = ELFDATA2LSB
+        mut r = write_byte(fp, 1)        // EI_VERSION = EV_CURRENT
+        mut r = write_byte(fp, 0)        // EI_OSABI = ELFOSABI_NONE
+        mut r = write32(fp, 0)           // EI_ABIVERSION + padding
+        mut r = write32(fp, 0)           // padding
+        mut r = write16(fp, 1)           // e_type = ET_REL
+        mut r = write16(fp, 183)         // e_machine = EM_AARCH64
+        mut r = write32(fp, 1)           // e_version = EV_CURRENT
+        mut r = write64(fp, 0)           // e_entry
+        mut r = write64(fp, 0)           // e_phoff
+        mut r = write64(fp, shdr_off)    // e_shoff
+        mut r = write32(fp, 0)           // e_flags
+        mut r = write16(fp, 64)          // e_ehsize
+        mut r = write16(fp, 0)           // e_phentsize
+        mut r = write16(fp, 0)           // e_phnum
+        mut r = write16(fp, 64)          // e_shentsize
+        mut r = write16(fp, 5)           // e_shnum (null, .text, .symtab, .strtab, .shstrtab)
+        mut r = write16(fp, 4)           // e_shstrndx = 4
+        // Patch string addresses
+        mut r = patch_str_adrs(code_size)
+        // Write code + string data
+        mut r = write_code_bytes(fp, code_size)
+        mut r = write_str_data(fp)
+        // Relocations (ELF64 Rela entries, 24 bytes each)
+        // Actually use ELF64 Rel (16 bytes: r_offset + r_info)
+        mut i = 0
+        while i < g_ext_count {
+            let pos: i64 = 0
+            let sym_idx: i64 = 0
+            mut pos = __mem_load(g_ext_pos + i * 8)
+            mut sym_idx = i + 1
+            mut r = write64(fp, pos)
+            mut r = write64(fp, (sym_idx << 32) | 274)
+            mut i = i + 1
+        }
+        // Symbol table (ELF64 Sym, 24 bytes each)
+        // Null symbol
+        mut i = 0
+        while i < 24 {
+            mut r = write_byte(fp, 0)
+            mut i = i + 1
+        }
+        // main symbol (STB_GLOBAL, STT_FUNC)
+        mut r = write32(fp, 1)           // st_name (offset in strtab)
+        mut r = write_byte(fp, 18)       // st_info = STB_GLOBAL(1) << 4 | STT_FUNC(2)
+        mut r = write_byte(fp, 0)        // st_other
+        mut r = write16(fp, 1)           // st_shndx = .text section (1)
+        mut r = write64(fp, find_main()) // st_value
+        mut r = write64(fp, 0)           // st_size
+        // Extern symbols (STB_GLOBAL, STT_NOTYPE, SHN_UNDEF)
+        mut i = 0
+        while i < g_ext_count {
+            let name_off: i64 = 0
+            let j: i64 = 0
+            let name: i64 = 0
+            mut name_off = 6
+            mut j = 0
+            while j < i {
+                mut name = __mem_load(g_ext_name + j * 8)
+                let k: i64 = 0
+                mut k = 0
+                while __byte_load(name, k) != 0 {
+                    mut name_off = name_off + 1
+                    mut k = k + 1
+                }
+                mut name_off = name_off + 1
+                mut j = j + 1
+            }
+            mut r = write32(fp, name_off)
+            mut r = write_byte(fp, 16)   // st_info = STB_GLOBAL(1) << 4 | STT_NOTYPE(0)
+            mut r = write_byte(fp, 0)
+            mut r = write16(fp, 0)       // st_shndx = SHN_UNDEF
+            mut r = write64(fp, 0)
+            mut r = write64(fp, 0)
+            mut i = i + 1
+        }
+        // String table
+        mut r = write_byte(fp, 0)
+        mut r = write_str_raw(fp, "main")
+        mut r = write_byte(fp, 0)
+        mut i = 0
+        while i < g_ext_count {
+            let name: i64 = 0
+            mut name = __mem_load(g_ext_name + i * 8)
+            mut r = write_str_raw(fp, name)
+            mut r = write_byte(fp, 0)
+            mut i = i + 1
+        }
+        // Section header string table
+        mut r = write_byte(fp, 0)
+        mut r = write_str_raw(fp, ".text")
+        mut r = write_byte(fp, 0)
+        mut r = write_str_raw(fp, ".symtab")
+        mut r = write_byte(fp, 0)
+        mut r = write_str_raw(fp, ".strtab")
+        mut r = write_byte(fp, 0)
+        mut r = write_str_raw(fp, ".shstrtab")
+        mut r = write_byte(fp, 0)
+        // Section headers (56 bytes each, 5 sections)
+        // Section 0: null
+        mut i = 0
+        while i < 64 {
+            mut r = write_byte(fp, 0)
+            mut i = i + 1
+        }
+        // Section 1: .text
+        mut r = write32(fp, 1)           // sh_name (offset 1 in shstrtab)
+        mut r = write32(fp, 1)           // sh_type = SHT_PROGBITS
+        mut r = write64(fp, 6)           // sh_flags = SHF_ALLOC | SHF_EXECINSTR
+        mut r = write64(fp, 0)           // sh_addr
+        mut r = write64(fp, code_off)    // sh_offset
+        mut r = write64(fp, code_size + str_data_size)  // sh_size
+        mut r = write32(fp, 0)           // sh_link
+        mut r = write32(fp, 0)           // sh_info
+        mut r = write64(fp, 16)          // sh_addralign
+        mut r = write64(fp, 0)           // sh_entsize
+        // Section 2: .symtab
+        mut r = write32(fp, 7)           // sh_name (offset 7 in shstrtab)
+        mut r = write32(fp, 2)           // sh_type = SHT_SYMTAB
+        mut r = write64(fp, 0)           // sh_flags
+        mut r = write64(fp, 0)           // sh_addr
+        mut r = write64(fp, sym_off)     // sh_offset
+        mut r = write64(fp, nsyms * 24)  // sh_size
+        mut r = write32(fp, 3)           // sh_link = .strtab section index
+        mut r = write32(fp, 1)           // sh_info = index of first non-local symbol
+        mut r = write64(fp, 8)           // sh_addralign
+        mut r = write64(fp, 24)          // sh_entsize
+        // Section 3: .strtab
+        mut r = write32(fp, 15)          // sh_name (offset 15 in shstrtab)
+        mut r = write32(fp, 3)           // sh_type = SHT_STRTAB
+        mut r = write64(fp, 0)           // sh_flags
+        mut r = write64(fp, 0)           // sh_addr
+        mut r = write64(fp, str_off)     // sh_offset
+        mut r = write64(fp, str_size)    // sh_size
+        mut r = write32(fp, 0)           // sh_link
+        mut r = write32(fp, 0)           // sh_info
+        mut r = write64(fp, 1)           // sh_addralign
+        mut r = write64(fp, 0)           // sh_entsize
+        // Section 4: .shstrtab
+        mut r = write32(fp, 23)          // sh_name (offset 23 in shstrtab)
+        mut r = write32(fp, 3)           // sh_type = SHT_STRTAB
+        mut r = write64(fp, 0)           // sh_flags
+        mut r = write64(fp, 0)           // sh_addr
+        mut r = write64(fp, shstr_off)   // sh_offset
+        mut r = write64(fp, shstr_size)  // sh_size
+        mut r = write32(fp, 0)           // sh_link
+        mut r = write32(fp, 0)           // sh_info
+        mut r = write64(fp, 1)           // sh_addralign
+        mut r = write64(fp, 0)           // sh_entsize
+        mut r = fclose(fp)
+        puts("ELF written")
+        mut r = 0
+    }
+}
+
 fn write_macho(path: i64, code_size: i64) (r: i64)
 {
     let arg2_ptr: i64 = 0
@@ -3525,7 +3760,11 @@ fn do_codegen(argv_ptr: i64) (r: i64)
     puts("GEN DONE")
     mut r = patch_calls()
     mut arg2_ptr = __mem_load(argv_ptr + 16)
-    mut r = write_macho(arg2_ptr, g_code_pos)
+    if g_output_elf == 1 {
+        mut r = write_elf(arg2_ptr, g_code_pos)
+    } else {
+        mut r = write_macho(arg2_ptr, g_code_pos)
+    }
     mut r = 0
 }
 
@@ -3534,7 +3773,42 @@ fn run_compiler(argv_ptr: i64) (r: i64)
     let arg1_ptr: i64 = 0
     let status: i64 = 0
     let arg1_ptr: i64 = 0
-    mut arg1_ptr = __mem_load(argv_ptr + 8)
+    let i: i64 = 0
+    let arg_ptr: i64 = 0
+    mut i = 1
+    mut arg1_ptr = 0
+    while i < 100 {
+        mut arg_ptr = __mem_load(argv_ptr + i * 8)
+        if arg_ptr == 0 { mut i = 100 }
+        if arg_ptr != 0 {
+            if __byte_load(arg_ptr, 0) == 45 {
+                if __byte_load(arg_ptr, 2) == 116 {
+                    if __byte_load(arg_ptr, 9) == 108 { mut g_target_os = 1 }
+                    if __byte_load(arg_ptr, 9) == 102 { mut g_target_os = 2 }
+                }
+                if __byte_load(arg_ptr, 2) == 101 { mut g_output_elf = 1 }
+            } else {
+                if arg1_ptr == 0 { mut arg1_ptr = arg_ptr }
+            }
+        }
+        mut i = i + 1
+    }
+    if g_target_os == 1 {
+        mut SC_READ = 63
+        mut SC_WRITE = 64
+        mut SC_OPEN = 56
+        mut SC_CLOSE = 57
+        mut SC_MMAP = 222
+        mut SC_EXIT = 93
+    }
+    if g_target_os == 2 {
+        mut SC_READ = 3
+        mut SC_WRITE = 4
+        mut SC_OPEN = 5
+        mut SC_CLOSE = 6
+        mut SC_MMAP = 477
+        mut SC_EXIT = 1
+    }
     mut status = do_parse(arg1_ptr)
     if status == 0 {
         mut r = do_codegen(argv_ptr)
