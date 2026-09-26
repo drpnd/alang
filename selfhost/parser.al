@@ -2705,7 +2705,8 @@ fn gen_main_init() (r: i64)
     // Emit direct mmap syscall: mmap(0, 4096, PROT_RW, MAP_PRIVATE|ANON, -1, 0)
     // macOS aarch64: x16=197, svc #0x80
     mut r = gen_movz(0, 0)          // X0 = 0 (addr = NULL)
-    mut r = gen_movz(1, 4096)       // X1 = 4096 (size)
+    mut r = gen_movz(1, 4096)       // X1 = 4096 (not enough, need larger)
+    mut r = gen_movk(1, 1, 16)      // X1 = 4096 + 65536 = 69632 (larger mmap)
     mut r = gen_movz(2, 3)          // X2 = 3 (PROT_READ|PROT_WRITE)
     mut r = gen_movz(3, 4098)       // X3 = 4098 (MAP_PRIVATE|MAP_ANON)
     mut r = emit32(0x92800004)      // MOV X4, #-1 (fd = -1) = MOVN X4, #0

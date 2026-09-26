@@ -2165,7 +2165,7 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
             emit32(&ctx.tb, 0xF90007E1);  /* STR X1, [SP, #8] */
             /* mmap(0, 4096, PROT_RW, MAP_PRIVATE|ANON, -1, 0) */
             emit_load_imm64(&ctx.tb, 0, 0);       /* X0 = 0 */
-            emit_load_imm64(&ctx.tb, 1, 4096);    /* X1 = 4096 */
+            emit_load_imm64(&ctx.tb, 1, 65536);   /* X1 = 65536 (enough for globals + string consts) */
             emit_load_imm64(&ctx.tb, 2, 3);       /* X2 = PROT_READ|PROT_WRITE */
             emit_load_imm64(&ctx.tb, 3, 0x1002);  /* X3 = MAP_PRIVATE|MAP_ANON */
             emit32(&ctx.tb, 0x92800004);          /* MOV X4, #-1 (MOVN X4, #0) */
