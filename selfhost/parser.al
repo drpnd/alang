@@ -328,11 +328,16 @@ fn lex_number(c: i32) (r: i64)
                     mut dv = c - 55
                 }
             }
-            if dv > 0 || c == 48 {
+            if dv > 0 {
                 mut val = val * 16 + dv
                 mut c = next_ch()
             } else {
-                mut cont = 0
+                if c == 48 {
+                    mut val = val * 16
+                    mut c = next_ch()
+                } else {
+                    mut cont = 0
+                }
             }
         }
     } else {
