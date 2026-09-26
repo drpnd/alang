@@ -2389,13 +2389,20 @@ fn gen_print_builtin(arg_count: i64) (r: i64)
         mut r = emit32(0xD4000001)
     }
     if is_println == 1 {
-        // write(1, "\n", 1) - store newline on stack and write
+        // write(1, "\n", 1): store newline on stack, write, restore
+        // SUB SP, SP, #16
+        mut r = emit32(0xD10043FF)
+        // MOV X0, #10 (newline char)
         mut r = gen_movz(0, 10)
-        mut r = emit32(0xF81F0FE0)
+        // STRB W0, [SP] (store 1 byte at [SP])
+        mut r = gen_strb_reg(0, 31, 31)
+        // MOV X0, #1 (fd = stdout)
         mut r = gen_movz(0, 1)
-        mut r = emit32(0xF81F0FE1)
+        // ADD X1, SP, #0 (buf = SP, can't use MOV since ORR treats 31 as XZR)
+        mut r = emit32(0x910003E1)
+        // MOV X2, #1 (len = 1)
         mut r = gen_movz(2, 1)
-        mut r = emit32(0x910283FF)
+        // syscall
         mut r = gen_movz(16, SC_WRITE)
         if g_target_os == 0 {
             mut r = emit32(0xD4001001)
@@ -2403,6 +2410,8 @@ fn gen_print_builtin(arg_count: i64) (r: i64)
             mut r = gen_mov(8, 16)
             mut r = emit32(0xD4000001)
         }
+        // ADD SP, SP, #16 (restore stack)
+        mut r = emit32(0x910043FF)
     }
     mut r = 0
 }
