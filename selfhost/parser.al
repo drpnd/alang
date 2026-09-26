@@ -2113,7 +2113,13 @@ fn is_builtin_name(name: i64) (r: i64)
                 mut r = check_bytes(name, 95, 95, 98, 121)
             } else {
                 if b2 == 109 {
-                    mut r = check_bytes(name, 95, 95, 109, 101)
+                    if __byte_load(name, 3) == 101 {
+                        mut r = check_bytes(name, 95, 95, 109, 101)
+                    } else {
+                        if __byte_load(name, 3) == 97 {
+                            mut r = check_bytes(name, 95, 95, 109, 97)
+                        }
+                    }
                 } else {
                     if b2 == 115 {
                         if __byte_load(name, 3) == 116 {
@@ -2121,6 +2127,26 @@ fn is_builtin_name(name: i64) (r: i64)
                         } else {
                             if __byte_load(name, 3) == 121 {
                                 mut r = check_bytes(name, 95, 95, 115, 121)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        if __byte_load(name, 0) == 112 {
+            if __byte_load(name, 1) == 114 {
+                if __byte_load(name, 2) == 105 {
+                    if __byte_load(name, 3) == 110 {
+                        if __byte_load(name, 4) == 116 {
+                            if __byte_load(name, 5) == 0 {
+                                mut r = 1
+                            } else {
+                                if __byte_load(name, 5) == 108 {
+                                    if __byte_load(name, 6) == 110 {
+                                        mut r = 1
+                                    }
+                                }
                             }
                         }
                     }
@@ -2325,31 +2351,116 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_print_builtin(arg_count: i64) (r: i64)
+{
+    // print(str): write(1, str, strlen(str))
+    // println(str): write(1, str, strlen(str)) then write(1, "\n", 1)
+    let is_println: i64 = 0
+    mut is_println = 0
+    if __byte_load(g_call_name, 5) == 108 { mut is_println = 1 }
+    // Pop string address to X0
+    mut r = emit32(0xF84107E0)
+    // Compute strlen: X1 = 0; while [X0+X1] != 0: X1++
+    // Use X1 as counter, X2 as temp
+    mut r = gen_movz(1, 0)
+    let loop_pos: i64 = 0
+    mut loop_pos = g_code_pos
+    mut r = gen_ldrb_reg(2, 0, 1)
+    mut r = gen_cmp(2, 31)
+    let skip_pos: i64 = 0
+    mut skip_pos = g_code_pos
+    mut r = gen_bcond(0, 0)
+    mut r = gen_add_imm(1, 1, 1)
+    mut r = gen_b(loop_pos - g_code_pos)
+    mut r = patch_bcond(skip_pos, g_code_pos - skip_pos)
+    // Now X0 = str ptr, X1 = length
+    // write(1, buf, len): X0=fd, X1=buf, X2=len
+    // Save str ptr and length before overwriting X0
+    mut r = gen_mov(3, 0)
+    mut r = gen_mov(4, 1)
+    mut r = gen_movz(0, 1)
+    mut r = gen_mov(1, 3)
+    mut r = gen_mov(2, 4)
+    mut r = gen_movz(16, SC_WRITE)
+    if g_target_os == 0 {
+        mut r = emit32(0xD4001001)
+    } else {
+        mut r = gen_mov(8, 16)
+        mut r = emit32(0xD4000001)
+    }
+    if is_println == 1 {
+        // write(1, "\n", 1) - store newline on stack and write
+        mut r = gen_movz(0, 10)
+        mut r = emit32(0xF81F0FE0)
+        mut r = gen_movz(0, 1)
+        mut r = emit32(0xF81F0FE1)
+        mut r = gen_movz(2, 1)
+        mut r = emit32(0x910283FF)
+        mut r = gen_movz(16, SC_WRITE)
+        if g_target_os == 0 {
+            mut r = emit32(0xD4001001)
+        } else {
+            mut r = gen_mov(8, 16)
+            mut r = emit32(0xD4000001)
+        }
+    }
+    mut r = 0
+}
+
+fn gen_malloc_builtin(arg_count: i64) (r: i64)
+{
+    // __malloc(size): mmap(0, size, PROT_RW, MAP_PRIVATE|ANON, -1, 0)
+    mut r = gen_pop_x0()
+    mut r = gen_movz(0, 0)
+    mut r = gen_movz(2, 3)
+    mut r = gen_movz(3, 4098)
+    mut r = emit32(0x92800004)
+    mut r = gen_movz(5, 0)
+    if g_target_os == 0 {
+        mut r = gen_movz(16, 197)
+        mut r = emit32(0xD4001001)
+    } else {
+        mut r = gen_movz(8, 222)
+        mut r = emit32(0xD4000001)
+    }
+}
+
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
-    let b2: i64 = 0
-    mut b2 = __byte_load(g_call_name, 2)
-    if b2 == 98 {
-        if __byte_load(g_call_name, 3) == 121 {
-            mut r = gen_byte_builtin()
-        }
+    let b0: i64 = 0
+    mut b0 = __byte_load(g_call_name, 0)
+    if b0 == 112 {
+        mut r = gen_print_builtin(arg_count)
     } else {
-        if b2 == 109 {
-            if __byte_load(g_call_name, 3) == 101 {
-                mut r = gen_mem_builtin()
+        let b2: i64 = 0
+        mut b2 = __byte_load(g_call_name, 2)
+        if b2 == 98 {
+            if __byte_load(g_call_name, 3) == 121 {
+                mut r = gen_byte_builtin()
             }
         } else {
-            if b2 == 115 {
-                if __byte_load(g_call_name, 3) == 116 {
-                    mut r = gen_str_eq_inline()
+            if b2 == 109 {
+                if __byte_load(g_call_name, 3) == 101 {
+                    mut r = gen_mem_builtin()
                 } else {
-                    if __byte_load(g_call_name, 3) == 121 {
-                        mut r = gen_syscall_builtin(arg_count)
+                    if __byte_load(g_call_name, 3) == 97 {
+                        mut r = gen_malloc_builtin(arg_count)
+                    }
+                }
+            } else {
+                if b2 == 115 {
+                    if __byte_load(g_call_name, 3) == 116 {
+                        mut r = gen_str_eq_inline()
+                    } else {
+                        if __byte_load(g_call_name, 3) == 121 {
+                            mut r = gen_syscall_builtin(arg_count)
+                        }
                     }
                 }
             }
         }
     }
+    mut r = 0
 }
 
 fn gen_caller_save2() (r: i64)
