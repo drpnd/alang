@@ -202,6 +202,15 @@ compile_only "while_loop" \
     "$HEADER let i: i64 = 0 while i < 10 { mut i = i + 1 } $FOOTER"
 
 echo ""
+
+echo "--- Logical Operators ---"
+compile_and_check "logic_or" "
+    $HEADER let a: i64 = 0 let b: i64 = 5 let c: i64 = 0 mut c = a || b $FOOTER" "
+    "orr""
+compile_and_check "logic_and" "
+    $HEADER let a: i64 = 5 let b: i64 = 3 let c: i64 = 0 mut c = a && b $FOOTER" "
+    "and""
+
 echo "--- Mach-O Output Validation ---"
 compile_only "valid_macho" "$HEADER $FOOTER"
 
