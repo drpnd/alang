@@ -328,16 +328,11 @@ fn lex_number(c: i32) (r: i64)
                     mut dv = c - 55
                 }
             }
-            if dv > 0 {
+            if dv > 0 || c == 48 {
                 mut val = val * 16 + dv
                 mut c = next_ch()
             } else {
-                if c == 48 {
-                    mut val = val * 16
-                    mut c = next_ch()
-                } else {
-                    mut cont = 0
-                }
+                mut cont = 0
             }
         }
     } else {
@@ -848,7 +843,7 @@ fn parse_cmp() (r: i64)
     mut r = nd
 }
 
-fn parse_expr() (r: i64)
+fn parse_eq_ne() (r: i64)
 {
     let nd: i64 = 0
     let rhs: i64 = 0
@@ -862,6 +857,32 @@ fn parse_expr() (r: i64)
         mut r = advance()
         mut rhs = parse_cmp()
         mut nd = emit_binop(8645, nd, rhs)
+    }
+    mut r = nd
+}
+
+fn parse_logic_and() (r: i64)
+{
+    let nd: i64 = 0
+    let rhs: i64 = 0
+    mut nd = parse_eq_ne()
+    while is_op(9798) == 1 {
+        mut r = advance()
+        mut rhs = parse_eq_ne()
+        mut nd = emit_binop(9798, nd, rhs)
+    }
+    mut r = nd
+}
+
+fn parse_expr() (r: i64)
+{
+    let nd: i64 = 0
+    let rhs: i64 = 0
+    mut nd = parse_logic_and()
+    while is_op(31870) == 1 {
+        mut r = advance()
+        mut rhs = parse_logic_and()
+        mut nd = emit_binop(31870, nd, rhs)
     }
     mut r = nd
 }
@@ -1786,6 +1807,14 @@ fn gen_arith_op(op: i64) (r: i64)
                                     } else {
                                         if op == 15420 {
                                             mut r = gen_lsl(0, 1, 0)
+                                        } else {
+                                            if op == 9798 {
+                                                mut r = gen_and(0, 1, 0)
+                                            } else {
+                                                if op == 31870 {
+                                                    mut r = gen_or(0, 1, 0)
+                                                }
+                                            }
                                         }
                                     }
                                 }
