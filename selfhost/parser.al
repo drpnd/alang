@@ -1840,7 +1840,16 @@ fn gen_expr_unop(op: i64, a: i64) (r: i64)
 fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
 {
     if k == 1 {
-        mut r = gen_movz(0, v)
+        mut r = gen_movz(0, v & 65535)
+        if (v >> 16) != 0 {
+            mut r = gen_movk(0, (v >> 16) & 65535, 16)
+        }
+        if (v >> 32) != 0 {
+            mut r = gen_movk(0, (v >> 32) & 65535, 32)
+        }
+        if (v >> 48) != 0 {
+            mut r = gen_movk(0, (v >> 48) & 65535, 48)
+        }
     } else {
         if k == 2 {
             mut r = gen_expr_str(v)
@@ -2717,13 +2726,13 @@ fn gen_glob_init() (r: i64)
         mut val = __mem_load(g_glob_val + i * 8)
         if val != 0 {
             mut r = gen_movz(0, val & 65535)
-            if (val >> 16) & 65535 != 0 {
+            if (val >> 16) != 0 {
                 mut r = gen_movk(0, (val >> 16) & 65535, 16)
             }
-            if (val >> 32) & 65535 != 0 {
+            if (val >> 32) != 0 {
                 mut r = gen_movk(0, (val >> 32) & 65535, 32)
             }
-            if (val >> 48) & 65535 != 0 {
+            if (val >> 48) != 0 {
                 mut r = gen_movk(0, (val >> 48) & 65535, 48)
             }
             mut r = gen_str(0, 19, i)
