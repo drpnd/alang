@@ -2122,7 +2122,21 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
         ctx.patches.cap = 0;
 
         off_t func_start = ctx.tb.size;
-        int symidx = add_sym(code, ARCH_SYM_FUNC, func->name, func_start, 0);
+        /* Check if symbol already exists (forward reference from a call) */
+        int symidx = -1;
+        for (int i = 0; i < code->sym.n; i++) {
+            if (code->sym.syms[i].label &&
+                strcmp(code->sym.syms[i].label, func->name) == 0) {
+                symidx = i;
+                /* Update existing forward-reference symbol with actual position */
+                code->sym.syms[i].pos = func_start;
+                code->sym.syms[i].size = 0;
+                break;
+            }
+        }
+        if (symidx < 0) {
+            symidx = add_sym(code, ARCH_SYM_FUNC, func->name, func_start, 0);
+        }
 
         /* Compute max SSA id used in this function */
         int max_ssa = 0;
