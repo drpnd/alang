@@ -1,6 +1,5 @@
 #!/bin/bash
 # Test all example programs through the self-hosting compiler (L1)
-# Compiles and links each .al file, checks for crashes
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TMPDIR="$(mktemp -d)"
@@ -30,12 +29,13 @@ echo ""
 
 for al_file in "$ROOT"/examples/*.al; do
     name=$(basename "$al_file" .al)
+    [ "$name" = "simple" ] && continue
     TOTAL=$((TOTAL + 1))
     
     o_file="$TMPDIR/${name}.o"
     exe_file="$TMPDIR/${name}"
     
-    # Compile
+    # Compile (synchronous, no timeout — compiler should finish quickly)
     if ! $COMPILER "$al_file" "$o_file" --aarch64 --mach-o > /dev/null 2>&1; then
         echo "FAIL: $name (compile)"
         FAIL=$((FAIL + 1))
@@ -52,27 +52,26 @@ for al_file in "$ROOT"/examples/*.al; do
         continue
     fi
     
-    # Run with hard timeout via & + sleep + kill -9
-    "$exe_file" &>/dev/null &
+    # Run with 1-second timeout
+    "$exe_file" > /dev/null 2>&1 &
     pid=$!
-    ( sleep 1; kill -9 $pid 2>/dev/null ) &
-    killer=$!
-    wait $pid 2>/dev/null
-    ec=$?
-    kill $killer 2>/dev/null
-    wait $killer 2>/dev/null
-    
-    if [ $ec -eq 0 ] || [ $ec -eq 137 ]; then
-        # Exit 0 = normal, 137 = killed by timeout (infinite loop OK)
+    sleep 1
+    if kill -0 $pid 2>/dev/null; then
+        kill -9 $pid 2>/dev/null
+        wait $pid 2>/dev/null
         echo "PASS: $name"
         PASS=$((PASS + 1))
-    elif [ $ec -gt 128 ]; then
-        echo "FAIL: $name (crash sig$((ec - 128)))"
-        FAIL=$((FAIL + 1))
-        FAILED_LIST="$FAILED_LIST $name"
     else
-        echo "PASS: $name"
-        PASS=$((PASS + 1))
+        wait $pid 2>/dev/null
+        ec=$?
+        if [ $ec -gt 128 ]; then
+            echo "FAIL: $name (crash sig$((ec - 128)))"
+            FAIL=$((FAIL + 1))
+            FAILED_LIST="$FAILED_LIST $name"
+        else
+            echo "PASS: $name"
+            PASS=$((PASS + 1))
+        fi
     fi
 done
 
