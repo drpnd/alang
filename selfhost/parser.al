@@ -384,6 +384,8 @@ fn lex_op(c: i32) (r: i64)
         }
         if c == 124 { if n == 124 { mut code = 31870 } }
         if c == 38 { if n == 38 { mut code = 9798 } }
+        if c == 62 { if n == 62 { mut code = 15854 } }
+        if c == 60 { if n == 60 { mut code = 15420 } }
     }
     if code != c { mut g_pos = g_pos + 1 }
     mut r = emit_tok(4, code)
@@ -781,11 +783,43 @@ fn parse_add() (r: i64)
     mut r = nd
 }
 
-fn parse_cmp() (r: i64)
+fn parse_bit() (r: i64)
 {
     let nd: i64 = 0
     let rhs: i64 = 0
     mut nd = parse_add()
+    while is_op(38) == 1 {
+        mut r = advance()
+        mut rhs = parse_add()
+        mut nd = emit_binop(38, nd, rhs)
+    }
+    while is_op(124) == 1 {
+        mut r = advance()
+        mut rhs = parse_add()
+        mut nd = emit_binop(124, nd, rhs)
+    }
+    while is_op(94) == 1 {
+        mut r = advance()
+        mut rhs = parse_add()
+        mut nd = emit_binop(94, nd, rhs)
+    }
+    while is_op(15854) == 1 {
+        mut r = advance()
+        mut rhs = parse_add()
+        mut nd = emit_binop(15854, nd, rhs)
+    }
+    while is_op(15420) == 1 {
+        mut r = advance()
+        mut rhs = parse_add()
+        mut nd = emit_binop(15420, nd, rhs)
+    }
+    mut r = nd
+}
+fn parse_cmp() (r: i64)
+{
+    let nd: i64 = 0
+    let rhs: i64 = 0
+    mut nd = parse_bit()
     while is_op(60) == 1 {
         mut r = advance()
         mut rhs = parse_add()
@@ -1315,6 +1349,36 @@ fn gen_mul(rd: i64, rn: i64, rm: i64) (r: i64)
     mut r = emit32(0x9B007C00 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
 }
 
+// AND Xd, Xn, Xm (64-bit register)
+fn gen_and(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0x8A000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// ORR Xd, Xn, Xm (64-bit register)
+fn gen_or(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0xAA000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// EOR Xd, Xn, Xm (64-bit register)
+fn gen_xor(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0xCA000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// LSR Xd, Xn, Xm (64-bit register shift right)
+fn gen_lsr(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0x9AC02400 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
+// LSL Xd, Xn, Xm (64-bit register shift left)
+fn gen_lsl(rd: i64, rn: i64, rm: i64) (r: i64)
+{
+    mut r = emit32(0x9AC02000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+}
+
 // MOV Xd, Xm (ORR Xd, XZR, Xm)
 fn gen_mov(rd: i64, rm: i64) (r: i64)
 {
@@ -1702,6 +1766,26 @@ fn gen_arith_op(op: i64) (r: i64)
                 } else {
                     if op == 37 {
                         mut r = gen_mod()
+                    } else {
+                        if op == 38 {
+                            mut r = gen_and(0, 1, 0)
+                        } else {
+                            if op == 124 {
+                                mut r = gen_or(0, 1, 0)
+                            } else {
+                                if op == 94 {
+                                    mut r = gen_xor(0, 1, 0)
+                                } else {
+                                    if op == 15854 {
+                                        mut r = gen_lsr(0, 1, 0)
+                                    } else {
+                                        if op == 15420 {
+                                            mut r = gen_lsl(0, 1, 0)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1712,10 +1796,36 @@ fn gen_arith_op(op: i64) (r: i64)
 
 fn gen_binop(op: i64) (r: i64)
 {
-    if op < 60 {
-        mut r = gen_arith_op(op)
+    if op == 15677 {
+        mut r = gen_cmp(1, 0)
+        mut r = gen_cmp_eq2()
     } else {
-        mut r = gen_cmpop(op)
+        if op == 8645 {
+            mut r = gen_cmp(1, 0)
+            mut r = gen_cmp_ne()
+        } else {
+            if op == 60 {
+                mut r = gen_cmp(1, 0)
+                mut r = gen_cmp_lt()
+            } else {
+                if op == 62 {
+                    mut r = gen_cmp(1, 0)
+                    mut r = gen_cmp_gt()
+                } else {
+                    if op == 15485 {
+                        mut r = gen_cmp(1, 0)
+                        mut r = gen_cmp_le()
+                    } else {
+                        if op == 15997 {
+                            mut r = gen_cmp(1, 0)
+                            mut r = gen_cmp_ge()
+                        } else {
+                            mut r = gen_arith_op(op)
+                        }
+                    }
+                }
+            }
+        }
     }
     mut r = 0
 }
@@ -1984,24 +2094,27 @@ fn gen_eval_one(arg_nd: i64) (r: i64)
 {
     let k: i64 = 0
     let actual: i64 = 0
+    let next_arg: i64 = 0
     mut k = __mem_load(g_ast_kind + arg_nd * 8)
     mut actual = arg_nd
-    mut g_tmp1 = 0
+    mut next_arg = 0
     if k == 20 {
         mut actual = __mem_load(g_ast_a + arg_nd * 8)
-        mut g_tmp1 = __mem_load(g_ast_b + arg_nd * 8)
+        mut next_arg = __mem_load(g_ast_b + arg_nd * 8)
     }
     mut r = gen_expr(actual)
     mut r = gen_push()
+    mut r = next_arg
 }
 
 fn gen_eval_args(first_arg: i64) (r: i64)
 {
     let count: i64 = 0
+    let cur: i64 = 0
     mut count = 0
-    mut g_tmp1 = first_arg
-    while g_tmp1 > 0 {
-        mut r = gen_eval_one(g_tmp1)
+    mut cur = first_arg
+    while cur > 0 {
+        mut cur = gen_eval_one(cur)
         mut count = count + 1
     }
     mut r = count
