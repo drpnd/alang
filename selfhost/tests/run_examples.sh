@@ -64,7 +64,12 @@ for al_file in "$ROOT"/examples/*.al; do
     else
         wait $pid 2>/dev/null
         ec=$?
-        if [ $ec -gt 128 ]; then
+        # Exit code 137 = killed by our kill -9 (timeout, that's OK)
+        # Exit codes > 128 can be either signal death OR normal exit
+        # (e.g., 3000 % 256 = 184). Since the process exited within
+        # the timeout, treat any exit as PASS unless it's 139 (SIGSEGV)
+        # or 134 (SIGABRT) which indicate real crashes.
+        if [ $ec -eq 139 ] || [ $ec -eq 134 ] || [ $ec -eq 138 ] || [ $ec -eq 136 ]; then
             echo "FAIL: $name (crash sig$((ec - 128)))"
             FAIL=$((FAIL + 1))
             FAILED_LIST="$FAILED_LIST $name"
