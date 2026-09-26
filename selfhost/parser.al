@@ -2351,6 +2351,138 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_print_int_builtin(is_println: i64) (r: i64)
+{
+    // print(int): convert integer to decimal string and write
+    // X0 = integer value (popped from stack)
+    // Uses stack space for the string buffer
+    // Pop integer value to X0 first
+    mut r = emit32(0xF84107E0)
+    // SUB SP, SP, #32 (buffer for up to 20 digits + sign + null)
+    mut r = emit32(0xD10083FF)
+    // ADD X1, SP, #31 (point to end of buffer)
+    mut r = emit32(0x91007BE1)
+    // STRB WZR, [SP, #31] (null terminator at end)
+    mut r = emit32(0x39007BFF)
+    // Handle negative: if X0 < 0, negate and set flag
+    // CBZ X0, .zero -> CMP X0, XZR + B.EQ
+    mut r = gen_cmp(0, 31)
+    let zero_pos: i64 = 0
+    mut zero_pos = g_code_pos
+    mut r = gen_bcond(0, 0)
+    // MOV X2, 0 (negative flag)
+    mut r = gen_movz(2, 0)
+    // CMP X0, #0
+    mut r = gen_cmp(0, 31)
+    // B.GE .pos (if >= 0, skip negation)
+    let neg_pos: i64 = 0
+    mut neg_pos = g_code_pos
+    mut r = gen_bcond(10, 0)
+    // NEG X0, X0
+    mut r = emit32(0xCB0003E0)
+    // MOV X2, 1 (negative flag)
+    mut r = gen_movz(2, 1)
+    // .pos: (continue with positive value)
+    let pos_label: i64 = 0
+    mut pos_label = g_code_pos
+    mut r = patch_bcond(neg_pos, pos_label - neg_pos)
+    // .loop: convert digits
+    let loop_pos: i64 = 0
+    mut loop_pos = g_code_pos
+    // MOV X3, 10
+    mut r = gen_movz(3, 10)
+    // UDIV X4, X0, X3
+    mut r = emit32(0x9AC30804)
+    // MSUB X5, X4, X3, X0 = X0 - X4 * X3 (rd=5, rn=4, rm=3, ra=0)
+    mut r = emit32(0x9B038085)
+    // ADD X5, X5, #48 (convert to ASCII)
+    mut r = gen_add_imm(5, 5, 48)
+    // SUB X1, X1, #1
+    mut r = gen_sub_imm(1, 1, 1)
+    // STRB W5, [X1] (X1 is absolute address)
+    mut r = emit32(0x39000025)
+    // MOV X0, X4
+    mut r = gen_mov(0, 4)
+    // CBNZ X0, .loop -> CMP X0, XZR + B.NE
+    mut r = gen_cmp(0, 31)
+    let cbnz_pos: i64 = 0
+    mut cbnz_pos = g_code_pos
+    mut r = gen_bcond(1, 0)
+    mut r = patch_bcond(cbnz_pos, loop_pos - cbnz_pos)
+    // If negative flag: add minus sign
+    // CBZ X2, .write -> CMP X2, XZR + B.EQ
+    mut r = gen_cmp(2, 31)
+    let skip_minus: i64 = 0
+    mut skip_minus = g_code_pos
+    mut r = gen_bcond(0, 0)
+    // SUB X1, X1, #1
+    mut r = gen_sub_imm(1, 1, 1)
+    // MOV X5, #45 (minus sign)
+    mut r = gen_movz(5, 45)
+    // STRB W5, [X1] (X1 is absolute address)
+    mut r = emit32(0x39000025)
+    // .write:
+    let write_label: i64 = 0
+    mut write_label = g_code_pos
+    mut r = patch_bcond(skip_minus, write_label - skip_minus)
+    // B .done (skip zero case)
+    let done_branch: i64 = 0
+    mut done_branch = g_code_pos
+    mut r = gen_b(0)
+    // .zero: write "0"
+    let zero_label: i64 = 0
+    mut zero_label = g_code_pos
+    mut r = patch_bcond(zero_pos, zero_label - zero_pos)
+    // MOV X5, #48 (ASCII '0')
+    mut r = gen_movz(5, 48)
+    // STRB W5, [SP, #28]
+    mut r = emit32(0x39006C65)
+    // ADD X1, SP, #28
+    mut r = emit32(0x910073E1)
+    // .done:
+    let done_label: i64 = 0
+    mut done_label = g_code_pos
+    mut r = patch_b(done_branch, done_label - done_branch)
+    // Compute length: X2 = SP + 32 - X1
+    // ADD X3, SP, #32
+    mut r = emit32(0x910083E3)
+    // SUB X2, X3, X1
+    mut r = emit32(0xCB010062)
+    // write(1, X1, X2)
+    mut r = gen_mov(4, 1)
+    mut r = gen_mov(5, 2)
+    mut r = gen_movz(0, 1)
+    mut r = gen_mov(1, 4)
+    mut r = gen_mov(2, 5)
+    mut r = gen_movz(16, SC_WRITE)
+    if g_target_os == 0 {
+        mut r = emit32(0xD4001001)
+    } else {
+        mut r = gen_mov(8, 16)
+        mut r = emit32(0xD4000001)
+    }
+    if is_println == 1 {
+        // write newline
+        mut r = emit32(0xD10043FF)
+        mut r = gen_movz(0, 10)
+        mut r = gen_strb_reg(0, 31, 31)
+        mut r = gen_movz(0, 1)
+        mut r = emit32(0x910003E1)
+        mut r = gen_movz(2, 1)
+        mut r = gen_movz(16, SC_WRITE)
+        if g_target_os == 0 {
+            mut r = emit32(0xD4001001)
+        } else {
+            mut r = gen_mov(8, 16)
+            mut r = emit32(0xD4000001)
+        }
+        mut r = emit32(0x910043FF)
+    }
+    // ADD SP, SP, #32 (restore stack)
+    mut r = emit32(0x910083FF)
+    mut r = 0
+}
+
 fn gen_print_builtin(arg_count: i64) (r: i64)
 {
     // print(str): write(1, str, strlen(str))
@@ -2439,7 +2571,7 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
     let b0: i64 = 0
     mut b0 = __byte_load(g_call_name, 0)
     if b0 == 112 {
-        mut r = gen_print_builtin(arg_count)
+        mut r = 0
     } else {
         let b2: i64 = 0
         mut b2 = __byte_load(g_call_name, 2)
@@ -2572,13 +2704,36 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
 {
     let arg_count: i64 = 0
     let saved_name: i64 = 0
+    let arg_kind: i64 = 0
+    let arg_nd: i64 = 0
     mut saved_name = name
     mut g_call_name = name
     mut arg_count = gen_eval_args(first_arg)
     mut g_call_name = saved_name
 
     if is_builtin_name(g_call_name) == 1 {
-        mut r = gen_call_builtin(g_call_name, arg_count)
+        if __byte_load(g_call_name, 0) == 112 {
+            // print/println: check if argument is string (k=2) or integer
+            mut arg_kind = 0
+            mut arg_nd = first_arg
+            if arg_nd > 0 {
+                mut arg_kind = __mem_load(g_ast_kind + arg_nd * 8)
+                if arg_kind == 20 {
+                    mut arg_nd = __mem_load(g_ast_a + arg_nd * 8)
+                    mut arg_kind = __mem_load(g_ast_kind + arg_nd * 8)
+                }
+            }
+            if arg_kind == 2 {
+                mut r = gen_print_builtin(arg_count)
+            } else {
+                let is_pln: i64 = 0
+                mut is_pln = 0
+                if __byte_load(g_call_name, 5) == 108 { mut is_pln = 1 }
+                mut r = gen_print_int_builtin(is_pln)
+            }
+        } else {
+            mut r = gen_call_builtin(g_call_name, arg_count)
+        }
     } else {
         mut r = gen_call_normal2(g_call_name, arg_count)
     }
