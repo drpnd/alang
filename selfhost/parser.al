@@ -2553,7 +2553,7 @@ fn gen_return_stmt(a: i64) (r: i64)
     } else {
         mut r = gen_movz(0, 0)
     }
-    mut r = gen_ret()
+    mut r = gen_epilogue()
     mut r = 0
 }
 
