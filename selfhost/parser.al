@@ -2121,12 +2121,18 @@ fn is_builtin_name(name: i64) (r: i64)
                         }
                     }
                 } else {
-                    if b2 == 115 {
-                        if __byte_load(name, 3) == 116 {
-                            mut r = check_bytes(name, 95, 95, 115, 116)
-                        } else {
-                            if __byte_load(name, 3) == 121 {
-                                mut r = check_bytes(name, 95, 95, 115, 121)
+                    if b2 == 97 {
+                        if __byte_load(name, 3) == 108 {
+                            mut r = check_bytes(name, 95, 95, 97, 108)
+                        }
+                    } else {
+                        if b2 == 115 {
+                            if __byte_load(name, 3) == 116 {
+                                mut r = check_bytes(name, 95, 95, 115, 116)
+                            } else {
+                                if __byte_load(name, 3) == 121 {
+                                    mut r = check_bytes(name, 95, 95, 115, 121)
+                                }
                             }
                         }
                     }
@@ -2566,6 +2572,31 @@ fn gen_malloc_builtin(arg_count: i64) (r: i64)
     }
 }
 
+fn gen_alloca_builtin(arg_count: i64) (r: i64)
+{
+    // __alloca(size): allocate on stack, return pointer
+    // Pop size to X0, round up to 16, SUB SP SP #size, MOV X0 SP
+    mut r = gen_pop_x0()
+    // Round up to 16: X0 = (X0 + 15) & ~15
+    // ADD X0, X0, #15
+    mut r = gen_add_imm(0, 0, 15)
+    // AND X0, X0, #0xFFFFFFF0 (clear low 4 bits)
+    // AND Xd, Xn, #imm: immediate form uses bitmask encoding
+    // ~15 = 0xFFFFFFFFFFFFFFF0, but we can use: BIC X0, X0, #15
+    // BIC Xd, Xn, #imm = 0x92700000 | ... (complex encoding)
+    // Simpler: use AND with register: MOV X1, #-16; AND X0, X0, X1
+    // MOVN X1, #15 = 0x92800001 (X1 = ~15 = -16)
+    mut r = emit32(0x92800001)
+    // AND X0, X0, X1 = 0x8A010000
+    mut r = emit32(0x8A010000)
+    // SUB SP, SP, X0
+    // SUB Xd, Xn, Xm = 0xCB000000 | (rm << 16) | (rn << 5) | rd
+    // SUB SP, SP, X0: rd=31, rn=31, rm=0 = 0xCB0003FF
+    mut r = emit32(0xCB0003FF)
+    // ADD X0, SP, #0 (return pointer to allocated space)
+    mut r = emit32(0x910003E0)
+}
+
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
     let b0: i64 = 0
@@ -2589,12 +2620,18 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
                     }
                 }
             } else {
-                if b2 == 115 {
-                    if __byte_load(g_call_name, 3) == 116 {
-                        mut r = gen_str_eq_inline()
-                    } else {
-                        if __byte_load(g_call_name, 3) == 121 {
-                            mut r = gen_syscall_builtin(arg_count)
+                if b2 == 97 {
+                    if __byte_load(g_call_name, 3) == 108 {
+                        mut r = gen_alloca_builtin(arg_count)
+                    }
+                } else {
+                    if b2 == 115 {
+                        if __byte_load(g_call_name, 3) == 116 {
+                            mut r = gen_str_eq_inline()
+                        } else {
+                            if __byte_load(g_call_name, 3) == 121 {
+                                mut r = gen_syscall_builtin(arg_count)
+                            }
                         }
                     }
                 }
