@@ -1269,20 +1269,29 @@ fn parse_program() (r: i64)
                             if is_op(125) == 1 { mut r = advance() }
                         } else {
                             if is_kw(13) == 1 {
+                                let en_tag: i64 = 0
+                                let en_name: i64 = 0
+                                let en_has_arg: i64 = 0
+                                mut en_tag = 0
                                 mut r = advance()
                                 if cur_type() == 1 { mut r = advance() }
                                 if is_op(123) == 1 { mut r = advance() }
                                 while is_op(125) == 0 {
                                     if cur_type() == 0 { mut r = 1 } else {
                                         if cur_type() == 1 {
+                                            mut en_name = cur_val()
                                             mut r = advance()
+                                            mut en_has_arg = 0
                                             if is_op(40) == 1 {
+                                                mut en_has_arg = 1
                                                 mut r = advance()
                                                 while is_op(41) == 0 {
                                                     if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
                                                 }
                                                 if is_op(41) == 1 { mut r = advance() }
                                             }
+                                            mut r = enum_add(en_name, en_tag, en_has_arg)
+                                            mut en_tag = en_tag + 1
                                         }
                                         if is_op(44) == 1 { mut r = advance() }
                                     }
@@ -1324,6 +1333,12 @@ let g_adr_patch_count: i64 = 0
 let g_fn_name: i64 = 0
 let g_fn_off: i64 = 0
 let g_fn_count: i64 = 0
+
+// Enum variant table (name -> tag, has_arg)
+let g_enum_name: i64 = 0
+let g_enum_tag: i64 = 0
+let g_enum_has_arg: i64 = 0
+let g_enum_count: i64 = 0
 
 // Patch table for BL instructions (position -> function name)
 let g_patch_pos: i64 = 0
@@ -1731,6 +1746,44 @@ fn fn_lookup(name: i64) (r: i64)
 }
 
 
+fn enum_add(name: i64, tag: i64, has_arg: i64) (r: i64)
+{
+    __mem_store(g_enum_name + g_enum_count * 8, name)
+    __mem_store(g_enum_tag + g_enum_count * 8, tag)
+    __mem_store(g_enum_has_arg + g_enum_count * 8, has_arg)
+    mut g_enum_count = g_enum_count + 1
+    mut r = 0
+}
+
+fn enum_lookup(name: i64) (r: i64)
+{
+    let i: i64 = 0
+    let found: i64 = 0
+    mut i = 0
+    mut found = 0
+    mut r = -1
+    while i < g_enum_count {
+        if my_str_eq(__mem_load(g_enum_name + i * 8), name) == 1 {
+            mut found = 1
+            mut r = __mem_load(g_enum_tag + i * 8)
+        }
+        mut i = i + 1
+    }
+}
+
+fn enum_has_arg_lookup(name: i64) (r: i64)
+{
+    let i: i64 = 0
+    mut r = 0
+    mut i = 0
+    while i < g_enum_count {
+        if my_str_eq(__mem_load(g_enum_name + i * 8), name) == 1 {
+            mut r = __mem_load(g_enum_has_arg + i * 8)
+        }
+        mut i = i + 1
+    }
+}
+
 fn patch_one(ppos: i64, pname: i64) (r: i64)
 {
     let foff: i64 = 0
@@ -1935,11 +1988,19 @@ fn gen_expr_glob(v: i64) (r: i64)
 fn gen_expr_ident(v: i64) (r: i64)
 {
     let off: i64 = 0
-    mut off = var_lookup(v)
-    if off >= 0 {
-        mut r = gen_ldur(0, 29, 0 - (off + 1) * 8)
+    let etag: i64 = 0
+    mut etag = enum_lookup(v)
+    if etag >= 0 {
+        mut r = gen_enum_alloc()
+        mut r = gen_movz(1, etag)
+        mut r = gen_stur(1, 0, 0)
     } else {
-        mut r = gen_expr_glob(v)
+        mut off = var_lookup(v)
+        if off >= 0 {
+            mut r = gen_ldur(0, 29, 0 - (off + 1) * 8)
+        } else {
+            mut r = gen_expr_glob(v)
+        }
     }
     mut r = 0
 }
@@ -2797,6 +2858,54 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
     mut r = gen_call_finish()
 }
 
+fn gen_enum_alloc() (r: i64)
+{
+    mut r = gen_caller_save()
+    mut r = gen_movz(0, 16)
+    mut r = gen_mov(1, 0)
+    mut r = gen_movz(0, 0)
+    mut r = gen_movz(2, 3)
+    mut r = gen_movz(3, 4098)
+    mut r = emit32(0x92800004)
+    mut r = gen_movz(5, 0)
+    if g_target_os == 0 {
+        mut r = gen_movz(16, 197)
+        mut r = emit32(0xD4001001)
+    } else {
+        mut r = gen_movz(8, 222)
+        mut r = emit32(0xD4000001)
+    }
+    mut r = gen_save_retval()
+    mut r = gen_caller_restore()
+    mut r = gen_load_retval()
+    mut r = gen_add_sp()
+    mut r = 0
+}
+
+fn gen_enum_constructor(name: i64, arg_count: i64) (r: i64)
+{
+    let tag: i64 = 0
+    let has_arg: i64 = 0
+    mut tag = enum_lookup(name)
+    mut has_arg = enum_has_arg_lookup(name)
+    if has_arg == 1 {
+        mut r = gen_pop_x0()
+        mut r = gen_push()
+    }
+    mut r = gen_enum_alloc()
+    if has_arg == 1 {
+        mut r = gen_pop_x1()
+        mut r = gen_stur(1, 0, 8)
+    } else {
+        if arg_count > 0 {
+            mut r = gen_pop_discard()
+        }
+    }
+    mut r = gen_movz(1, tag)
+    mut r = gen_stur(1, 0, 0)
+    mut r = 0
+}
+
 fn gen_call(name: i64, first_arg: i64) (r: i64)
 {
     let arg_count: i64 = 0
@@ -2808,6 +2917,9 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
     mut arg_count = gen_eval_args(first_arg)
     mut g_call_name = saved_name
 
+    if enum_lookup(g_call_name) >= 0 {
+        mut r = gen_enum_constructor(g_call_name, arg_count)
+    } else {
     if is_builtin_name(g_call_name) == 1 {
         if __byte_load(g_call_name, 0) == 112 {
             // print/println: check if argument is string (k=2) or integer
@@ -2833,6 +2945,7 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
         }
     } else {
         mut r = gen_call_normal2(g_call_name, arg_count)
+    }
     }
     mut r = 0
 }
@@ -2929,8 +3042,86 @@ fn gen_return_stmt(a: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_match(nd: i64) (r: i64)
+{
+    let scrut: i64 = 0
+    let cases: i64 = 0
+    let c: i64 = 0
+    let pat: i64 = 0
+    let bind: i64 = 0
+    let body: i64 = 0
+    let tag: i64 = 0
+    let has_arg: i64 = 0
+    let done_patches: i64 = 0
+    let patch_count: i64 = 0
+    let i: i64 = 0
+    mut done_patches = malloc(256)
+    mut patch_count = 0
+    mut scrut = ast_field(nd, g_ast_a)
+    mut r = gen_expr(scrut)
+    mut r = gen_push()
+    mut cases = ast_field(nd, g_ast_b)
+    while cases > 0 {
+        let k: i64 = 0
+        mut k = __mem_load(g_ast_kind + cases * 8)
+        if k == 20 {
+            mut c = __mem_load(g_ast_a + cases * 8)
+            mut cases = __mem_load(g_ast_b + cases * 8)
+        } else {
+            mut c = cases
+            mut cases = 0
+        }
+        if c > 0 {
+            mut pat = ast_field(c, g_ast_val)
+            mut bind = ast_field(c, g_ast_a)
+            mut body = ast_field(c, g_ast_b)
+            mut tag = enum_lookup(pat)
+            mut has_arg = enum_has_arg_lookup(pat)
+            mut r = gen_ldr(1, 31, 0)
+            mut r = gen_ldr(1, 1, 0)
+            if tag >= 0 {
+                mut r = gen_movz(2, tag)
+                mut r = gen_cmp(1, 2)
+                let neq_pos: i64 = 0
+                mut neq_pos = g_code_pos
+                mut r = gen_bcond(1, 0)
+                if has_arg == 1 {
+                    if bind > 0 {
+                        mut r = gen_ldr(2, 31, 0)
+                        mut r = gen_ldr(0, 2, 1)
+                        let off: i64 = 0
+                        mut off = var_lookup(bind)
+                        if off < 0 {
+                            mut off = g_var_count
+                            mut r = var_add(bind, off)
+                        }
+                        mut r = gen_stur(0, 29, 0 - (off + 1) * 8)
+                    }
+                }
+                mut r = gen_stmt(body)
+                __mem_store(done_patches + patch_count * 8, g_code_pos)
+                mut patch_count = patch_count + 1
+                mut r = gen_b(0)
+                mut r = patch_bcond(neq_pos, g_code_pos - neq_pos)
+            }
+        }
+    }
+    mut i = 0
+    while i < patch_count {
+        let ppos: i64 = 0
+        mut ppos = __mem_load(done_patches + i * 8)
+        mut r = patch_b(ppos, g_code_pos - ppos)
+        mut i = i + 1
+    }
+    mut r = gen_pop_discard()
+    mut r = 0
+}
+
 fn gen_stmt2(nd: i64, k: i64) (r: i64)
 {
+    if k == 17 {
+        mut r = gen_match(nd)
+    } else {
     if k == 11 {
         mut r = gen_if(nd)
     } else {
@@ -2949,6 +3140,7 @@ fn gen_stmt2(nd: i64, k: i64) (r: i64)
                 }
             }
         }
+    }
     }
     mut r = 0
 }
@@ -4052,6 +4244,9 @@ fn init_parser2() (r: i64)
     mut g_ast_b = malloc(524288)
     mut g_ast_c = malloc(524288)
     mut g_str_pool = malloc(524288)
+    mut g_enum_name = malloc(4096)
+    mut g_enum_tag = malloc(4096)
+    mut g_enum_has_arg = malloc(4096)
     mut r = 0
 }
 
