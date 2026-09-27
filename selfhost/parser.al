@@ -2638,6 +2638,21 @@ fn gen_alloca_builtin(arg_count: i64) (r: i64)
     mut r = emit32(0x910003E0)
 }
 
+fn gen_str_len_builtin() (r: i64)
+{
+    mut r = emit32(0xF84107E0)
+    mut r = gen_movz(1, 0)
+    let loop_pos: i64 = 0
+    mut loop_pos = g_code_pos
+    mut r = emit32(0x38400002)
+    mut r = emit32(0x34000082)
+    mut r = gen_add_imm(0, 0, 1)
+    mut r = gen_add_imm(1, 1, 1)
+    mut r = gen_b(loop_pos - g_code_pos)
+    mut r = gen_mov(0, 1)
+    mut r = 0
+}
+
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
     let b0: i64 = 0
@@ -2668,7 +2683,11 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
                 } else {
                     if b2 == 115 {
                         if __byte_load(g_call_name, 3) == 116 {
-                            mut r = gen_str_eq_inline()
+                            if __byte_load(g_call_name, 6) == 108 {
+                                mut r = gen_str_len_builtin()
+                            } else {
+                                mut r = gen_str_eq_inline()
+                            }
                         } else {
                             if __byte_load(g_call_name, 3) == 121 {
                                 mut r = gen_syscall_builtin(arg_count)
