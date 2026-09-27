@@ -1450,13 +1450,53 @@ fn gen_ldr(rt: i64, rn: i64, imm12: i64) (r: i64)
 // STUR Xt, [Xn, #imm9] (signed offset)
 fn gen_stur(rt: i64, rn: i64, imm9: i64) (r: i64)
 {
-    mut r = emit32(0xF8000000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
+    if imm9 >= -256 {
+        if imm9 <= 255 {
+            mut r = emit32(0xF8000000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
+        } else {
+            mut r = gen_movz(17, imm9 & 65535)
+            if (imm9 >> 16) != 0 {
+                mut r = gen_movk(17, (imm9 >> 16) & 65535, 16)
+            }
+            mut r = emit32(0x8B110000 | ((rn & 31) << 5) | (17 & 31))
+            mut r = emit32(0xF9000000 | ((17 & 31) << 5) | (rt & 31))
+        }
+    } else {
+        let absval: i64 = 0
+        mut absval = 0 - imm9
+        mut r = gen_movz(17, absval & 65535)
+        if (absval >> 16) != 0 {
+            mut r = gen_movk(17, (absval >> 16) & 65535, 16)
+        }
+        mut r = emit32(0xCB110000 | ((rn & 31) << 5) | (17 & 31))
+        mut r = emit32(0xF9000000 | ((17 & 31) << 5) | (rt & 31))
+    }
 }
 
 // LDUR Xt, [Xn, #imm9] (signed offset)
 fn gen_ldur(rt: i64, rn: i64, imm9: i64) (r: i64)
 {
-    mut r = emit32(0xF8400000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
+    if imm9 >= -256 {
+        if imm9 <= 255 {
+            mut r = emit32(0xF8400000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
+        } else {
+            mut r = gen_movz(17, imm9 & 65535)
+            if (imm9 >> 16) != 0 {
+                mut r = gen_movk(17, (imm9 >> 16) & 65535, 16)
+            }
+            mut r = emit32(0x8B110000 | ((rn & 31) << 5) | (17 & 31))
+            mut r = emit32(0xF9400000 | ((17 & 31) << 5) | (rt & 31))
+        }
+    } else {
+        let absval: i64 = 0
+        mut absval = 0 - imm9
+        mut r = gen_movz(17, absval & 65535)
+        if (absval >> 16) != 0 {
+            mut r = gen_movk(17, (absval >> 16) & 65535, 16)
+        }
+        mut r = emit32(0xCB110000 | ((rn & 31) << 5) | (17 & 31))
+        mut r = emit32(0xF9400000 | ((17 & 31) << 5) | (rt & 31))
+    }
 }
 
 fn gen_ldrb_reg(rt: i64, rn: i64, rm: i64) (r: i64)
@@ -2558,6 +2598,7 @@ fn gen_malloc_builtin(arg_count: i64) (r: i64)
 {
     // __malloc(size): mmap(0, size, PROT_RW, MAP_PRIVATE|ANON, -1, 0)
     mut r = gen_pop_x0()
+    mut r = gen_mov(1, 0)
     mut r = gen_movz(0, 0)
     mut r = gen_movz(2, 3)
     mut r = gen_movz(3, 4098)
@@ -3138,7 +3179,7 @@ fn ast_field(nd: i64, field: i64) (r: i64)
 
 fn gen_epilogue() (r: i64)
 {
-    mut r = gen_add_imm(31, 31, 256)
+    mut r = gen_add_imm(31, 31, 2048)
     mut r = gen_ldp_post(29, 30, 31, 2)
     mut r = gen_ret()
     mut r = 0
@@ -3148,7 +3189,7 @@ fn gen_prologue() (r: i64)
 {
     mut r = gen_stp_pre(29, 30, 31, 65534)
     mut r = gen_add_imm(29, 31, 0)
-    mut r = gen_sub_imm(31, 31, 256)
+    mut r = gen_sub_imm(31, 31, 2048)
     mut r = 0
 }
 
