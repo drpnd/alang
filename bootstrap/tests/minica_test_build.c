@@ -122,6 +122,7 @@ main(int argc, const char *const argv[])
     arch_code_t code;
     arch_cpu_t cpu = ARCH_CPU_AARCH64;
     arch_loader_t loader = ARCH_LD_MACH_O;
+    int exec_mode = 0;
     const char *infile = NULL;
     const char *outfile = "out.o";
 
@@ -131,6 +132,7 @@ main(int argc, const char *const argv[])
         else if (strcmp(argv[i], "--x86-64") == 0) cpu = ARCH_CPU_X86_64;
         else if (strcmp(argv[i], "--mach-o") == 0) loader = ARCH_LD_MACH_O;
         else if (strcmp(argv[i], "--elf") == 0) loader = ARCH_LD_ELF;
+        else if (strcmp(argv[i], "--exec") == 0) { loader = ARCH_LD_ELF; exec_mode = 1; }
         else if (!infile) infile = argv[i];
         else outfile = argv[i];
     }
@@ -212,7 +214,11 @@ main(int argc, const char *const argv[])
     if (arch->export) {
         FILE *out = fopen(outfile, "wb");
         if (!out) { perror("fopen output"); return 1; }
-        ret = arch->export(out, &code);
+        if (exec_mode) {
+            ret = elf_exec_export(out, &code);
+        } else {
+            ret = arch->export(out, &code);
+        }
         fclose(out);
         if (ret < 0) {
             fprintf(stderr, "Export error\n");

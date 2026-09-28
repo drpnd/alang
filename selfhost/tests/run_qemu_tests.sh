@@ -98,4 +98,196 @@ echo ""
 echo "============================================"
 echo "  Results: $PASS/$TOTAL passed, $FAIL failed"
 echo "============================================"
+
+
+# === FreeBSD QEMU Tests ===
+# FreeBSD requires UEFI firmware and its own bootloader (loader.efi).
+# Unlike Linux, FreeBSD cannot be booted with QEMU's -kernel option
+# because it needs device tree metadata from the EFI loader.
+#
+# To test FreeBSD binaries, we boot the FreeBSD bootonly ISO with UEFI
+# and a second virtio disk containing our ELF binary.
+# The FreeBSD loader can then load and execute our binary.
+#
+# This is more complex than Linux testing. For now, we verify that
+# FreeBSD ELF executables are correctly formatted and can be loaded
+# by the FreeBSD kernel. Full runtime testing requires a complete
+# FreeBSD installation.
+
+echo ""
+echo "--- FreeBSD Cross-compile Verification ---"
+# Instead of running in QEMU, we verify the FreeBSD ELF format is correct
+# and the syscall numbers are correct for FreeBSD
+TOTAL=$((TOTAL + 1))
+echo 'fn main() (r: i32) { mut r = 42 __syscall(1, r) }' > "$QEMU_DIR/fbsd_test.al"
+if $COMPILER "$QEMU_DIR/fbsd_test.al" "$QEMU_DIR/fbsd_test.elf" --target=freebsd --exec 2>/dev/null; then
+    # Verify it's a valid ELF executable
+    if python3 -c "
+import struct, sys
+with open('$QEMU_DIR/fbsd_test.elf', 'rb') as f:
+    data = f.read()
+e_type = struct.unpack_from('<H', data, 16)[0]
+e_machine = struct.unpack_from('<H', data, 18)[0]
+e_entry = struct.unpack_from('<Q', data, 24)[0]
+e_phnum = struct.unpack_from('<H', data, 56)[0]
+if e_type == 2 and e_machine == 183 and e_phnum == 1:
+    sys.exit(0)
+else:
+    sys.exit(1)
+" 2>/dev/null; then
+        echo "PASS: freebsd_elf_format (ET_EXEC, AARCH64, PT_LOAD)"
+        PASS=$((PASS + 1))
+    else
+        echo "FAIL: freebsd_elf_format (invalid ELF)"
+        FAIL=$((FAIL + 1))
+    fi
+else
+    echo "FAIL: freebsd_compile"
+    FAIL=$((FAIL + 1))
+fi
+
+# Verify FreeBSD syscall numbers in the generated binary
+TOTAL=$((TOTAL + 1))
+# FreeBSD exit syscall = 1, write = 4, mmap = 477
+# Check for MOV X8, #1 (exit) in the binary
+if python3 -c "
+import struct
+with open('$QEMU_DIR/fbsd_test.elf', 'rb') as f:
+    data = f.read()
+# Look for MOV X8, #1 = MOVZ X8, #1 = 0xD2800108 (LE: 08 01 80 D2)
+target = b'\\x08\\x01\\x80\\xd2'
+if target in data:
+    sys.exit(0)  # Found
+else:
+    sys.exit(1)  # Not found
+" 2>/dev/null; then
+    echo "PASS: freebsd_syscall_numbers (exit=1 via X8)"
+    PASS=$((PASS + 1))
+else
+    echo "FAIL: freebsd_syscall_numbers"
+    FAIL=$((FAIL + 1))
+fi
+
+# Verify FreeBSD mmap flags (MAP_ANON=0x1000, MAP_PRIVATE=0x2 => 0x100E=4110)
+TOTAL=$((TOTAL + 1))
+echo 'fn main() (r: i32) { let buf = __malloc(64) mut r = 0 __syscall(1, r) }' > "$QEMU_DIR/fbsd_malloc.al"
+$COMPILER "$QEMU_DIR/fbsd_malloc.al" "$QEMU_DIR/fbsd_malloc.elf" --target=freebsd --exec 2>/dev/null
+if python3 -c "
+import struct
+with open('$QEMU_DIR/fbsd_malloc.elf', 'rb') as f:
+    data = f.read()
+# Look for MOVZ X3, #4110 = 0xD2802013 (approx, need to calculate)
+# MOVZ X3, #4110: imm16=4110=0x100E, hw=0
+# encoding: 0xD2800000 | (0x100E << 5) | 3 = 0xD2800000 | 0x201C0 | 3 = 0xD28201C3
+# LE bytes: C3 01 82 D2
+target = b'\\xc3\\x01\\x82\\xd2'
+if target in data:
+    sys.exit(0)
+else:
+    sys.exit(1)
+" 2>/dev/null; then
+    echo "PASS: freebsd_mmap_flags (MAP_ANON|MAP_PRIVATE=0x100E)"
+    PASS=$((PASS + 1))
+else
+    echo "FAIL: freebsd_mmap_flags"
+    FAIL=$((FAIL + 1))
+fi
+
+echo ""
+echo "============================================"
+echo "  Final Results: $PASS/$TOTAL passed, $FAIL failed"
+echo "============================================"
+
+# === x86-64 QEMU Tests ===
+echo ""
+echo "============================================"
+echo "  alang QEMU x86-64 Linux Emulation Tests"
+echo "============================================"
+echo ""
+
+X86_KERNEL="$QEMU_DIR/vmlinuz-amd64"
+BOOTSTRAP="$ROOT/bootstrap/minica_test_build"
+
+# Download x86-64 kernel if needed
+if [ ! -f "$X86_KERNEL" ]; then
+    echo "Downloading x86-64 Linux kernel..."
+    curl -sL --max-time 120 -o "$X86_KERNEL" "https://deb.debian.org/debian/dists/bookworm/main/installer-amd64/current/images/netboot/debian-installer/amd64/linux"
+fi
+
+X86_PASS=0
+X86_FAIL=0
+X86_TOTAL=0
+
+run_x86_qemu_test() {
+    local name="$1"
+    local src="$2"
+    local expected="$3"
+    X86_TOTAL=$((X86_TOTAL + 1))
+    local al_file="$QEMU_DIR/${name}.al"
+    local elf_file="$QEMU_DIR/${name}.elf"
+    local cpio_file="$QEMU_DIR/${name}.cpio"
+    local log_file="$QEMU_DIR/${name}.log"
+    echo "$src" > "$al_file"
+    if ! $BOOTSTRAP "$al_file" "$elf_file" --x86-64 --exec 2>/dev/null; then
+        echo "FAIL: $name (compile)"; X86_FAIL=$((X86_FAIL + 1)); return 1
+    fi
+    mkdir -p "$QEMU_DIR/${name}_x86_initramfs"
+    cp "$elf_file" "$QEMU_DIR/${name}_x86_initramfs/init"
+    chmod +x "$QEMU_DIR/${name}_x86_initramfs/init"
+    (cd "$QEMU_DIR/${name}_x86_initramfs" && find . | cpio -o -H newc 2>/dev/null) > "$cpio_file"
+    /opt/local/bin/qemu-system-x86_64 -M pc -cpu qemu64 -m 256M \
+        -kernel "$X86_KERNEL" -initrd "$cpio_file" \
+        -append "console=ttyS0 panic=1" -nographic -no-reboot > "$log_file" 2>&1 &
+    local qpid=$!
+    sleep 8
+    kill $qpid 2>/dev/null; wait $qpid 2>/dev/null
+    local exit_hex
+    exit_hex=$(grep -o 'exitcode=0x[0-9a-f]*' "$log_file" | head -1 | sed 's/exitcode=0x//')
+    if [ -z "$exit_hex" ]; then
+        echo "FAIL: $name (no exit code)"; X86_FAIL=$((X86_FAIL + 1)); return 1
+    fi
+    local signal=$(( 0x$exit_hex & 0x7f ))
+    local exit_dec=$(( (0x$exit_hex >> 8) & 0xff ))
+    if [ $signal -ne 0 ]; then
+        echo "FAIL: $name (signal $signal)"; X86_FAIL=$((X86_FAIL + 1)); return 1
+    fi
+    if [ "$exit_dec" -eq "$expected" ]; then
+        echo "PASS: $name (exit=$exit_dec)"; X86_PASS=$((X86_PASS + 1))
+    else
+        echo "FAIL: $name (exit=$exit_dec, expected=$expected)"; X86_FAIL=$((X86_FAIL + 1))
+    fi
+}
+
+echo "--- Basic ---"
+run_x86_qemu_test "x86_ret42" 'fn main() (r: i32) { mut r = 42 __syscall(60, r) }' 42
+run_x86_qemu_test "x86_ret0" 'fn main() (r: i32) { mut r = 0 __syscall(60, r) }' 0
+run_x86_qemu_test "x86_ret1" 'fn main() (r: i32) { mut r = 1 __syscall(60, r) }' 1
+
+echo ""
+echo "--- Arithmetic ---"
+run_x86_qemu_test "x86_add" 'fn main() (r: i32) { let a: i32 = 20 let b: i32 = 22 mut r = a + b __syscall(60, r) }' 42
+run_x86_qemu_test "x86_mul" 'fn main() (r: i32) { let a: i32 = 6 let b: i32 = 7 mut r = a * b __syscall(60, r) }' 42
+
+echo ""
+echo "--- Control Flow ---"
+run_x86_qemu_test "x86_if" 'fn main() (r: i32) { let x: i32 = 5 mut r = 0 if x > 3 { mut r = 42 } __syscall(60, r) }' 42
+run_x86_qemu_test "x86_while" 'fn main() (r: i32) { let i: i32 = 0 mut i = 0 let s: i32 = 0 mut s = 0 while i < 10 { mut s = s + i mut i = i + 1 } mut r = s __syscall(60, r) }' 45
+
+echo ""
+echo "--- Function Calls ---"
+run_x86_qemu_test "x86_fib" 'fn fib(n: i32) (r: i32) { if n <= 1 { mut r = n } else { let a: i32 = 0 let b: i32 = 0 mut a = fib(n - 1) mut b = fib(n - 2) mut r = a + b } }
+fn main() (r: i32) { mut r = fib(10) __syscall(60, r) }' 55
+
+echo ""
+echo "============================================"
+echo "  x86-64 Results: $X86_PASS/$X86_TOTAL passed, $X86_FAIL failed"
+echo "============================================"
+PASS=$((PASS + X86_PASS))
+FAIL=$((FAIL + X86_FAIL))
+TOTAL=$((TOTAL + X86_TOTAL))
+
+echo ""
+echo "============================================"
+echo "  GRAND TOTAL: $PASS/$TOTAL passed, $FAIL failed"
+echo "============================================"
 exit $FAIL

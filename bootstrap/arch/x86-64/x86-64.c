@@ -1908,6 +1908,67 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
     }
 
     /* Unhandled opcodes -- emit NOP for now */
+    case IR_OPCODE_SYSCALL:
+        {
+            /* __syscall(n, a0, a1, a2, a3, a4, a5)
+             * On x86-64 Linux: rax=n, rdi/rsi/rdx/r10/r8/r9=args, syscall
+             * Operand 0 = syscall number, operands 1-6 = args */
+            int nargs = inst->noperands;
+            int arg_regs[6] = {REG_RDI, REG_RSI, REG_RDX, REG_R10, REG_R8, REG_R9};
+            /* Load each operand into RAX and push it (reverse order) */
+            for (int i = nargs - 1; i >= 0; i--) {
+                int ok;
+                int64_t val = operand_imm(&inst->operands[i], &ok);
+                if (ok) {
+                    /* Immediate: load into RAX then push */
+                    emit_mov_imm(&ctx->tb, REG_RAX, val);
+                    tb_byte(&ctx->tb, 0x50);  /* push rax */
+                } else {
+                    int src = operand_reg(&inst->operands[i]);
+                    if (src >= 0) {
+                        if (src >= REG_R8) {
+                            tb_byte(&ctx->tb, 0x41);
+                        }
+                        tb_byte(&ctx->tb, 0x50 | (src & 7));
+                    } else {
+                        tb_byte(&ctx->tb, 0x50);  /* push rax as fallback */
+                    }
+                }
+            }
+            /* Pop into target registers in order */
+            /* Pop syscall number into RAX */
+            if (nargs > 0) {
+                tb_byte(&ctx->tb, 0x58);  /* pop rax */
+            }
+            /* Pop args into RDI, RSI, RDX, R10, R8, R9 */
+            for (int i = 1; i < nargs && i <= 6; i++) {
+                int target = arg_regs[i - 1];
+                if (target == REG_R10) {
+                    tb_byte(&ctx->tb, 0x41);
+                    tb_byte(&ctx->tb, 0x5A);
+                } else if (target == REG_R8) {
+                    tb_byte(&ctx->tb, 0x41);
+                    tb_byte(&ctx->tb, 0x58);
+                } else if (target == REG_R9) {
+                    tb_byte(&ctx->tb, 0x41);
+                    tb_byte(&ctx->tb, 0x59);
+                } else {
+                    tb_byte(&ctx->tb, 0x58 | (target & 7));
+                }
+            }
+            /* syscall instruction: 0x0F 0x05 */
+            tb_byte(&ctx->tb, 0x0F);
+            tb_byte(&ctx->tb, 0x05);
+            /* Result in RAX -> dst */
+            if (inst->result.n > 0 && inst->result.reg[0].id) {
+                int dst = ssa_to_reg(ssa_id(inst->result.reg[0].id));
+                if (dst != REG_RAX) {
+                    emit_mov_rr(&ctx->tb, dst, REG_RAX);
+                }
+            }
+            return 0;
+        }
+
     case IR_OPCODE_PHI:
     case IR_OPCODE_SWITCH:
     case IR_OPCODE_MEMCPY:

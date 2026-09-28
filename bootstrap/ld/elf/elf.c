@@ -774,6 +774,91 @@ elf_export(FILE *fp, arch_code_t *code)
 }
 
 /*
+ * Export as a static ELF executable (ET_EXEC) with PT_LOAD program header.
+ * Used for QEMU testing: the binary can be run as /init in an initramfs.
+ */
+int
+elf_exec_export(FILE *fp, arch_code_t *code)
+{
+    Elf64_Ehdr hdr;
+    Elf64_Phdr phdr;
+    ssize_t nw;
+    uint64_t load_addr;
+    uint64_t entry;
+    uint64_t code_off;
+    uint64_t total_size;
+
+    /* Find _main symbol for entry point */
+    entry = 0;
+    for (int i = 0; i < code->sym.n; i++) {
+        if (strcmp(code->sym.syms[i].label, "_main") == 0 ||
+            strcmp(code->sym.syms[i].label, "main") == 0) {
+            entry = code->sym.syms[i].pos;
+            break;
+        }
+    }
+    if (entry == 0 && code->sym.n > 0) {
+        entry = code->sym.syms[0].pos;
+    }
+
+    load_addr = 0x400000;
+    code_off = sizeof(Elf64_Ehdr) + sizeof(Elf64_Phdr);
+    total_size = code->text.size;
+
+    /* ELF header */
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.e_ident[EI_MAG0] = '\x7f';
+    hdr.e_ident[EI_MAG1] = 'E';
+    hdr.e_ident[EI_MAG2] = 'L';
+    hdr.e_ident[EI_MAG3] = 'F';
+    hdr.e_ident[EI_CLASS] = ELFCLASS64;
+    hdr.e_ident[EI_DATA] = ELFDATA2LSB;
+    hdr.e_ident[EI_VERSION] = EV_CURRENT;
+    hdr.e_ident[EI_OSABI] = ELFOSABI_SYSV;
+    hdr.e_type = ET_EXEC;
+    /* Machine type depends on the code's CPU */
+    if (code->cpu == ARCH_CPU_AARCH64) {
+        hdr.e_machine = EM_AARCH64;
+    } else {
+        hdr.e_machine = EM_X86_64;
+    }
+    hdr.e_version = 1;
+    hdr.e_entry = load_addr + code_off + entry;
+    hdr.e_phoff = sizeof(Elf64_Ehdr);
+    hdr.e_shoff = 0;
+    hdr.e_flags = 0;
+    hdr.e_ehsize = sizeof(Elf64_Ehdr);
+    hdr.e_phentsize = sizeof(Elf64_Phdr);
+    hdr.e_phnum = 1;
+    hdr.e_shentsize = 0;
+    hdr.e_shnum = 0;
+    hdr.e_shstrndx = 0;
+
+    nw = fwrite(&hdr, sizeof(Elf64_Ehdr), 1, fp);
+    if (nw != 1) return -1;
+
+    /* Program header: PT_LOAD */
+    memset(&phdr, 0, sizeof(phdr));
+    phdr.p_type = PT_LOAD;
+    phdr.p_flags = PF_R | PF_X;
+    phdr.p_offset = code_off;
+    phdr.p_vaddr = load_addr + code_off;
+    phdr.p_paddr = load_addr + code_off;
+    phdr.p_filesz = total_size;
+    phdr.p_memsz = total_size + 0x10000;  /* Extra for stack */
+    phdr.p_align = 0x1000;
+
+    nw = fwrite(&phdr, sizeof(Elf64_Phdr), 1, fp);
+    if (nw != 1) return -1;
+
+    /* Write code */
+    nw = fwrite(code->text.s, 1, code->text.size, fp);
+    if (nw != (ssize_t)total_size) return -1;
+
+    return 0;
+}
+
+/*
  * Local variables:
  * tab-width: 4
  * c-basic-offset: 4

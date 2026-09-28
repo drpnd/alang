@@ -158,6 +158,7 @@ mach_o_export(FILE *, arch_code_t *);
 /* ld/elf.c */
 int
 elf_export(FILE *, arch_code_t *);
+int elf_exec_export(FILE *, arch_code_t *);
 
 #ifdef __cplusplus
 }
