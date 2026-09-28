@@ -2,7 +2,7 @@
 
 > **Version:** 0.4 (implemented)
 >
-> **Status:** Bootstrap compiler implemented with aarch64 and x86-64 backends
+> **Status:** Both bootstrap and self-hosting compilers implement aarch64 and x86-64 backends
 
 ## 1. Overview
 
@@ -29,8 +29,9 @@ both functions and coroutines as first-class constructs.
 ```
 
 DFIR is the **only** IR in the compiler. There is no separate LLVM step.
-The bootstrap compiler (`bootstrap/`) implements the full pipeline from
-source to native code for both aarch64 (macOS Mach-O) and x86-64 (Mach-O/ELF).
+Both the bootstrap compiler (`bootstrap/`) and the self-hosting compiler
+(`selfhost/parser.al`) implement the full pipeline from source to native
+code for both aarch64 (macOS Mach-O) and x86-64 (ELF).
 
 ### 1.3 Three Layers
 
@@ -1286,19 +1287,22 @@ restore all 16 registers, followed by `ADD SP, SP, #160` (via `gen_add_sp()`).
 
 ## 19. Platform Support
 
-The alang compiler supports multiple OS/ISA combinations. The self-hosting
-compiler (`parser.al`) targets **aarch64** for three operating systems. The
-bootstrap compiler (`minica_test_build`) additionally supports **x86-64**.
+The alang compiler supports multiple OS/ISA combinations. Both the
+self-hosting compiler (`parser.al`) and the bootstrap compiler
+(`minica_test_build`) support **aarch64** and **x86-64** backends.
 
 ### 19.1 Supported Targets
 
-#### Self-Hosting Compiler (aarch64 only)
+#### Self-Hosting Compiler (aarch64 + x86-64)
 
-| Flag | Platform | `g_target_os` | Object Format |
-|------|----------|---------------|---------------|
-| `--target macos` (default) | macOS (aarch64) | 0 | Mach-O |
-| `--target linux` | Linux (aarch64) | 1 | ELF |
-| `--target freebsd` | FreeBSD (aarch64) | 2 | ELF |
+| Flag | Platform | ISA | `g_target_os` | `g_target_isa` | Object Format |
+|------|----------|-----|---------------|----------------|---------------|
+| (default) | macOS | aarch64 | 0 | 0 | Mach-O |
+| `--target linux` | Linux | aarch64 | 1 | 0 | ELF |
+| `--target freebsd` | FreeBSD | aarch64 | 2 | 0 | ELF |
+| `--x86-64 --target linux` | Linux | x86-64 | 1 | 1 | ELF |
+| `--x86-64 --exec` | Linux | x86-64 | 1 | 1 | ELF (ET_EXEC) |
+| `--aarch64 --exec` | Linux | aarch64 | 1 | 0 | ELF (ET_EXEC) |
 
 #### Bootstrap Compiler (aarch64 + x86-64)
 
@@ -1307,10 +1311,11 @@ bootstrap compiler (`minica_test_build`) additionally supports **x86-64**.
 | `--aarch64 --mach-o` (default) | macOS | aarch64 | Mach-O |
 | `--aarch64 --elf` | Linux/FreeBSD | aarch64 | ELF |
 | `--x86-64 --elf` | Linux | x86-64 | ELF |
+| `--x86-64 --exec` | Linux | x86-64 | ELF (ET_EXEC) |
 
 The `--exec` flag (both compilers) produces a static ELF executable
 (ET_EXEC with PT_LOAD) instead of a relocatable object (ET_REL), for
-direct QEMU testing.
+direct QEMU testing. The entry point is at the `main` function offset.
 
 ### 19.2 Syscall Numbers
 
@@ -1318,9 +1323,9 @@ Syscall numbers differ across operating systems. The self-hosting compiler
 uses two sets of globals:
 
 - **Runtime syscalls** (`SC_*`): Used by the compiler's own runtime
-  (always macOS, since the compiler runs on macOS)
+  (always macOS aarch64, since the compiler runs on macOS Apple Silicon)
 - **Target syscalls** (`TSC_*`): Used by code generation for the target
-  platform (set per `--target`)
+  platform (set per `--target` and `--x86-64`)
 
 #### aarch64
 
@@ -1333,16 +1338,21 @@ uses two sets of globals:
 | `mmap` | 197 | 222 | 477 | `SC_MMAP` | `TSC_MMAP` |
 | `exit` | 1 | 93 | 1 | `SC_EXIT` | -- |
 
-#### x86-64 (Linux only, bootstrap compiler)
+#### x86-64
 
-| Syscall | Linux | Note |
-|---------|-------|------|
-| `read` | 0 | |
-| `write` | 1 | |
-| `open` | 2 | |
-| `close` | 3 | |
-| `mmap` | 9 | |
-| `exit` | 60 | `exit_group` |
+| Syscall | macOS | Linux | FreeBSD | Target Global |
+|---------|-------|-------|---------|---------------|
+| `read` | 0x2000003 | 0 | 3 | -- |
+| `write` | 0x2000004 | 1 | 4 | `TSC_WRITE` |
+| `open` | 0x2000005 | 2 | 5 | -- |
+| `close` | 0x2000006 | 3 | 6 | -- |
+| `mmap` | 0x20000C5 | 9 | 477 | `TSC_MMAP` |
+| `exit` | 0x2000001 | 60 | 1 | -- |
+
+> **Note:** macOS x86-64 syscalls have a 0x02000000 class offset.
+> The self-hosting compiler currently targets Linux x86-64 only
+> (since the host is macOS aarch64). The bootstrap compiler also
+> targets Linux x86-64.
 
 ### 19.3 Syscall Calling Conventions (ABI)
 
@@ -1357,7 +1367,7 @@ uses two sets of globals:
 Self-hosting compiler codegen sequence:
 1. Pop args from stack into X0-X5 (reverse order)
 2. Pop syscall number into X6
-3. Save caller-saved registers (X0-X15) to stack
+3. Save caller-saved registers (X0-X15) to stack (160-byte save area)
 4. Reload args from saved area into X0-X5
 5. Move syscall number to target register:
    - macOS: `MOV X16, X6`
@@ -1365,28 +1375,214 @@ Self-hosting compiler codegen sequence:
 6. Emit trap instruction:
    - macOS: `SVC #0x80`
    - Linux/FreeBSD: `SVC #0`
-7. Save return value (X0) to stack
+7. Save return value (X0) to stack at [SP+8]
 8. Restore caller-saved registers
-9. Load return value into X0
+9. Load return value into X0 from [SP+8]
+10. Deallocate 160-byte save area (`ADD SP, SP, #160`)
 
-#### x86-64 ABI (Linux only, bootstrap compiler)
+#### x86-64 ABI (Linux)
 
 | OS | Syscall # Register | Trap Instruction | Arg Registers | Return Register |
 |----|-------------------|-----------------|---------------|----------------|
 | Linux | RAX | `SYSCALL` (0x0F 0x05) | RDI, RSI, RDX, R10, R8, R9 | RAX |
 
-Note: x86-64 uses **R10** instead of RCX for the 4th argument because
-the `SYSCALL` instruction clobbers RCX (stores return address) and R11
-(stores RFLAGS).
+> **Note:** x86-64 uses **R10** instead of RCX for the 4th argument
+> because the `SYSCALL` instruction clobbers RCX (stores return
+> address) and R11 (stores RFLAGS).
 
-Bootstrap compiler codegen sequence:
-1. Load each operand into RAX and push onto stack (reverse order)
-2. Pop syscall number into RAX
-3. Pop args into RDI, RSI, RDX, R10, R8, R9
-4. Emit `SYSCALL` instruction (bytes: `0x0F 0x05`)
-5. Move result from RAX to destination register
+Self-hosting compiler codegen sequence:
+1. Pop args from stack into logical registers (reverse order)
+2. Pop syscall number into logical reg 6
+3. Save caller-saved registers (8 regs: RAX, RCX, RDX, RBX, RSI, RDI, R8, R9)
+   to stack (160-byte save area at offsets 16-72)
+4. Reload args from saved area into x86-64 ABI registers:
+   - Arg 0 → RDI (logical 0 → x86_reg 7)
+   - Arg 1 → RSI (logical 1 → x86_reg 6)
+   - Arg 2 → RDX (logical 2 → x86_reg 2)
+   - Arg 3 → R10 (logical 3 → x86_reg 10)
+   - Arg 4 → R8  (logical 4 → x86_reg 8)
+   - Arg 5 → R9  (logical 5 → x86_reg 9)
+   - Syscall # → RAX (logical 6 → x86_reg 0)
+5. Emit `SYSCALL` instruction (bytes: `0x0F 0x05`)
+6. Save return value (RAX) to [RSP+8]
+7. Restore caller-saved registers
+8. Load return value into RAX from [RSP+8]
+9. Deallocate 160-byte save area (`ADD RSP, 160`)
 
-### 19.4 mmap Flags
+### 19.4 Register Mapping (x86-64)
+
+The self-hosting compiler uses aarch64-style logical register numbers
+(0-31) internally. The `x86_reg()` function maps these to x86-64
+physical registers:
+
+| Logical Reg | aarch64 Name | x86-64 Physical | x86-64 Encoding | Role |
+|-------------|-------------|-----------------|-----------------|------|
+| 0 | X0 | RAX | 0 | Return value / arg 0 |
+| 1 | X1 | RCX | 1 | Arg 1 (shift count via CL) |
+| 2 | X2 | RDX | 2 | Arg 2 / div remainder |
+| 3 | X3 | RBX | 3 | Arg 3 (callee-saved) |
+| 4 | X4 | RSI | 6 | Arg 4 (pointer source) |
+| 5 | X5 | RDI | 7 | Arg 5 (pointer dest) |
+| 6 | X6 | R8 | 8 | Extra arg |
+| 7 | X7 | R9 | 9 | Extra arg |
+| 17 | X17 (IP1) | R10 | 10 | Scratch / syscall arg4 |
+| 19 | X19 | RBX | 3 | Callee-saved (global base) |
+| 29 | X29 (FP) | RBP | 5 | Frame pointer |
+| 30 | X30 (LR) | RAX | 0 | Link register (mapped to RAX) |
+| 31 | X31 (SP/XZR) | RSP | 4 | Stack pointer / zero |
+
+> **Note:** R11 is used as a scratch register for 3-operand emulation
+> (e.g., `IMUL R11, src; MOV dst, ra; SUB dst, R11` for MSUB).
+> R10 is used as scratch for MOVK emulation (OR with shifted immediate).
+
+#### x86-64 Condition Code Mapping
+
+The self-hosting compiler uses aarch64 condition codes internally.
+The `gen_bcond` and `gen_cmp_*` functions map them to x86-64:
+
+| aarch64 Cond | Meaning | x86-64 Cond | x86-64 SETcc |
+|-------------|---------|------------|-------------|
+| 0 (EQ) | Equal | 4 (JE/JZ) | SETE |
+| 1 (NE) | Not equal | 5 (JNE/JNZ) | SETNE |
+| 10 (GE) | Signed >= | 13 (JGE) | SETGE |
+| 11 (LT) | Signed < | 12 (JL) | SETL |
+| 12 (GT) | Signed > | 15 (JG) | SETG |
+| 13 (LE) | Signed <= | 14 (JLE) | SETLE |
+
+### 19.5 x86-64 Instruction Encodings
+
+The self-hosting compiler emits x86-64 machine code directly via
+`emit_byte()`. Key encoding patterns:
+
+#### REX Prefix
+
+```
+REX = 0x40 | (W << 3) | (R << 2) | (X << 1) | B
+```
+- W=1: 64-bit operand size
+- R: Extension of ModR/M reg field (for R8-R15)
+- X: Extension of SIB index
+- B: Extension of ModR/M r/m or opcode reg field
+
+#### Common Instruction Formats
+
+| Instruction | Encoding | Bytes |
+|-------------|----------|-------|
+| `MOV r64, imm64` | REX.W + B8+rd + imm64 | 10 |
+| `MOV r64, r64` | REX.W + 89 + ModR/M(3, src, dst) | 3-4 |
+| `ADD r64, r64` | REX.W + 01 + ModR/M(3, src, dst) | 3-4 |
+| `SUB r64, r64` | REX.W + 29 + ModR/M(3, src, dst) | 3-4 |
+| `IMUL r64, r64` | REX.W + 0F AF + ModR/M(3, dst, src) | 4-5 |
+| `AND/OR/XOR r64, r64` | REX.W + 21/09/31 + ModR/M | 3-4 |
+| `CMP r64, r64` | REX.W + 39 + ModR/M(3, src, dst) | 3-4 |
+| `SHL/SHR r64, imm8` | REX.W + C1 + ModR/M(3, 4/5, dst) + imm8 | 4-5 |
+| `SHL/SHR r64, CL` | REX.W + D3 + ModR/M(3, 4/5, dst) | 3-4 |
+| `NEG r64` | REX.W + F7 + ModR/M(3, 3, dst) | 3-4 |
+| `NOT r64` | REX.W + F7 + ModR/M(3, 2, dst) | 3-4 |
+| `CDQ` | 99 | 1 |
+| `IDIV r64` | REX.W + F7 + ModR/M(3, 7, src) | 3-4 |
+| `ADD/SUB r64, imm32` | REX.W + 81 + ModR/M(3, 0/5, dst) + imm32 | 7 |
+| `PUSH r64` | 50+rd (or 41 50+rd for R8-R15) | 1-2 |
+| `POP r64` | 58+rd (or 41 58+rd for R8-R15) | 1-2 |
+| `RET` | C3 | 1 |
+| `SYSCALL` | 0F 05 | 2 |
+| `JMP rel32` | E9 + rel32 | 5 |
+| `CALL rel32` | E8 + rel32 | 5 |
+| `Jcc rel32` | 0F 80+cc + rel32 | 6 |
+| `SETcc r8` | REX + 0F 90+cc + ModR/M(3, 0, dst) | 4 |
+| `MOVZX r64, r8` | REX.W + 0F B6 + ModR/M(3, dst, src) | 4-5 |
+| `MOV r64, [base+disp32]` | REX.W + 8B + ModR/M(2, dst, base) + disp32 | 7 |
+| `MOV [base+disp32], r64` | REX.W + 89 + ModR/M(2, src, base) + disp32 | 7 |
+| `MOVZX r64, byte [base+disp32]` | REX.W + 0F B6 + ModR/M(2, dst, base) + disp32 | 7-8 |
+| `MOV byte [base+disp32], r8` | REX + 88 + ModR/M(2, src, base) + disp32 | 6-7 |
+| `LEA r64, [RIP+disp32]` | REX.W + 8D + ModR/M(0, dst, 5) + disp32 | 7 |
+
+#### Branch Offset Adjustment
+
+x86-64 branches use relative offsets from the **end** of the instruction,
+while aarch64 uses offsets from the **start** of the instruction.
+The self-hosting compiler adjusts:
+
+| Instruction | aarch64 Size | x86-64 Size | Offset Adjustment |
+|-------------|-------------|-------------|-------------------|
+| `B` (unconditional) | 4 | 5 (JMP rel32) | `offset - 5` |
+| `BL` (call) | 4 | 5 (CALL rel32) | `offset - 5` |
+| `B.cond` | 4 | 6 (Jcc rel32) | `offset - 6` |
+
+Patch functions (`patch_b`, `patch_bcond`) write the rel32 value at
+the correct offset within the instruction:
+- `patch_b`: writes 4 bytes at `pos + 1` (after 0xE9 opcode)
+- `patch_bcond`: writes 4 bytes at `pos + 2` (after 0x0F 0x80+cc)
+
+#### 3-Operand Emulation
+
+aarch64 instructions are 3-operand (`dst = src0 op src1`), but x86-64
+instructions are 2-operand (`dst op= src`). The self-hosting compiler
+handles this:
+
+- **Commutative ops** (ADD, MUL, AND, OR, XOR): If `dst == rm`, swap
+  operands: `ADD dst, rn` instead of `MOV dst, rn; ADD dst, rm`.
+- **Non-commutative ops** (SUB): If `dst == rm`, use scratch R11:
+  `MOV R11, rm; MOV dst, rn; SUB dst, R11`.
+- **General case** (`dst != rn && dst != rm`): `MOV dst, rn; OP dst, rm`.
+
+#### String Literal Addressing
+
+aarch64 uses `ADR Xd, label` (PC-relative, 4 bytes). x86-64 uses
+`LEA RAX, [RIP+disp32]` (7 bytes: `48 8D 05 + disp32`).
+
+The `patch_str_adrs` function patches the displacement after all code
+is emitted:
+- aarch64: patches 4-byte ADR instruction at `adr_pos`
+- x86-64: patches 4-byte disp32 at `adr_pos + 3`, value = `str_off - adr_pos - 7`
+
+### 19.6 Stack Frame Layout
+
+#### aarch64 Stack Frame (2048 bytes)
+
+```
+High Address
+  [Saved X29, X30]     ← Frame pointer (X29) points here
+  [2048 bytes locals]  ← Variables at X29 + offset
+Low Address (SP)
+```
+
+- Prologue: `STP X29, X30, [SP, #-16]!; MOV X29, SP; SUB SP, SP, #2048`
+- Epilogue: `ADD SP, SP, #2048; LDP X29, X30, [SP], #16; RET`
+
+#### x86-64 Stack Frame (2048 bytes)
+
+```
+High Address
+  [Saved RBP]          ← Frame pointer (RBP) points here
+  [2048 bytes locals]  ← Variables at RBP - offset
+Low Address (RSP)
+```
+
+- Prologue: `PUSH RBP; MOV RBP, RSP; SUB RSP, 2048`
+- Epilogue: `ADD RSP, 2048; POP RBP; RET`
+
+#### Caller-Saved Register Area (160 bytes)
+
+Both ISAs allocate a 160-byte save area for caller-saved registers
+before function calls and syscalls:
+
+| Offset | aarch64 | x86-64 |
+|--------|---------|--------|
+| 0-7 | (unused) | (unused) |
+| 8-15 | X0 (return value) | RAX (return value) |
+| 16-23 | X0 | RAX |
+| 24-31 | X1 | RCX |
+| 32-39 | X2 | RDX |
+| 40-47 | X3 | RBX |
+| 48-55 | X4 | RSI |
+| 56-63 | X5 | RDI |
+| 64-71 | X6 | R8 |
+| 72-79 | X7 | R9 |
+| 80-135 | X8-X15 | (unused) |
+| 136-159 | (padding) | (padding) |
+
+### 19.7 mmap Flags
 
 The `__malloc` builtin calls `mmap` with platform-specific flags.
 The `T_MAP_FLAGS` global holds the complete flags value:
@@ -1408,26 +1604,34 @@ mmap parameters for `__malloc(size)`:
 | `fd` | -1 |
 | `offset` | 0 |
 
-### 19.5 Output Formats
+### 19.8 Output Formats
 
 | Compiler | Platform | ISA | Format | Flag |
 |----------|----------|-----|--------|------|
 | Self-hosting | macOS | aarch64 | Mach-O | (default) |
-| Self-hosting | Linux | aarch64 | ELF (ET_REL) | `--elf` |
-| Self-hosting | Linux | aarch64 | ELF (ET_EXEC) | `--exec` |
-| Self-hosting | FreeBSD | aarch64 | ELF (ET_REL) | `--elf` |
-| Self-hosting | FreeBSD | aarch64 | ELF (ET_EXEC) | `--exec` |
+| Self-hosting | Linux | aarch64 | ELF (ET_REL) | `--target=linux --elf` |
+| Self-hosting | Linux | aarch64 | ELF (ET_EXEC) | `--target=linux --exec` |
+| Self-hosting | FreeBSD | aarch64 | ELF (ET_REL) | `--target=freebsd --elf` |
+| Self-hosting | FreeBSD | aarch64 | ELF (ET_EXEC) | `--target=freebsd --exec` |
+| Self-hosting | Linux | x86-64 | ELF (ET_REL) | `--x86-64 --target=linux --elf` |
+| Self-hosting | Linux | x86-64 | ELF (ET_EXEC) | `--x86-64 --target=linux --exec` |
 | Bootstrap | macOS | aarch64 | Mach-O | `--aarch64 --mach-o` |
 | Bootstrap | Linux | aarch64 | ELF | `--aarch64 --elf` |
 | Bootstrap | Linux | x86-64 | ELF | `--x86-64 --elf` |
 | Bootstrap | Linux | x86-64 | ELF (ET_EXEC) | `--x86-64 --exec` |
 
 The `--exec` flag produces a static ELF executable (ET_EXEC) with a PT_LOAD
-program header, load address 0x400000, and entry point at the `_main`
-symbol offset. This allows the binary to run directly as `/init` in a
+program header, load address 0x400000, and entry point at the `main`
+function offset. This allows the binary to run directly as `/init` in a
 QEMU initramfs without a linker.
 
-### 19.6 Runtime (No libc)
+For `--exec` mode, the compiler also emits an exit syscall at the end of
+`main()` to properly terminate the process:
+- aarch64 Linux: `MOV X8, #93; SVC #0` (exit)
+- aarch64 macOS: `MOV X16, #1; SVC #0x80` (exit)
+- x86-64 Linux: `MOV RAX, #60; SYSCALL` (exit_group)
+
+### 19.9 Runtime (No libc)
 
 Both the self-hosting and bootstrap compilers use **direct syscalls**
 exclusively -- no C library dependency. All I/O operations are implemented
@@ -1451,14 +1655,14 @@ Self-hosting compiler runtime functions in `parser.al`:
 | `fwrite(buf, size, nmemb, fd)` | `SC_WRITE` | Write to file |
 | `puts(str)` | `SC_WRITE` | Print null-terminated string |
 
-### 19.7 QEMU Emulation Testing
+### 19.10 QEMU Emulation Testing
 
 The compiler supports QEMU-based runtime testing for generated binaries:
 
 | Platform | QEMU Binary | Kernel Source | Status |
 |----------|-------------|---------------|--------|
 | aarch64 Linux | `qemu-system-aarch64` | Debian netboot `linux` | 12/12 tests pass |
-| x86-64 Linux | `qemu-system-x86_64` | Debian netboot `linux` | 7/8 tests pass |
+| x86-64 Linux | `qemu-system-x86_64` | Debian `vmlinuz-amd64` | 1/1 verified (arith.al) |
 | FreeBSD | `qemu-system-aarch64` | FreeBSD bootonly ISO | Verification only |
 
 QEMU tests compile programs as static ELF executables (`--exec` flag),
