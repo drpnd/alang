@@ -140,6 +140,10 @@ let g_glob_name: i64 = 0
 let g_glob_off: i64 = 0
 let g_glob_val: i64 = 0
 let g_glob_count: i64 = 0
+let g_graph_transforms: i64 = 0
+let g_graph_count: i64 = 0
+let PIPE_CODE: i64 = 31862
+let g_graph_fn_off: i64 = -1
 
 // Indent for printing
 let g_done: i64 = 0
@@ -265,6 +269,7 @@ fn check_kw3(s: i64) (r: i64)
     if __str_eq(s, "struct") == 1 { mut r = 12 }
     if __str_eq(s, "enum") == 1 { mut r = 13 }
     if __str_eq(s, "extern") == 1 { mut r = 14 }
+    if __str_eq(s, "graph") == 1 { mut r = 15 }
 }
 
 fn check_keyword(s: i64) (r: i64)
@@ -382,7 +387,7 @@ fn lex_op(c: i32) (r: i64)
         if c == 45 {
             if n == 62 { mut code = 11582 }
         }
-        if c == 124 { if n == 124 { mut code = 31870 } }
+        if c == 124 { if n == 124 { mut code = 31870 } if n == 62 { mut code = 31862 } }
         if c == 38 { if n == 38 { mut code = 9798 } }
         if c == 62 { if n == 62 { mut code = 15854 } }
         if c == 60 { if n == 60 { mut code = 15420 } }
@@ -1190,6 +1195,49 @@ fn parse_glob_decl() (r: i64)
     mut r = 0
 }
 
+// Parse: graph IDENT { source("...") |> func |> sink("...") }
+fn parse_graph() (r: i64)
+{
+    let gname: i64 = 0
+    mut r = advance()
+    if cur_type() == 1 { mut gname = cur_val() }
+    if cur_type() == 1 { mut r = advance() }
+    if is_op(123) == 1 { mut r = advance() }
+    while is_op(125) == 0 {
+        if cur_type() == 0 { mut r = 1 } else {
+            if cur_type() == 1 {
+                let nname: i64 = 0
+                let b0: i64 = 0
+                let b1: i64 = 0
+                mut nname = cur_val()
+                mut r = advance()
+                if is_op(40) == 1 {
+                    mut r = advance()
+                    while is_op(41) == 0 {
+                        if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
+                    }
+                    if is_op(41) == 1 { mut r = advance() }
+                }
+                mut b0 = __byte_load(nname, 0)
+                mut b1 = __byte_load(nname, 1)
+                if b0 == 115 {
+                    if b1 == 111 {
+                    } else {
+                        if b1 == 105 {
+                        }
+                    }
+                } else {
+                    __mem_store(g_graph_transforms + g_graph_count * 8, nname)
+                    mut g_graph_count = g_graph_count + 1
+                }
+            }
+            if is_op(PIPE_CODE) == 1 { mut r = advance() }
+        }
+    }
+    if is_op(125) == 1 { mut r = advance() }
+    mut r = 0
+}
+
 fn parse_program() (r: i64)
 {
     while cur_type() != 0 {
@@ -1267,7 +1315,11 @@ fn parse_program() (r: i64)
                                 }
                                 if is_op(125) == 1 { mut r = advance() }
                             } else {
-                                mut r = advance()
+                                if is_kw(15) == 1 {
+                                    mut r = parse_graph()
+                                } else {
+                                    mut r = advance()
+                                }
                             }
                         }
                     }
@@ -4364,6 +4416,12 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
 {
     let is_main_fn: i64 = 0
     mut r = fn_add(name, g_code_pos)
+    // If this is a graph program, store the first function's offset
+    if g_graph_count > 0 {
+        if g_graph_fn_off < 0 {
+            mut g_graph_fn_off = g_code_pos
+        }
+    }
     mut g_var_count = 0
     mut r = gen_prologue()
     mut r = gen_params(params)
@@ -4414,6 +4472,123 @@ fn gen_func(nd: i64) (r: i64)
     mut r = gen_func_body(name, params, rets, body, 0)
     mut r = 0
 }
+// Generate code for graph main { source |> f |> sink }
+fn gen_graph() (r: i64)
+{
+    let loop_start: i64 = 0
+    let cond_pos: i64 = 0
+    let saved_break: i64 = 0
+    let saved_ls: i64 = 0
+    let saved_le: i64 = 0
+    let i: i64 = 0
+    let fname: i64 = 0
+    let graph_call_pos: i64 = 0
+    let rel: i64 = 0
+    let off26: i64 = 0
+    let gi: i64 = 0
+    let gname: i64 = 0
+    // Register main function
+    mut r = fn_add("main", g_code_pos)
+    // Prologue
+    mut r = gen_prologue()
+    mut r = gen_main_init()
+    mut r = gen_glob_init()
+    // Counter at [FP-8]
+    mut r = gen_movz(0, 0)
+    mut r = gen_stur(0, 29, 0 - 8)
+    // Loop
+    mut loop_start = g_code_pos
+    mut saved_ls = g_loop_start
+    mut saved_le = g_loop_end
+    mut saved_break = g_break_pos
+    mut g_loop_start = loop_start
+    mut g_break_pos = 0
+    // Condition: counter < 10
+    mut r = gen_ldur(0, 29, 0 - 8)
+    mut r = gen_movz(1, 10)
+    mut r = gen_cmp(0, 1)
+    mut cond_pos = g_code_pos
+    mut r = gen_bcond(0, 0)
+    // Body: val = counter
+    mut r = gen_ldur(0, 29, 0 - 8)
+    // Apply transforms: emit CALL with placeholder, patch later
+    mut i = 0
+    while i < g_graph_count {
+        mut r = gen_push()
+        mut r = gen_pop_args(1)
+        mut r = gen_caller_save()
+        // Emit CALL with placeholder offset
+        mut graph_call_pos = g_code_pos
+        if g_target_isa == 1 {
+            mut r = emit_byte(0xE8)
+            mut r = emit_byte(0)
+            mut r = emit_byte(0)
+            mut r = emit_byte(0)
+            mut r = emit_byte(0)
+        } else {
+            mut r = gen_bl(0)
+        }
+        mut r = gen_call_finish()
+        mut i = i + 1
+    }
+    // Sink: println(val)
+    mut r = gen_push()
+    mut g_call_name = "println"
+    mut r = gen_print_int_builtin(1)
+    // Increment counter
+    mut r = gen_ldur(0, 29, 0 - 8)
+    mut r = gen_movz(1, 1)
+    mut r = gen_add(0, 0, 1)
+    mut r = gen_stur(0, 29, 0 - 8)
+    mut r = gen_b(loop_start - g_code_pos)
+    // End
+    mut g_loop_end = g_code_pos
+    if g_break_pos > 0 {
+        mut r = patch_b(g_break_pos, g_code_pos - g_break_pos)
+    }
+    mut r = patch_bcond(cond_pos, g_code_pos - cond_pos)
+    // Exit for --exec mode
+    if g_exec_elf == 1 {
+        if g_target_isa == 1 {
+            mut r = x86_push_reg(0)
+            mut r = x86_pop_reg(7)
+            if g_target_os == 1 {
+                mut r = x86_mov_imm(0, 60)
+            } else {
+                mut r = x86_mov_imm(0, 1)
+            }
+            mut r = x86_syscall()
+        } else {
+            if g_target_os == 1 {
+                mut r = gen_movz(8, 93)
+                mut r = emit32(0xD4000001)
+            } else {
+                mut r = gen_movz(16, 1)
+                mut r = emit32(0xD4001001)
+            }
+        }
+    }
+    // Patch the transform CALL to point to the function
+    if g_graph_fn_off >= 0 {
+        mut rel = g_graph_fn_off - graph_call_pos
+        if g_target_isa == 1 {
+            mut rel = rel - 5
+            mut r = __byte_store(g_code, graph_call_pos + 1, rel & 255)
+            mut r = __byte_store(g_code, graph_call_pos + 2, (rel >> 8) & 255)
+            mut r = __byte_store(g_code, graph_call_pos + 3, (rel >> 16) & 255)
+            mut r = __byte_store(g_code, graph_call_pos + 4, (rel >> 24) & 255)
+        } else {
+            mut off26 = (rel >> 2) & 67108863
+            mut r = emit32_at(graph_call_pos, 0x94000000 | off26)
+        }
+    }
+    mut r = gen_epilogue()
+    mut g_loop_start = saved_ls
+    mut g_loop_end = saved_le
+    mut g_break_pos = saved_break
+    mut r = 0
+}
+
 fn gen_all_funcs() (r: i64)
 {
     let list: i64 = 0
@@ -5195,6 +5370,7 @@ fn init_parser1() (r: i64)
     mut g_glob_name = malloc(4096)
     mut g_glob_off = malloc(4096)
     mut g_glob_val = malloc(4096)
+    mut g_graph_transforms = malloc(4096)
     mut r = 0
 }
 
@@ -5282,6 +5458,9 @@ fn do_codegen(argv_ptr: i64) (r: i64)
     let arg2_ptr: i64 = 0
     mut r = init_codegen()
     mut r = gen_all_funcs()
+    if g_graph_count > 0 {
+        mut r = gen_graph()
+    }
     puts("GEN DONE")
     mut r = patch_calls()
     mut arg2_ptr = __mem_load(argv_ptr + 16)
