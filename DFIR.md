@@ -788,10 +788,21 @@ The bootstrap compiler supports the following source language (`.al`) features:
 
 | Builtin | Syntax | Description |
 |---------|--------|-------------|
-| `print` | `print(expr)` | Print without newline |
-| `println` | `println(expr)` | Print with newline |
+| `print` | `print(expr)` | Print string or integer without newline |
+| `println` | `println(expr)` | Print string or integer with newline |
+| `__mem_load` | `__mem_load(ptr)` | Load 8 bytes from memory address |
+| `__mem_store` | `__mem_store(ptr, val)` | Store 8 bytes to memory address |
+| `__byte_load` | `__byte_load(ptr, idx)` | Load 1 byte from ptr+idx |
+| `__byte_store` | `__byte_store(ptr, idx, val)` | Store 1 byte to ptr+idx |
+| `__malloc` | `__malloc(size)` | Allocate memory via mmap |
+| `__alloca` | `__alloca(size)` | Allocate on stack (16-byte aligned) |
+| `__syscall` | `__syscall(num, args...)` | Direct syscall (up to 6 args) |
+| `__str_eq` | `__str_eq(s1, s2)` | String equality (1=equal, 0=not) |
+| `__str_len` | `__str_len(s)` | String length (null-terminated) |
 | `source` | `source("file:path")` | Graph source node |
 | `sink` | `sink("stdout")` | Graph sink node |
+
+See **Appendix B: Builtins Reference** for detailed codegen documentation.
 
 ### 12.5 Graph Syntax
 
@@ -832,6 +843,509 @@ fn main() (r: i32) {
 - [ ] How are generic types instantiated in DFIR (monomorphization)?
 
 ---
+
+## 14. Builtins Reference
+
+The self-hosting compiler (`parser.al`) implements a set of built-in functions
+that are recognized by name and compiled to inline assembly. Builtins with the
+`__` prefix are low-level operations; `print`/`println` are higher-level I/O
+builtins.
+
+### 14.1 Builtin Dispatch
+
+The compiler dispatches builtins through two functions:
+
+- **`is_builtin_name(name)`** — Checks if a name is a builtin by examining the
+  first few bytes of the name string. Recognizes:
+  - `__byte_*` (prefix `__b`)
+  - `__mem_*` (prefix `__me` for mem_load, `__ma` for malloc)
+  - `__alloca` (prefix `__al`)
+  - `__str_*` (prefix `__st` for str_eq, `__sy` for syscall)
+  - `print` / `println` (prefix `p`)
+
+- **`gen_call_builtin(name, arg_count)`** — Dispatches to the appropriate
+  code generator based on the name's byte pattern. The `print`/`println`
+  builtins are handled separately in `gen_call()` based on argument type
+  (string vs. integer).
+
+### 14.2 Complete Builtin Table
+
+| Builtin | Signature | Codegen | Description |
+|---------|-----------|---------|-------------|
+| `__mem_load` | `(ptr: i64) -> i64` | `LDR X0, [X0]` | Load 8 bytes from memory address `ptr`. Pops 1 arg, returns loaded value in X0. |
+| `__mem_store` | `(ptr: i64, val: i64) -> void` | `STR X0, [X1]` | Store 8 bytes `val` to address `ptr`. Pops 2 args (ptr, val), reorders to STR. |
+| `__byte_load` | `(ptr: i64, idx: i64) -> i64` | `LDRB X0, [X0, X1]` | Load 1 byte from `ptr + idx`. Pops 2 args, returns byte value in X0. |
+| `__byte_store` | `(ptr: i64, idx: i64, val: i64) -> void` | `STRB X0, [X1, X2]` | Store 1 byte `val` to `ptr + idx`. Pops 3 args. |
+| `__malloc` | `(size: i64) -> i64` | `mmap` syscall | Allocate memory via `mmap(0, size, PROT_RW, MAP_PRIVATE\|MAP_ANON, -1, 0)`. Returns pointer in X0. |
+| `__alloca` | `(size: i64) -> i64` | `SUB SP, SP, #aligned` | Allocate on stack. Size is rounded up to 16-byte alignment (`(size + 15) & ~15`). Returns stack pointer. |
+| `__syscall` | `(num, a0..a5) -> i64` | `SVC` instruction | Direct syscall. Pops up to 6 args to X0-X5, syscall number to X6. On macOS: `MOV X16, X6; SVC #0x80`. On Linux/FreeBSD: `MOV X8, X6; SVC #0`. |
+| `__str_eq` | `(s1: i64, s2: i64) -> i64` | Inline loop | Byte-by-byte string comparison. Returns 1 if equal, 0 if not. Uses caller-saved register save/restore. |
+| `__str_len` | `(s: i64) -> i64` | Inline loop | Computes length of null-terminated string. Scans bytes until `\\0`, returns count in X0. |
+| `print` | `(val) -> void` | `write` syscall | Print string or integer. For strings: computes strlen, calls `write(1, str, len)`. For integers: converts to decimal string on stack, calls `write`. |
+| `println` | `(val) -> void` | `write` syscall × 2 | Same as `print`, then writes a newline (`\\n`) via a second `write(1, "\\n", 1)` syscall. |
+
+### 14.3 Print Type Dispatch
+
+The `print`/`println` builtins inspect the argument's AST type to determine
+whether to emit string or integer printing code:
+
+- If the argument is a **string literal** (AST kind = 2) or an expression
+  wrapping a string literal, `gen_print_builtin()` is called, which computes
+  `strlen` inline and calls `write(1, str, len)`.
+- Otherwise, `gen_print_int_builtin()` is called, which converts the integer
+  to a decimal string on the stack (handling negative numbers and zero) and
+  calls `write(1, buf, len)`.
+
+### 14.4 Malloc / Memory Allocation
+
+`__malloc(size)` emits a direct `mmap` syscall:
+
+| Parameter | Value |
+|-----------|-------|
+| `addr` | 0 (kernel chooses) |
+| `size` | from argument |
+| `prot` | 3 (`PROT_READ \| PROT_WRITE`) |
+| `flags` | 4098 (`MAP_PRIVATE \| MAP_ANONYMOUS`) |
+| `fd` | -1 |
+| `offset` | 0 |
+
+Syscall numbers: macOS = 197, Linux = 222, FreeBSD = 477.
+
+### 14.5 Syscall Convention
+
+| Platform | Syscall # Register | Instruction |
+|----------|-------------------|-------------|
+| macOS (aarch64) | X16 | `SVC #0x80` |
+| Linux (aarch64) | X8 | `SVC #0` |
+| FreeBSD (aarch64) | X8 | `SVC #0` |
+
+Arguments are passed in X0-X5. Return value is in X0.
+
+---
+
+## 15. Enum Support
+
+### 15.1 Declaration Syntax
+
+```
+enum Name {
+    Variant(Type),     // variant with payload
+    Variant2,          // bare variant (no payload)
+    Variant3(Type),    // another variant with payload
+    ...
+}
+```
+
+### 15.2 Internal Representation
+
+Enum variants are stored in three parallel arrays during compilation:
+
+| Array | Contents |
+|-------|----------|
+| `g_enum_name` | Variant name string pointer |
+| `g_enum_tag` | Tag ID (sequential integer starting from 0) |
+| `g_enum_has_arg` | 1 if variant has a payload, 0 if bare |
+
+The `enum_add(name, tag, has_arg)` function registers a new variant. Tag IDs
+are assigned sequentially starting from 0, in declaration order.
+
+### 15.3 Lookup
+
+- **`enum_lookup(name)`** — Searches the variant table by name. Returns the
+  tag ID if found, or -1 if not found.
+- **`enum_has_arg_lookup(name)`** — Returns 1 if the variant has a payload
+  argument, 0 otherwise.
+
+### 15.4 Constructor Codegen
+
+When the compiler encounters a call expression like `Some(42)`, it first
+checks `enum_lookup()`. If the name matches a variant, `gen_enum_constructor()`
+is called instead of a normal function call.
+
+**Variant with argument** (e.g., `Some(42)`):
+
+1. Pop the argument value from the stack → X0, then push it back (to preserve
+   it during allocation).
+2. Call `gen_enum_alloc()` — allocates 16 bytes via `mmap`.
+3. Pop the argument → X1.
+4. Store the argument at `[ptr + 8]` (offset 8).
+5. Store the tag ID at `[ptr + 0]` (offset 0).
+6. Result pointer is in X0.
+
+**Bare variant** (e.g., `None`):
+
+1. If there are arguments on the stack, discard them.
+2. Call `gen_enum_alloc()` — allocates 16 bytes via `mmap`.
+3. Store the tag ID at `[ptr + 0]` (offset 0).
+4. Result pointer is in X0.
+
+### 15.5 Memory Layout
+
+All enum values occupy **16 bytes**:
+
+```
+Offset 0:  Tag ID (i64)     — identifies the variant
+Offset 8:  Payload (i64)    — the variant's argument (if any)
+```
+
+Bare variants leave offset 8 uninitialized.
+
+### 15.6 Enum Allocation
+
+`gen_enum_alloc()` allocates 16 bytes using the same `mmap` approach as
+`__malloc`. It saves/restores caller-saved registers around the syscall and
+adjusts the stack pointer afterward.
+
+---
+
+## 16. Match Expression
+
+### 16.1 Syntax
+
+```
+match scrutinee {
+    Pattern => body,
+    Pattern(var) => body,   // variant with argument binding
+    ...
+}
+```
+
+- `Pattern` is an enum variant name.
+- `var` binds the variant's payload to a local variable.
+- `body` is a statement or expression.
+- Cases are separated by commas.
+
+### 16.2 AST Representation
+
+The match expression is represented in the AST as:
+
+| Field | Contents |
+|-------|----------|
+| `g_ast_a` | Scrutinee expression |
+| `g_ast_b` | Linked list of case nodes |
+
+Each case node (AST kind = 20 for linked list nodes) contains:
+
+| Field | Contents |
+|-------|----------|
+| `g_ast_val` | Pattern (variant name) |
+| `g_ast_a` | Bind variable (or 0 if no binding) |
+| `g_ast_b` | Body statement |
+
+The `emit_match(scrutinee, first_case)` and `emit_case(pattern, bind_var, body)`
+functions construct these AST nodes.
+
+### 16.3 Codegen (`gen_match`)
+
+The match codegen works as follows:
+
+1. **Evaluate scrutinee** — `gen_expr(scrut)` computes the scrutinee value
+   (a pointer to the enum's 16-byte allocation) and pushes it onto the stack.
+
+2. **Iterate over cases** — For each case:
+   a. Load the enum pointer from the stack: `LDR X1, [SP]`
+   b. Dereference to get the pointer value: `LDR X1, [X1]`
+   c. Look up the pattern's tag: `tag = enum_lookup(pat)`
+   d. If `tag >= 0` (pattern is a known variant):
+      - Load the tag into a register: `MOV X2, #tag`
+      - Compare: `CMP X1, X2`
+      - If not equal, branch to next case (conditional branch, patched later).
+      - If the variant has an argument and a bind variable:
+        - Load the enum pointer from stack: `LDR X2, [SP]`
+        - Load the payload: `LDR X0, [X2, #8]` (offset 8 = payload)
+        - Store the payload to the local variable: `STUR X0, [FP, -(off+1)*8]`
+      - Generate the body code: `gen_stmt(body)`
+      - Emit an unconditional branch to the end (patched later).
+   e. If `tag < 0` (pattern is not a variant — could be a literal match in
+      future extensions), the case is skipped.
+
+3. **Patch all end-of-case branches** — After all cases are emitted, all
+   the unconditional branches to "done" are patched to point to the current
+   code position.
+
+4. **Clean up** — Pop the scrutinee from the stack (`gen_pop_discard()`).
+
+### 16.4 Variable Binding
+
+For variants with arguments (e.g., `Some(v)`), the payload is loaded from
+`[enum_ptr + 8]` and stored to the local variable's stack slot at
+`[FP - (offset + 1) * 8]`. If the variable doesn't exist yet, it is
+created with `var_add()`.
+
+### 16.5 Example
+
+Source:
+```
+enum Option { Some(i32), None }
+
+fn main() (r: i32) {
+    let x = Some(42)
+    match x {
+        Some(v) => mut r = v,
+        None => mut r = 0
+    }
+}
+```
+
+Generated assembly (conceptual):
+```
+    ; Evaluate scrutinee: x → pointer to enum (16 bytes)
+    ; Push pointer on stack
+
+    ; Case 1: Some(v)
+    LDR X1, [SP]          ; load enum pointer
+    LDR X1, [X1]          ; dereference to get pointer value
+    MOV X2, #0            ; tag for Some = 0
+    CMP X1, X2
+    B.NE case2            ; if not Some, skip to next case
+    LDR X2, [SP]          ; reload enum pointer
+    LDR X0, [X2, #8]      ; load payload (offset 8)
+    STUR X0, [FP, #-8]    ; store to local variable v
+    ; ... body: mut r = v ...
+    B done
+
+    ; Case 2: None
+case2:
+    LDR X1, [SP]
+    LDR X1, [X1]
+    MOV X2, #1            ; tag for None = 1
+    CMP X1, X2
+    B.NE default
+    ; ... body: mut r = 0 ...
+    B done
+
+done:
+    ; Pop scrutinee from stack
+```
+
+---
+
+## 17. Self-Compilation Chain
+
+The alang compiler achieves self-hosting through an iterative bootstrap
+process. The bootstrap C compiler (`minica_test_build`) compiles the
+self-hosting compiler source (`parser.al`) into a native binary. Each
+generation of the compiler can then compile the next.
+
+### 17.1 Bootstrap Levels
+
+| Level | Compiler | Description |
+|-------|----------|-------------|
+| **L0** | `minica_test_build` (C) | Bootstrap compiler written in C, compiled with `make minica_test_build` |
+| **L1** | L0 compiles `parser.al` | First native alang compiler binary |
+| **L2** | L1 compiles `parser.al` | Second generation compiler |
+| **L3** | L2 compiles `parser.al` | Third generation compiler |
+| **L4** | L3 compiles `parser.al` | Fourth generation compiler |
+
+### 17.2 Build Process
+
+```bash
+# Step 1: Build the C bootstrap compiler (L0)
+cd bootstrap && make minica_test_build
+
+# Step 2: L0 compiles parser.al → L1 object file
+./bootstrap/minica_test_build selfhost/parser.al /tmp/L1.o --aarch64 --mach-o
+
+# Step 3: Link L1
+ld -arch arm64 -platform_version macos 14.0 14.0 -o /tmp/L1 /tmp/L1.o \
+    -l System -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk \
+    -e _main
+
+# Step 4: L1 compiles parser.al → L2
+/tmp/L1 selfhost/parser.al /tmp/L2.o --aarch64 --mach-o
+ld -arch arm64 -platform_version macos 14.0 14.0 -o /tmp/L2 /tmp/L2.o \
+    -l System -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk \
+    -e _main
+
+# Step 5: L2 compiles parser.al → L3, L3 compiles → L4 (repeat)
+```
+
+### 17.3 Fixed Point Verification
+
+The self-compilation chain reaches a **fixed point** when consecutive
+generations produce byte-identical object files:
+
+```
+L3.o == L4.o  (byte-identical)
+```
+
+This demonstrates that the compiler is fully self-hosting: it can compile
+its own source code reproducibly, and the output has stabilized.
+
+### 17.4 L1 Usage in Tests
+
+The test scripts (`selfhost/tests/run_tests.sh` and
+`selfhost/tests/run_examples.sh`) build L1 and use it as the compiler for
+testing individual compiler features and example programs.
+
+---
+
+## 18. Stack Frame Layout
+
+### 18.1 Prologue
+
+Every function begins with the following prologue (aarch64):
+
+```asm
+STP  FP, LR, [SP, #-16]!    ; Save frame pointer and link register
+ADD  FP, SP, #0              ; Set FP = SP (frame base)
+SUB  SP, SP, #2048           ; Allocate 2048 bytes for local variables
+```
+
+Encoding:
+- `STP X29, X30, [SP, #-16]!` — pre-index store, pushes FP and LR
+- `ADD X29, SP, #0` — establishes the frame pointer
+- `SUB SP, SP, #2048` — reserves 2048 bytes for locals
+
+### 18.2 Epilogue
+
+Every function ends with the following epilogue:
+
+```asm
+ADD  SP, SP, #2048           ; Deallocate local variable space
+LDP  FP, LR, [SP], #16       ; Restore frame pointer and link register
+RET                           ; Return to caller
+```
+
+Encoding:
+- `ADD SP, SP, #2048` — restores SP to pre-local-alloc position
+- `LDP X29, X30, [SP], #16` — post-index load, pops FP and LR
+- `RET` — returns via LR
+
+### 18.3 Local Variable Storage
+
+Local variables are stored on the stack relative to the frame pointer (FP/X29):
+
+```
+Local variable at index `offset`:
+    Address = [FP - (offset + 1) * 8]
+```
+
+- The first local variable (offset 0) is at `[FP - 8]`.
+- The second (offset 1) is at `[FP - 16]`.
+- And so on, growing downward.
+
+With 2048 bytes of local space, up to 256 local variables (i64-sized) can
+be stored.
+
+### 18.4 Stack Frame Diagram
+
+```
+High addresses
+    ┌──────────────────┐
+    │ Caller's frame   │
+    ├──────────────────┤
+    │ LR (return addr) │  ← [FP + 8]
+    │ FP (saved)       │  ← [FP + 0] = FP
+    ├──────────────────┤
+    │ Local var 0      │  ← [FP - 8]
+    │ Local var 1      │  ← [FP - 16]
+    │ Local var 2      │  ← [FP - 24]
+    │ ...              │
+    │ Local var 255    │  ← [FP - 2048] = SP
+    ├──────────────────┤
+    │ Caller-save area │  ← SP grows down during calls
+    │ (160 bytes)      │
+    └──────────────────┘
+Low addresses
+```
+
+### 18.5 Caller-Saved Register Save/Restore
+
+During function calls and syscalls, the compiler saves and restores
+caller-saved registers to preserve them across the call.
+
+**`gen_caller_save()`** emits:
+
+```asm
+SUB  SP, SP, #160            ; Allocate 160-byte save area
+STP  X0,  X1,  [SP, #16]     ; Save X0-X1
+STP  X2,  X3,  [SP, #32]     ; Save X2-X3
+STP  X4,  X5,  [SP, #48]     ; Save X4-X5
+STP  X6,  X7,  [SP, #64]     ; Save X6-X7
+STP  X8,  X9,  [SP, #80]     ; Save X8-X9
+STP  X10, X11, [SP, #96]     ; Save X10-X11
+STP  X12, X13, [SP, #112]    ; Save X12-X13
+STP  X14, X15, [SP, #128]    ; Save X14-X15
+```
+
+- Registers X0 through X15 are saved (16 registers, 128 bytes).
+- Slots `[SP, #0]` and `[SP, #8]` are reserved: `[SP, #8]` is used as a
+  return-value save slot (`gen_save_retval` / `gen_load_retval`).
+
+**`gen_caller_restore()`** emits the corresponding LDP instructions to
+restore all 16 registers, followed by `ADD SP, SP, #160` (via `gen_add_sp()`).
+
+**Return value handling:**
+- `gen_save_retval()`: `STR X0, [SP, #8]` — saves return value before restore.
+- `gen_load_retval()`: `LDR X0, [SP, #8]` — restores return value after
+  register restore. (X19, used for return values in some paths, is
+  callee-saved and survives calls without explicit save.)
+
+---
+
+## 19. Platform Support
+
+The self-hosting compiler supports three aarch64 platforms. The target
+platform is selected at compile time via the `--target` flag:
+
+| Flag | Platform | `g_target_os` |
+|------|----------|---------------|
+| `--target macos` (default) | macOS (aarch64/Mach-O) | 0 |
+| `--target linux` | Linux (aarch64/ELF) | 1 |
+| `--target freebsd` | FreeBSD (aarch64/ELF) | 2 |
+
+### 19.1 Syscall Numbers
+
+| Syscall | macOS | Linux | FreeBSD |
+|---------|-------|-------|---------|
+| `read` | 3 | 63 | 3 |
+| `write` | 4 | 64 | 4 |
+| `open` | 5 | 56 | 5 |
+| `close` | 6 | 57 | 6 |
+| `mmap` | 197 | 222 | 477 |
+| `exit` | 1 | 93 | 1 |
+
+### 19.2 Syscall Calling Convention
+
+| Platform | Syscall # Register | Instruction | Args |
+|----------|-------------------|-------------|------|
+| macOS | X16 | `SVC #0x80` | X0-X5 |
+| Linux | X8 | `SVC #0` | X0-X5 |
+| FreeBSD | X8 | `SVC #0` | X0-X5 |
+
+- On macOS: `MOV X16, <syscall_num>; SVC #0x80`
+- On Linux/FreeBSD: `MOV X8, <syscall_num>; SVC #0`
+
+### 19.3 Output Format
+
+| Platform | Object Format | Flag |
+|----------|--------------|------|
+| macOS | Mach-O (arm64) | `--mach-o` (default) |
+| Linux | ELF (aarch64) | `--elf` |
+| FreeBSD | ELF (aarch64) | `--elf` |
+
+The `g_output_elf` flag (set by `--elf`) selects between the Mach-O and ELF
+linker backends.
+
+### 19.4 Runtime (No libc)
+
+The self-hosting compiler's runtime uses **direct syscalls** exclusively —
+no C library dependency. All I/O operations (`print`, `println`, file
+operations) are implemented via `__syscall`. Memory allocation uses `mmap`
+directly via `__malloc`.
+
+The runtime helper functions in `parser.al`:
+
+| Function | Syscall | Description |
+|----------|---------|-------------|
+| `write(fd, buf, len)` | `SC_WRITE` | Write to file descriptor |
+| `read(fd, buf, len)` | `SC_READ` | Read from file descriptor |
+| `open(path, flags, mode)` | `SC_OPEN` | Open file |
+| `close(fd)` | `SC_CLOSE` | Close file descriptor |
+| `mmap(addr, size, prot, flags, fd, offset)` | `SC_MMAP` | Memory map |
+| `exit(code)` | `SC_EXIT` | Terminate process |
+
 
 ## Appendix A: Full Instruction Reference
 

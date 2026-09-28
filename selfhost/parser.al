@@ -116,17 +116,6 @@ fn puts(s: i64) (r: i32)
     mut r = 0
 }
 
-// putchar replacement: write(1, &c, 1) to stdout
-fn putchar(c: i32) (r: i32)
-{
-    let buf: i64 = 0
-    mut buf = malloc(1)
-    __byte_store(buf, 0, c)
-    let res: i64 = 0
-    mut res = sys_write(1, buf, 1)
-    mut r = 0
-}
-
 let g_src: i64 = 0
 let g_size: i64 = 0
 let g_pos: i64 = 0
@@ -146,7 +135,6 @@ let g_glob_val: i64 = 0
 let g_glob_count: i64 = 0
 
 // Indent for printing
-let g_indent: i64 = 0
 let g_done: i64 = 0
 
 // AST nd storage (5 parallel arrays, indexed by nd id)
@@ -160,7 +148,6 @@ let g_ast_a: i64 = 0
 let g_ast_b: i64 = 0
 let g_ast_c: i64 = 0
 let g_ast_count: i64 = 0
-let g_first_fn: i64 = 0
 let g_func_list: i64 = 0
 
 // Token types: 0=EOF 1=IDENT 2=INT 3=STR 4=OP 5=KW
@@ -487,30 +474,6 @@ fn is_kw(kw: i64) (r: i64)
     if cur_type() == 5 {
         if cur_val() == kw { mut r = 1 }
     }
-}
-
-fn print_indent() (r: i32)
-{
-    let i: i32 = 0
-    mut i = 0
-    while i < g_indent {
-        putchar(32)
-        putchar(32)
-        mut i = i + 1
-    }
-    mut r = 0
-}
-
-fn print_str(s: i64) (r: i32)
-{
-    let c: i32 = 0
-    mut c = __byte_load(s, 0)
-    while c != 0 {
-        putchar(c)
-        mut s = s + 1
-        mut c = __byte_load(s, 0)
-    }
-    mut r = 0
 }
 
 // === Expression parser (precedence climbing) ===
@@ -1193,7 +1156,6 @@ fn parse_fn() (r: i64)
     }
     mut body = parse_block()
     mut fnode = emit_func(name, params, rets, body)
-    if g_first_fn == 0 { mut g_first_fn = fnode }
     mut g_func_list = emit_stmtlist(fnode, g_func_list)
     mut r = fnode
 }
@@ -1318,11 +1280,7 @@ let g_code_pos: i64 = 0
 let g_var_name: i64 = 0
 let g_var_off: i64 = 0
 let g_var_count: i64 = 0
-let g_main_done: i64 = 0
 let g_call_name: i64 = 0
-let g_tmp1: i64 = 0
-let g_tmp2: i64 = 0
-let g_op: i64 = 0
 let g_str_const: i64 = 0
 let g_str_const_count: i64 = 0
 let g_adr_patch_pos: i64 = 0
@@ -1349,8 +1307,6 @@ let g_ext_pos: i64 = 0
 let g_ext_count: i64 = 0
 
 // String table for Mach-O symbols
-let g_symtab: i64 = 0
-let g_symtab_pos: i64 = 0
 
 // Emit a 32-bit instruction (little-endian)
 fn emit32(val: i64) (r: i64)
@@ -1463,6 +1419,13 @@ fn gen_ldr(rt: i64, rn: i64, imm12: i64) (r: i64)
 }
 
 // STUR Xt, [Xn, #imm9] (signed offset)
+// Handles three cases for the signed 9-bit immediate:
+//   1. imm9 in [-256, 255]: emit a single STUR instruction.
+//   2. imm9 > 255 (large positive): load offset into X17 (scratch / IP1)
+//      via MOVZ+MOVK, ADD to base register, then STR from computed addr.
+//      X17 is safe to clobber (caller-saved, not preserved across calls).
+//   3. imm9 < -256 (large negative): negate to absolute value, load into
+//      X17 via MOVZ+MOVK, SUB from base register, then STR.
 fn gen_stur(rt: i64, rn: i64, imm9: i64) (r: i64)
 {
     if imm9 >= -256 {
@@ -1489,6 +1452,12 @@ fn gen_stur(rt: i64, rn: i64, imm9: i64) (r: i64)
 }
 
 // LDUR Xt, [Xn, #imm9] (signed offset)
+// Same three-case strategy as gen_stur but for loads:
+//   1. imm9 in [-256, 255]: emit a single LDUR instruction.
+//   2. imm9 > 255: load offset into X17 (scratch / IP1) via MOVZ+MOVK,
+//      ADD to base, then LDR from computed address.
+//   3. imm9 < -256: load absolute value into X17 via MOVZ+MOVK,
+//      SUB from base, then LDR.
 fn gen_ldur(rt: i64, rn: i64, imm9: i64) (r: i64)
 {
     if imm9 >= -256 {
@@ -1705,30 +1674,6 @@ fn fn_add(name: i64, offset: i64) (r: i64)
     mut r = fn_store(name, offset)
 }
 
-fn fn_name_eq(a: i64, b: i64) (r: i64)
-{
-    let i: i64 = 0
-    let ca: i64 = 0
-    let cb: i64 = 0
-    mut r = 1
-    mut i = 0
-    mut ca = __byte_load(a, 0)
-    mut cb = __byte_load(b, 0)
-    while ca != 0 {
-        if ca != cb {
-            mut r = 0
-            mut ca = 0
-        } else {
-            mut i = i + 1
-            mut ca = __byte_load(a + i, 0)
-            mut cb = __byte_load(b + i, 0)
-        }
-    }
-    if cb != 0 {
-        mut r = 0
-    }
-}
-
 fn fn_lookup(name: i64) (r: i64)
 {
     let i: i64 = 0
@@ -1846,28 +1791,6 @@ fn gen_cmp_le() (r: i64) { mut r = emit32(2594162656) mut r = 0 }
 fn gen_cmp_ge() (r: i64) { mut r = emit32(2594158560) mut r = 0 }
 fn gen_cmp_eq2() (r: i64) { mut r = emit32(2594117600) mut r = 0 }
 fn gen_cmp_ne() (r: i64) { mut r = emit32(2594113504) mut r = 0 }
-
-fn gen_cmp_eq_op(op: i64) (r: i64)
-{
-    if op == 15677 { mut r = gen_cmp_eq2() }
-    if op == 8645 { mut r = gen_cmp_ne() }
-}
-
-fn gen_cmp_rel_op(op: i64) (r: i64)
-{
-    if op == 60 { mut r = gen_cmp_lt() }
-    if op == 62 { mut r = gen_cmp_gt() }
-    if op == 15485 { mut r = gen_cmp_le() }
-    if op == 15997 { mut r = gen_cmp_ge() }
-}
-
-fn gen_cmpop(op: i64) (r: i64)
-{
-    mut r = gen_cmp(1, 0)
-    mut r = gen_cmp_eq_op(op)
-    mut r = gen_cmp_rel_op(op)
-    mut r = 0
-}
 
 fn gen_mod() (r: i64)
 {
@@ -2028,13 +1951,6 @@ fn gen_expr_assign(a: i64, b: i64) (r: i64)
     mut r = 0
 }
 
-fn load_binop_fields(nd: i64) (r: i64)
-{
-    mut g_tmp1 = ast_field(nd, g_ast_a)
-    mut g_tmp2 = ast_field(nd, g_ast_b)
-    mut r = ast_field(nd, g_ast_val)
-}
-
 fn gen_expr_binop(t1: i64, t2: i64, op: i64) (r: i64)
 {
     mut r = gen_expr(t1)
@@ -2143,16 +2059,6 @@ fn gen_expr(nd: i64) (r: i64)
     mut r = gen_expr_dispatch(k, v, a, b)
     mut r = 0
 }
-// CSET Xd, cond (set Xd to 1 if condition, 0 otherwise)
-fn gen_cset(rd: i64, cond: i64) (r: i64)
-{
-    // CSET Xd, cond = CSINC Xd, XZR, XZR, invert(cond)
-    // 0x9A9F07E0 = base with Rm=31(XZR), Rn=31(XZR), op2=01(CSINC)
-    let inv: i64 = 0
-    mut inv = cond ^ 1
-    mut r = emit32(0x9A9F07E0 | ((inv & 15) << 12) | (rd & 31))
-}
-
 // Generate function call
 fn gen_pop_args(arg_count: i64) (r: i64)
 {
@@ -2655,6 +2561,13 @@ fn gen_print_builtin(arg_count: i64) (r: i64)
     mut r = 0
 }
 
+// __malloc(size): allocate memory via mmap syscall.
+// Pops size to X0, then sets up mmap args:
+//   X0=0 (addr), X1=size (copied from X0), X2=3 (PROT_RW),
+//   X3=4098 (MAP_PRIVATE|MAP_ANON), X4=-1 (fd), X5=0 (offset).
+// The gen_mov(1, 0) is critical: mmap expects size in X1, but we
+// popped it into X0, so we must copy X0->X1 before zeroing X0.
+// Syscall: X16=197 (macOS) or X8=222 (Linux).
 fn gen_malloc_builtin(arg_count: i64) (r: i64)
 {
     // __malloc(size): mmap(0, size, PROT_RW, MAP_PRIVATE|ANON, -1, 0)
@@ -2699,6 +2612,15 @@ fn gen_alloca_builtin(arg_count: i64) (r: i64)
     mut r = emit32(0x910003E0)
 }
 
+// __str_len(s): compute string length by scanning for null byte.
+// Pops string ptr to X0, then runs a tight loop:
+//   X1 = 0 (counter)
+//   loop: LDRB W2, [X0]  ; load current byte
+//         CBZ W2, done   ; if 0, string ends
+//         ADD X0, X0, #1 ; advance pointer
+//         ADD X1, X1, #1 ; increment counter
+//         B loop
+//   done: MOV X0, X1     ; return length
 fn gen_str_len_builtin() (r: i64)
 {
     mut r = emit32(0xF84107E0)
@@ -2771,6 +2693,12 @@ fn gen_caller_save2() (r: i64)
     mut r = 0
 }
 
+// Save caller-saved registers before a syscall or function call.
+// Allocates 160 bytes on stack (SUB SP, SP, #0xA0) then stores
+// X0-X7 via STP pairs, plus X8-X15 via gen_caller_save2().
+// This preserves argument and temporary registers that may hold
+// live values across the call. X16-X17 (IP0/IP1) are not saved
+// as they are scratch/PLT registers. X19+ are callee-saved.
 fn gen_caller_save() (r: i64)
 {
     mut r = emit32(0xD10283FF)
@@ -2797,6 +2725,11 @@ fn gen_caller_restore2() (r: i64)
     mut r = 0
 }
 
+// Restore caller-saved registers after a syscall or function call.
+// Loads X0-X7 via LDP pairs from the 160-byte save area, then
+// loads X8-X15 via gen_caller_restore2(). Mirror of gen_caller_save.
+// Note: X0 is typically overwritten with the return value afterwards
+// via gen_load_retval().
 fn gen_caller_restore() (r: i64)
 {
     mut r = emit32(2839611360)
@@ -2858,6 +2791,12 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
     mut r = gen_call_finish()
 }
 
+// Allocate a 16-byte enum value on the heap via mmap.
+// 1. Save caller-saved regs (X0-X5 may hold live values).
+// 2. mmap(0, 16, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0).
+// 3. Save return value, restore caller-saved regs, reload return value,
+//    and deallocate the 160-byte save area (gen_add_sp).
+// The save/restore preserves live registers since mmap clobbers X0-X5.
 fn gen_enum_alloc() (r: i64)
 {
     mut r = gen_caller_save()
@@ -2882,6 +2821,12 @@ fn gen_enum_alloc() (r: i64)
     mut r = 0
 }
 
+// Generate code for an enum constructor call (e.g. Some(value)).
+// Layout: [tag at +0] [arg at +8], 16 bytes total.
+// 1. If variant has an arg: pop arg to X0, push it back (survive mmap).
+// 2. gen_enum_alloc() -> X0 = pointer to 16-byte block.
+// 3. If has_arg: pop saved arg to X1, STR X1 at [X0, #+8].
+// 4. Load tag into X1, STR X1 at [X0, #+0].
 fn gen_enum_constructor(name: i64, arg_count: i64) (r: i64)
 {
     let tag: i64 = 0
@@ -3042,6 +2987,17 @@ fn gen_return_stmt(a: i64) (r: i64)
     mut r = 0
 }
 
+// Generate code for a match expression.
+// 1. Evaluate scrutinee -> X0, push to stack.
+// 2. For each case:
+//    a. Load scrutinee ptr from stack, deref tag at [ptr, #+0].
+//    b. Compare tag with expected enum variant tag; B.NE to next case.
+//    c. If variant has arg and bind var: load arg from [ptr, #+8],
+//       store in local variable slot.
+//    d. Generate case body code.
+//    e. B to done label (patched after all cases).
+// 3. Patch all done-branches to point past the match.
+// 4. Pop and discard the scrutinee.
 fn gen_match(nd: i64) (r: i64)
 {
     let scrut: i64 = 0
@@ -3388,6 +3344,10 @@ fn ast_field(nd: i64, field: i64) (r: i64)
     mut r = __mem_load(field + nd * 8)
 }
 
+// Function epilogue: restore frame and return.
+// 1. ADD SP, SP, #2048  (deallocate the 2048-byte stack frame).
+// 2. LDP X29, X30, [SP], #16  (restore FP and LR, post-index).
+// 3. RET.
 fn gen_epilogue() (r: i64)
 {
     mut r = gen_add_imm(31, 31, 2048)
@@ -3396,27 +3356,16 @@ fn gen_epilogue() (r: i64)
     mut r = 0
 }
 
+// Function prologue: set up a 2048-byte stack frame.
+// 1. STP X29, X30, [SP, #-16]!  (save FP and LR, pre-index).
+// 2. MOV X29, SP  (set frame pointer).
+// 3. SUB SP, SP, #2048  (allocate 2048 bytes for locals/spills).
+// The 2048-byte frame accommodates up to 256 i64 locals.
 fn gen_prologue() (r: i64)
 {
     mut r = gen_stp_pre(29, 30, 31, 65534)
     mut r = gen_add_imm(29, 31, 0)
     mut r = gen_sub_imm(31, 31, 2048)
-    mut r = 0
-}
-
-fn is_main_name(name: i64) (r: i64)
-{
-    if __byte_load(name, 0) == 109 {
-        if __byte_load(name, 1) == 97 {
-            if __byte_load(name, 2) == 105 {
-                if __byte_load(name, 3) == 110 {
-                    if __byte_load(name, 4) == 0 {
-                        mut r = 1
-                    }
-                }
-            }
-        }
-    }
     mut r = 0
 }
 
@@ -3625,21 +3574,6 @@ fn write_ext_nlist(fp: i64) (r: i64)
         mut i = i + 1
     }
     mut r = 0
-}
-
-fn find_patch_name(h: i64) (r: i64)
-{
-    let j: i64 = 0
-    let pname: i64 = 0
-    mut r = 0
-    mut j = 0
-    while j < g_patch_count {
-        mut pname = __mem_load(g_patch_name + j * 8)
-        if str_hash(pname) == h {
-            mut r = pname
-        }
-        mut j = j + 1
-    }
 }
 
 fn write_ext_names(fp: i64) (r: i64)
@@ -4022,7 +3956,6 @@ fn write_elf(path: i64, code_size: i64) (r: i64)
 
 fn write_macho(path: i64, code_size: i64) (r: i64)
 {
-    let arg2_ptr: i64 = 0
     let fp: i64 = 0
     let text_off: i64 = 0
     let sym_off: i64 = 0
@@ -4058,21 +3991,6 @@ fn write_macho(path: i64, code_size: i64) (r: i64)
         puts("Mach-O written")
         mut r = 0
     }
-}
-fn find_main_name() (r: i64)
-{
-    let i: i64 = 0
-    let n: i64 = 0
-    let found: i64 = 0
-    mut i = 0
-    while i < g_fn_count {
-        mut n = __mem_load(g_fn_name + i * 8)
-        if my_str_eq(n, "main") == 1 {
-            mut found = n
-        }
-        mut i = i + 1
-    }
-    mut r = found
 }
 fn find_main() (r: i64)
 {
@@ -4195,37 +4113,6 @@ fn write_str(fp: i64, s: i64) (r: i64)
     free(buf)
 }
 
-fn print_int(val: i64) (r: i64)
-{
-    let buf: i64 = 0
-    mut buf = malloc(32)
-    let neg: i64 = 0
-    let v: i64 = 0
-    mut v = val
-    if v < 0 {
-        mut neg = 1
-        mut v = 0 - v
-    }
-    let pos: i64 = 30
-    __byte_store(buf, pos, 0)
-    mut pos = pos - 1
-    if v == 0 {
-        __byte_store(buf, pos, 48)
-    } else {
-        while v > 0 {
-            __byte_store(buf, pos, 48 + v % 10)
-            mut v = v / 10
-            mut pos = pos - 1
-        }
-    }
-    if neg == 1 {
-        __byte_store(buf, pos, 45)
-        mut pos = pos - 1
-    }
-    mut r = puts(buf + pos + 1)
-    free(buf)
-}
-
 fn init_parser1() (r: i64)
 {
     mut g_tok_type = malloc(262144)
@@ -4259,8 +4146,6 @@ fn init_parser() (r: i64)
     mut g_str_pos = 0
     mut g_tok_count = 0
     mut g_tok_idx = 0
-    mut g_indent = 0
-    mut g_first_fn = 0
     mut r = 0
 }
 
@@ -4339,7 +4224,6 @@ fn run_compiler(argv_ptr: i64) (r: i64)
 {
     let arg1_ptr: i64 = 0
     let status: i64 = 0
-    let arg1_ptr: i64 = 0
     let i: i64 = 0
     let arg_ptr: i64 = 0
     mut i = 1
