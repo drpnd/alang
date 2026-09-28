@@ -291,6 +291,115 @@ TOTAL=$((TOTAL + X86_TOTAL))
 
 echo ""
 echo "============================================"
+echo "  alang QEMU x86-64 Linux (Self-Hosting Compiler)"
+echo "============================================"
+echo ""
+
+SH_X86_KERNEL="$X86_KERNEL"
+SH_X86_QEMU=/opt/local/bin/qemu-system-x86_64
+
+SH_X86_PASS=0
+SH_X86_FAIL=0
+SH_X86_TOTAL=0
+
+run_sh_x86_test() {
+    local name="$1"
+    local src="$2"
+    local expected="$3"
+    SH_X86_TOTAL=$((SH_X86_TOTAL + 1))
+    local al_file="$QEMU_DIR/${name}.al"
+    local elf_file="$QEMU_DIR/${name}.elf"
+    local cpio_file="$QEMU_DIR/${name}.cpio"
+    local log_file="$QEMU_DIR/${name}.log"
+    echo "$src" > "$al_file"
+    if ! $COMPILER "$al_file" "$elf_file" --x86-64 --target=linux --exec 2>/dev/null; then
+        echo "FAIL: $name (compile)"; SH_X86_FAIL=$((SH_X86_FAIL + 1)); return 1
+    fi
+    mkdir -p "$QEMU_DIR/${name}_sh_x86_init"
+    cp "$elf_file" "$QEMU_DIR/${name}_sh_x86_init/init"
+    chmod +x "$QEMU_DIR/${name}_sh_x86_init/init"
+    (cd "$QEMU_DIR/${name}_sh_x86_init" && find . | cpio -o -H newc 2>/dev/null) > "$cpio_file"
+    $SH_X86_QEMU -M pc -cpu qemu64 -m 256M         -kernel "$SH_X86_KERNEL" -initrd "$cpio_file"         -append "console=ttyS0 panic=1" -nographic -no-reboot > "$log_file" 2>&1 &
+    local qpid=$!
+    sleep 8
+    kill $qpid 2>/dev/null; wait $qpid 2>/dev/null
+    local exit_hex
+    exit_hex=$(grep -o 'exitcode=0x[0-9a-f]*' "$log_file" | head -1 | sed 's/exitcode=0x//')
+    if [ -z "$exit_hex" ]; then
+        echo "FAIL: $name (no exit code)"; SH_X86_FAIL=$((SH_X86_FAIL + 1)); return 1
+    fi
+    local signal=$(( 0x$exit_hex & 0x7f ))
+    local exit_dec=$(( (0x$exit_hex >> 8) & 0xff ))
+    if [ $signal -ne 0 ]; then
+        echo "FAIL: $name (signal $signal)"; SH_X86_FAIL=$((SH_X86_FAIL + 1)); return 1
+    fi
+    if [ "$exit_dec" -eq "$expected" ]; then
+        echo "PASS: $name (exit=$exit_dec)"; SH_X86_PASS=$((SH_X86_PASS + 1))
+    else
+        echo "FAIL: $name (exit=$exit_dec, expected=$expected)"; SH_X86_FAIL=$((SH_X86_FAIL + 1))
+    fi
+}
+
+echo "--- Basic ---"
+run_sh_x86_test "sh_x86_ret0" 'fn main() (r: i32) { mut r = 0 }' 0
+run_sh_x86_test "sh_x86_ret1" 'fn main() (r: i32) { mut r = 1 }' 1
+run_sh_x86_test "sh_x86_ret42" 'fn main() (r: i32) { mut r = 42 }' 42
+run_sh_x86_test "sh_x86_ret255" 'fn main() (r: i32) { mut r = 255 }' 255
+
+echo ""
+echo "--- Arithmetic ---"
+run_sh_x86_test "sh_x86_add" 'fn main() (r: i32) { let a: i32 = 10 let b: i32 = 3 mut r = a + b }' 13
+run_sh_x86_test "sh_x86_sub" 'fn main() (r: i32) { let a: i32 = 10 let b: i32 = 3 mut r = a - b }' 7
+run_sh_x86_test "sh_x86_mul" 'fn main() (r: i32) { let a: i32 = 10 let b: i32 = 3 mut r = a * b }' 30
+run_sh_x86_test "sh_x86_div" 'fn main() (r: i32) { let a: i32 = 20 let b: i32 = 4 mut r = a / b }' 5
+run_sh_x86_test "sh_x86_mod" 'fn main() (r: i32) { let a: i32 = 20 let b: i32 = 3 mut r = a % b }' 2
+
+echo ""
+echo "--- Comparisons ---"
+run_sh_x86_test "sh_x86_lt" 'fn main() (r: i32) { if 3 < 5 { mut r = 1 } else { mut r = 0 } }' 1
+run_sh_x86_test "sh_x86_gt" 'fn main() (r: i32) { if 3 > 5 { mut r = 1 } else { mut r = 0 } }' 0
+run_sh_x86_test "sh_x86_le" 'fn main() (r: i32) { if 3 <= 3 { mut r = 1 } else { mut r = 0 } }' 1
+run_sh_x86_test "sh_x86_ge" 'fn main() (r: i32) { if 2 >= 3 { mut r = 1 } else { mut r = 0 } }' 0
+run_sh_x86_test "sh_x86_eq" 'fn main() (r: i32) { if 5 == 5 { mut r = 1 } else { mut r = 0 } }' 1
+run_sh_x86_test "sh_x86_ne" 'fn main() (r: i32) { if 5 != 3 { mut r = 1 } else { mut r = 0 } }' 1
+
+echo ""
+echo "--- Control Flow ---"
+run_sh_x86_test "sh_x86_while" 'fn main() (r: i32) { let i: i32 = 0 mut r = 0 while i < 10 { mut r = r + i mut i = i + 1 } }' 45
+run_sh_x86_test "sh_x86_break" 'fn main() (r: i32) { let i: i32 = 0 mut r = 0 while i < 100 { if i == 5 { break } mut r = r + i mut i = i + 1 } }' 10
+run_sh_x86_test "sh_x86_continue" 'fn main() (r: i32) { let i: i32 = 0 mut r = 0 while i < 10 { mut i = i + 1 if i == 3 { continue } mut r = r + i } }' 52
+
+echo ""
+echo "--- Function Calls & Recursion ---"
+run_sh_x86_test "sh_x86_call" 'fn add(a: i32, b: i32) (r: i32) { mut r = a + b } fn main() (r: i32) { mut r = add(3, 4) }' 7
+run_sh_x86_test "sh_x86_fib" 'fn fib(n: i32) (r: i32) { if n < 2 { mut r = n } else { mut r = fib(n - 1) + fib(n - 2) } } fn main() (r: i32) { mut r = fib(10) }' 55
+
+echo ""
+echo "--- Bitwise ---"
+run_sh_x86_test "sh_x86_and" 'fn main() (r: i32) { mut r = 12 & 10 }' 8
+run_sh_x86_test "sh_x86_or" 'fn main() (r: i32) { mut r = 12 | 10 }' 14
+run_sh_x86_test "sh_x86_xor" 'fn main() (r: i32) { mut r = 12 ^ 10 }' 6
+
+echo ""
+echo "--- Globals & Negatives ---"
+run_sh_x86_test "sh_x86_global" 'let g: i32 = 42 fn main() (r: i32) { mut r = g }' 42
+run_sh_x86_test "sh_x86_neg" 'fn main() (r: i32) { let a: i32 = 0 - 5 mut r = 0 - a }' 5
+
+echo ""
+echo "--- String Equality ---"
+run_sh_x86_test "sh_x86_streq_yes" 'fn main() (r: i32) { let s: i64 = __str_eq("hello", "hello") if s == 1 { mut r = 42 } else { mut r = 0 } }' 42
+run_sh_x86_test "sh_x86_streq_no" 'fn main() (r: i32) { let s: i64 = __str_eq("hello", "world") if s == 0 { mut r = 42 } else { mut r = 0 } }' 42
+
+echo ""
+echo "============================================"
+echo "  Self-Hosting x86-64 Results: $SH_X86_PASS/$SH_X86_TOTAL passed, $SH_X86_FAIL failed"
+echo "============================================"
+PASS=$((PASS + SH_X86_PASS))
+FAIL=$((FAIL + SH_X86_FAIL))
+TOTAL=$((TOTAL + SH_X86_TOTAL))
+
+echo ""
+echo "============================================"
 echo "  GRAND TOTAL: $PASS/$TOTAL passed, $FAIL failed"
 echo "============================================"
 exit $FAIL
