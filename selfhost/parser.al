@@ -1293,6 +1293,11 @@ let g_str_const_count: i64 = 0
 let g_adr_patch_pos: i64 = 0
 let g_adr_patch_idx: i64 = 0
 let g_adr_patch_count: i64 = 0
+let g_loop_start: i64 = 0
+let g_loop_end: i64 = 0
+let g_saved_loop_start: i64 = 0
+let g_saved_loop_end: i64 = 0
+let g_break_pos: i64 = 0
 
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
@@ -2414,8 +2419,16 @@ fn gen_cmp_ne() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(5, 0) mut r 
 
 fn gen_mod() (r: i64)
 {
-    mut r = gen_sdiv(2, 1, 0)
-    mut r = gen_msub(0, 2, 0, 1)
+    if g_target_isa == 1 {
+        mut r = x86_mov_reg(11, x86_reg(0))
+        mut r = x86_mov_reg(0, x86_reg(1))
+        mut r = x86_cdq()
+        mut r = x86_idiv_reg(11)
+        mut r = x86_mov_reg(x86_reg(0), 2)
+    } else {
+        mut r = gen_sdiv(2, 1, 0)
+        mut r = gen_msub(0, 2, 0, 1)
+    }
 }
 
 fn gen_arith_op(op: i64) (r: i64)
@@ -3907,11 +3920,20 @@ fn gen_stmt2(nd: i64, k: i64) (r: i64)
             if k == 20 {
                 mut r = gen_block(nd)
             } else {
-                if k == 4 {
-                    mut r = gen_call(ast_field(nd, g_ast_val), ast_field(nd, g_ast_a))
+                if k == 15 {
+                    mut g_break_pos = g_code_pos
+                    mut r = gen_b(0)
                 } else {
-                    if k > 0 {
-                        mut r = gen_expr(nd)
+                    if k == 16 {
+                        mut r = gen_b(g_loop_start - g_code_pos)
+                    } else {
+                        if k == 4 {
+                            mut r = gen_call(ast_field(nd, g_ast_val), ast_field(nd, g_ast_a))
+                        } else {
+                            if k > 0 {
+                                mut r = gen_expr(nd)
+                            }
+                        }
                     }
                 }
             }
@@ -4038,12 +4060,25 @@ fn gen_while(nd: i64) (r: i64)
 {
     let loop_start: i64 = 0
     let beq_pos: i64 = 0
+    let saved_break: i64 = 0
     mut loop_start = g_code_pos
+    mut g_saved_loop_start = g_loop_start
+    mut g_saved_loop_end = g_loop_end
+    mut saved_break = g_break_pos
+    mut g_loop_start = loop_start
+    mut g_break_pos = 0
     mut r = gen_while_cond(nd)
     mut beq_pos = g_code_pos
     mut r = gen_bcond(0, 0)
     mut r = gen_while_body(nd, loop_start)
+    mut g_loop_end = g_code_pos
+    if g_break_pos > 0 {
+        mut r = patch_b(g_break_pos, g_code_pos - g_break_pos)
+    }
     mut r = gen_else_patch(beq_pos)
+    mut g_loop_start = g_saved_loop_start
+    mut g_loop_end = g_saved_loop_end
+    mut g_break_pos = saved_break
     mut r = 0
 }
 
