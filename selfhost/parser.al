@@ -1547,8 +1547,9 @@ fn x86_load_reg(dst: i64, base: i64, disp: i64) (r: i64)
 {
     mut r = emit_rex(1, (dst >> 3) & 1, 0, (base >> 3) & 1)
     mut r = emit_byte(0x8B)
-    if base == 4 {
-        mut r = emit_modrm(2, dst & 7, base & 7)
+    if (base & 7) == 4 {
+        mut r = emit_modrm(2, dst & 7, 4)
+        mut r = emit_byte(0x24)
     } else {
         mut r = emit_modrm(2, dst & 7, base & 7)
     }
@@ -1563,7 +1564,12 @@ fn x86_store_reg(src: i64, base: i64, disp: i64) (r: i64)
 {
     mut r = emit_rex(1, (src >> 3) & 1, 0, (base >> 3) & 1)
     mut r = emit_byte(0x89)
-    mut r = emit_modrm(2, src & 7, base & 7)
+    if (base & 7) == 4 {
+        mut r = emit_modrm(2, src & 7, 4)
+        mut r = emit_byte(0x24)
+    } else {
+        mut r = emit_modrm(2, src & 7, base & 7)
+    }
     mut r = emit_byte(disp & 255)
     mut r = emit_byte((disp >> 8) & 255)
     mut r = emit_byte((disp >> 16) & 255)
@@ -1576,7 +1582,12 @@ fn x86_load8_reg(dst: i64, base: i64, disp: i64) (r: i64)
     mut r = emit_rex(1, (dst >> 3) & 1, 0, (base >> 3) & 1)
     mut r = emit_byte(0x0F)
     mut r = emit_byte(0xB6)
-    mut r = emit_modrm(2, dst & 7, base & 7)
+    if (base & 7) == 4 {
+        mut r = emit_modrm(2, dst & 7, 4)
+        mut r = emit_byte(0x24)
+    } else {
+        mut r = emit_modrm(2, dst & 7, base & 7)
+    }
     mut r = emit_byte(disp & 255)
     mut r = emit_byte((disp >> 8) & 255)
     mut r = emit_byte((disp >> 16) & 255)
@@ -1588,7 +1599,12 @@ fn x86_store8_reg(src: i64, base: i64, disp: i64) (r: i64)
 {
     mut r = emit_rex(0, (src >> 3) & 1, 0, (base >> 3) & 1)
     mut r = emit_byte(0x88)
-    mut r = emit_modrm(2, src & 7, base & 7)
+    if (base & 7) == 4 {
+        mut r = emit_modrm(2, src & 7, 4)
+        mut r = emit_byte(0x24)
+    } else {
+        mut r = emit_modrm(2, src & 7, base & 7)
+    }
     mut r = emit_byte(disp & 255)
     mut r = emit_byte((disp >> 8) & 255)
     mut r = emit_byte((disp >> 16) & 255)
@@ -2057,7 +2073,15 @@ fn gen_ldp_post(rt1: i64, rt2: i64, rn: i64, imm7: i64) (r: i64)
 fn gen_cmp(rn: i64, rm: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        mut r = x86_cmp_reg(x86_reg(rn), x86_reg(rm))
+        if rm == 31 {
+            mut r = x86_or_reg(x86_reg(rn), x86_reg(rn))
+        } else {
+            if rn == 31 {
+                mut r = x86_or_reg(x86_reg(rm), x86_reg(rm))
+            } else {
+                mut r = x86_cmp_reg(x86_reg(rn), x86_reg(rm))
+            }
+        }
     } else {
         mut r = emit32(0xEB00001F | ((rm & 31) << 16) | ((rn & 31) << 5))
     }
@@ -2321,8 +2345,16 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
     mut foff = fn_lookup(pname)
     if foff > 0 {
         mut rel = foff - ppos
-        mut off26 = (rel >> 2) & 67108863
-        mut r = emit32_at(ppos, 0x94000000 | off26)
+        if g_target_isa == 1 {
+            mut rel = rel - 5
+            mut r = __byte_store(g_code, ppos + 1, rel & 255)
+            mut r = __byte_store(g_code, ppos + 2, (rel >> 8) & 255)
+            mut r = __byte_store(g_code, ppos + 3, (rel >> 16) & 255)
+            mut r = __byte_store(g_code, ppos + 4, (rel >> 24) & 255)
+        } else {
+            mut off26 = (rel >> 2) & 67108863
+            mut r = emit32_at(ppos, 0x94000000 | off26)
+        }
     } else {
         mut r = ext_add(pname, ppos)
     }
@@ -3437,7 +3469,6 @@ fn gen_caller_restore() (r: i64)
         mut r = x86_load_reg(7, 4, 56)
         mut r = x86_load_reg(8, 4, 64)
         mut r = x86_load_reg(9, 4, 72)
-        mut r = x86_add_imm(4, 160)
     } else {
         mut r = emit32(2839611360)
         mut r = emit32(2839678946)
@@ -5085,8 +5116,8 @@ fn do_parse(arg1_ptr: i64) (r: i64)
         puts("fopen failed")
         mut r = 1
     } else {
-        mut g_src = malloc(131072)
-        mut g_size = fread(g_src, 1, 131071, fp)
+        mut g_src = malloc(524288)
+        mut g_size = fread(g_src, 1, 524287, fp)
         fclose(fp)
         mut r = init_parser()
         mut r = lex()
