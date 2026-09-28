@@ -9,6 +9,7 @@
 
 let g_target_os: i64 = 0
 let g_output_elf: i64 = 0
+let g_exec_elf: i64 = 0
 
 // Syscall numbers (macOS/BSD)
 let SC_READ: i64 = 3
@@ -21,6 +22,7 @@ let SC_EXIT: i64 = 1
 // Target syscall numbers (for codegen only, not compiler runtime)
 let TSC_WRITE: i64 = 4
 let TSC_MMAP: i64 = 197
+let T_MAP_FLAGS: i64 = 4098
 
 // O_RDONLY = 0, O_WRONLY = 1, O_RDWR = 2, O_CREAT = 0x200
 
@@ -2579,7 +2581,7 @@ fn gen_malloc_builtin(arg_count: i64) (r: i64)
     mut r = gen_mov(1, 0)
     mut r = gen_movz(0, 0)
     mut r = gen_movz(2, 3)
-    mut r = gen_movz(3, 4098)
+    mut r = gen_movz(3, T_MAP_FLAGS)
     mut r = emit32(0x92800004)
     mut r = gen_movz(5, 0)
     if g_target_os == 0 {
@@ -2808,7 +2810,7 @@ fn gen_enum_alloc() (r: i64)
     mut r = gen_mov(1, 0)
     mut r = gen_movz(0, 0)
     mut r = gen_movz(2, 3)
-    mut r = gen_movz(3, 4098)
+    mut r = gen_movz(3, T_MAP_FLAGS)
     mut r = emit32(0x92800004)
     mut r = gen_movz(5, 0)
     if g_target_os == 0 {
@@ -3381,7 +3383,7 @@ fn gen_main_init() (r: i64)
     mut r = gen_movz(1, 4096)       // X1 = 4096 (not enough, need larger)
     mut r = gen_movk(1, 1, 16)      // X1 = 4096 + 65536 = 69632 (larger mmap)
     mut r = gen_movz(2, 3)          // X2 = 3 (PROT_READ|PROT_WRITE)
-    mut r = gen_movz(3, 4098)       // X3 = 4098 (MAP_PRIVATE|MAP_ANON)
+    mut r = gen_movz(3, T_MAP_FLAGS)       // X3 = 4098 (MAP_PRIVATE|MAP_ANON)
     mut r = emit32(0x92800004)      // MOV X4, #-1 (fd = -1) = MOVN X4, #0
     mut r = gen_movz(5, 0)          // X5 = 0 (offset)
     if g_target_os == 0 {
@@ -3754,6 +3756,67 @@ fn write_str_raw(fp: i64, s: i64) (r: i64)
     }
     mut r = fwrite(buf, 1, len, fp)
     free(buf)
+}
+
+fn write_elf_exec(path: i64, code_size: i64) (r: i64)
+{
+    // Write a static ELF executable (ET_EXEC) with PT_LOAD program header.
+    // Used for QEMU testing: qemu-system-aarch64 -kernel Image -initrd this.elf
+    // Or: qemu-system-aarch64 -kernel this.elf (if self-booting)
+    let str_data_size: i64 = 0
+    let fp: i64 = 0
+    let load_addr: i64 = 0
+    let entry: i64 = 0
+    let code_off: i64 = 0
+    let total_size: i64 = 0
+    mut fp = fopen(path, "w")
+    if fp == 0 {
+        puts("Cannot open output file")
+        mut r = 1
+    } else {
+        mut str_data_size = count_str_data()
+        mut load_addr = 4194304
+        mut code_off = 120
+        mut entry = load_addr + code_off
+        mut total_size = code_size + str_data_size
+        mut r = patch_str_adrs(code_size)
+        // ELF header (64 bytes)
+        mut r = write32(fp, 0x464C457F)
+        mut r = write_byte(fp, 2)
+        mut r = write_byte(fp, 1)
+        mut r = write_byte(fp, 1)
+        mut r = write_byte(fp, 0)
+        mut r = write32(fp, 0)
+        mut r = write32(fp, 0)
+        mut r = write16(fp, 2)
+        mut r = write16(fp, 183)
+        mut r = write32(fp, 1)
+        mut r = write64(fp, entry)
+        mut r = write64(fp, 64)
+        mut r = write64(fp, 0)
+        mut r = write32(fp, 0)
+        mut r = write16(fp, 64)
+        mut r = write16(fp, 56)
+        mut r = write16(fp, 1)
+        mut r = write16(fp, 0)
+        mut r = write16(fp, 0)
+        mut r = write16(fp, 0)
+        // Program header (56 bytes) - PT_LOAD
+        mut r = write32(fp, 1)
+        mut r = write32(fp, 5)
+        mut r = write64(fp, code_off)
+        mut r = write64(fp, load_addr + code_off)
+        mut r = write64(fp, load_addr + code_off)
+        mut r = write64(fp, total_size)
+        mut r = write64(fp, total_size + 65536)
+        mut r = write64(fp, 4096)
+        // Write code + string data
+        mut r = write_code_bytes(fp, code_size)
+        mut r = write_str_data(fp)
+        mut r = fclose(fp)
+        puts("ELF exec written")
+        mut r = 0
+    }
 }
 
 fn write_elf(path: i64, code_size: i64) (r: i64)
@@ -4216,10 +4279,14 @@ fn do_codegen(argv_ptr: i64) (r: i64)
     puts("GEN DONE")
     mut r = patch_calls()
     mut arg2_ptr = __mem_load(argv_ptr + 16)
+    if g_exec_elf == 1 {
+        mut r = write_elf_exec(arg2_ptr, g_code_pos)
+    } else {
     if g_output_elf == 1 {
         mut r = write_elf(arg2_ptr, g_code_pos)
     } else {
         mut r = write_macho(arg2_ptr, g_code_pos)
+    }
     }
     mut r = 0
 }
@@ -4241,7 +4308,10 @@ fn run_compiler(argv_ptr: i64) (r: i64)
                     if __byte_load(arg_ptr, 9) == 108 { mut g_target_os = 1 }
                     if __byte_load(arg_ptr, 9) == 102 { mut g_target_os = 2 }
                 }
-                if __byte_load(arg_ptr, 2) == 101 { mut g_output_elf = 1 }
+                if __byte_load(arg_ptr, 2) == 101 {
+                    if __byte_load(arg_ptr, 5) == 99 { mut g_exec_elf = 1 }
+                    mut g_output_elf = 1
+                }
             } else {
                 if arg1_ptr == 0 { mut arg1_ptr = arg_ptr }
             }
@@ -4251,10 +4321,12 @@ fn run_compiler(argv_ptr: i64) (r: i64)
     if g_target_os == 1 {
         mut TSC_WRITE = 64
         mut TSC_MMAP = 222
+        mut T_MAP_FLAGS = 34
     }
     if g_target_os == 2 {
         mut TSC_WRITE = 4
         mut TSC_MMAP = 477
+        mut T_MAP_FLAGS = 4110
     }
     mut status = do_parse(arg1_ptr)
     if status == 0 {
