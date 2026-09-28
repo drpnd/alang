@@ -4734,7 +4734,11 @@ fn write_elf_exec(path: i64, code_size: i64) (r: i64)
     } else {
         mut str_data_size = count_str_data()
         mut load_addr = 4194304
-        mut code_off = 120
+        if g_target_isa == 1 {
+            mut code_off = 152
+        } else {
+            mut code_off = 120
+        }
         mut entry = load_addr + code_off
         mut total_size = code_size + str_data_size
         mut r = patch_str_adrs(code_size)
@@ -4757,21 +4761,54 @@ fn write_elf_exec(path: i64, code_size: i64) (r: i64)
         mut r = write64(fp, 0)
         mut r = write32(fp, 0)
         mut r = write16(fp, 64)
-        mut r = write16(fp, 56)
-        mut r = write16(fp, 1)
+        if g_target_isa == 1 {
+            mut r = write16(fp, 56)
+            mut r = write16(fp, 2)
+        } else {
+            mut r = write16(fp, 56)
+            mut r = write16(fp, 1)
+        }
         mut r = write16(fp, 0)
         mut r = write16(fp, 0)
-        mut r = write16(fp, 0)
-        // PT_LOAD program header
-        mut r = write32(fp, 1)
-        mut r = write32(fp, 5)
-        mut r = write64(fp, code_off)
-        mut r = write64(fp, load_addr + code_off)
-        mut r = write64(fp, load_addr + code_off)
-        mut r = write64(fp, total_size)
-        mut r = write64(fp, total_size + 65536)
-        mut r = write64(fp, 4096)
-        // Write code + string data
+        if g_target_isa == 1 {
+            // PT_NOTE program header (for multiboot2/PVH)
+            mut r = write32(fp, 4)
+            mut r = write32(fp, 0)
+            mut r = write64(fp, 120)
+            mut r = write64(fp, load_addr + 120)
+            mut r = write64(fp, load_addr + 120)
+            mut r = write64(fp, 32)
+            mut r = write64(fp, 32)
+            mut r = write64(fp, 8)
+            // PT_LOAD program header
+            mut r = write32(fp, 1)
+            mut r = write32(fp, 5)
+            mut r = write64(fp, code_off)
+            mut r = write64(fp, load_addr + code_off)
+            mut r = write64(fp, load_addr + code_off)
+            mut r = write64(fp, total_size)
+            mut r = write64(fp, total_size + 65536)
+            mut r = write64(fp, 4096)
+            // Multiboot2 header (at offset 120, 32 bytes)
+            mut r = write32(fp, 0xE85250D6)
+            mut r = write32(fp, 0)
+            mut r = write32(fp, 24)
+            mut r = write32(fp, 0 - 0xE85250D6 - 24)
+            mut r = write32(fp, 0)
+            mut r = write32(fp, 8)
+            mut r = write32(fp, 0)
+            mut r = write32(fp, 0)
+        } else {
+            // PT_LOAD program header (aarch64)
+            mut r = write32(fp, 1)
+            mut r = write32(fp, 5)
+            mut r = write64(fp, code_off)
+            mut r = write64(fp, load_addr + code_off)
+            mut r = write64(fp, load_addr + code_off)
+            mut r = write64(fp, total_size)
+            mut r = write64(fp, total_size + 65536)
+            mut r = write64(fp, 4096)
+        }
         mut r = write_code_bytes(fp, code_size)
         mut r = write_str_data(fp)
         mut r = fclose(fp)

@@ -852,6 +852,27 @@ elf_exec_export(FILE *fp, arch_code_t *code)
     if (nw != 1) return -1;
 
     /* Write code */
+    /* Resolve internal relocations (for --exec mode) */
+    for (int i = 0; i < code->rel.n; i++) {
+        arch_rel_t *r = &code->rel.rels[i];
+        if (r->sym < 0 || r->sym >= code->sym.n) continue;
+        arch_sym_t *s = &code->sym.syms[r->sym];
+        if (s->pos == 0 && s->type != ARCH_SYM_FUNC) continue;
+        if (r->type == ARCH_REL_BRANCH) {
+            if (code->cpu == ARCH_CPU_AARCH64) {
+                int32_t off = (int32_t)((s->pos - r->pos) >> 2) & 0x03FFFFFF;
+                uint32_t instr = 0x94000000 | (uint32_t)off;
+                memcpy(code->text.s + r->pos, &instr, 4);
+            } else {
+                int32_t disp = (int32_t)(s->pos - (r->pos + 4));
+                memcpy(code->text.s + r->pos, &disp, 4);
+            }
+        } else if (r->type == ARCH_REL_PC32) {
+            int32_t disp = (int32_t)(s->pos - (r->pos + 4));
+            memcpy(code->text.s + r->pos, &disp, 4);
+        }
+    }
+
     nw = fwrite(code->text.s, 1, code->text.size, fp);
     if (nw != (ssize_t)total_size) return -1;
 
