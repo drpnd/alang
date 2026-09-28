@@ -22,10 +22,49 @@
  */
 
 /*
- * compiler.c — AST to DFIR compiler
+ * compiler.c — DFIR (Data Flow IR) compiler for the alang language
  *
- * Lowers the syntax tree (syntax.h) into Data Flow IR (ir.h).
- * The output is an ir_object_t containing functions, coroutines, and graphs.
+ * This file is the core of the bootstrap compiler.  It converts an Abstract
+ * Syntax Tree (AST, defined in syntax.h) into Data Flow IR (DFIR, defined in
+ * ir.h).  The DFIR is then lowered to architecture-specific machine code by
+ * the backend.  The overall pipeline is:
+ *
+ *     AST  →  DFIR  →  optimized DFIR  →  machine code
+ *
+ * This compiler serves as the bootstrap for the self-hosting compiler written
+ * in alang itself (see selfhost/parser.al).  Once the self-hosting compiler
+ * reaches feature parity, it will replace this C implementation.
+ *
+ * Key data structures:
+ *   ir_object_t   — top-level container holding all functions, coroutines,
+ *                   globals, and graphs produced from a single compilation unit.
+ *   ir_func_t     — a function or coroutine in DFIR; contains a list of basic
+ *                   blocks (ir_block_t).
+ *   ir_block_t    — a basic block: a labelled sequence of SSA instructions
+ *                   (ir_instr_t) with a single entry and single exit.
+ *   ir_instr_t    — a single SSA-form instruction with an opcode, optional
+ *                   result register, and operands.
+ *
+ * Internal builder types (private to this file):
+ *   dfir_compiler_t — compiler state: IR object, current function builder,
+ *                     scope chain, struct/enum type tables, loop context stack.
+ *   fnb_t           — function builder: accumulates basic blocks and tracks
+ *                     SSA counter, coroutine state machine, and dispatch labels.
+ *   bb_t            — block builder: accumulates instructions for one block.
+ *   scope_t / cvar_t — lexical scope chain with variable → SSA-id bindings.
+ *
+ * The compiler uses a register-based SSA model: each variable instance is
+ * assigned a unique numeric SSA id.  Registers are named "%<ssa_id>".
+ * Struct values occupy consecutive SSA registers (one per field).
+ *
+ * Entry point: compile_to_dfir().
+ */
+
+/*
+ * Note on optimization: this file performs only AST→DFIR lowering.
+ * DFIR optimization passes (copy propagation, dead-code elimination, etc.)
+ * are implemented in a separate file and operate on the ir_object_t
+ * returned by compile_to_dfir().
  */
 
 #include "syntax.h"
@@ -600,6 +639,21 @@ _emit(dfir_compiler_t *c, ir_opcode_t opc, ir_reg_t *result, int nops,
  * Literal compilation
  *======================================================================*/
 
+/*
+ * _compile_literal — compile a literal value to a DFIR CONST instruction.
+ *
+ * Parameters:
+ *   c   — compiler state (must have an active function builder).
+ *   lit — AST literal node (integer, float, string, bool, char).
+ *
+ * Returns:
+ *   The SSA register holding the constant value.  Integers that fit in
+ *   int32 are typed IR_REG_I32; larger integers use IR_REG_I64.  Floats
+ *   use IR_REG_F64, strings use IR_REG_STR, bools use IR_REG_BOOL, and
+ *   chars use IR_REG_I32.
+ *
+ * Emits one IR_OPCODE_CONST instruction per literal.
+ */
 static ir_reg_t
 _compile_literal(dfir_compiler_t *c, literal_t *lit)
 {
@@ -670,6 +724,80 @@ _compile_literal(dfir_compiler_t *c, literal_t *lit)
  * Expression compilation
  *======================================================================*/
 
+/*
+ * _expr — compile an AST expression to DFIR, returning an SSA register.
+ *
+ * This is the central expression-rewriting function.  It handles every
+ * expression form in the language:
+ *
+ *   • EXPR_LITERAL   — delegates to _compile_literal().
+ *   • EXPR_ID        — variable lookup (scope chain → globals → enum unit
+ *                      variant).  Enum variants emit MAKE_ENUM.
+ *   • EXPR_DECL / EXPR_LET — let-binding: allocates an SSA register, binds
+ *                      it in the current scope, and emits MOV if an
+ *                      initializer is present.
+ *   • EXPR_OP        — assignment, prefix (neg, not, deref, borrow), and
+ *                      infix binary operations (arith, logic, comparison,
+ *                      shifts).  Assignment targets can be variables, struct
+ *                      fields (SET_FIELD), or array elements (SET_ELEM).
+ *   • EXPR_CALL      — function calls.  Before emitting a regular CALL,
+ *                      this section checks for builtin intrinsics and enum
+ *                      tuple-variant construction:
+ *
+ *       Builtins handled inline:
+ *         __alloca(size)         → ALLOCA
+ *         __malloc(size)         → CALL malloc
+ *         __free(ptr)            → CALL free
+ *         __mem_load(ptr)        → LOAD (8 bytes)
+ *         __mem_store(ptr, val)  → STORE (8 bytes)
+ *         __byte_load(ptr, idx)  → LOAD8
+ *         __byte_store(p,i,v)    → STORE8
+ *         __str_get(s, i)        → LOAD8
+ *         __str_eq(s1, s2)       → STR_EQ
+ *         __str_len(s)           → CALL strlen
+ *         __str_copy(dst, src)   → CALL strcpy
+ *         __fopen / __fclose / __fread / __fwrite → CALL libc equivalents
+ *         __syscall(n, a0..a5)   → SYSCALL (direct OS trap)
+ *         println(val)           → CALL println (used by graph sink code)
+ *
+ *       Enum tuple variants (e.g. Some(x)) emit MAKE_ENUM with the variant
+ *       index, associated data registers, and the enum type name.
+ *
+ *   • EXPR_IF        — if-as-expression: emits BR_COND + then/else/end
+ *                      blocks.  Returns IR_REG_NONE (results flow through
+ *                      side effects, not the return value).
+ *   • EXPR_MATCH     — pattern-match expression: compiles each arm as a
+ *                      compare-and-branch.  For enum variants, emits
+ *                      CHECK_VARIANT; for tuple variants, EXTRACT_VARIANT
+ *                      extracts associated data and binds it to a variable.
+ *                      Default arms use unconditional BR.  All arms jump to
+ *                      a shared end block.
+ *   • EXPR_YIELD     — coroutine yield: in coroutines, emits YIELD +
+ *                      RET(0) (Poll::Pending) and creates a resume block
+ *                      for the next poll.  In regular functions, emits
+ *                      YIELD as a simple port send.
+ *   • EXPR_CAST      — type cast: emits CAST.
+ *   • EXPR_BLOCK     — block expression: creates a child scope.
+ *   • EXPR_MEMBER    — struct field access: emits GET_FIELD with the
+ *                      resolved field index.
+ *   • EXPR_REF       — array element access: emits GET_ELEM.
+ *
+ * Parameters:
+ *   c — compiler state.
+ *   e — AST expression node.
+ *
+ * Returns:
+ *   The SSA register holding the expression's result value, or
+ *   IR_REG_NONE for expressions with no meaningful value (if, match,
+ *   block).
+ *
+ * Non-obvious behavior:
+ *   - Assignment to an existing variable uses MOV with the variable's
+ *     current SSA id (register-based model), NOT a new SSA id.  Copy
+ *     propagation in the optimizer handles MOV redefinitions.
+ *   - Struct arguments to function calls are expanded into individual
+ *     field registers rather than passed as a single value.
+ */
 static ir_reg_t
 _expr(dfir_compiler_t *c, expr_t *e)
 {
@@ -1594,6 +1722,42 @@ _expr(dfir_compiler_t *c, expr_t *e)
  * Statement compilation
  *======================================================================*/
 
+/*
+ * _stmt — compile an AST statement to DFIR instructions.
+ *
+ * Handles all statement forms:
+ *
+ *   • STMT_LET       — variable declaration.  For struct types, allocates
+ *                      one SSA register per field and initializes each to
+ *                      CONST 0 (avoiding MOV, which copy propagation would
+ *                      fold).  For non-struct types with an initializer,
+ *                      binds the variable directly to the init value's SSA
+ *                      id (again avoiding MOV — important for enum values
+ *                      whose data occupies consecutive registers).
+ *   • STMT_REASSIGN  — reassignment to a variable (MOV), struct field
+ *                      (SET_FIELD), or other target.
+ *   • STMT_EXPR      — expression statement (evaluate and discard).
+ *   • STMT_RETURN    — emit RET with optional return value.
+ *   • STMT_WHILE     — while loop: creates cond/body/end blocks with
+ *                      BR_COND.  Pushes loop context for break/continue.
+ *   • STMT_FOR       — range-based for loop (for x in start..end):
+ *                      creates a counter, cond/body/inc/end blocks,
+ *                      binds the loop variable to the counter SSA id,
+ *                      and emits increment + counter update via MOV.
+ *   • STMT_LOOP      — infinite loop with break/continue support.
+ *   • STMT_BREAK     — unconditional branch to the current loop's break
+ *                      label (from the loop context stack).
+ *   • STMT_CONTINUE  — unconditional branch to the current loop's
+ *                      continue label.
+ *   • STMT_BLOCK     — scoped block: creates a child scope, compiles
+ *                      inner statements, then restores parent scope.
+ *
+ * Parameters:
+ *   c    — compiler state.
+ *   stmt — AST statement node.
+ *
+ * Returns: void (results are emitted as instructions, not returned).
+ */
 static void
 _stmt(dfir_compiler_t *c, stmt_t *stmt)
 {
@@ -1978,6 +2142,34 @@ _inner_block(dfir_compiler_t *c, inner_block_t *block)
  * Function / Coroutine compilation
  *======================================================================*/
 
+/*
+ * _func — compile a function definition (AST func_t) to a DFIR ir_func_t.
+ *
+ * Steps:
+ *   1. If the function has no body (external declaration), return early.
+ *      External functions are resolved at link time by the backend.
+ *   2. Create a function builder (fnb_t) with an "$entry" block.
+ *   3. Create a scope and bind each argument and named return value to a
+ *      fresh SSA register.  Struct-typed arguments store their type name
+ *      for later field-index resolution.
+ *   4. Compile the function body via _inner_block().
+ *   5. Ensure the last block ends with a terminator.  If the function has
+ *      named return values, emit RET with the first return variable's
+ *      register; otherwise emit a bare RET.
+ *   6. Transfer all blocks and instructions from the builder to a new
+ *      ir_func_t and add it to the IR object.
+ *
+ * Parameters:
+ *   c  — compiler state.
+ *   fn — AST function definition (name, args, return types, body).
+ *
+ * Returns: void (the compiled function is added to c->ir).
+ *
+ * Non-obvious behavior:
+ *   - Block instruction entries are transferred by pointer (ownership
+ *     moves from bb_t to ir_block_t).  The builder's head/tail are nulled
+ *     so _fnb_free does not double-free them.
+ */
 static void
 _func(dfir_compiler_t *c, func_t *fn)
 {
@@ -2115,6 +2307,40 @@ _func(dfir_compiler_t *c, func_t *fn)
     c->fn = NULL;
 }
 
+/*
+ * _coroutine — compile a coroutine definition to a DFIR ir_func_t.
+ *
+ * Coroutines implement cooperative multitasking via a state machine.
+ * Each `yield` expression in the coroutine body creates a suspension
+ * point (state).  The compiled coroutine function uses a dispatch block
+ * at the entry point that compares the state variable against each known
+ * state index and branches to the corresponding resume block.
+ *
+ * Steps:
+ *   1. Create a function builder marked is_coro=1.
+ *   2. Allocate SSA register %0 for the state variable (__state), which
+ *      is passed in by the runtime poll function.
+ *   3. Bind regular arguments and return values starting from %1.
+ *   4. Create the "S_dispatch" entry block and the "S0_start" initial
+ *      state block.
+ *   5. Compile the body.  Each EXPR_YIELD in a coroutine emits:
+ *        - YIELD (send value to output port)
+ *        - RET 0  (return Poll::Pending)
+ *        - A new "S{n}_resume_{m}" block for the next poll's entry point
+ *   6. Ensure the final block ends with RET 1 (Poll::Ready).
+ *   7. Build the dispatch chain in S_dispatch: for each state i ≥ 1,
+ *      emit CMP_EQ(state, i) + BR_COND to that state's resume label.
+ *      The fallthrough default goes to S0_start.
+ *   8. Transfer blocks to ir_func_t (same ownership-transfer pattern as
+ *      _func).
+ *
+ * Parameters:
+ *   c  — compiler state.
+ *   cr — AST coroutine definition (name, args, return types, body).
+ *
+ * Returns: void (the compiled coroutine is added to c->ir as type
+ * IR_FUNC_COROUTINE).
+ */
 static void
 _coroutine(dfir_compiler_t *c, coroutine_t *cr)
 {
@@ -2310,6 +2536,40 @@ _global(dfir_compiler_t *c, decl_t *glb)
     ir_object_add_global(c->ir, glb->id, rtype, init_val);
 }
 
+/*
+ * _directive — compile a top-level directive (struct or enum definition).
+ *
+ * Directives register type metadata in the compiler's type tables so that
+ * subsequent code can resolve struct fields and enum variants.
+ *
+ *   • DIRECTIVE_STRUCT — registers a struct_desc_t with field names, byte
+ *     offsets, and IR types.  Field offsets are computed by accumulating
+ *     _ir_type_size() for each field.  This metadata is used by
+ *     _find_field() / _find_struct() when compiling member access
+ *     (GET_FIELD / SET_FIELD).
+ *
+ *   • DIRECTIVE_ENUM — registers an enum_desc_t with variant names and
+ *     indices (discriminants).  The AST variant list is in reverse order
+ *     (prepended during parsing), so indices are assigned from
+ *     (total-1) down to 0 to match source order.  Tuple variants store
+ *     their associated data types.  This metadata is used by
+ *     _find_variant() / _find_variant_desc() when compiling enum
+ *     construction (MAKE_ENUM) and pattern matching (CHECK_VARIANT,
+ *     EXTRACT_VARIANT).
+ *
+ *   • DIRECTIVE_TYPE_ALIAS — not yet implemented (placeholder).
+ *
+ * Parameters:
+ *   c  — compiler state.
+ *   dr — AST directive node.
+ *
+ * Returns: void (type metadata is stored in c->structs / c->enums).
+ *
+ * Non-obvious behavior:
+ *   - Enum variant indices are reversed from the linked-list order
+ *     because the parser prepends elements.  The first variant in source
+ *     order gets index 0.
+ */
 static void
 _directive(dfir_compiler_t *c, directive_t *dr)
 {
@@ -2665,10 +2925,29 @@ _graph(dfir_compiler_t *c, graph_decl_t *gd)
  */
 
 /*
- * compile_to_dfir — compile a syntax tree to DFIR
+ * compile_to_dfir — compile a syntax tree (AST) to Data Flow IR (DFIR).
  *
- * This is the main entry point. It walks the AST and produces an ir_object_t
- * containing all functions, coroutines, and directives as DFIR.
+ * This is the main compilation entry point.  It initializes the compiler
+ * state (dfir_compiler_t), creates a root scope, and walks the top-level
+ * outer block of the AST.  Each top-level declaration is dispatched to
+ * the appropriate handler:
+ *
+ *   OUTER_BLOCK_FUNC      → _func()       (function definition)
+ *   OUTER_BLOCK_COROUTINE → _coroutine()  (coroutine definition)
+ *   OUTER_BLOCK_DIRECTIVE → _directive()  (struct/enum registration)
+ *   OUTER_BLOCK_GLOBAL    → _global()     (global variable)
+ *   OUTER_BLOCK_GRAPH     → _graph()      (data-flow graph declaration)
+ *
+ * Parameters:
+ *   st — the root syntax tree node (st_t) produced by the parser.
+ *
+ * Returns:
+ *   A newly allocated ir_object_t containing all compiled functions,
+ *   coroutines, globals, and graphs.  Returns NULL on allocation failure
+ *   or if any compilation error was encountered (c.error flag set).
+ *
+ * The returned ir_object_t is subsequently passed to the DFIR optimizer
+ * and then to the architecture-specific code generator (backend).
  */
 ir_object_t *
 compile_to_dfir(st_t *st)

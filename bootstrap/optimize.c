@@ -349,35 +349,6 @@ cpmap_add(copy_map_t *m, const char *dst_id, const char *src_id,
 }
 
 /* Simplified: just use a find-replace approach within the block */
-
-/* Check if a register is defined by a MOV in any block other than the given one.
- * If so, the register is a cross-block variable and copy propagation should
- * not replace its uses (the MOV in another block may override it). */
-static int
-is_redefined_in_other_blocks(ir_func_t *func, ir_block_t *blk, const char *reg_id)
-{
-    /* Count how many OTHER blocks define this register via MOV.
-     * Only skip copy prop if 2+ other blocks define it (true cross-block
-     * variable reassignment). A single other block is likely just the
-     * if/else merge pattern, which is handled correctly by the backend. */
-    int count = 0;
-    for (size_t bi = 0; bi < func->nblocks; bi++) {
-        if (&func->blocks[bi] == blk) continue;
-        ir_instr_ent_t *ent = func->blocks[bi].instrs;
-        while (ent) {
-            if (ent->inst.opcode == IR_OPCODE_MOV &&
-                ent->inst.noperands >= 2 &&
-                ent->inst.operands[1].type == IR_OPERAND_REG &&
-                ent->inst.operands[1].u.reg.id &&
-                strcmp(ent->inst.operands[1].u.reg.id, reg_id) == 0) {
-                count++;
-                break;  /* One per block is enough */
-            }
-            ent = ent->next;
-        }
-    }
-    return count >= 2;
-}
 static int
 pass_copy_prop_block(ir_func_t *func, ir_block_t *blk)
 {

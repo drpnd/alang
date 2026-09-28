@@ -506,6 +506,8 @@ _outer_block_entry(outer_block_entry_t *e)
     case OUTER_BLOCK_GRAPH:
         _directive(e->u.dr);
         break;
+    case OUTER_BLOCK_GLOBAL:
+        break;
     }
 }
 

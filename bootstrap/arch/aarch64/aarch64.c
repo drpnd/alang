@@ -309,7 +309,6 @@ static int emit_orr_reg(textbuf_t *tb, int rd, int rn, int rm, int sf);
 static int operand_reg_or_imm_scratch(asm_ctx_t *ctx, ir_operand_t *op, int scratch);
 static int operand_reg_or_imm(asm_ctx_t *ctx, ir_operand_t *op);
 static void str_patch_add(asm_ctx_t *ctx, size_t adr_off, int str_idx);
-static void global_patch_add(asm_ctx_t *ctx, size_t adr_off, int sym_idx);
 static int emit_bl(textbuf_t *tb, int32_t offset);
 
 
@@ -791,21 +790,6 @@ str_patch_add(asm_ctx_t *ctx, size_t adr_off, int str_idx)
     ctx->str_patches.adr_off[ctx->str_patches.count] = adr_off;
     ctx->str_patches.str_idx[ctx->str_patches.count] = str_idx;
     ctx->str_patches.count++;
-}
-
-static void
-global_patch_add(asm_ctx_t *ctx, size_t adr_off, int sym_idx)
-{
-    if (ctx->global_patches.count >= ctx->global_patches.cap) {
-        ctx->global_patches.cap = ctx->global_patches.cap ? ctx->global_patches.cap * 2 : 16;
-        ctx->global_patches.adr_off = realloc(ctx->global_patches.adr_off,
-            ctx->global_patches.cap * sizeof(size_t));
-        ctx->global_patches.sym_idx = realloc(ctx->global_patches.sym_idx,
-            ctx->global_patches.cap * sizeof(int));
-    }
-    ctx->global_patches.adr_off[ctx->global_patches.count] = adr_off;
-    ctx->global_patches.sym_idx[ctx->global_patches.count] = sym_idx;
-    ctx->global_patches.count++;
 }
 
 /*======================================================================
