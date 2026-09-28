@@ -1677,6 +1677,14 @@ fn x86_syscall() (r: i64)
     mut r = emit_byte(0x05)
 }
 
+// DIV r64 (unsigned division: RDX:RAX / r64, quotient in RAX, remainder in RDX)
+fn x86_div_reg(src: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (src >> 3) & 1)
+    mut r = emit_byte(0xF7)
+    mut r = emit_modrm(3, 6, src & 7)
+}
+
 // NOP
 fn x86_nop() (r: i64)
 {
@@ -1735,14 +1743,22 @@ fn gen_movz(rd: i64, imm16: i64) (r: i64)
 fn gen_add(rd: i64, rn: i64, rm: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        if rd == rn {
-            mut r = x86_add_reg(x86_reg(rd), x86_reg(rm))
+        if rn == 31 {
+            mut r = x86_mov_reg(x86_reg(rd), x86_reg(rm))
         } else {
-            if rd == rm {
-                mut r = x86_add_reg(x86_reg(rd), x86_reg(rn))
-            } else {
+            if rm == 31 {
                 mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
-                mut r = x86_add_reg(x86_reg(rd), x86_reg(rm))
+            } else {
+                if rd == rn {
+                    mut r = x86_add_reg(x86_reg(rd), x86_reg(rm))
+                } else {
+                    if rd == rm {
+                        mut r = x86_add_reg(x86_reg(rd), x86_reg(rn))
+                    } else {
+                        mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                        mut r = x86_add_reg(x86_reg(rd), x86_reg(rm))
+                    }
+                }
             }
         }
     } else {
@@ -1754,16 +1770,25 @@ fn gen_add(rd: i64, rn: i64, rm: i64) (r: i64)
 fn gen_sub(rd: i64, rn: i64, rm: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        if rd == rn {
-            mut r = x86_sub_reg(x86_reg(rd), x86_reg(rm))
-        } else {
+        if rn == 31 {
             if rd == rm {
-                mut r = x86_mov_reg(11, x86_reg(rm))
-                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
-                mut r = x86_sub_reg(x86_reg(rd), 11)
+                mut r = x86_neg_reg(x86_reg(rd))
             } else {
-                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                mut r = x86_xor_reg(x86_reg(rd), x86_reg(rd))
                 mut r = x86_sub_reg(x86_reg(rd), x86_reg(rm))
+            }
+        } else {
+            if rd == rn {
+                mut r = x86_sub_reg(x86_reg(rd), x86_reg(rm))
+            } else {
+                if rd == rm {
+                    mut r = x86_mov_reg(11, x86_reg(rm))
+                    mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                    mut r = x86_sub_reg(x86_reg(rd), 11)
+                } else {
+                    mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                    mut r = x86_sub_reg(x86_reg(rd), x86_reg(rm))
+                }
             }
         }
     } else {
@@ -3062,8 +3087,8 @@ fn gen_print_int_builtin(is_println: i64) (r: i64)
         let loop_pos: i64 = 0
         mut loop_pos = g_code_pos
         mut r = x86_mov_imm(11, 10)
-        mut r = x86_cdq()
-        mut r = x86_idiv_reg(11)
+        mut r = x86_xor_reg(2, 2)
+        mut r = x86_div_reg(11)
         mut r = x86_add_imm(2, 48)
         mut r = x86_sub_imm(6, 1)
         mut r = x86_store8_reg(2, 6, 0)
@@ -3328,7 +3353,7 @@ fn gen_alloca_builtin(arg_count: i64) (r: i64)
         mut r = x86_add_imm(x86_reg(0), 15)
         mut r = x86_mov_imm(11, 0 - 16)
         mut r = x86_and_reg(x86_reg(0), 11)
-        mut r = x86_sub_reg(4, 4, x86_reg(0))
+        mut r = x86_sub_reg(4, x86_reg(0))
         mut r = x86_mov_reg(x86_reg(0), 4)
     } else {
         mut r = gen_pop_x0()
