@@ -18,6 +18,10 @@ let SC_CLOSE: i64 = 6
 let SC_MMAP: i64 = 197
 let SC_EXIT: i64 = 1
 
+// Target syscall numbers (for codegen only, not compiler runtime)
+let TSC_WRITE: i64 = 4
+let TSC_MMAP: i64 = 197
+
 // O_RDONLY = 0, O_WRONLY = 1, O_RDWR = 2, O_CREAT = 0x200
 
 // sys_write(fd, buf, len) -> bytes written
@@ -2467,7 +2471,7 @@ fn gen_print_int_builtin(is_println: i64) (r: i64)
     mut r = gen_movz(0, 1)
     mut r = gen_mov(1, 4)
     mut r = gen_mov(2, 5)
-    mut r = gen_movz(16, SC_WRITE)
+    mut r = gen_movz(16, TSC_WRITE)
     if g_target_os == 0 {
         mut r = emit32(0xD4001001)
     } else {
@@ -2482,7 +2486,7 @@ fn gen_print_int_builtin(is_println: i64) (r: i64)
         mut r = gen_movz(0, 1)
         mut r = emit32(0x910003E1)
         mut r = gen_movz(2, 1)
-        mut r = gen_movz(16, SC_WRITE)
+        mut r = gen_movz(16, TSC_WRITE)
         if g_target_os == 0 {
             mut r = emit32(0xD4001001)
         } else {
@@ -2526,7 +2530,7 @@ fn gen_print_builtin(arg_count: i64) (r: i64)
     mut r = gen_movz(0, 1)
     mut r = gen_mov(1, 3)
     mut r = gen_mov(2, 4)
-    mut r = gen_movz(16, SC_WRITE)
+    mut r = gen_movz(16, TSC_WRITE)
     if g_target_os == 0 {
         mut r = emit32(0xD4001001)
     } else {
@@ -2548,7 +2552,7 @@ fn gen_print_builtin(arg_count: i64) (r: i64)
         // MOV X2, #1 (len = 1)
         mut r = gen_movz(2, 1)
         // syscall
-        mut r = gen_movz(16, SC_WRITE)
+        mut r = gen_movz(16, TSC_WRITE)
         if g_target_os == 0 {
             mut r = emit32(0xD4001001)
         } else {
@@ -2579,7 +2583,7 @@ fn gen_malloc_builtin(arg_count: i64) (r: i64)
     mut r = emit32(0x92800004)
     mut r = gen_movz(5, 0)
     if g_target_os == 0 {
-        mut r = gen_movz(16, 197)
+        mut r = gen_movz(16, TSC_MMAP)
         mut r = emit32(0xD4001001)
     } else {
         mut r = gen_movz(8, 222)
@@ -2808,7 +2812,7 @@ fn gen_enum_alloc() (r: i64)
     mut r = emit32(0x92800004)
     mut r = gen_movz(5, 0)
     if g_target_os == 0 {
-        mut r = gen_movz(16, 197)
+        mut r = gen_movz(16, TSC_MMAP)
         mut r = emit32(0xD4001001)
     } else {
         mut r = gen_movz(8, 222)
@@ -3381,7 +3385,7 @@ fn gen_main_init() (r: i64)
     mut r = emit32(0x92800004)      // MOV X4, #-1 (fd = -1) = MOVN X4, #0
     mut r = gen_movz(5, 0)          // X5 = 0 (offset)
     if g_target_os == 0 {
-        mut r = gen_movz(16, 197)
+        mut r = gen_movz(16, TSC_MMAP)
         mut r = emit32(0xD4001001)
     } else {
         mut r = gen_movz(8, 222)
@@ -4245,20 +4249,12 @@ fn run_compiler(argv_ptr: i64) (r: i64)
         mut i = i + 1
     }
     if g_target_os == 1 {
-        mut SC_READ = 63
-        mut SC_WRITE = 64
-        mut SC_OPEN = 56
-        mut SC_CLOSE = 57
-        mut SC_MMAP = 222
-        mut SC_EXIT = 93
+        mut TSC_WRITE = 64
+        mut TSC_MMAP = 222
     }
     if g_target_os == 2 {
-        mut SC_READ = 3
-        mut SC_WRITE = 4
-        mut SC_OPEN = 5
-        mut SC_CLOSE = 6
-        mut SC_MMAP = 477
-        mut SC_EXIT = 1
+        mut TSC_WRITE = 4
+        mut TSC_MMAP = 477
     }
     mut status = do_parse(arg1_ptr)
     if status == 0 {
