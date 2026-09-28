@@ -4503,12 +4503,12 @@ fn gen_graph() (r: i64)
     mut saved_break = g_break_pos
     mut g_loop_start = loop_start
     mut g_break_pos = 0
-    // Condition: counter < 10
+    // Condition: counter < 10 (exit if counter >= 10)
     mut r = gen_ldur(0, 29, 0 - 8)
     mut r = gen_movz(1, 10)
     mut r = gen_cmp(0, 1)
     mut cond_pos = g_code_pos
-    mut r = gen_bcond(0, 0)
+    mut r = gen_bcond(10, 0)
     // Body: val = counter
     mut r = gen_ldur(0, 29, 0 - 8)
     // Apply transforms: emit CALL with placeholder, patch later
@@ -4533,6 +4533,9 @@ fn gen_graph() (r: i64)
     }
     // Sink: println(val)
     mut r = gen_push()
+    // Initialize X3 = SP (print_int uses [X3+27] for zero case;
+    // after SUB SP, #32, X3 = old SP = new SP + 32)
+    mut r = emit32(0x910003E3)
     mut g_call_name = "println"
     mut r = gen_print_int_builtin(1)
     // Increment counter
