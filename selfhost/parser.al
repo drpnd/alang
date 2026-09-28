@@ -8,6 +8,7 @@
 // __syscall(num, a0, a1, a2, a3, a4, a5) returns x0
 
 let g_target_os: i64 = 0
+let g_target_isa: i64 = 0
 let g_output_elf: i64 = 0
 let g_exec_elf: i64 = 0
 
@@ -1325,103 +1326,610 @@ fn emit32(val: i64) (r: i64)
     mut r = 0
 }
 
+
+// x86-64 registers (indices for encoding)
+let X86_RAX: i64 = 0
+let X86_RCX: i64 = 1
+let X86_RDX: i64 = 2
+let X86_RBX: i64 = 3
+let X86_RSP: i64 = 4
+let X86_RBP: i64 = 5
+let X86_RSI: i64 = 6
+let X86_RDI: i64 = 7
+let X86_R8: i64 = 8
+let X86_R9: i64 = 9
+let X86_R10: i64 = 10
+let X86_R11: i64 = 11
+let X86_R12: i64 = 12
+let X86_R13: i64 = 13
+let X86_R14: i64 = 14
+let X86_R15: i64 = 15
+
+// === x86-64 byte emitter and helpers ===
+
+fn emit_byte(val: i64) (r: i64)
+{
+    __byte_store(g_code, g_code_pos, val & 255)
+    mut g_code_pos = g_code_pos + 1
+    mut r = 0
+}
+
+fn emit_rex(w: i64, r: i64, x: i64, b: i64) (r: i64)
+{
+    let rex: i64 = 0x40
+    mut rex = 0x40 | ((w & 1) << 3) | ((r & 1) << 2) | ((x & 1) << 1) | (b & 1)
+    if rex != 0x40 {
+        mut r = emit_byte(rex)
+    }
+    mut r = 0
+}
+
+fn emit_modrm(mod_val: i64, reg: i64, rm: i64) (r: i64)
+{
+    mut r = emit_byte(((mod_val & 3) << 6) | ((reg & 7) << 3) | (rm & 7))
+}
+
+// === x86-64 instruction encoders ===
+
+// MOV reg64, imm64
+fn x86_mov_imm(rd: i64, imm: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (rd >> 3) & 1)
+    mut r = emit_byte(0xB8 + (rd & 7))
+    mut r = emit_byte(imm & 255)
+    mut r = emit_byte((imm >> 8) & 255)
+    mut r = emit_byte((imm >> 16) & 255)
+    mut r = emit_byte((imm >> 24) & 255)
+    mut r = emit_byte((imm >> 32) & 255)
+    mut r = emit_byte((imm >> 40) & 255)
+    mut r = emit_byte((imm >> 48) & 255)
+    mut r = emit_byte((imm >> 56) & 255)
+}
+
+// MOV reg64, reg64
+fn x86_mov_reg(dst: i64, src: i64) (r: i64)
+{
+    mut r = emit_rex(1, (src >> 3) & 1, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x89)
+    mut r = emit_modrm(3, src & 7, dst & 7)
+}
+
+// ADD reg64, reg64
+fn x86_add_reg(dst: i64, src: i64) (r: i64)
+{
+    mut r = emit_rex(1, (src >> 3) & 1, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x01)
+    mut r = emit_modrm(3, src & 7, dst & 7)
+}
+
+// SUB reg64, reg64
+fn x86_sub_reg(dst: i64, src: i64) (r: i64)
+{
+    mut r = emit_rex(1, (src >> 3) & 1, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x29)
+    mut r = emit_modrm(3, src & 7, dst & 7)
+}
+
+// IMUL reg64, reg64
+fn x86_mul_reg(dst: i64, src: i64) (r: i64)
+{
+    mut r = emit_rex(1, (dst >> 3) & 1, 0, (src >> 3) & 1)
+    mut r = emit_byte(0x0F)
+    mut r = emit_byte(0xAF)
+    mut r = emit_modrm(3, dst & 7, src & 7)
+}
+
+// AND reg64, reg64
+fn x86_and_reg(dst: i64, src: i64) (r: i64)
+{
+    mut r = emit_rex(1, (src >> 3) & 1, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x21)
+    mut r = emit_modrm(3, src & 7, dst & 7)
+}
+
+// OR reg64, reg64
+fn x86_or_reg(dst: i64, src: i64) (r: i64)
+{
+    mut r = emit_rex(1, (src >> 3) & 1, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x09)
+    mut r = emit_modrm(3, src & 7, dst & 7)
+}
+
+// XOR reg64, reg64
+fn x86_xor_reg(dst: i64, src: i64) (r: i64)
+{
+    mut r = emit_rex(1, (src >> 3) & 1, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x31)
+    mut r = emit_modrm(3, src & 7, dst & 7)
+}
+
+// SHL reg64, imm8
+fn x86_shl_imm(dst: i64, count: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0xC1)
+    mut r = emit_modrm(3, 4, dst & 7)
+    mut r = emit_byte(count & 255)
+}
+
+// SHR reg64, imm8
+fn x86_shr_imm(dst: i64, count: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0xC1)
+    mut r = emit_modrm(3, 5, dst & 7)
+    mut r = emit_byte(count & 255)
+}
+
+// CMP reg64, reg64
+fn x86_cmp_reg(a: i64, b: i64) (r: i64)
+{
+    mut r = emit_rex(1, (b >> 3) & 1, 0, (a >> 3) & 1)
+    mut r = emit_byte(0x39)
+    mut r = emit_modrm(3, b & 7, a & 7)
+}
+
+// SETcc reg8
+fn x86_setcc(cond: i64, dst: i64) (r: i64)
+{
+    mut r = emit_rex(0, 0, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x0F)
+    mut r = emit_byte(0x90 + (cond & 15))
+    mut r = emit_modrm(3, 0, dst & 7)
+}
+
+// MOVZX reg64, reg8
+fn x86_movzx_64(dst: i64, src: i64) (r: i64)
+{
+    mut r = emit_rex(1, (dst >> 3) & 1, 0, (src >> 3) & 1)
+    mut r = emit_byte(0x0F)
+    mut r = emit_byte(0xB6)
+    mut r = emit_modrm(3, dst & 7, src & 7)
+}
+
+// Jcc rel32
+fn x86_jcc(cond: i64, offset: i64) (r: i64)
+{
+    mut r = emit_byte(0x0F)
+    mut r = emit_byte(0x80 + (cond & 15))
+    mut r = emit_byte(offset & 255)
+    mut r = emit_byte((offset >> 8) & 255)
+    mut r = emit_byte((offset >> 16) & 255)
+    mut r = emit_byte((offset >> 24) & 255)
+}
+
+// JMP rel32
+fn x86_jmp(offset: i64) (r: i64)
+{
+    mut r = emit_byte(0xE9)
+    mut r = emit_byte(offset & 255)
+    mut r = emit_byte((offset >> 8) & 255)
+    mut r = emit_byte((offset >> 16) & 255)
+    mut r = emit_byte((offset >> 24) & 255)
+}
+
+// CALL rel32
+fn x86_call(offset: i64) (r: i64)
+{
+    mut r = emit_byte(0xE8)
+    mut r = emit_byte(offset & 255)
+    mut r = emit_byte((offset >> 8) & 255)
+    mut r = emit_byte((offset >> 16) & 255)
+    mut r = emit_byte((offset >> 24) & 255)
+}
+
+// RET
+fn x86_ret() (r: i64)
+{
+    mut r = emit_byte(0xC3)
+}
+
+// PUSH reg64
+fn x86_push_reg(reg: i64) (r: i64)
+{
+    if reg >= 8 {
+        mut r = emit_byte(0x41)
+    }
+    mut r = emit_byte(0x50 + (reg & 7))
+}
+
+// POP reg64
+fn x86_pop_reg(reg: i64) (r: i64)
+{
+    if reg >= 8 {
+        mut r = emit_byte(0x41)
+    }
+    mut r = emit_byte(0x58 + (reg & 7))
+}
+
+// MOV reg64, [base64 + disp32]
+fn x86_load_reg(dst: i64, base: i64, disp: i64) (r: i64)
+{
+    mut r = emit_rex(1, (dst >> 3) & 1, 0, (base >> 3) & 1)
+    mut r = emit_byte(0x8B)
+    if base == 4 {
+        mut r = emit_modrm(2, dst & 7, base & 7)
+    } else {
+        mut r = emit_modrm(2, dst & 7, base & 7)
+    }
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
+}
+
+// MOV [base64 + disp32], reg64
+fn x86_store_reg(src: i64, base: i64, disp: i64) (r: i64)
+{
+    mut r = emit_rex(1, (src >> 3) & 1, 0, (base >> 3) & 1)
+    mut r = emit_byte(0x89)
+    mut r = emit_modrm(2, src & 7, base & 7)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
+}
+
+// MOVZX reg64, byte [base64 + disp32]
+fn x86_load8_reg(dst: i64, base: i64, disp: i64) (r: i64)
+{
+    mut r = emit_rex(1, (dst >> 3) & 1, 0, (base >> 3) & 1)
+    mut r = emit_byte(0x0F)
+    mut r = emit_byte(0xB6)
+    mut r = emit_modrm(2, dst & 7, base & 7)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
+}
+
+// MOV byte [base64 + disp32], reg8
+fn x86_store8_reg(src: i64, base: i64, disp: i64) (r: i64)
+{
+    mut r = emit_rex(0, (src >> 3) & 1, 0, (base >> 3) & 1)
+    mut r = emit_byte(0x88)
+    mut r = emit_modrm(2, src & 7, base & 7)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
+}
+
+// ADD reg64, imm32 (sign-extended)
+fn x86_add_imm(dst: i64, imm: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x81)
+    mut r = emit_modrm(3, 0, dst & 7)
+    mut r = emit_byte(imm & 255)
+    mut r = emit_byte((imm >> 8) & 255)
+    mut r = emit_byte((imm >> 16) & 255)
+    mut r = emit_byte((imm >> 24) & 255)
+}
+
+// SUB reg64, imm32 (sign-extended)
+fn x86_sub_imm(dst: i64, imm: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0x81)
+    mut r = emit_modrm(3, 5, dst & 7)
+    mut r = emit_byte(imm & 255)
+    mut r = emit_byte((imm >> 8) & 255)
+    mut r = emit_byte((imm >> 16) & 255)
+    mut r = emit_byte((imm >> 24) & 255)
+}
+
+// NEG reg64
+fn x86_neg_reg(dst: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0xF7)
+    mut r = emit_modrm(3, 3, dst & 7)
+}
+
+// NOT reg64
+fn x86_not_reg(dst: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (dst >> 3) & 1)
+    mut r = emit_byte(0xF7)
+    mut r = emit_modrm(3, 2, dst & 7)
+}
+
+// CDQ
+fn x86_cdq() (r: i64)
+{
+    mut r = emit_byte(0x99)
+}
+
+// IDIV reg64
+fn x86_idiv_reg(src: i64) (r: i64)
+{
+    mut r = emit_rex(1, 0, 0, (src >> 3) & 1)
+    mut r = emit_byte(0xF7)
+    mut r = emit_modrm(3, 7, src & 7)
+}
+
+// SYSCALL
+fn x86_syscall() (r: i64)
+{
+    mut r = emit_byte(0x0F)
+    mut r = emit_byte(0x05)
+}
+
+// NOP
+fn x86_nop() (r: i64)
+{
+    mut r = emit_byte(0x90)
+}
+
+
 // === aarch64 instruction encoders ===
 
 // MOVZ Xd, #imm16 (64-bit)
+// Map logical aarch64 register numbers to x86-64 physical registers
+// 0->RAX(0), 1->RCX(1), 2->RDX(2), 3->RBX(3), 4->RSP(4), 5->RBP(5)
+// 17->R10(10) scratch, 19->RBX(3) callee-saved, 29->RBP(5) FP, 31->RSP(4)
+fn x86_reg(logical: i64) (r: i64)
+{
+    if logical == 0 { mut r = 0 }
+    else { if logical == 1 { mut r = 1 }
+    else { if logical == 2 { mut r = 2 }
+    else { if logical == 3 { mut r = 3 }
+    else { if logical == 4 { mut r = 6 }
+    else { if logical == 5 { mut r = 7 }
+    else { if logical == 6 { mut r = 8 }
+    else { if logical == 7 { mut r = 9 }
+    else { if logical == 17 { mut r = 10 }
+    else { if logical == 19 { mut r = 3 }
+    else { if logical == 29 { mut r = 5 }
+    else { if logical == 30 { mut r = 0 }
+    else { if logical == 31 { mut r = 4 }
+    else { mut r = logical } } } } } } } } } } } } }
+}
+
 fn gen_movk(rd: i64, imm16: i64, shift: i64) (r: i64)
 {
-    let hw: i64 = 0
-    mut hw = shift / 16
-    mut r = emit32(0xF2800000 | ((imm16 & 65535) << 5) | ((hw & 3) << 21) | (rd & 31))
+    if g_target_isa == 1 {
+        let shifted: i64 = 0
+        mut shifted = (imm16 & 65535) << shift
+        mut r = x86_mov_imm(10, shifted)
+        mut r = x86_or_reg(x86_reg(rd), 10)
+    } else {
+        let hw: i64 = 0
+        mut hw = shift / 16
+        mut r = emit32(0xF2800000 | ((imm16 & 65535) << 5) | ((hw & 3) << 21) | (rd & 31))
+    }
 }
 
 fn gen_movz(rd: i64, imm16: i64) (r: i64)
 {
-    mut r = emit32(0xD2800000 | ((imm16 & 65535) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        mut r = x86_mov_imm(x86_reg(rd), imm16)
+    } else {
+        mut r = emit32(0xD2800000 | ((imm16 & 65535) << 5) | (rd & 31))
+    }
 }
 
 // ADD Xd, Xn, Xm (64-bit register)
 fn gen_add(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0x8B000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        if rd == rn {
+            mut r = x86_add_reg(x86_reg(rd), x86_reg(rm))
+        } else {
+            if rd == rm {
+                mut r = x86_add_reg(x86_reg(rd), x86_reg(rn))
+            } else {
+                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                mut r = x86_add_reg(x86_reg(rd), x86_reg(rm))
+            }
+        }
+    } else {
+        mut r = emit32(0x8B000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // SUB Xd, Xn, Xm
 fn gen_sub(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0xCB000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        if rd == rn {
+            mut r = x86_sub_reg(x86_reg(rd), x86_reg(rm))
+        } else {
+            if rd == rm {
+                mut r = x86_mov_reg(11, x86_reg(rm))
+                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                mut r = x86_sub_reg(x86_reg(rd), 11)
+            } else {
+                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                mut r = x86_sub_reg(x86_reg(rd), x86_reg(rm))
+            }
+        }
+    } else {
+        mut r = emit32(0xCB000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // MUL Xd, Xn, Xm
 fn gen_mul(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0x9B007C00 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        if rd == rn {
+            mut r = x86_mul_reg(x86_reg(rd), x86_reg(rm))
+        } else {
+            if rd == rm {
+                mut r = x86_mul_reg(x86_reg(rd), x86_reg(rn))
+            } else {
+                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                mut r = x86_mul_reg(x86_reg(rd), x86_reg(rm))
+            }
+        }
+    } else {
+        mut r = emit32(0x9B007C00 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // AND Xd, Xn, Xm (64-bit register)
 fn gen_and(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0x8A000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        if rd == rn {
+            mut r = x86_and_reg(x86_reg(rd), x86_reg(rm))
+        } else {
+            if rd == rm {
+                mut r = x86_and_reg(x86_reg(rd), x86_reg(rn))
+            } else {
+                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                mut r = x86_and_reg(x86_reg(rd), x86_reg(rm))
+            }
+        }
+    } else {
+        mut r = emit32(0x8A000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // ORR Xd, Xn, Xm (64-bit register)
 fn gen_or(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0xAA000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        if rd == rn {
+            mut r = x86_or_reg(x86_reg(rd), x86_reg(rm))
+        } else {
+            if rd == rm {
+                mut r = x86_or_reg(x86_reg(rd), x86_reg(rn))
+            } else {
+                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                mut r = x86_or_reg(x86_reg(rd), x86_reg(rm))
+            }
+        }
+    } else {
+        mut r = emit32(0xAA000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // EOR Xd, Xn, Xm (64-bit register)
 fn gen_xor(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0xCA000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        if rd == rn {
+            mut r = x86_xor_reg(x86_reg(rd), x86_reg(rm))
+        } else {
+            if rd == rm {
+                mut r = x86_xor_reg(x86_reg(rd), x86_reg(rn))
+            } else {
+                mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+                mut r = x86_xor_reg(x86_reg(rd), x86_reg(rm))
+            }
+        }
+    } else {
+        mut r = emit32(0xCA000000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // LSR Xd, Xn, Xm (64-bit register shift right)
 fn gen_lsr(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0x9AC02400 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        let rdp: i64 = 0
+        mut rdp = x86_reg(rd)
+        if rd != rn {
+            mut r = x86_mov_reg(rdp, x86_reg(rn))
+        }
+        if rm != 1 {
+            mut r = x86_mov_reg(1, x86_reg(rm))
+        }
+        mut r = emit_rex(1, 0, 0, (rdp >> 3) & 1)
+        mut r = emit_byte(0xD3)
+        mut r = emit_modrm(3, 5, rdp & 7)
+    } else {
+        mut r = emit32(0x9AC02400 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // LSL Xd, Xn, Xm (64-bit register shift left)
 fn gen_lsl(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0x9AC02000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        let rdp: i64 = 0
+        mut rdp = x86_reg(rd)
+        if rd != rn {
+            mut r = x86_mov_reg(rdp, x86_reg(rn))
+        }
+        if rm != 1 {
+            mut r = x86_mov_reg(1, x86_reg(rm))
+        }
+        mut r = emit_rex(1, 0, 0, (rdp >> 3) & 1)
+        mut r = emit_byte(0xD3)
+        mut r = emit_modrm(3, 4, rdp & 7)
+    } else {
+        mut r = emit32(0x9AC02000 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // MOV Xd, Xm (ORR Xd, XZR, Xm)
 fn gen_mov(rd: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0xAA0003E0 | ((rm & 31) << 16) | (rd & 31))
+    if g_target_isa == 1 {
+        mut r = x86_mov_reg(x86_reg(rd), x86_reg(rm))
+    } else {
+        mut r = emit32(0xAA0003E0 | ((rm & 31) << 16) | (rd & 31))
+    }
 }
 
 // RET
 fn gen_ret() (r: i64)
 {
-    mut r = emit32(0xD65F03C0)
+    if g_target_isa == 1 {
+        mut r = x86_ret()
+    } else {
+        mut r = emit32(0xD65F03C0)
+    }
 }
 
 // ADD Xd, Xn, #imm12
 fn gen_add_imm(rd: i64, rn: i64, imm12: i64) (r: i64)
 {
-    mut r = emit32(0x91000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        if rd != rn {
+            mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+        }
+        mut r = x86_add_imm(x86_reg(rd), imm12)
+    } else {
+        mut r = emit32(0x91000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // SUB Xd, Xn, #imm12
 fn gen_sub_imm(rd: i64, rn: i64, imm12: i64) (r: i64)
 {
-    mut r = emit32(0xD1000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        if rd != rn {
+            mut r = x86_mov_reg(x86_reg(rd), x86_reg(rn))
+        }
+        mut r = x86_sub_imm(x86_reg(rd), imm12)
+    } else {
+        mut r = emit32(0xD1000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // STR Xt, [Xn, #imm12*8]
 fn gen_str(rt: i64, rn: i64, imm12: i64) (r: i64)
 {
-    mut r = emit32(0xF9000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
+    if g_target_isa == 1 {
+        mut r = x86_store_reg(x86_reg(rt), x86_reg(rn), imm12 * 8)
+    } else {
+        mut r = emit32(0xF9000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
+    }
 }
 
 // LDR Xt, [Xn, #imm12*8]
 fn gen_ldr(rt: i64, rn: i64, imm12: i64) (r: i64)
 {
-    mut r = emit32(0xF9400000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
+    if g_target_isa == 1 {
+        mut r = x86_load_reg(x86_reg(rt), x86_reg(rn), imm12 * 8)
+    } else {
+        mut r = emit32(0xF9400000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
+    }
 }
 
 // STUR Xt, [Xn, #imm9] (signed offset)
@@ -1434,6 +1942,9 @@ fn gen_ldr(rt: i64, rn: i64, imm12: i64) (r: i64)
 //      X17 via MOVZ+MOVK, SUB from base register, then STR.
 fn gen_stur(rt: i64, rn: i64, imm9: i64) (r: i64)
 {
+    if g_target_isa == 1 {
+        mut r = x86_store_reg(x86_reg(rt), x86_reg(rn), imm9)
+    } else {
     if imm9 >= -256 {
         if imm9 <= 255 {
             mut r = emit32(0xF8000000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
@@ -1455,6 +1966,7 @@ fn gen_stur(rt: i64, rn: i64, imm9: i64) (r: i64)
         mut r = emit32(0xCB110000 | ((rn & 31) << 5) | (17 & 31))
         mut r = emit32(0xF9000000 | ((17 & 31) << 5) | (rt & 31))
     }
+    }
 }
 
 // LDUR Xt, [Xn, #imm9] (signed offset)
@@ -1466,6 +1978,9 @@ fn gen_stur(rt: i64, rn: i64, imm9: i64) (r: i64)
 //      SUB from base, then LDR.
 fn gen_ldur(rt: i64, rn: i64, imm9: i64) (r: i64)
 {
+    if g_target_isa == 1 {
+        mut r = x86_load_reg(x86_reg(rt), x86_reg(rn), imm9)
+    } else {
     if imm9 >= -256 {
         if imm9 <= 255 {
             mut r = emit32(0xF8400000 | ((imm9 & 511) << 12) | ((rn & 31) << 5) | (rt & 31))
@@ -1487,26 +2002,43 @@ fn gen_ldur(rt: i64, rn: i64, imm9: i64) (r: i64)
         mut r = emit32(0xCB110000 | ((rn & 31) << 5) | (17 & 31))
         mut r = emit32(0xF9400000 | ((17 & 31) << 5) | (rt & 31))
     }
+    }
 }
 
 fn gen_ldrb_reg(rt: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0x38606800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rt & 31))
+    if g_target_isa == 1 {
+        mut r = x86_load8_reg(x86_reg(rt), x86_reg(rn), 0)
+    } else {
+        mut r = emit32(0x38606800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rt & 31))
+    }
 }
 
 fn gen_strb_reg(rt: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0x38206800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rt & 31))
+    if g_target_isa == 1 {
+        mut r = x86_store8_reg(x86_reg(rt), x86_reg(rn), 0)
+    } else {
+        mut r = emit32(0x38206800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rt & 31))
+    }
 }
 
 fn gen_ldr_reg(rt: i64, rn: i64) (r: i64)
 {
-    mut r = emit32(0xF9400000 | ((rn & 31) << 5) | (rt & 31))
+    if g_target_isa == 1 {
+        mut r = x86_load_reg(x86_reg(rt), x86_reg(rn), 0)
+    } else {
+        mut r = emit32(0xF9400000 | ((rn & 31) << 5) | (rt & 31))
+    }
 }
 
 fn gen_str_reg(rt: i64, rn: i64) (r: i64)
 {
-    mut r = emit32(0xF9000000 | ((rn & 31) << 5) | (rt & 31))
+    if g_target_isa == 1 {
+        mut r = x86_store_reg(x86_reg(rt), x86_reg(rn), 0)
+    } else {
+        mut r = emit32(0xF9000000 | ((rn & 31) << 5) | (rt & 31))
+    }
 }
 
 // STP Xt1, Xt2, [Xn, #imm7*8]! (pre-index)
@@ -1524,55 +2056,101 @@ fn gen_ldp_post(rt1: i64, rt2: i64, rn: i64, imm7: i64) (r: i64)
 // CMP Xn, Xm (SUBS XZR, Xn, Xm)
 fn gen_cmp(rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0xEB00001F | ((rm & 31) << 16) | ((rn & 31) << 5))
+    if g_target_isa == 1 {
+        mut r = x86_cmp_reg(x86_reg(rn), x86_reg(rm))
+    } else {
+        mut r = emit32(0xEB00001F | ((rm & 31) << 16) | ((rn & 31) << 5))
+    }
 }
 
 // B.cond offset (condition codes: 0=EQ, 1=NE, 10=GE, 11=LT, 12=GT, 13=LE)
 fn gen_bcond(cond: i64, offset: i64) (r: i64)
 {
-    let off19: i64 = 0
-    mut off19 = (offset >> 2) & 524287
-    mut r = emit32(0x54000000 | (off19 << 5) | (cond & 15))
+    if g_target_isa == 1 {
+        let x86_cond: i64 = 0
+        if cond == 0 { mut x86_cond = 4 }
+        if cond == 1 { mut x86_cond = 5 }
+        if cond == 10 { mut x86_cond = 13 }
+        if cond == 11 { mut x86_cond = 12 }
+        if cond == 12 { mut x86_cond = 15 }
+        if cond == 13 { mut x86_cond = 14 }
+        mut r = x86_jcc(x86_cond, offset - 6)
+    } else {
+        let off19: i64 = 0
+        mut off19 = (offset >> 2) & 524287
+        mut r = emit32(0x54000000 | (off19 << 5) | (cond & 15))
+    }
 }
 
 // B offset (unconditional)
 fn gen_b(offset: i64) (r: i64)
 {
-    let off26: i64 = 0
-    mut off26 = (offset >> 2) & 67108863
-    mut r = emit32(0x14000000 | off26)
+    if g_target_isa == 1 {
+        mut r = x86_jmp(offset - 5)
+    } else {
+        let off26: i64 = 0
+        mut off26 = (offset >> 2) & 67108863
+        mut r = emit32(0x14000000 | off26)
+    }
 }
 
 // BL offset
 fn gen_bl(offset: i64) (r: i64)
 {
-    let off26: i64 = 0
-    mut off26 = (offset >> 2) & 67108863
-    mut r = emit32(0x94000000 | off26)
+    if g_target_isa == 1 {
+        mut r = x86_call(offset - 5)
+    } else {
+        let off26: i64 = 0
+        mut off26 = (offset >> 2) & 67108863
+        mut r = emit32(0x94000000 | off26)
+    }
 }
 
 // SDIV Xd, Xn, Xm
 fn gen_sdiv(rd: i64, rn: i64, rm: i64) (r: i64)
 {
-    mut r = emit32(0x9AC00C00 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        mut r = x86_mov_reg(11, x86_reg(rm))
+        mut r = x86_mov_reg(0, x86_reg(rn))
+        mut r = x86_cdq()
+        mut r = x86_idiv_reg(11)
+        mut r = x86_mov_reg(x86_reg(rd), 0)
+    } else {
+        mut r = emit32(0x9AC00C00 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // MSUB Xd, Xn, Xm, X0 (for modulo: result = X0 - Xn * Xm)
 fn gen_msub(rd: i64, rn: i64, rm: i64, ra: i64) (r: i64)
 {
-    mut r = emit32(0x9B008000 | ((rm & 31) << 16) | ((ra & 31) << 10) | ((rn & 31) << 5) | (rd & 31))
+    if g_target_isa == 1 {
+        mut r = x86_mov_reg(11, x86_reg(rn))
+        mut r = x86_mul_reg(11, x86_reg(rm))
+        mut r = x86_mov_reg(x86_reg(rd), x86_reg(ra))
+        mut r = x86_sub_reg(x86_reg(rd), 11)
+    } else {
+        mut r = emit32(0x9B008000 | ((rm & 31) << 16) | ((ra & 31) << 10) | ((rn & 31) << 5) | (rd & 31))
+    }
 }
 
 // Push X0 to stack (STR X0, [SP, #-16]!)
 fn gen_push() (r: i64)
 {
-    mut r = emit32(0xF81F0FE0)  // STR X0, [SP, #-16]!
+    if g_target_isa == 1 {
+        mut r = x86_push_reg(0)
+    } else {
+        mut r = emit32(0xF81F0FE0)
+    }
 }
 
 // Pop to X1 (LDR X1, [SP], #16)
 fn gen_pop_x1() (r: i64)
 {
-    mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(1)
+    } else {
+        mut r = emit32(0xF84107E1)
+    }
 }
 
 // === Variable table ===
@@ -1791,12 +2369,12 @@ fn patch_calls() (r: i64)
     }
     mut r = 0
 }
-fn gen_cmp_lt() (r: i64) { mut r = emit32(2594154464) mut r = 0 }
-fn gen_cmp_gt() (r: i64) { mut r = emit32(2594166752) mut r = 0 }
-fn gen_cmp_le() (r: i64) { mut r = emit32(2594162656) mut r = 0 }
-fn gen_cmp_ge() (r: i64) { mut r = emit32(2594158560) mut r = 0 }
-fn gen_cmp_eq2() (r: i64) { mut r = emit32(2594117600) mut r = 0 }
-fn gen_cmp_ne() (r: i64) { mut r = emit32(2594113504) mut r = 0 }
+fn gen_cmp_lt() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(12, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594154464) } mut r = 0 }
+fn gen_cmp_gt() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(15, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594166752) } mut r = 0 }
+fn gen_cmp_le() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(14, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594162656) } mut r = 0 }
+fn gen_cmp_ge() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(13, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594158560) } mut r = 0 }
+fn gen_cmp_eq2() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(4, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594117600) } mut r = 0 }
+fn gen_cmp_ne() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(5, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594113504) } mut r = 0 }
 
 fn gen_mod() (r: i64)
 {
@@ -1996,7 +2574,17 @@ fn gen_expr_str(v: i64) (r: i64)
     let adr_pos: i64 = 0
     mut idx = str_const_add(v)
     mut adr_pos = g_code_pos
-    mut r = emit32(0x10000000)
+    if g_target_isa == 1 {
+        mut r = emit_byte(0x48)
+        mut r = emit_byte(0x8D)
+        mut r = emit_byte(0x05)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+    } else {
+        mut r = emit32(0x10000000)
+    }
     mut r = str_adr_patch_add(adr_pos, idx)
     mut r = 0
 }
@@ -2303,15 +2891,13 @@ fn gen_mem_store_builtin() (r: i64)
 fn gen_byte_builtin() (r: i64)
 {
     if __byte_load(g_call_name, 7) == 108 {
-        // __byte_load(ptr, idx) - 2 args
-        mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16 (idx)
-        mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16 (ptr)
+        mut r = gen_pop_x1()
+        mut r = gen_pop_x0()
         mut r = gen_byte_load_builtin()
     } else {
-        // __byte_store(ptr, idx, val) - 3 args
-        mut r = emit32(0xF84107E2)  // LDR X2, [SP], #16 (val)
-        mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16 (idx)
-        mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16 (ptr)
+        mut r = gen_pop_x2()
+        mut r = gen_pop_x1()
+        mut r = gen_pop_x0()
         mut r = gen_byte_store_builtin()
     }
 }
@@ -2319,13 +2905,11 @@ fn gen_byte_builtin() (r: i64)
 fn gen_mem_builtin() (r: i64)
 {
     if __byte_load(g_call_name, 6) == 108 {
-        // __mem_load(ptr) - 1 arg
-        mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16 (ptr)
+        mut r = gen_pop_x0()
         mut r = gen_mem_load_builtin()
     } else {
-        // __mem_store(ptr, val) - 2 args
-        mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16 (val)
-        mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16 (ptr)
+        mut r = gen_pop_x1()
+        mut r = gen_pop_x0()
         mut r = gen_mem_store_builtin()
     }
 }
@@ -2335,159 +2919,189 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
 {
     let n: i64 = 0
     mut n = arg_count
-    // Pop args in reverse order (last pushed = first popped)
-    // arg_count includes the syscall number as arg 0
-    // Pop to X5, X4, X3, X2, X1, X0, X6 based on arg_count
-    if n > 6 { mut r = emit32(0xF84107E5); mut n = n - 1 }
-    if n > 5 { mut r = emit32(0xF84107E4); mut n = n - 1 }
-    if n > 4 { mut r = emit32(0xF84107E3); mut n = n - 1 }
-    if n > 3 { mut r = emit32(0xF84107E2); mut n = n - 1 }
-    if n > 2 { mut r = emit32(0xF84107E1); mut n = n - 1 }
-    if n > 1 { mut r = emit32(0xF84107E0); mut n = n - 1 }
-    // Pop syscall number to X6
-    mut r = emit32(0xF84107E6)
-    
-    // Save caller-saved registers
-    mut r = gen_caller_save()
-    // Reload args from saved area
-    if arg_count > 1 { mut r = gen_ldr(0, 31, 2) }
-    if arg_count > 2 { mut r = gen_ldr(1, 31, 3) }
-    if arg_count > 3 { mut r = gen_ldr(2, 31, 4) }
-    if arg_count > 4 { mut r = gen_ldr(3, 31, 5) }
-    if arg_count > 5 { mut r = gen_ldr(4, 31, 6) }
-    if arg_count > 6 { mut r = gen_ldr(5, 31, 7) }
-    mut r = gen_ldr(6, 31, 8)
-    if g_target_os == 0 {
-        mut r = gen_mov(16, 6)
-        mut r = emit32(0xD4001001)
+    if g_target_isa == 1 {
+        if n > 6 { mut r = x86_pop_reg(x86_reg(5)); mut n = n - 1 }
+        if n > 5 { mut r = x86_pop_reg(x86_reg(4)); mut n = n - 1 }
+        if n > 4 { mut r = x86_pop_reg(x86_reg(3)); mut n = n - 1 }
+        if n > 3 { mut r = x86_pop_reg(x86_reg(2)); mut n = n - 1 }
+        if n > 2 { mut r = x86_pop_reg(x86_reg(1)); mut n = n - 1 }
+        if n > 1 { mut r = x86_pop_reg(x86_reg(0)); mut n = n - 1 }
+        mut r = x86_pop_reg(x86_reg(6))
+        mut r = gen_caller_save()
+        if arg_count > 1 { mut r = x86_load_reg(7, 4, 16) }
+        if arg_count > 2 { mut r = x86_load_reg(6, 4, 24) }
+        if arg_count > 3 { mut r = x86_load_reg(2, 4, 32) }
+        if arg_count > 4 { mut r = x86_load_reg(10, 4, 40) }
+        if arg_count > 5 { mut r = x86_load_reg(8, 4, 48) }
+        if arg_count > 6 { mut r = x86_load_reg(9, 4, 56) }
+        mut r = x86_load_reg(0, 4, 64)
+        mut r = x86_syscall()
     } else {
-        mut r = gen_mov(8, 6)
-        mut r = emit32(0xD4000001)
+        if n > 6 { mut r = emit32(0xF84107E5); mut n = n - 1 }
+        if n > 5 { mut r = emit32(0xF84107E4); mut n = n - 1 }
+        if n > 4 { mut r = emit32(0xF84107E3); mut n = n - 1 }
+        if n > 3 { mut r = emit32(0xF84107E2); mut n = n - 1 }
+        if n > 2 { mut r = emit32(0xF84107E1); mut n = n - 1 }
+        if n > 1 { mut r = emit32(0xF84107E0); mut n = n - 1 }
+        mut r = emit32(0xF84107E6)
+        mut r = gen_caller_save()
+        if arg_count > 1 { mut r = gen_ldr(0, 31, 2) }
+        if arg_count > 2 { mut r = gen_ldr(1, 31, 3) }
+        if arg_count > 3 { mut r = gen_ldr(2, 31, 4) }
+        if arg_count > 4 { mut r = gen_ldr(3, 31, 5) }
+        if arg_count > 5 { mut r = gen_ldr(4, 31, 6) }
+        if arg_count > 6 { mut r = gen_ldr(5, 31, 7) }
+        mut r = gen_ldr(6, 31, 8)
+        if g_target_os == 0 {
+            mut r = gen_mov(16, 6)
+            mut r = emit32(0xD4001001)
+        } else {
+            mut r = gen_mov(8, 6)
+            mut r = emit32(0xD4000001)
+        }
     }
-    
-    // Save return value and restore caller-saved registers
     mut r = gen_call_finish()
     mut r = 0
 }
 
 fn gen_print_int_builtin(is_println: i64) (r: i64)
 {
-    // print(int): convert integer to decimal string and write
-    // X0 = integer value (popped from stack)
-    // Uses stack space for the string buffer
-    // Pop integer value to X0 first
-    mut r = emit32(0xF84107E0)
-    // SUB SP, SP, #32 (buffer for up to 20 digits + sign + null)
-    mut r = emit32(0xD10083FF)
-    // ADD X1, SP, #31 (point to end of buffer)
-    mut r = emit32(0x91007BE1)
-    // STRB WZR, [SP, #31] (null terminator at end)
-    mut r = emit32(0x39007BFF)
-    // Handle negative: if X0 < 0, negate and set flag
-    // CBZ X0, .zero -> CMP X0, XZR + B.EQ
-    mut r = gen_cmp(0, 31)
-    let zero_pos: i64 = 0
-    mut zero_pos = g_code_pos
-    mut r = gen_bcond(0, 0)
-    // MOV X2, 0 (negative flag)
-    mut r = gen_movz(2, 0)
-    // CMP X0, #0
-    mut r = gen_cmp(0, 31)
-    // B.GE .pos (if >= 0, skip negation)
-    let neg_pos: i64 = 0
-    mut neg_pos = g_code_pos
-    mut r = gen_bcond(10, 0)
-    // NEG X0, X0
-    mut r = emit32(0xCB0003E0)
-    // MOV X2, 1 (negative flag)
-    mut r = gen_movz(2, 1)
-    // .pos: (continue with positive value)
-    let pos_label: i64 = 0
-    mut pos_label = g_code_pos
-    mut r = patch_bcond(neg_pos, pos_label - neg_pos)
-    // .loop: convert digits
-    let loop_pos: i64 = 0
-    mut loop_pos = g_code_pos
-    // MOV X3, 10
-    mut r = gen_movz(3, 10)
-    // UDIV X4, X0, X3
-    mut r = emit32(0x9AC30804)
-    // MSUB X5, X4, X3, X0 = X0 - X4 * X3 (rd=5, rn=4, rm=3, ra=0)
-    mut r = emit32(0x9B038085)
-    // ADD X5, X5, #48 (convert to ASCII)
-    mut r = gen_add_imm(5, 5, 48)
-    // SUB X1, X1, #1
-    mut r = gen_sub_imm(1, 1, 1)
-    // STRB W5, [X1] (X1 is absolute address)
-    mut r = emit32(0x39000025)
-    // MOV X0, X4
-    mut r = gen_mov(0, 4)
-    // CBNZ X0, .loop -> CMP X0, XZR + B.NE
-    mut r = gen_cmp(0, 31)
-    let cbnz_pos: i64 = 0
-    mut cbnz_pos = g_code_pos
-    mut r = gen_bcond(1, 0)
-    mut r = patch_bcond(cbnz_pos, loop_pos - cbnz_pos)
-    // If negative flag: add minus sign
-    // CBZ X2, .write -> CMP X2, XZR + B.EQ
-    mut r = gen_cmp(2, 31)
-    let skip_minus: i64 = 0
-    mut skip_minus = g_code_pos
-    mut r = gen_bcond(0, 0)
-    // SUB X1, X1, #1
-    mut r = gen_sub_imm(1, 1, 1)
-    // MOV X5, #45 (minus sign)
-    mut r = gen_movz(5, 45)
-    // STRB W5, [X1] (X1 is absolute address)
-    mut r = emit32(0x39000025)
-    // .write:
-    let write_label: i64 = 0
-    mut write_label = g_code_pos
-    mut r = patch_bcond(skip_minus, write_label - skip_minus)
-    // B .done (skip zero case)
-    let done_branch: i64 = 0
-    mut done_branch = g_code_pos
-    mut r = gen_b(0)
-    // .zero: write "0"
-    let zero_label: i64 = 0
-    mut zero_label = g_code_pos
-    mut r = patch_bcond(zero_pos, zero_label - zero_pos)
-    // MOV X5, #48 (ASCII '0')
-    mut r = gen_movz(5, 48)
-    // STRB W5, [SP, #28]
-    mut r = emit32(0x39006C65)
-    // ADD X1, SP, #28
-    mut r = emit32(0x910073E1)
-    // .done:
-    let done_label: i64 = 0
-    mut done_label = g_code_pos
-    mut r = patch_b(done_branch, done_label - done_branch)
-    // Compute length: X2 = SP + 32 - X1
-    // ADD X3, SP, #32
-    mut r = emit32(0x910083E3)
-    // SUB X2, X3, X1
-    mut r = emit32(0xCB010062)
-    // write(1, X1, X2)
-    mut r = gen_mov(4, 1)
-    mut r = gen_mov(5, 2)
-    mut r = gen_movz(0, 1)
-    mut r = gen_mov(1, 4)
-    mut r = gen_mov(2, 5)
-    mut r = gen_movz(16, TSC_WRITE)
-    if g_target_os == 0 {
-        mut r = emit32(0xD4001001)
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(0)
+        mut r = x86_sub_imm(4, 32)
+        mut r = x86_mov_reg(6, 4)
+        mut r = x86_add_imm(6, 31)
+        mut r = x86_mov_imm(1, 0)
+        mut r = x86_store8_reg(1, 6, 0)
+        mut r = x86_or_reg(0, 0)
+        let zero_pos: i64 = 0
+        mut zero_pos = g_code_pos
+        mut r = x86_jcc(4, 0)
+        mut r = x86_mov_imm(1, 0)
+        mut r = x86_or_reg(0, 0)
+        let neg_pos: i64 = 0
+        mut neg_pos = g_code_pos
+        mut r = x86_jcc(13, 0)
+        mut r = x86_neg_reg(0)
+        mut r = x86_mov_imm(1, 1)
+        let pos_label: i64 = 0
+        mut pos_label = g_code_pos
+        mut r = patch_bcond(neg_pos, pos_label - neg_pos)
+        let loop_pos: i64 = 0
+        mut loop_pos = g_code_pos
+        mut r = x86_mov_imm(11, 10)
+        mut r = x86_cdq()
+        mut r = x86_idiv_reg(11)
+        mut r = x86_add_imm(2, 48)
+        mut r = x86_sub_imm(6, 1)
+        mut r = x86_store8_reg(2, 6, 0)
+        mut r = x86_or_reg(0, 0)
+        let cbnz_pos: i64 = 0
+        mut cbnz_pos = g_code_pos
+        mut r = x86_jcc(5, 0)
+        mut r = patch_bcond(cbnz_pos, loop_pos - cbnz_pos)
+        mut r = x86_or_reg(1, 1)
+        let skip_minus: i64 = 0
+        mut skip_minus = g_code_pos
+        mut r = x86_jcc(4, 0)
+        mut r = x86_sub_imm(6, 1)
+        mut r = x86_mov_imm(2, 45)
+        mut r = x86_store8_reg(2, 6, 0)
+        let write_label: i64 = 0
+        mut write_label = g_code_pos
+        mut r = patch_bcond(skip_minus, write_label - skip_minus)
+        let done_branch: i64 = 0
+        mut done_branch = g_code_pos
+        mut r = x86_jmp(0)
+        let zero_label: i64 = 0
+        mut zero_label = g_code_pos
+        mut r = patch_bcond(zero_pos, zero_label - zero_pos)
+        mut r = x86_mov_imm(2, 48)
+        mut r = x86_sub_imm(6, 1)
+        mut r = x86_store8_reg(2, 6, 0)
+        let done_label: i64 = 0
+        mut done_label = g_code_pos
+        mut r = patch_b(done_branch, done_label - done_branch)
+        mut r = x86_mov_reg(2, 4)
+        mut r = x86_add_imm(2, 32)
+        mut r = x86_sub_reg(2, 2, 6)
+        mut r = x86_mov_imm(0, TSC_WRITE)
+        mut r = x86_mov_imm(7, 1)
+        mut r = x86_syscall()
+        if is_println == 1 {
+            mut r = x86_sub_imm(4, 16)
+            mut r = x86_mov_imm(0, 10)
+            mut r = x86_store8_reg(0, 4, 0)
+            mut r = x86_mov_imm(0, TSC_WRITE)
+            mut r = x86_mov_imm(7, 1)
+            mut r = x86_mov_reg(6, 4)
+            mut r = x86_mov_imm(2, 1)
+            mut r = x86_syscall()
+            mut r = x86_add_imm(4, 16)
+        }
+        mut r = x86_add_imm(4, 32)
     } else {
-        mut r = gen_mov(8, 16)
-        mut r = emit32(0xD4000001)
-    }
-    if is_println == 1 {
-        // write newline
-        mut r = emit32(0xD10043FF)
-        mut r = gen_movz(0, 10)
-        mut r = gen_strb_reg(0, 31, 31)
-        mut r = gen_movz(0, 1)
-        mut r = emit32(0x910003E1)
+        mut r = emit32(0xF84107E0)
+        mut r = emit32(0xD10083FF)
+        mut r = emit32(0x91007BE1)
+        mut r = emit32(0x39007BFF)
+        mut r = gen_cmp(0, 31)
+        let zero_pos2: i64 = 0
+        mut zero_pos2 = g_code_pos
+        mut r = gen_bcond(0, 0)
+        mut r = gen_movz(2, 0)
+        mut r = gen_cmp(0, 31)
+        let neg_pos2: i64 = 0
+        mut neg_pos2 = g_code_pos
+        mut r = gen_bcond(10, 0)
+        mut r = emit32(0xCB0003E0)
         mut r = gen_movz(2, 1)
+        let pos_label2: i64 = 0
+        mut pos_label2 = g_code_pos
+        mut r = patch_bcond(neg_pos2, pos_label2 - neg_pos2)
+        let loop_pos2: i64 = 0
+        mut loop_pos2 = g_code_pos
+        mut r = gen_movz(3, 10)
+        mut r = emit32(0x9AC30804)
+        mut r = emit32(0x9B038085)
+        mut r = gen_add_imm(5, 5, 48)
+        mut r = gen_sub_imm(1, 1, 1)
+        mut r = emit32(0x39000025)
+        mut r = gen_mov(0, 4)
+        mut r = gen_cmp(0, 31)
+        let cbnz_pos2: i64 = 0
+        mut cbnz_pos2 = g_code_pos
+        mut r = gen_bcond(1, 0)
+        mut r = patch_bcond(cbnz_pos2, loop_pos2 - cbnz_pos2)
+        mut r = gen_cmp(2, 31)
+        let skip_minus2: i64 = 0
+        mut skip_minus2 = g_code_pos
+        mut r = gen_bcond(0, 0)
+        mut r = gen_sub_imm(1, 1, 1)
+        mut r = gen_movz(5, 45)
+        mut r = emit32(0x39000025)
+        let write_label2: i64 = 0
+        mut write_label2 = g_code_pos
+        mut r = patch_bcond(skip_minus2, write_label2 - skip_minus2)
+        let done_branch2: i64 = 0
+        mut done_branch2 = g_code_pos
+        mut r = gen_b(0)
+        let zero_label2: i64 = 0
+        mut zero_label2 = g_code_pos
+        mut r = patch_bcond(zero_pos2, zero_label2 - zero_pos2)
+        mut r = gen_movz(5, 48)
+        mut r = emit32(0x39006C65)
+        mut r = emit32(0x910073E1)
+        let done_label2: i64 = 0
+        mut done_label2 = g_code_pos
+        mut r = patch_b(done_branch2, done_label2 - done_branch2)
+        mut r = emit32(0x910083E3)
+        mut r = emit32(0xCB010062)
+        mut r = gen_mov(4, 1)
+        mut r = gen_mov(5, 2)
+        mut r = gen_movz(0, 1)
+        mut r = gen_mov(1, 4)
+        mut r = gen_mov(2, 5)
         mut r = gen_movz(16, TSC_WRITE)
         if g_target_os == 0 {
             mut r = emit32(0xD4001001)
@@ -2495,65 +3109,79 @@ fn gen_print_int_builtin(is_println: i64) (r: i64)
             mut r = gen_mov(8, 16)
             mut r = emit32(0xD4000001)
         }
-        mut r = emit32(0x910043FF)
+        if is_println == 1 {
+            mut r = emit32(0xD10043FF)
+            mut r = gen_movz(0, 10)
+            mut r = gen_strb_reg(0, 31, 31)
+            mut r = gen_movz(0, 1)
+            mut r = emit32(0x910003E1)
+            mut r = gen_movz(2, 1)
+            mut r = gen_movz(16, TSC_WRITE)
+            if g_target_os == 0 {
+                mut r = emit32(0xD4001001)
+            } else {
+                mut r = gen_mov(8, 16)
+                mut r = emit32(0xD4000001)
+            }
+            mut r = emit32(0x910043FF)
+        }
+        mut r = emit32(0x910083FF)
     }
-    // ADD SP, SP, #32 (restore stack)
-    mut r = emit32(0x910083FF)
     mut r = 0
 }
 
 fn gen_print_builtin(arg_count: i64) (r: i64)
 {
-    // print(str): write(1, str, strlen(str))
-    // println(str): write(1, str, strlen(str)) then write(1, "\n", 1)
     let is_println: i64 = 0
     mut is_println = 0
     if __byte_load(g_call_name, 5) == 108 { mut is_println = 1 }
-    // Pop string address to X0
-    mut r = emit32(0xF84107E0)
-    // Compute strlen: X1 = 0; while [X0+X1] != 0: X1++
-    // Use X1 as counter, X2 as temp
-    mut r = gen_movz(1, 0)
-    let loop_pos: i64 = 0
-    mut loop_pos = g_code_pos
-    mut r = gen_ldrb_reg(2, 0, 1)
-    mut r = gen_cmp(2, 31)
-    let skip_pos: i64 = 0
-    mut skip_pos = g_code_pos
-    mut r = gen_bcond(0, 0)
-    mut r = gen_add_imm(1, 1, 1)
-    mut r = gen_b(loop_pos - g_code_pos)
-    mut r = patch_bcond(skip_pos, g_code_pos - skip_pos)
-    // Now X0 = str ptr, X1 = length
-    // write(1, buf, len): X0=fd, X1=buf, X2=len
-    // Save str ptr and length before overwriting X0
-    mut r = gen_mov(3, 0)
-    mut r = gen_mov(4, 1)
-    mut r = gen_movz(0, 1)
-    mut r = gen_mov(1, 3)
-    mut r = gen_mov(2, 4)
-    mut r = gen_movz(16, TSC_WRITE)
-    if g_target_os == 0 {
-        mut r = emit32(0xD4001001)
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(0)
+        mut r = x86_mov_reg(6, 0)
+        mut r = x86_mov_imm(2, 0)
+        let loop_pos: i64 = 0
+        mut loop_pos = g_code_pos
+        mut r = x86_load8_reg(1, 6, 0)
+        mut r = x86_or_reg(1, 1)
+        let skip_pos: i64 = 0
+        mut skip_pos = g_code_pos
+        mut r = x86_jcc(4, 0)
+        mut r = x86_add_imm(6, 1)
+        mut r = x86_add_imm(2, 1)
+        mut r = x86_jmp(loop_pos - g_code_pos)
+        mut r = patch_bcond(skip_pos, g_code_pos - skip_pos)
+        mut r = x86_mov_imm(0, TSC_WRITE)
+        mut r = x86_mov_imm(7, 1)
+        mut r = x86_syscall()
+        if is_println == 1 {
+            mut r = x86_sub_imm(4, 16)
+            mut r = x86_mov_imm(0, 10)
+            mut r = x86_store8_reg(0, 4, 0)
+            mut r = x86_mov_imm(0, TSC_WRITE)
+            mut r = x86_mov_imm(7, 1)
+            mut r = x86_mov_reg(6, 4)
+            mut r = x86_mov_imm(2, 1)
+            mut r = x86_syscall()
+            mut r = x86_add_imm(4, 16)
+        }
     } else {
-        mut r = gen_mov(8, 16)
-        mut r = emit32(0xD4000001)
-    }
-    if is_println == 1 {
-        // write(1, "\n", 1): store newline on stack, write, restore
-        // SUB SP, SP, #16
-        mut r = emit32(0xD10043FF)
-        // MOV X0, #10 (newline char)
-        mut r = gen_movz(0, 10)
-        // STRB W0, [SP] (store 1 byte at [SP])
-        mut r = gen_strb_reg(0, 31, 31)
-        // MOV X0, #1 (fd = stdout)
+        mut r = emit32(0xF84107E0)
+        mut r = gen_movz(1, 0)
+        let loop_pos2: i64 = 0
+        mut loop_pos2 = g_code_pos
+        mut r = gen_ldrb_reg(2, 0, 1)
+        mut r = gen_cmp(2, 31)
+        let skip_pos2: i64 = 0
+        mut skip_pos2 = g_code_pos
+        mut r = gen_bcond(0, 0)
+        mut r = gen_add_imm(1, 1, 1)
+        mut r = gen_b(loop_pos2 - g_code_pos)
+        mut r = patch_bcond(skip_pos2, g_code_pos - skip_pos2)
+        mut r = gen_mov(3, 0)
+        mut r = gen_mov(4, 1)
         mut r = gen_movz(0, 1)
-        // ADD X1, SP, #0 (buf = SP, can't use MOV since ORR treats 31 as XZR)
-        mut r = emit32(0x910003E1)
-        // MOV X2, #1 (len = 1)
-        mut r = gen_movz(2, 1)
-        // syscall
+        mut r = gen_mov(1, 3)
+        mut r = gen_mov(2, 4)
         mut r = gen_movz(16, TSC_WRITE)
         if g_target_os == 0 {
             mut r = emit32(0xD4001001)
@@ -2561,8 +3189,22 @@ fn gen_print_builtin(arg_count: i64) (r: i64)
             mut r = gen_mov(8, 16)
             mut r = emit32(0xD4000001)
         }
-        // ADD SP, SP, #16 (restore stack)
-        mut r = emit32(0x910043FF)
+        if is_println == 1 {
+            mut r = emit32(0xD10043FF)
+            mut r = gen_movz(0, 10)
+            mut r = gen_strb_reg(0, 31, 31)
+            mut r = gen_movz(0, 1)
+            mut r = emit32(0x910003E1)
+            mut r = gen_movz(2, 1)
+            mut r = gen_movz(16, TSC_WRITE)
+            if g_target_os == 0 {
+                mut r = emit32(0xD4001001)
+            } else {
+                mut r = gen_mov(8, 16)
+                mut r = emit32(0xD4000001)
+            }
+            mut r = emit32(0x910043FF)
+        }
     }
     mut r = 0
 }
@@ -2576,46 +3218,53 @@ fn gen_print_builtin(arg_count: i64) (r: i64)
 // Syscall: X16=197 (macOS) or X8=222 (Linux).
 fn gen_malloc_builtin(arg_count: i64) (r: i64)
 {
-    // __malloc(size): mmap(0, size, PROT_RW, MAP_PRIVATE|ANON, -1, 0)
-    mut r = gen_pop_x0()
-    mut r = gen_mov(1, 0)
-    mut r = gen_movz(0, 0)
-    mut r = gen_movz(2, 3)
-    mut r = gen_movz(3, T_MAP_FLAGS)
-    mut r = emit32(0x92800004)
-    mut r = gen_movz(5, 0)
-    if g_target_os == 0 {
-        mut r = gen_movz(16, TSC_MMAP)
-        mut r = emit32(0xD4001001)
+    if g_target_isa == 1 {
+        mut r = gen_pop_x0()
+        mut r = gen_caller_save()
+        mut r = x86_load_reg(7, 4, 16)
+        mut r = x86_mov_reg(6, 7)
+        mut r = x86_mov_imm(7, 0)
+        mut r = x86_mov_imm(2, 3)
+        mut r = x86_mov_imm(10, T_MAP_FLAGS)
+        mut r = x86_mov_imm(8, 0 - 1)
+        mut r = x86_mov_imm(9, 0)
+        mut r = x86_mov_imm(0, TSC_MMAP)
+        mut r = x86_syscall()
     } else {
-        mut r = gen_movz(8, 222)
-        mut r = emit32(0xD4000001)
+        mut r = gen_pop_x0()
+        mut r = gen_mov(1, 0)
+        mut r = gen_movz(0, 0)
+        mut r = gen_movz(2, 3)
+        mut r = gen_movz(3, T_MAP_FLAGS)
+        mut r = emit32(0x92800004)
+        mut r = gen_movz(5, 0)
+        if g_target_os == 0 {
+            mut r = gen_movz(16, TSC_MMAP)
+            mut r = emit32(0xD4001001)
+        } else {
+            mut r = gen_movz(8, 222)
+            mut r = emit32(0xD4000001)
+        }
     }
 }
 
 fn gen_alloca_builtin(arg_count: i64) (r: i64)
 {
-    // __alloca(size): allocate on stack, return pointer
-    // Pop size to X0, round up to 16, SUB SP SP #size, MOV X0 SP
-    mut r = gen_pop_x0()
-    // Round up to 16: X0 = (X0 + 15) & ~15
-    // ADD X0, X0, #15
-    mut r = gen_add_imm(0, 0, 15)
-    // AND X0, X0, #0xFFFFFFF0 (clear low 4 bits)
-    // AND Xd, Xn, #imm: immediate form uses bitmask encoding
-    // ~15 = 0xFFFFFFFFFFFFFFF0, but we can use: BIC X0, X0, #15
-    // BIC Xd, Xn, #imm = 0x92700000 | ... (complex encoding)
-    // Simpler: use AND with register: MOV X1, #-16; AND X0, X0, X1
-    // MOVN X1, #15 = 0x92800001 (X1 = ~15 = -16)
-    mut r = emit32(0x92800001)
-    // AND X0, X0, X1 = 0x8A010000
-    mut r = emit32(0x8A010000)
-    // SUB SP, SP, X0
-    // SUB Xd, Xn, Xm = 0xCB000000 | (rm << 16) | (rn << 5) | rd
-    // SUB SP, SP, X0: rd=31, rn=31, rm=0 = 0xCB0003FF
-    mut r = emit32(0xCB0003FF)
-    // ADD X0, SP, #0 (return pointer to allocated space)
-    mut r = emit32(0x910003E0)
+    if g_target_isa == 1 {
+        mut r = gen_pop_x0()
+        mut r = x86_add_imm(x86_reg(0), 15)
+        mut r = x86_mov_imm(11, 0 - 16)
+        mut r = x86_and_reg(x86_reg(0), 11)
+        mut r = x86_sub_reg(4, 4, x86_reg(0))
+        mut r = x86_mov_reg(x86_reg(0), 4)
+    } else {
+        mut r = gen_pop_x0()
+        mut r = gen_add_imm(0, 0, 15)
+        mut r = emit32(0x92800001)
+        mut r = emit32(0x8A010000)
+        mut r = emit32(0xCB0003FF)
+        mut r = emit32(0x910003E0)
+    }
 }
 
 // __str_len(s): compute string length by scanning for null byte.
@@ -2629,16 +3278,33 @@ fn gen_alloca_builtin(arg_count: i64) (r: i64)
 //   done: MOV X0, X1     ; return length
 fn gen_str_len_builtin() (r: i64)
 {
-    mut r = emit32(0xF84107E0)
-    mut r = gen_movz(1, 0)
-    let loop_pos: i64 = 0
-    mut loop_pos = g_code_pos
-    mut r = emit32(0x38400002)
-    mut r = emit32(0x34000082)
-    mut r = gen_add_imm(0, 0, 1)
-    mut r = gen_add_imm(1, 1, 1)
-    mut r = gen_b(loop_pos - g_code_pos)
-    mut r = gen_mov(0, 1)
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(0)
+        mut r = x86_mov_imm(1, 0)
+        let loop_pos: i64 = 0
+        mut loop_pos = g_code_pos
+        mut r = x86_load8_reg(2, 0, 0)
+        mut r = x86_cmp_reg(2, 2)
+        let skip_pos: i64 = 0
+        mut skip_pos = g_code_pos
+        mut r = x86_jcc(4, 0)
+        mut r = x86_add_imm(x86_reg(0), 1)
+        mut r = x86_add_imm(1, 1)
+        mut r = x86_jmp(loop_pos - g_code_pos)
+        mut r = patch_bcond(skip_pos, g_code_pos - skip_pos)
+        mut r = x86_mov_reg(0, 1)
+    } else {
+        mut r = emit32(0xF84107E0)
+        mut r = gen_movz(1, 0)
+        let loop_pos2: i64 = 0
+        mut loop_pos2 = g_code_pos
+        mut r = emit32(0x38400002)
+        mut r = emit32(0x34000082)
+        mut r = gen_add_imm(0, 0, 1)
+        mut r = gen_add_imm(1, 1, 1)
+        mut r = gen_b(loop_pos2 - g_code_pos)
+        mut r = gen_mov(0, 1)
+    }
     mut r = 0
 }
 
@@ -2692,10 +3358,14 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 
 fn gen_caller_save2() (r: i64)
 {
-    mut r = emit32(2835687400)
-    mut r = emit32(2835754986)
-    mut r = emit32(2835822572)
-    mut r = emit32(2835890158)
+    if g_target_isa == 1 {
+        mut r = 0
+    } else {
+        mut r = emit32(2835687400)
+        mut r = emit32(2835754986)
+        mut r = emit32(2835822572)
+        mut r = emit32(2835890158)
+    }
     mut r = 0
 }
 
@@ -2707,27 +3377,47 @@ fn gen_caller_save2() (r: i64)
 // as they are scratch/PLT registers. X19+ are callee-saved.
 fn gen_caller_save() (r: i64)
 {
-    mut r = emit32(0xD10283FF)
-    mut r = emit32(2835417056)
-    mut r = emit32(2835484642)
-    mut r = emit32(2835552228)
-    mut r = emit32(2835619814)
-    mut r = gen_caller_save2()
+    if g_target_isa == 1 {
+        mut r = x86_sub_imm(4, 160)
+        mut r = x86_store_reg(0, 4, 16)
+        mut r = x86_store_reg(1, 4, 24)
+        mut r = x86_store_reg(2, 4, 32)
+        mut r = x86_store_reg(3, 4, 40)
+        mut r = x86_store_reg(6, 4, 48)
+        mut r = x86_store_reg(7, 4, 56)
+        mut r = x86_store_reg(8, 4, 64)
+        mut r = x86_store_reg(9, 4, 72)
+    } else {
+        mut r = emit32(0xD10283FF)
+        mut r = emit32(2835417056)
+        mut r = emit32(2835484642)
+        mut r = emit32(2835552228)
+        mut r = emit32(2835619814)
+        mut r = gen_caller_save2()
+    }
     mut r = 0
 }
 
 fn gen_save_retval() (r: i64)
 {
-    mut r = emit32(0xF90007E0)
+    if g_target_isa == 1 {
+        mut r = x86_store_reg(0, 4, 8)
+    } else {
+        mut r = emit32(0xF90007E0)
+    }
     mut r = 0
 }
 
 fn gen_caller_restore2() (r: i64)
 {
-    mut r = emit32(2839881704)
-    mut r = emit32(2839949290)
-    mut r = emit32(2840016876)
-    mut r = emit32(2840084462)
+    if g_target_isa == 1 {
+        mut r = 0
+    } else {
+        mut r = emit32(2839881704)
+        mut r = emit32(2839949290)
+        mut r = emit32(2840016876)
+        mut r = emit32(2840084462)
+    }
     mut r = 0
 }
 
@@ -2738,23 +3428,42 @@ fn gen_caller_restore2() (r: i64)
 // via gen_load_retval().
 fn gen_caller_restore() (r: i64)
 {
-    mut r = emit32(2839611360)
-    mut r = emit32(2839678946)
-    mut r = emit32(2839746532)
-    mut r = emit32(2839814118)
-    mut r = gen_caller_restore2()
+    if g_target_isa == 1 {
+        mut r = x86_load_reg(0, 4, 16)
+        mut r = x86_load_reg(1, 4, 24)
+        mut r = x86_load_reg(2, 4, 32)
+        mut r = x86_load_reg(3, 4, 40)
+        mut r = x86_load_reg(6, 4, 48)
+        mut r = x86_load_reg(7, 4, 56)
+        mut r = x86_load_reg(8, 4, 64)
+        mut r = x86_load_reg(9, 4, 72)
+        mut r = x86_add_imm(4, 160)
+    } else {
+        mut r = emit32(2839611360)
+        mut r = emit32(2839678946)
+        mut r = emit32(2839746532)
+        mut r = emit32(2839814118)
+        mut r = gen_caller_restore2()
+    }
     mut r = 0
 }
 fn gen_add_sp() (r: i64)
 {
-    mut r = emit32(0x910283FF)
+    if g_target_isa == 1 {
+        mut r = x86_add_imm(4, 160)
+    } else {
+        mut r = emit32(0x910283FF)
+    }
     mut r = 0
 }
 
 fn gen_load_retval() (r: i64)
 {
-    // Only load X0 (return value). X19 is callee-saved, survives calls.
-    mut r = emit32(0xF94007E0)     // LDR X0, [SP, #0x8]
+    if g_target_isa == 1 {
+        mut r = x86_load_reg(0, 4, 8)
+    } else {
+        mut r = emit32(0xF94007E0)
+    }
     mut r = 0
 }
 
@@ -2805,26 +3514,41 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
 // The save/restore preserves live registers since mmap clobbers X0-X5.
 fn gen_enum_alloc() (r: i64)
 {
-    mut r = gen_caller_save()
-    mut r = gen_movz(0, 16)
-    mut r = gen_mov(1, 0)
-    mut r = gen_movz(0, 0)
-    mut r = gen_movz(2, 3)
-    mut r = gen_movz(3, T_MAP_FLAGS)
-    mut r = emit32(0x92800004)
-    mut r = gen_movz(5, 0)
-    if g_target_os == 0 {
-        mut r = gen_movz(16, TSC_MMAP)
-        mut r = emit32(0xD4001001)
+    if g_target_isa == 1 {
+        mut r = gen_caller_save()
+        mut r = x86_mov_imm(7, 0)
+        mut r = x86_mov_imm(6, 16)
+        mut r = x86_mov_imm(2, 3)
+        mut r = x86_mov_imm(10, T_MAP_FLAGS)
+        mut r = x86_mov_imm(8, 0 - 1)
+        mut r = x86_mov_imm(9, 0)
+        mut r = x86_mov_imm(0, TSC_MMAP)
+        mut r = x86_syscall()
+        mut r = gen_save_retval()
+        mut r = gen_caller_restore()
+        mut r = gen_load_retval()
+        mut r = gen_add_sp()
     } else {
-        mut r = gen_movz(8, 222)
-        mut r = emit32(0xD4000001)
+        mut r = gen_caller_save()
+        mut r = gen_movz(0, 16)
+        mut r = gen_mov(1, 0)
+        mut r = gen_movz(0, 0)
+        mut r = gen_movz(2, 3)
+        mut r = gen_movz(3, T_MAP_FLAGS)
+        mut r = emit32(0x92800004)
+        mut r = gen_movz(5, 0)
+        if g_target_os == 0 {
+            mut r = gen_movz(16, TSC_MMAP)
+            mut r = emit32(0xD4001001)
+        } else {
+            mut r = gen_movz(8, 222)
+            mut r = emit32(0xD4000001)
+        }
+        mut r = gen_save_retval()
+        mut r = gen_caller_restore()
+        mut r = gen_load_retval()
+        mut r = gen_add_sp()
     }
-    mut r = gen_save_retval()
-    mut r = gen_caller_restore()
-    mut r = gen_load_retval()
-    mut r = gen_add_sp()
-    mut r = 0
 }
 
 // Generate code for an enum constructor call (e.g. Some(value)).
@@ -2902,37 +3626,61 @@ fn gen_call(name: i64, first_arg: i64) (r: i64)
 }
 fn gen_pop_x0() (r: i64)
 {
-    mut r = emit32(0xF84107E0)
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(0)
+    } else {
+        mut r = emit32(0xF84107E0)
+    }
 }
 
 // Pop to X2
 fn gen_pop_x2() (r: i64)
 {
-    mut r = emit32(0xF84107E2)
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(x86_reg(2))
+    } else {
+        mut r = emit32(0xF84107E2)
+    }
 }
 
 // Pop to X3
 fn gen_pop_x3() (r: i64)
 {
-    mut r = emit32(0xF84107E3)
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(x86_reg(3))
+    } else {
+        mut r = emit32(0xF84107E3)
+    }
 }
 
 // Pop to X4
 fn gen_pop_x4() (r: i64)
 {
-    mut r = emit32(0xF84107E4)
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(x86_reg(4))
+    } else {
+        mut r = emit32(0xF84107E4)
+    }
 }
 
 // Pop to X5
 fn gen_pop_x5() (r: i64)
 {
-    mut r = emit32(0xF84107E5)
+    if g_target_isa == 1 {
+        mut r = x86_pop_reg(x86_reg(5))
+    } else {
+        mut r = emit32(0xF84107E5)
+    }
 }
 
 // Pop and discard (to XZR)
 fn gen_pop_discard() (r: i64)
 {
-    mut r = emit32(0xF84107FF)
+    if g_target_isa == 1 {
+        mut r = x86_add_imm(4, 8)
+    } else {
+        mut r = emit32(0xF84107FF)
+    }
 }
 
 // === Statement code generator ===
@@ -3236,20 +3984,38 @@ fn gen_while(nd: i64) (r: i64)
 // Patch a B.cond instruction at pos with new offset
 fn patch_bcond(pos: i64, offset: i64) (r: i64)
 {
-    let off19: i64 = 0
-    let old_cond: i64 = 0
-    mut off19 = (offset >> 2) & 524287
-    mut old_cond = __byte_load(g_code, pos) & 15
-    mut r = emit32_at(pos, 0x54000000 | (off19 << 5) | old_cond)
+    if g_target_isa == 1 {
+        let rel: i64 = 0
+        mut rel = offset - 6
+        mut r = __byte_store(g_code, pos + 2, rel & 255)
+        mut r = __byte_store(g_code, pos + 3, (rel >> 8) & 255)
+        mut r = __byte_store(g_code, pos + 4, (rel >> 16) & 255)
+        mut r = __byte_store(g_code, pos + 5, (rel >> 24) & 255)
+    } else {
+        let off19: i64 = 0
+        let old_cond: i64 = 0
+        mut off19 = (offset >> 2) & 524287
+        mut old_cond = __byte_load(g_code, pos) & 15
+        mut r = emit32_at(pos, 0x54000000 | (off19 << 5) | old_cond)
+    }
     mut r = 0
 }
 
 // Patch a B instruction at pos with new offset
 fn patch_b(pos: i64, offset: i64) (r: i64)
 {
-    let off26: i64 = 0
-    mut off26 = (offset >> 2) & 67108863
-    mut r = emit32_at(pos, 0x14000000 | off26)
+    if g_target_isa == 1 {
+        let rel: i64 = 0
+        mut rel = offset - 5
+        mut r = __byte_store(g_code, pos + 1, rel & 255)
+        mut r = __byte_store(g_code, pos + 2, (rel >> 8) & 255)
+        mut r = __byte_store(g_code, pos + 3, (rel >> 16) & 255)
+        mut r = __byte_store(g_code, pos + 4, (rel >> 24) & 255)
+    } else {
+        let off26: i64 = 0
+        mut off26 = (offset >> 2) & 67108863
+        mut r = emit32_at(pos, 0x14000000 | off26)
+    }
     mut r = 0
 }
 
@@ -3356,9 +4122,15 @@ fn ast_field(nd: i64, field: i64) (r: i64)
 // 3. RET.
 fn gen_epilogue() (r: i64)
 {
-    mut r = gen_add_imm(31, 31, 2048)
-    mut r = gen_ldp_post(29, 30, 31, 2)
-    mut r = gen_ret()
+    if g_target_isa == 1 {
+        mut r = x86_add_imm(4, 2048)
+        mut r = x86_pop_reg(5)
+        mut r = x86_ret()
+    } else {
+        mut r = gen_add_imm(31, 31, 2048)
+        mut r = gen_ldp_post(29, 30, 31, 2)
+        mut r = gen_ret()
+    }
     mut r = 0
 }
 
@@ -3369,31 +4141,51 @@ fn gen_epilogue() (r: i64)
 // The 2048-byte frame accommodates up to 256 i64 locals.
 fn gen_prologue() (r: i64)
 {
-    mut r = gen_stp_pre(29, 30, 31, 65534)
-    mut r = gen_add_imm(29, 31, 0)
-    mut r = gen_sub_imm(31, 31, 2048)
+    if g_target_isa == 1 {
+        mut r = x86_push_reg(5)
+        mut r = x86_mov_reg(5, 4)
+        mut r = x86_sub_imm(4, 2048)
+    } else {
+        mut r = gen_stp_pre(29, 30, 31, 65534)
+        mut r = gen_add_imm(29, 31, 0)
+        mut r = gen_sub_imm(31, 31, 2048)
+    }
     mut r = 0
 }
 
 fn gen_main_init() (r: i64)
 {
-    // Emit direct mmap syscall: mmap(0, 4096, PROT_RW, MAP_PRIVATE|ANON, -1, 0)
-    // macOS aarch64: x16=197, svc #0x80
-    mut r = gen_movz(0, 0)          // X0 = 0 (addr = NULL)
-    mut r = gen_movz(1, 4096)       // X1 = 4096 (not enough, need larger)
-    mut r = gen_movk(1, 1, 16)      // X1 = 4096 + 65536 = 69632 (larger mmap)
-    mut r = gen_movz(2, 3)          // X2 = 3 (PROT_READ|PROT_WRITE)
-    mut r = gen_movz(3, T_MAP_FLAGS)       // X3 = 4098 (MAP_PRIVATE|MAP_ANON)
-    mut r = emit32(0x92800004)      // MOV X4, #-1 (fd = -1) = MOVN X4, #0
-    mut r = gen_movz(5, 0)          // X5 = 0 (offset)
-    if g_target_os == 0 {
-        mut r = gen_movz(16, TSC_MMAP)
-        mut r = emit32(0xD4001001)
+    if g_target_isa == 1 {
+        // x86-64: mmap syscall with args in RDI/RSI/RDX/R10/R8/R9
+        mut r = x86_mov_imm(7, 0)          // RDI = 0 (addr)
+        mut r = x86_mov_imm(6, 4096)       // RSI = 4096
+        mut r = x86_mov_imm(11, 1)
+        mut r = x86_shl_imm(11, 16)        // R11 = 0x10000
+        mut r = x86_or_reg(6, 11)          // RSI = 69632
+        mut r = x86_mov_imm(2, 3)          // RDX = 3 (PROT_RW)
+        mut r = x86_mov_imm(10, T_MAP_FLAGS) // R10 = MAP flags
+        mut r = x86_mov_imm(8, 0 - 1)      // R8 = -1 (fd)
+        mut r = x86_mov_imm(9, 0)          // R9 = 0 (offset)
+        mut r = x86_mov_imm(0, TSC_MMAP)   // RAX = mmap syscall #
+        mut r = x86_syscall()
+        mut r = x86_mov_reg(3, 0)          // RBX = RAX (global base ptr)
     } else {
-        mut r = gen_movz(8, 222)
-        mut r = emit32(0xD4000001)
+        mut r = gen_movz(0, 0)
+        mut r = gen_movz(1, 4096)
+        mut r = gen_movk(1, 1, 16)
+        mut r = gen_movz(2, 3)
+        mut r = gen_movz(3, T_MAP_FLAGS)
+        mut r = emit32(0x92800004)
+        mut r = gen_movz(5, 0)
+        if g_target_os == 0 {
+            mut r = gen_movz(16, TSC_MMAP)
+            mut r = emit32(0xD4001001)
+        } else {
+            mut r = gen_movz(8, 222)
+            mut r = emit32(0xD4000001)
+        }
+        mut r = gen_mov(19, 0)
     }
-    mut r = gen_mov(19, 0)          // X19 = X0 (global base pointer)
     mut r = 0
 }
 
@@ -3456,6 +4248,28 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
         }
     mut r = gen_block(body)
     mut r = gen_retval(rets)
+    if is_main_fn == 1 {
+        if g_exec_elf == 1 {
+            if g_target_isa == 1 {
+                mut r = x86_push_reg(0)
+                mut r = x86_pop_reg(7)
+                if g_target_os == 1 {
+                    mut r = x86_mov_imm(0, 60)
+                } else {
+                    mut r = x86_mov_imm(0, 1)
+                }
+                mut r = x86_syscall()
+            } else {
+                if g_target_os == 1 {
+                    mut r = gen_movz(8, 93)
+                    mut r = emit32(0xD4000001)
+                } else {
+                    mut r = gen_movz(16, 1)
+                    mut r = emit32(0xD4001001)
+                }
+            }
+        }
+    }
     mut r = gen_epilogue()
     mut r = 0
 }
@@ -3640,10 +4454,18 @@ fn patch_str_adrs(code_size: i64) (r: i64)
         mut adr_pos = __mem_load(g_adr_patch_pos + i * 8)
         mut str_idx = __mem_load(g_adr_patch_idx + i * 8)
         mut str_off = code_size + str_str_off(str_idx)
-        mut rel = str_off - adr_pos
-        mut off_hi = (rel >> 2) & 262143
-        mut off_lo = rel & 3
-        mut r = emit32_at(adr_pos, 0x10000000 | (off_lo << 29) | (off_hi << 5))
+        if g_target_isa == 1 {
+            mut rel = str_off - adr_pos - 7
+            mut r = __byte_store(g_code, adr_pos + 3, rel & 255)
+            mut r = __byte_store(g_code, adr_pos + 4, (rel >> 8) & 255)
+            mut r = __byte_store(g_code, adr_pos + 5, (rel >> 16) & 255)
+            mut r = __byte_store(g_code, adr_pos + 6, (rel >> 24) & 255)
+        } else {
+            mut rel = str_off - adr_pos
+            mut off_hi = (rel >> 2) & 262143
+            mut off_lo = rel & 3
+            mut r = emit32_at(adr_pos, 0x10000000 | (off_lo << 29) | (off_hi << 5))
+        }
         mut i = i + 1
     }
     mut r = 0
@@ -3760,9 +4582,6 @@ fn write_str_raw(fp: i64, s: i64) (r: i64)
 
 fn write_elf_exec(path: i64, code_size: i64) (r: i64)
 {
-    // Write a static ELF executable (ET_EXEC) with PT_LOAD program header.
-    // Used for QEMU testing: qemu-system-aarch64 -kernel Image -initrd this.elf
-    // Or: qemu-system-aarch64 -kernel this.elf (if self-booting)
     let str_data_size: i64 = 0
     let fp: i64 = 0
     let load_addr: i64 = 0
@@ -3780,7 +4599,6 @@ fn write_elf_exec(path: i64, code_size: i64) (r: i64)
         mut entry = load_addr + code_off
         mut total_size = code_size + str_data_size
         mut r = patch_str_adrs(code_size)
-        // ELF header (64 bytes)
         mut r = write32(fp, 0x464C457F)
         mut r = write_byte(fp, 2)
         mut r = write_byte(fp, 1)
@@ -3789,7 +4607,11 @@ fn write_elf_exec(path: i64, code_size: i64) (r: i64)
         mut r = write32(fp, 0)
         mut r = write32(fp, 0)
         mut r = write16(fp, 2)
-        mut r = write16(fp, 183)
+        if g_target_isa == 1 {
+            mut r = write16(fp, 62)
+        } else {
+            mut r = write16(fp, 183)
+        }
         mut r = write32(fp, 1)
         mut r = write64(fp, entry)
         mut r = write64(fp, 64)
@@ -3801,7 +4623,7 @@ fn write_elf_exec(path: i64, code_size: i64) (r: i64)
         mut r = write16(fp, 0)
         mut r = write16(fp, 0)
         mut r = write16(fp, 0)
-        // Program header (56 bytes) - PT_LOAD
+        // PT_LOAD program header
         mut r = write32(fp, 1)
         mut r = write32(fp, 5)
         mut r = write64(fp, code_off)
@@ -3872,7 +4694,11 @@ fn write_elf(path: i64, code_size: i64) (r: i64)
         mut r = write32(fp, 0)           // EI_ABIVERSION + padding
         mut r = write32(fp, 0)           // padding
         mut r = write16(fp, 1)           // e_type = ET_REL
-        mut r = write16(fp, 183)         // e_machine = EM_AARCH64
+        if g_target_isa == 1 {
+            mut r = write16(fp, 62)
+        } else {
+            mut r = write16(fp, 183)
+        }
         mut r = write32(fp, 1)           // e_version = EV_CURRENT
         mut r = write64(fp, 0)           // e_entry
         mut r = write64(fp, 0)           // e_phoff
@@ -4308,6 +5134,7 @@ fn run_compiler(argv_ptr: i64) (r: i64)
                     if __byte_load(arg_ptr, 9) == 108 { mut g_target_os = 1 }
                     if __byte_load(arg_ptr, 9) == 102 { mut g_target_os = 2 }
                 }
+                if __byte_load(arg_ptr, 2) == 120 { mut g_target_isa = 1 }
                 if __byte_load(arg_ptr, 2) == 101 {
                     if __byte_load(arg_ptr, 5) == 99 { mut g_exec_elf = 1 }
                     mut g_output_elf = 1
@@ -4327,6 +5154,12 @@ fn run_compiler(argv_ptr: i64) (r: i64)
         mut TSC_WRITE = 4
         mut TSC_MMAP = 477
         mut T_MAP_FLAGS = 4110
+    }
+    if g_target_isa == 1 {
+        if g_target_os == 1 {
+            mut TSC_WRITE = 1
+            mut TSC_MMAP = 9
+        }
     }
     mut status = do_parse(arg1_ptr)
     if status == 0 {

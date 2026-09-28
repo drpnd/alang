@@ -123,7 +123,7 @@ echo 'fn main() (r: i32) { mut r = 42 __syscall(1, r) }' > "$QEMU_DIR/fbsd_test.
 if $COMPILER "$QEMU_DIR/fbsd_test.al" "$QEMU_DIR/fbsd_test.elf" --target=freebsd --exec 2>/dev/null; then
     # Verify it's a valid ELF executable
     if python3 -c "
-import struct, sys
+import sys, sys
 with open('$QEMU_DIR/fbsd_test.elf', 'rb') as f:
     data = f.read()
 e_type = struct.unpack_from('<H', data, 16)[0]
@@ -146,42 +146,45 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-# Verify FreeBSD syscall numbers in the generated binary
+# Verify FreeBSD syscall convention in the generated binary
 TOTAL=$((TOTAL + 1))
-# FreeBSD exit syscall = 1, write = 4, mmap = 477
-# Check for MOV X8, #1 (exit) in the binary
+# FreeBSD uses SVC #0 (not SVC #0x80) and X8 for syscall number
+# The self-hosting compiler moves syscall number from X6 to X8
 if python3 -c "
-import struct
+import sys
 with open('$QEMU_DIR/fbsd_test.elf', 'rb') as f:
     data = f.read()
-# Look for MOV X8, #1 = MOVZ X8, #1 = 0xD2800108 (LE: 08 01 80 D2)
-target = b'\\x08\\x01\\x80\\xd2'
-if target in data:
-    sys.exit(0)  # Found
+# SVC #0 = 0xD4000001 (LE: 01 00 00 D4)
+svc0 = b'\x01\x00\x00\xd4'
+# MOV X8, X6 = 0xAA0603E8 (LE: E8 03 06 AA)
+mov_x8_x6 = b'\xe8\x03\x06\xaa'
+# MOV X16, X6 (macOS path, should NOT be present)
+mov_x16_x6 = b'\xf0\x03\x06\xaa'
+if svc0 in data and mov_x8_x6 in data and mov_x16_x6 not in data:
+    sys.exit(0)
 else:
-    sys.exit(1)  # Not found
+    sys.exit(1)
 " 2>/dev/null; then
-    echo "PASS: freebsd_syscall_numbers (exit=1 via X8)"
+    echo "PASS: freebsd_syscall_numbers (SVC #0 + MOV X8, X6)"
     PASS=$((PASS + 1))
 else
     echo "FAIL: freebsd_syscall_numbers"
     FAIL=$((FAIL + 1))
 fi
-
-# Verify FreeBSD mmap flags (MAP_ANON=0x1000, MAP_PRIVATE=0x2 => 0x100E=4110)
+# Verify FreeBSD mmap flags (MAP_ANON|MAP_PRIVATE=0x100E=4110)
 TOTAL=$((TOTAL + 1))
 echo 'fn main() (r: i32) { let buf = __malloc(64) mut r = 0 __syscall(1, r) }' > "$QEMU_DIR/fbsd_malloc.al"
 $COMPILER "$QEMU_DIR/fbsd_malloc.al" "$QEMU_DIR/fbsd_malloc.elf" --target=freebsd --exec 2>/dev/null
 if python3 -c "
-import struct
+import sys
 with open('$QEMU_DIR/fbsd_malloc.elf', 'rb') as f:
     data = f.read()
-# Look for MOVZ X3, #4110 = 0xD2802013 (approx, need to calculate)
-# MOVZ X3, #4110: imm16=4110=0x100E, hw=0
-# encoding: 0xD2800000 | (0x100E << 5) | 3 = 0xD2800000 | 0x201C0 | 3 = 0xD28201C3
-# LE bytes: C3 01 82 D2
-target = b'\\xc3\\x01\\x82\\xd2'
-if target in data:
+# MOVZ X3, #4110 (0x100E = MAP_PRIVATE|MAP_ANON for FreeBSD)
+# Encoding: 0xD28201C3, LE: C3 01 82 D2
+target = b'\xc3\x01\x82\xd2'
+# Also verify SVC #0 is present
+svc0 = b'\x01\x00\x00\xd4'
+if target in data and svc0 in data:
     sys.exit(0)
 else:
     sys.exit(1)
