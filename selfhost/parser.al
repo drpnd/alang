@@ -3530,7 +3530,15 @@ fn gen_extern_call() (r: i64)
     __mem_store(g_patch_pos + g_patch_count * 8, g_code_pos)
     __mem_store(g_patch_name + g_patch_count * 8, g_call_name)
     mut g_patch_count = g_patch_count + 1
-    mut r = gen_bl(0)
+    if g_target_isa == 1 {
+        mut r = emit_byte(0xE8)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+    } else {
+        mut r = gen_bl(0)
+    }
 }
 
 fn gen_direct_call(fn_off: i64) (r: i64)
@@ -4611,9 +4619,21 @@ fn write_ext_relocs(fp: i64) (r: i64)
     mut i = 0
     while i < g_ext_count {
         mut pos = __mem_load(g_ext_pos + i * 8)
-        mut r = emit32_at(pos, 0x94000000)
+        if g_target_isa == 1 {
+            mut r = __byte_store(g_code, pos, 0xE8)
+            mut r = __byte_store(g_code, pos + 1, 0)
+            mut r = __byte_store(g_code, pos + 2, 0)
+            mut r = __byte_store(g_code, pos + 3, 0)
+            mut r = __byte_store(g_code, pos + 4, 0)
+        } else {
+            mut r = emit32_at(pos, 0x94000000)
+        }
         mut r = write32(fp, pos)
-        mut r = write32(fp, ((i + 1) & 16777215) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
+        if g_target_isa == 1 {
+            mut r = write32(fp, ((i + 1) & 16777215) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
+        } else {
+            mut r = write32(fp, ((i + 1) & 16777215) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
+        }
         mut i = i + 1
     }
     mut r = 0
@@ -4782,7 +4802,11 @@ fn write_elf(path: i64, code_size: i64) (r: i64)
             mut pos = __mem_load(g_ext_pos + i * 8)
             mut sym_idx = i + 1
             mut r = write64(fp, pos)
-            mut r = write64(fp, (sym_idx << 32) | 274)
+            if g_target_isa == 1 {
+                mut r = write64(fp, (sym_idx << 32) | 4)
+            } else {
+                mut r = write64(fp, (sym_idx << 32) | 274)
+            }
             mut i = i + 1
         }
         // Symbol table (ELF64 Sym, 24 bytes each)
