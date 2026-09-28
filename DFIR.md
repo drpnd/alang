@@ -1286,65 +1286,188 @@ restore all 16 registers, followed by `ADD SP, SP, #160` (via `gen_add_sp()`).
 
 ## 19. Platform Support
 
-The self-hosting compiler supports three aarch64 platforms. The target
-platform is selected at compile time via the `--target` flag:
+The alang compiler supports multiple OS/ISA combinations. The self-hosting
+compiler (`parser.al`) targets **aarch64** for three operating systems. The
+bootstrap compiler (`minica_test_build`) additionally supports **x86-64**.
 
-| Flag | Platform | `g_target_os` |
-|------|----------|---------------|
-| `--target macos` (default) | macOS (aarch64/Mach-O) | 0 |
-| `--target linux` | Linux (aarch64/ELF) | 1 |
-| `--target freebsd` | FreeBSD (aarch64/ELF) | 2 |
+### 19.1 Supported Targets
 
-### 19.1 Syscall Numbers
+#### Self-Hosting Compiler (aarch64 only)
 
-| Syscall | macOS | Linux | FreeBSD |
-|---------|-------|-------|---------|
-| `read` | 3 | 63 | 3 |
-| `write` | 4 | 64 | 4 |
-| `open` | 5 | 56 | 5 |
-| `close` | 6 | 57 | 6 |
-| `mmap` | 197 | 222 | 477 |
-| `exit` | 1 | 93 | 1 |
+| Flag | Platform | `g_target_os` | Object Format |
+|------|----------|---------------|---------------|
+| `--target macos` (default) | macOS (aarch64) | 0 | Mach-O |
+| `--target linux` | Linux (aarch64) | 1 | ELF |
+| `--target freebsd` | FreeBSD (aarch64) | 2 | ELF |
 
-### 19.2 Syscall Calling Convention
+#### Bootstrap Compiler (aarch64 + x86-64)
 
-| Platform | Syscall # Register | Instruction | Args |
-|----------|-------------------|-------------|------|
-| macOS | X16 | `SVC #0x80` | X0-X5 |
-| Linux | X8 | `SVC #0` | X0-X5 |
-| FreeBSD | X8 | `SVC #0` | X0-X5 |
+| Flags | Platform | ISA | Object Format |
+|-------|----------|-----|---------------|
+| `--aarch64 --mach-o` (default) | macOS | aarch64 | Mach-O |
+| `--aarch64 --elf` | Linux/FreeBSD | aarch64 | ELF |
+| `--x86-64 --elf` | Linux | x86-64 | ELF |
 
-- On macOS: `MOV X16, <syscall_num>; SVC #0x80`
-- On Linux/FreeBSD: `MOV X8, <syscall_num>; SVC #0`
+The `--exec` flag (both compilers) produces a static ELF executable
+(ET_EXEC with PT_LOAD) instead of a relocatable object (ET_REL), for
+direct QEMU testing.
 
-### 19.3 Output Format
+### 19.2 Syscall Numbers
 
-| Platform | Object Format | Flag |
-|----------|--------------|------|
-| macOS | Mach-O (arm64) | `--mach-o` (default) |
-| Linux | ELF (aarch64) | `--elf` |
-| FreeBSD | ELF (aarch64) | `--elf` |
+Syscall numbers differ across operating systems. The self-hosting compiler
+uses two sets of globals:
 
-The `g_output_elf` flag (set by `--elf`) selects between the Mach-O and ELF
-linker backends.
+- **Runtime syscalls** (`SC_*`): Used by the compiler's own runtime
+  (always macOS, since the compiler runs on macOS)
+- **Target syscalls** (`TSC_*`): Used by code generation for the target
+  platform (set per `--target`)
 
-### 19.4 Runtime (No libc)
+#### aarch64
 
-The self-hosting compiler's runtime uses **direct syscalls** exclusively —
-no C library dependency. All I/O operations (`print`, `println`, file
-operations) are implemented via `__syscall`. Memory allocation uses `mmap`
-directly via `__malloc`.
+| Syscall | macOS | Linux | FreeBSD | Runtime Global | Target Global |
+|---------|-------|-------|---------|----------------|---------------|
+| `read` | 3 | 63 | 3 | `SC_READ` | -- |
+| `write` | 4 | 64 | 4 | `SC_WRITE` | `TSC_WRITE` |
+| `open` | 5 | 56 | 5 | `SC_OPEN` | -- |
+| `close` | 6 | 57 | 6 | `SC_CLOSE` | -- |
+| `mmap` | 197 | 222 | 477 | `SC_MMAP` | `TSC_MMAP` |
+| `exit` | 1 | 93 | 1 | `SC_EXIT` | -- |
 
-The runtime helper functions in `parser.al`:
+#### x86-64 (Linux only, bootstrap compiler)
+
+| Syscall | Linux | Note |
+|---------|-------|------|
+| `read` | 0 | |
+| `write` | 1 | |
+| `open` | 2 | |
+| `close` | 3 | |
+| `mmap` | 9 | |
+| `exit` | 60 | `exit_group` |
+
+### 19.3 Syscall Calling Conventions (ABI)
+
+#### aarch64 ABI
+
+| OS | Syscall # Register | Trap Instruction | Arg Registers | Return Register |
+|----|-------------------|-----------------|---------------|----------------|
+| macOS | X16 | `SVC #0x80` | X0, X1, X2, X3, X4, X5 | X0 |
+| Linux | X8 | `SVC #0` | X0, X1, X2, X3, X4, X5 | X0 |
+| FreeBSD | X8 | `SVC #0` | X0, X1, X2, X3, X4, X5 | X0 |
+
+Self-hosting compiler codegen sequence:
+1. Pop args from stack into X0-X5 (reverse order)
+2. Pop syscall number into X6
+3. Save caller-saved registers (X0-X15) to stack
+4. Reload args from saved area into X0-X5
+5. Move syscall number to target register:
+   - macOS: `MOV X16, X6`
+   - Linux/FreeBSD: `MOV X8, X6`
+6. Emit trap instruction:
+   - macOS: `SVC #0x80`
+   - Linux/FreeBSD: `SVC #0`
+7. Save return value (X0) to stack
+8. Restore caller-saved registers
+9. Load return value into X0
+
+#### x86-64 ABI (Linux only, bootstrap compiler)
+
+| OS | Syscall # Register | Trap Instruction | Arg Registers | Return Register |
+|----|-------------------|-----------------|---------------|----------------|
+| Linux | RAX | `SYSCALL` (0x0F 0x05) | RDI, RSI, RDX, R10, R8, R9 | RAX |
+
+Note: x86-64 uses **R10** instead of RCX for the 4th argument because
+the `SYSCALL` instruction clobbers RCX (stores return address) and R11
+(stores RFLAGS).
+
+Bootstrap compiler codegen sequence:
+1. Load each operand into RAX and push onto stack (reverse order)
+2. Pop syscall number into RAX
+3. Pop args into RDI, RSI, RDX, R10, R8, R9
+4. Emit `SYSCALL` instruction (bytes: `0x0F 0x05`)
+5. Move result from RAX to destination register
+
+### 19.4 mmap Flags
+
+The `__malloc` builtin calls `mmap` with platform-specific flags.
+The `T_MAP_FLAGS` global holds the complete flags value:
+
+| OS | MAP_ANON Value | Full Flags Value | `T_MAP_FLAGS` |
+|----|---------------|-----------------|---------------|
+| macOS | 0x1000 | `MAP_PRIVATE | MAP_ANON` = 0x1002 | 4098 |
+| Linux | 0x20 | `MAP_PRIVATE | MAP_ANONYMOUS` = 0x22 | 34 |
+| FreeBSD | 0x1000 | `MAP_PRIVATE | MAP_ANON` = 0x100E | 4110 |
+
+mmap parameters for `__malloc(size)`:
+
+| Parameter | Value |
+|-----------|-------|
+| `addr` | 0 (kernel chooses) |
+| `size` | from argument |
+| `prot` | 3 (`PROT_READ | PROT_WRITE`) |
+| `flags` | `T_MAP_FLAGS` (platform-dependent, see above) |
+| `fd` | -1 |
+| `offset` | 0 |
+
+### 19.5 Output Formats
+
+| Compiler | Platform | ISA | Format | Flag |
+|----------|----------|-----|--------|------|
+| Self-hosting | macOS | aarch64 | Mach-O | (default) |
+| Self-hosting | Linux | aarch64 | ELF (ET_REL) | `--elf` |
+| Self-hosting | Linux | aarch64 | ELF (ET_EXEC) | `--exec` |
+| Self-hosting | FreeBSD | aarch64 | ELF (ET_REL) | `--elf` |
+| Self-hosting | FreeBSD | aarch64 | ELF (ET_EXEC) | `--exec` |
+| Bootstrap | macOS | aarch64 | Mach-O | `--aarch64 --mach-o` |
+| Bootstrap | Linux | aarch64 | ELF | `--aarch64 --elf` |
+| Bootstrap | Linux | x86-64 | ELF | `--x86-64 --elf` |
+| Bootstrap | Linux | x86-64 | ELF (ET_EXEC) | `--x86-64 --exec` |
+
+The `--exec` flag produces a static ELF executable (ET_EXEC) with a PT_LOAD
+program header, load address 0x400000, and entry point at the `_main`
+symbol offset. This allows the binary to run directly as `/init` in a
+QEMU initramfs without a linker.
+
+### 19.6 Runtime (No libc)
+
+Both the self-hosting and bootstrap compilers use **direct syscalls**
+exclusively -- no C library dependency. All I/O operations are implemented
+via `__syscall`. Memory allocation uses `mmap` directly via `__malloc`.
+
+Self-hosting compiler runtime functions in `parser.al`:
 
 | Function | Syscall | Description |
 |----------|---------|-------------|
-| `write(fd, buf, len)` | `SC_WRITE` | Write to file descriptor |
-| `read(fd, buf, len)` | `SC_READ` | Read from file descriptor |
-| `open(path, flags, mode)` | `SC_OPEN` | Open file |
-| `close(fd)` | `SC_CLOSE` | Close file descriptor |
-| `mmap(addr, size, prot, flags, fd, offset)` | `SC_MMAP` | Memory map |
-| `exit(code)` | `SC_EXIT` | Terminate process |
+| `sys_write(fd, buf, len)` | `SC_WRITE` | Write to file descriptor |
+| `sys_read(fd, buf, len)` | `SC_READ` | Read from file descriptor |
+| `sys_open(path, flags, mode)` | `SC_OPEN` | Open file |
+| `sys_close(fd)` | `SC_CLOSE` | Close file descriptor |
+| `sys_mmap(...)` | `SC_MMAP` | Memory map |
+| `sys_exit(code)` | `SC_EXIT` | Terminate process |
+| `malloc(size)` | `SC_MMAP` | Allocate memory (mmap wrapper) |
+| `free(ptr)` | -- | No-op (memory not freed) |
+| `fopen(path, mode)` | `SC_OPEN` | Open file, return fd |
+| `fclose(fd)` | `SC_CLOSE` | Close file descriptor |
+| `fread(buf, size, nmemb, fd)` | `SC_READ` | Read from file |
+| `fwrite(buf, size, nmemb, fd)` | `SC_WRITE` | Write to file |
+| `puts(str)` | `SC_WRITE` | Print null-terminated string |
+
+### 19.7 QEMU Emulation Testing
+
+The compiler supports QEMU-based runtime testing for generated binaries:
+
+| Platform | QEMU Binary | Kernel Source | Status |
+|----------|-------------|---------------|--------|
+| aarch64 Linux | `qemu-system-aarch64` | Debian netboot `linux` | 12/12 tests pass |
+| x86-64 Linux | `qemu-system-x86_64` | Debian netboot `linux` | 7/8 tests pass |
+| FreeBSD | `qemu-system-aarch64` | FreeBSD bootonly ISO | Verification only |
+
+QEMU tests compile programs as static ELF executables (`--exec` flag),
+package them as `/init` in a minimal initramfs (cpio archive), boot the
+Linux kernel in QEMU, and verify exit codes. The kernel panics after
+`/init` exits (expected behavior for PID 1), and the exit code is
+extracted from the panic message (`exitcode=0xNNNN`).
+
+Test script: `selfhost/tests/run_qemu_tests.sh`
 
 
 ## Appendix A: Full Instruction Reference
