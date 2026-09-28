@@ -2024,7 +2024,9 @@ fn gen_ldur(rt: i64, rn: i64, imm9: i64) (r: i64)
 fn gen_ldrb_reg(rt: i64, rn: i64, rm: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        mut r = x86_load8_reg(x86_reg(rt), x86_reg(rn), 0)
+        mut r = x86_mov_reg(11, x86_reg(rn))
+        mut r = x86_add_reg(11, x86_reg(rm))
+        mut r = x86_load8_reg(x86_reg(rt), 11, 0)
     } else {
         mut r = emit32(0x38606800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rt & 31))
     }
@@ -2033,7 +2035,9 @@ fn gen_ldrb_reg(rt: i64, rn: i64, rm: i64) (r: i64)
 fn gen_strb_reg(rt: i64, rn: i64, rm: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        mut r = x86_store8_reg(x86_reg(rt), x86_reg(rn), 0)
+        mut r = x86_mov_reg(11, x86_reg(rn))
+        mut r = x86_add_reg(11, x86_reg(rm))
+        mut r = x86_store8_reg(x86_reg(rt), 11, 0)
     } else {
         mut r = emit32(0x38206800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rt & 31))
     }
@@ -2843,9 +2847,14 @@ fn gen_str_eq_cmp() (r: i64)
 
 fn gen_str_eq_branch() (r: i64)
 {
-    mut r = gen_bcond(1, 24)
+    let ne_pos: i64 = 0
+    let eq_pos: i64 = 0
+    mut ne_pos = g_code_pos
+    mut r = gen_bcond(1, 0)
     mut r = gen_cmp(3, 31)
-    mut r = gen_bcond(0, 12)
+    mut eq_pos = g_code_pos
+    mut r = gen_bcond(0, 0)
+    mut r = patch_bcond(ne_pos, g_code_pos - ne_pos)
     mut r = 0
 }
 
@@ -2858,7 +2867,6 @@ fn gen_str_eq_inc(loop_pos: i64) (r: i64)
 
 fn gen_str_eq_ne() (r: i64)
 {
-    mut r = patch_bcond(g_code_pos - 28, 28)
     mut r = gen_movz(0, 0)
     mut r = 0
 }
@@ -2866,23 +2874,42 @@ fn gen_str_eq_ne() (r: i64)
 fn gen_str_eq_inline() (r: i64)
 {
     let loop_pos: i64 = 0
+    let ne_branch_pos: i64 = 0
+    let eq_branch_pos: i64 = 0
+    let skip_branch_pos: i64 = 0
     // Pop args: s2 -> X1, s1 -> X0
-    mut r = emit32(0xF84107E1)  // LDR X1, [SP], #16
-    mut r = emit32(0xF84107E0)  // LDR X0, [SP], #16
+    mut r = gen_pop_x1()
+    mut r = gen_pop_x0()
     // Save caller-saved regs
     mut r = gen_caller_save()
     // Reload args from saved area
-    mut r = gen_ldr(0, 31, 2)   // LDR X0, [SP, #16]
-    mut r = gen_ldr(1, 31, 3)   // LDR X1, [SP, #24]
+    mut r = gen_ldr(0, 31, 2)
+    mut r = gen_ldr(1, 31, 3)
     mut r = gen_movz(4, 0)
     mut r = gen_str_eq_swap()
     mut loop_pos = g_code_pos
     mut r = gen_str_eq_cmp()
-    mut r = gen_str_eq_branch()
+    // B.NE not_equal (forward, will be patched)
+    mut ne_branch_pos = g_code_pos
+    mut r = gen_bcond(1, 0)
+    // Check if byte is zero (end of string)
+    mut r = gen_cmp(3, 31)
+    // B.EQ equal (forward, will be patched)
+    mut eq_branch_pos = g_code_pos
+    mut r = gen_bcond(0, 0)
+    // Increment counter and loop back
     mut r = gen_str_eq_inc(loop_pos)
+    // equal: return 1
+    mut r = patch_bcond(eq_branch_pos, g_code_pos - eq_branch_pos)
     mut r = gen_movz(0, 1)
-    mut r = gen_b(8)
+    // B done (skip not_equal case)
+    mut skip_branch_pos = g_code_pos
+    mut r = gen_b(0)
+    // not_equal: patch B.NE to here, return 0
+    mut r = patch_bcond(ne_branch_pos, g_code_pos - ne_branch_pos)
     mut r = gen_str_eq_ne()
+    // done: patch skip branch to here
+    mut r = patch_b(skip_branch_pos, g_code_pos - skip_branch_pos)
     // Save return value and restore caller-saved regs
     mut r = gen_save_retval()
     mut r = gen_caller_restore()
