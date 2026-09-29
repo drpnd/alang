@@ -2596,15 +2596,48 @@ fn gen_binop(op: i64) (r: i64)
     }
     mut r = 0
 }
+
+fn x86_store_rax_to_rbx(disp: i64) (r: i64)
+{
+    mut r = emit_byte(72)
+    mut r = emit_byte(137)
+    mut r = emit_byte(131)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
+    mut r = 0
+}
+
+fn x86_load_rax_from_rbx(disp: i64) (r: i64)
+{
+    mut r = emit_byte(72)
+    mut r = emit_byte(139)
+    mut r = emit_byte(131)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
+    mut r = 0
+}
+
 fn gen_glob_load(off: i64) (r: i64)
 {
-    mut r = gen_ldr(0, 19, off)
+    if g_target_isa == 1 {
+        mut r = x86_load_rax_from_rbx(off * 8)
+    } else {
+        mut r = gen_ldr(0, 19, off)
+    }
     mut r = 0
 }
 
 fn gen_glob_store(off: i64) (r: i64)
 {
-    mut r = gen_str(0, 19, off)
+    if g_target_isa == 1 {
+        mut r = x86_store_rax_to_rbx(off * 8)
+    } else {
+        mut r = gen_str(0, 19, off)
+    }
     mut r = 0
 }
 
@@ -4402,7 +4435,7 @@ fn gen_glob_init() (r: i64)
             if (val >> 48) != 0 {
                 mut r = gen_movk(0, (val >> 48) & 65535, 48)
             }
-            mut r = gen_str(0, 19, i)
+            if g_target_isa == 1 { mut r = x86_store_rax_to_rbx(i * 8) } else { mut r = gen_str(0, 19, i) }
         }
         mut i = i + 1
     }

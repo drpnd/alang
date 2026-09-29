@@ -2142,6 +2142,18 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
             }
         }
 
+        /* Ensure max_ssa covers all parameter registers (X0..X(nargs-1))
+         * so they are properly saved/restored across calls. The optimizer
+         * may eliminate SSA registers, reducing max_ssa below nargs.
+         * Also ensure at least 7 (X0-X7) are saved for functions with
+         * local variables used across calls. */
+        if (max_ssa < func->nargs - 1) {
+            max_ssa = func->nargs - 1;
+        }
+        if (max_ssa < 15) {
+            max_ssa = 15;
+        }
+
         /* Store max_ssa for RET epilogue */
         ctx.max_ssa = max_ssa;
 
