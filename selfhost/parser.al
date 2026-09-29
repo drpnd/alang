@@ -1755,7 +1755,7 @@ fn x86_reg(logical: i64) (r: i64)
     if logical == 0 { mut r = 0 }
     else { if logical == 1 { mut r = 1 }
     else { if logical == 2 { mut r = 2 }
-    else { if logical == 3 { mut r = 3 }
+    else { if logical == 3 { mut r = 12 }
     else { if logical == 4 { mut r = 6 }
     else { if logical == 5 { mut r = 7 }
     else { if logical == 6 { mut r = 8 }
@@ -3070,8 +3070,8 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
     let n: i64 = 0
     mut n = arg_count
     if g_target_isa == 1 {
-        if n > 6 { mut r = x86_pop_reg(x86_reg(5)); mut n = n - 1 }
-        if n > 5 { mut r = x86_pop_reg(x86_reg(4)); mut n = n - 1 }
+        if n > 6 { mut r = x86_pop_reg(x86_reg(9)); mut n = n - 1 }
+        if n > 5 { mut r = x86_pop_reg(x86_reg(8)); mut n = n - 1 }
         if n > 4 { mut r = x86_pop_reg(x86_reg(3)); mut n = n - 1 }
         if n > 3 { mut r = x86_pop_reg(x86_reg(2)); mut n = n - 1 }
         if n > 2 { mut r = x86_pop_reg(x86_reg(1)); mut n = n - 1 }
@@ -3082,9 +3082,9 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
         if arg_count > 2 { mut r = x86_load_reg(6, 4, 24) }
         if arg_count > 3 { mut r = x86_load_reg(2, 4, 32) }
         if arg_count > 4 { mut r = x86_load_reg(10, 4, 40) }
-        if arg_count > 5 { mut r = x86_load_reg(8, 4, 48) }
-        if arg_count > 6 { mut r = x86_load_reg(9, 4, 56) }
-        mut r = x86_load_reg(0, 4, 64)
+        if arg_count > 5 { mut r = x86_load_reg(8, 4, 64) }
+        if arg_count > 6 { mut r = x86_load_reg(9, 4, 72) }
+        mut r = x86_load_reg(0, 4, 48)
         mut r = x86_syscall()
     } else {
         if n > 6 { mut r = emit32(0xF84107E5); mut n = n - 1 }
@@ -3533,7 +3533,7 @@ fn gen_caller_save() (r: i64)
         mut r = x86_store_reg(0, 4, 16)
         mut r = x86_store_reg(1, 4, 24)
         mut r = x86_store_reg(2, 4, 32)
-        mut r = x86_store_reg(3, 4, 40)
+        mut r = x86_store_reg(12, 4, 40)
         mut r = x86_store_reg(6, 4, 48)
         mut r = x86_store_reg(7, 4, 56)
         mut r = x86_store_reg(8, 4, 64)
@@ -3583,7 +3583,7 @@ fn gen_caller_restore() (r: i64)
         mut r = x86_load_reg(0, 4, 16)
         mut r = x86_load_reg(1, 4, 24)
         mut r = x86_load_reg(2, 4, 32)
-        mut r = x86_load_reg(3, 4, 40)
+        mut r = x86_load_reg(12, 4, 40)
         mut r = x86_load_reg(6, 4, 48)
         mut r = x86_load_reg(7, 4, 56)
         mut r = x86_load_reg(8, 4, 64)
@@ -5571,7 +5571,7 @@ fn run_compiler(argv_ptr: i64) (r: i64)
 fn main(argc: i32, argv: i64) (r: i32)
 {
     // When running as Linux init (argc=0), use default paths
-    if argc == 0 {
+    if argc <= 1 {
         mut g_target_isa = 1
         mut g_target_os = 1
         mut g_exec_elf = 1
@@ -5579,10 +5579,15 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut TSC_WRITE = 1
         mut TSC_MMAP = 9
         mut T_MAP_FLAGS = 34
+        mut SC_WRITE = 1
+        mut SC_READ = 0
+        mut SC_OPEN = 2
+        mut SC_CLOSE = 3
+        mut SC_MMAP = 9
+        mut SC_EXIT = 60
         let status: i64 = 0
         mut status = do_parse("/input.al")
         if status == 0 {
-            // Create a fake argv: ["/init", "/input.al", "/output.elf"]
             let fake_argv: i64 = 0
             mut fake_argv = malloc(24)
             __mem_store(fake_argv, 0, 0)
