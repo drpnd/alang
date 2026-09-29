@@ -143,6 +143,7 @@ let g_glob_count: i64 = 0
 let g_graph_transforms: i64 = 0
 let g_graph_count: i64 = 0
 let PIPE_CODE: i64 = 31862
+let g_glob_init_i: i64 = 0
 let g_graph_fn_off: i64 = -1
 
 // Indent for printing
@@ -2014,7 +2015,18 @@ fn gen_sub_imm(rd: i64, rn: i64, imm12: i64) (r: i64)
 fn gen_str(rt: i64, rn: i64, imm12: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        mut r = x86_store_reg(x86_reg(rt), x86_reg(rn), imm12 * 8)
+        let disp: i64 = 0
+        mut disp = imm12 * 8
+        let p: i64 = 0
+        mut p = g_code_pos
+        __byte_store(g_code, p, 72)
+        __byte_store(g_code, p + 1, 137)
+        __byte_store(g_code, p + 2, 131)
+        __byte_store(g_code, p + 3, disp & 255)
+        __byte_store(g_code, p + 4, (disp >> 8) & 255)
+        __byte_store(g_code, p + 5, (disp >> 16) & 255)
+        __byte_store(g_code, p + 6, (disp >> 24) & 255)
+        mut g_code_pos = p + 7
     } else {
         mut r = emit32(0xF9000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
     }
@@ -2024,7 +2036,18 @@ fn gen_str(rt: i64, rn: i64, imm12: i64) (r: i64)
 fn gen_ldr(rt: i64, rn: i64, imm12: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        mut r = x86_load_reg(x86_reg(rt), x86_reg(rn), imm12 * 8)
+        let disp: i64 = 0
+        mut disp = imm12 * 8
+        let p: i64 = 0
+        mut p = g_code_pos
+        __byte_store(g_code, p, 72)
+        __byte_store(g_code, p + 1, 139)
+        __byte_store(g_code, p + 2, 131)
+        __byte_store(g_code, p + 3, disp & 255)
+        __byte_store(g_code, p + 4, (disp >> 8) & 255)
+        __byte_store(g_code, p + 5, (disp >> 16) & 255)
+        __byte_store(g_code, p + 6, (disp >> 24) & 255)
+        mut g_code_pos = p + 7
     } else {
         mut r = emit32(0xF9400000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
     }
@@ -4417,26 +4440,42 @@ fn gen_main_init() (r: i64)
 }
 
 
+fn gen_glob_init_one() (r: i64)
+{
+    let val: i64 = 0
+    mut val = __mem_load(g_glob_val + g_glob_init_i * 8)
+    if val != 0 {
+        mut r = gen_movz(0, val & 65535)
+        if (val >> 16) != 0 {
+            mut r = gen_movk(0, (val >> 16) & 65535, 16)
+        }
+        if (val >> 32) != 0 {
+            mut r = gen_movk(0, (val >> 32) & 65535, 32)
+        }
+        if (val >> 48) != 0 {
+            mut r = gen_movk(0, (val >> 48) & 65535, 48)
+        }
+        let p: i64 = 0
+        mut p = g_code_pos
+        __byte_store(g_code, p, 72)
+        __byte_store(g_code, p + 1, 137)
+        __byte_store(g_code, p + 2, 131)
+        __byte_store(g_code, p + 3, (g_glob_init_i * 8) & 255)
+        __byte_store(g_code, p + 4, ((g_glob_init_i * 8) >> 8) & 255)
+        __byte_store(g_code, p + 5, ((g_glob_init_i * 8) >> 16) & 255)
+        __byte_store(g_code, p + 6, ((g_glob_init_i * 8) >> 24) & 255)
+        mut g_code_pos = p + 7
+    }
+    mut r = 0
+}
+
 fn gen_glob_init() (r: i64)
 {
     let i: i64 = 0
     mut i = 0
     while i < g_glob_count {
-        let val: i64 = 0
-        mut val = __mem_load(g_glob_val + i * 8)
-        if val != 0 {
-            mut r = gen_movz(0, val & 65535)
-            if (val >> 16) != 0 {
-                mut r = gen_movk(0, (val >> 16) & 65535, 16)
-            }
-            if (val >> 32) != 0 {
-                mut r = gen_movk(0, (val >> 32) & 65535, 32)
-            }
-            if (val >> 48) != 0 {
-                mut r = gen_movk(0, (val >> 48) & 65535, 48)
-            }
-            if g_target_isa == 1 { mut r = x86_store_rax_to_rbx(i * 8) } else { mut r = gen_str(0, 19, i) }
-        }
+        mut g_glob_init_i = i
+        mut r = gen_glob_init_one()
         mut i = i + 1
     }
     mut r = 0
