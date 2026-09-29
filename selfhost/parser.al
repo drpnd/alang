@@ -4573,6 +4573,37 @@ fn gen_graph() (r: i64)
     mut r = 0
 }
 
+// x86-64 _start: reads argc from stack, sets up argv, calls main, exits
+fn gen_x86_start() (r: i64)
+{
+    // POP RDI = argc (1 byte)
+    mut r = emit_byte(0x5F)
+    // MOV RSI, RSP (3 bytes)
+    mut r = emit_byte(0x48)
+    mut r = emit_byte(0x89)
+    mut r = emit_byte(0xE6)
+    // AND RSP, -16 (4 bytes)
+    mut r = emit_byte(0x48)
+    mut r = emit_byte(0x83)
+    mut r = emit_byte(0xE4)
+    mut r = emit_byte(0xF0)
+    // CALL main (5 bytes, placeholder - patched after gen_all_funcs)
+    mut r = emit_byte(0xE8)
+    mut r = emit_byte(0)
+    mut r = emit_byte(0)
+    mut r = emit_byte(0)
+    mut r = emit_byte(0)
+    // MOV RDI, RAX (3 bytes)
+    mut r = emit_byte(0x48)
+    mut r = emit_byte(0x89)
+    mut r = emit_byte(0xC7)
+    // MOV RAX, 60 (sys_exit)
+    mut r = x86_mov_imm(0, 60)
+    // SYSCALL
+    mut r = x86_syscall()
+    mut r = 0
+}
+
 fn gen_all_funcs() (r: i64)
 {
     let list: i64 = 0
@@ -4899,6 +4930,9 @@ fn write_elf_exec(path: i64, code_size: i64) (r: i64)
             mut code_off = 120
         }
         mut entry = load_addr + code_off + find_main()
+        if g_target_isa == 1 {
+            mut entry = load_addr + code_off
+        }
         mut total_size = code_size + str_data_size
         mut r = patch_str_adrs(code_size)
         mut r = write32(fp, 0x464C457F)
@@ -5442,9 +5476,29 @@ fn do_codegen(argv_ptr: i64) (r: i64)
 {
     let arg2_ptr: i64 = 0
     mut r = init_codegen()
+    if g_exec_elf == 1 {
+        if g_target_isa == 1 {
+            mut r = gen_x86_start()
+        }
+    }
     mut r = gen_all_funcs()
     if g_graph_count > 0 {
         mut r = gen_graph()
+    }
+    // Patch _start CALL (at offset 8) to point to main
+    if g_exec_elf == 1 {
+        if g_target_isa == 1 {
+            let main_off: i64 = 0
+            mut main_off = fn_lookup("main")
+            if main_off >= 0 {
+                let rel: i64 = 0
+                mut rel = main_off - 8 - 5
+                mut r = __byte_store(g_code, 9, rel & 255)
+                mut r = __byte_store(g_code, 10, (rel >> 8) & 255)
+                mut r = __byte_store(g_code, 11, (rel >> 16) & 255)
+                mut r = __byte_store(g_code, 12, (rel >> 24) & 255)
+            }
+        }
     }
     puts("GEN DONE")
     mut r = patch_calls()
@@ -5516,5 +5570,28 @@ fn run_compiler(argv_ptr: i64) (r: i64)
 
 fn main(argc: i32, argv: i64) (r: i32)
 {
-    mut r = run_compiler(argv)
+    // When running as Linux init (argc=0), use default paths
+    if argc == 0 {
+        mut g_target_isa = 1
+        mut g_target_os = 1
+        mut g_exec_elf = 1
+        mut g_output_elf = 1
+        mut TSC_WRITE = 1
+        mut TSC_MMAP = 9
+        mut T_MAP_FLAGS = 34
+        let status: i64 = 0
+        mut status = do_parse("/input.al")
+        if status == 0 {
+            // Create a fake argv: ["/init", "/input.al", "/output.elf"]
+            let fake_argv: i64 = 0
+            mut fake_argv = malloc(24)
+            __mem_store(fake_argv, 0, 0)
+            __mem_store(fake_argv + 8, 0)
+            __mem_store(fake_argv + 16, "/output.elf")
+            mut r = do_codegen(fake_argv)
+        }
+        mut r = 0
+    } else {
+        mut r = run_compiler(argv)
+    }
 }

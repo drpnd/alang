@@ -2,7 +2,7 @@
 
 > **Version:** 0.4 (implemented)
 >
-> **Status:** Both bootstrap and self-hosting compilers implement aarch64 and x86-64 backends
+> **Status:** Self-hosting achieved (L3==L4 byte-identical). Both aarch64 and x86-64 backends implemented in both bootstrap and self-hosting compilers
 
 ## 1. Overview
 
@@ -17,7 +17,7 @@ both functions and coroutines as first-class constructs.
 | Minimal | 48 instructions total across three layers |
 | SSA | Every value is assigned exactly once |
 | Data-flow-native | Channels, `yield`, `await` are IR-level instructions |
-| Backend-agnostic | Lowerable to Cranelift, C, or an interpreter |
+| Backend-agnostic | Lowerable to aarch64, x86-64 (implemented); Cranelift, C, interpreter (planned) |
 | Debuggable | Human-readable textual form |
 
 ### 1.2 Compilation Pipeline
@@ -31,7 +31,7 @@ both functions and coroutines as first-class constructs.
 DFIR is the **only** IR in the compiler. There is no separate LLVM step.
 Both the bootstrap compiler (`bootstrap/`) and the self-hosting compiler
 (`selfhost/parser.al`) implement the full pipeline from source to native
-code for both aarch64 (macOS Mach-O) and x86-64 (ELF).
+code for both aarch64 (macOS Mach-O/ELF) and x86-64 (ELF). The self-hosting compiler has achieved a byte-identical fixed point (L3==L4) on aarch64/Mach-O.
 
 ### 1.3 Three Layers
 
@@ -651,7 +651,7 @@ DFIR is backend-agnostic. The implemented backends are:
 | Loop support (for/while/loop) | ✅ | ✅ |
 | Break/continue | ✅ | ✅ |
 | Callee-saved register preservation | ✅ | ✅ |
-| Graph runtime | ✅ | N/A |
+| Graph runtime | ✅ | ✅ |
 
 ### 9.2 Lowering Rules
 
@@ -1350,8 +1350,8 @@ uses two sets of globals:
 | `exit` | 0x2000001 | 60 | 1 | -- |
 
 > **Note:** macOS x86-64 syscalls have a 0x02000000 class offset.
-> The self-hosting compiler currently targets Linux x86-64 only
-> (since the host is macOS aarch64). The bootstrap compiler also
+> The self-hosting compiler targets Linux x86-64 (via QEMU cross-compilation)
+> from a macOS aarch64 host. The bootstrap compiler also
 > targets Linux x86-64.
 
 ### 19.3 Syscall Calling Conventions (ABI)
@@ -1661,9 +1661,9 @@ The compiler supports QEMU-based runtime testing for generated binaries:
 
 | Platform | QEMU Binary | Kernel Source | Status |
 |----------|-------------|---------------|--------|
-| aarch64 Linux | `qemu-system-aarch64` | Debian netboot `linux` | 12/12 tests pass |
-| x86-64 Linux | `qemu-system-x86_64` | Debian `vmlinuz-amd64` | 1/1 verified (arith.al) |
-| FreeBSD | `qemu-system-aarch64` | FreeBSD bootonly ISO | Verification only |
+| aarch64 Linux | `qemu-system-aarch64` | Debian netboot `linux` | ✅ Pass |
+| x86-64 Linux | `qemu-system-x86_64` | Debian `vmlinuz-amd64` | ✅ Pass |
+| FreeBSD | `qemu-system-aarch64` | FreeBSD bootonly ISO | ✅ Verified |
 
 QEMU tests compile programs as static ELF executables (`--exec` flag),
 package them as `/init` in a minimal initramfs (cpio archive), boot the
@@ -1751,10 +1751,10 @@ Test script: `selfhost/tests/run_qemu_tests.sh`
 
 | Suite | Tests | Status |
 |-------|-------|--------|
-| IR unit tests | 22 | ✅ All pass |
-| aarch64 example tests | 57 | ✅ All pass |
-| x86-64 example tests | 44 | ✅ All pass |
-| **Total** | **123** | **0 failures** |
+| IR unit tests | 48 | ✅ All pass |
+| Example tests | 74 | ✅ All pass |
+| QEMU tests | 49 | ✅ All pass |
+| **Total** | **171** | **0 failures** |
 
 ### Example Programs (57 total)
 
@@ -1775,12 +1775,23 @@ Test script: `selfhost/tests/run_qemu_tests.sh`
 
 ### Compiler Architecture
 
+**Bootstrap compiler (C):**
 ```
-compiler.c (2,707 lines)     — AST → DFIR compiler
-optimize.c (1,420 lines)     — 7 optimizer passes (const fold, copy prop, DCE, etc.)
-ir.c/ir.h (407 lines)        — DFIR data structures and utilities
-arch/aarch64/aarch64.c       — AArch64 backend (Mach-O)
-arch/x86-64/x86-64.c         — x86-64 backend (Mach-O/ELF)
+compiler.c     — AST → DFIR compiler
+optimize.c     — 9 optimizer passes (inlining, const fold, copy prop, etc.)
+ir.c/ir.h      — DFIR data structures and utilities
+arch/aarch64/  — AArch64 backend (Mach-O/ELF)
+arch/x86-64/   — x86-64 backend (ELF)
+```
+
+**Self-hosting compiler (alang):**
+```
+selfhost/parser.al (~5520 lines) — Lexer, parser, AST, codegen, object file output
+  - aarch64 backend: Mach-O and ELF
+  - x86-64 backend: ELF
+  - Syscall-based runtime (no libc)
+  - Graph pipeline codegen (source |> transform |> sink)
+  - Self-hosting fixed point: L3==L4 (byte-identical on aarch64/Mach-O)
 ```
 
 ### Key Design Decisions

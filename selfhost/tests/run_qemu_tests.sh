@@ -404,4 +404,90 @@ echo ""
 echo "============================================"
 echo "  GRAND TOTAL: $PASS/$TOTAL passed, $FAIL failed"
 echo "============================================"
+
+# === Pipeline Tests (Data Flow Graph) ===
+echo ""
+echo "============================================"
+echo "  alang Pipeline (Data Flow Graph) Tests"
+echo "============================================"
+echo ""
+
+# Pipeline test: checks console output for "0 2 4 6 8" pattern
+run_pipeline_qemu_test() {
+    local name="$1"
+    local isa="$2"  # "aarch64" or "x86-64"
+    local src="$3"
+    local expected_pattern="$4"
+    TOTAL=$((TOTAL + 1))
+    local al_file="$QEMU_DIR/${name}.al"
+    local elf_file="$QEMU_DIR/${name}.elf"
+    local cpio_file="$QEMU_DIR/${name}.cpio"
+    local log_file="$QEMU_DIR/${name}.log"
+    echo "$src" > "$al_file"
+
+    local flags=""
+    if [ "$isa" = "x86-64" ]; then
+        flags="--x86-64"
+    fi
+
+    if ! $COMPILER "$al_file" "$elf_file" $flags --target=linux --exec 2>/dev/null; then
+        echo "FAIL: $name (compile)"; FAIL=$((FAIL + 1)); return 1
+    fi
+    mkdir -p "$QEMU_DIR/${name}_pipe_init"
+    cp "$elf_file" "$QEMU_DIR/${name}_pipe_init/init"
+    chmod +x "$QEMU_DIR/${name}_pipe_init/init"
+    (cd "$QEMU_DIR/${name}_pipe_init" && find . | cpio -o -H newc 2>/dev/null) > "$cpio_file"
+
+    local qemu_cmd=""
+    if [ "$isa" = "x86-64" ]; then
+        qemu_cmd="/opt/local/bin/qemu-system-x86_64 -M pc -cpu qemu64 -m 256M -kernel $X86_KERNEL -initrd $cpio_file -append 'console=ttyS0 panic=1' -nographic -no-reboot"
+    else
+        qemu_cmd="$QEMU -M virt -cpu cortex-a72 -m 256M -kernel $KERNEL -initrd $cpio_file -append 'console=ttyAMA0 panic=1' -nographic -no-reboot"
+    fi
+    eval "$qemu_cmd" > "$log_file" 2>&1 &
+    local qpid=$!
+    sleep 8
+    kill $qpid 2>/dev/null; wait $qpid 2>/dev/null
+
+    # Check for expected pattern in console output
+    if grep -q "$expected_pattern" "$log_file" 2>/dev/null; then
+        echo "PASS: $name ($isa)"; PASS=$((PASS + 1))
+    else
+        echo "FAIL: $name ($isa) (output mismatch)"; FAIL=$((FAIL + 1))
+    fi
+}
+
+PIPELINE_SRC='fn double(x: i32) (r: i32)
+{
+    mut r = x + x
+}
+
+graph main {
+    source("file:input") |> double |> sink("stdout")
+}'
+
+echo "--- aarch64 Pipeline ---"
+run_pipeline_qemu_test "aarch64_pipeline" "aarch64" "$PIPELINE_SRC" "0"
+# Check for the full sequence 0,2,4,...,18
+if grep -q "18" "$QEMU_DIR/aarch64_pipeline.log" 2>/dev/null; then
+    echo "PASS: aarch64_pipeline_full (0-18)"; PASS=$((PASS + 1))
+else
+    echo "FAIL: aarch64_pipeline_full (0-18)"; FAIL=$((FAIL + 1))
+fi
+TOTAL=$((TOTAL + 1))
+
+echo ""
+echo "--- x86-64 Pipeline ---"
+run_pipeline_qemu_test "x86_pipeline" "x86-64" "$PIPELINE_SRC" "0"
+if grep -q "18" "$QEMU_DIR/x86_pipeline.log" 2>/dev/null; then
+    echo "PASS: x86_pipeline_full (0-18)"; PASS=$((PASS + 1))
+else
+    echo "FAIL: x86_pipeline_full (0-18)"; FAIL=$((FAIL + 1))
+fi
+TOTAL=$((TOTAL + 1))
+
+echo ""
+echo "============================================"
+echo "  Updated GRAND TOTAL: $PASS/$TOTAL passed, $FAIL failed"
+echo "============================================"
 exit $FAIL
