@@ -2373,6 +2373,7 @@ fn fn_lookup(name: i64) (r: i64)
     let i: i64 = 0
     let stored: i64 = 0
     let result: i64 = 0
+    mut result = 0 - 1
     mut i = 0
     while i < g_fn_count {
         mut stored = __mem_load(g_fn_name + i * 8)
@@ -2429,7 +2430,7 @@ fn patch_one(ppos: i64, pname: i64) (r: i64)
     let rel: i64 = 0
     let off26: i64 = 0
     mut foff = fn_lookup(pname)
-    if foff > 0 {
+    if foff >= 0 {
         mut rel = foff - ppos
         if g_target_isa == 1 {
             mut rel = rel - 5
@@ -3654,7 +3655,7 @@ fn gen_call_normal2(name: i64, arg_count: i64) (r: i64)
     mut r = gen_pop_args(arg_count)
     mut r = gen_caller_save()
     mut fn_off = fn_lookup(name)
-    if fn_off > 0 {
+    if fn_off >= 0 {
         mut r = gen_direct_call(fn_off)
     } else {
         mut g_call_name = name
@@ -4511,23 +4512,14 @@ fn gen_graph() (r: i64)
     mut r = gen_bcond(10, 0)
     // Body: val = counter
     mut r = gen_ldur(0, 29, 0 - 8)
-    // Apply transforms: emit CALL with placeholder, patch later
+    // Apply transforms: use gen_extern_call for correct patch table handling
     mut i = 0
     while i < g_graph_count {
         mut r = gen_push()
         mut r = gen_pop_args(1)
         mut r = gen_caller_save()
-        // Emit CALL with placeholder offset
-        mut graph_call_pos = g_code_pos
-        if g_target_isa == 1 {
-            mut r = emit_byte(0xE8)
-            mut r = emit_byte(0)
-            mut r = emit_byte(0)
-            mut r = emit_byte(0)
-            mut r = emit_byte(0)
-        } else {
-            mut r = gen_bl(0)
-        }
+        mut g_call_name = __mem_load(g_graph_transforms + i * 8)
+        mut r = gen_extern_call()
         mut r = gen_call_finish()
         mut i = i + 1
     }
@@ -4535,7 +4527,9 @@ fn gen_graph() (r: i64)
     mut r = gen_push()
     // Initialize X3 = SP (print_int uses [X3+27] for zero case;
     // after SUB SP, #32, X3 = old SP = new SP + 32)
+    if g_target_isa != 1 {
     mut r = emit32(0x910003E3)
+    }
     mut g_call_name = "println"
     mut r = gen_print_int_builtin(1)
     // Increment counter
@@ -4571,20 +4565,7 @@ fn gen_graph() (r: i64)
             }
         }
     }
-    // Patch the transform CALL to point to the function
-    if g_graph_fn_off >= 0 {
-        mut rel = g_graph_fn_off - graph_call_pos
-        if g_target_isa == 1 {
-            mut rel = rel - 5
-            mut r = __byte_store(g_code, graph_call_pos + 1, rel & 255)
-            mut r = __byte_store(g_code, graph_call_pos + 2, (rel >> 8) & 255)
-            mut r = __byte_store(g_code, graph_call_pos + 3, (rel >> 16) & 255)
-            mut r = __byte_store(g_code, graph_call_pos + 4, (rel >> 24) & 255)
-        } else {
-            mut off26 = (rel >> 2) & 67108863
-            mut r = emit32_at(graph_call_pos, 0x94000000 | off26)
-        }
-    }
+    // Transform CALLs are patched by patch_calls() via the patch table
     mut r = gen_epilogue()
     mut g_loop_start = saved_ls
     mut g_loop_end = saved_le
@@ -4913,11 +4894,11 @@ fn write_elf_exec(path: i64, code_size: i64) (r: i64)
         mut str_data_size = count_str_data()
         mut load_addr = 4194304
         if g_target_isa == 1 {
-            mut code_off = 152
+            mut code_off = 208
         } else {
             mut code_off = 120
         }
-        mut entry = load_addr + code_off
+        mut entry = load_addr + code_off + find_main()
         mut total_size = code_size + str_data_size
         mut r = patch_str_adrs(code_size)
         mut r = write32(fp, 0x464C457F)
@@ -4948,13 +4929,14 @@ fn write_elf_exec(path: i64, code_size: i64) (r: i64)
         }
         mut r = write16(fp, 0)
         mut r = write16(fp, 0)
+        mut r = write16(fp, 0)
         if g_target_isa == 1 {
             // PT_NOTE program header (for multiboot2/PVH)
             mut r = write32(fp, 4)
             mut r = write32(fp, 0)
-            mut r = write64(fp, 120)
-            mut r = write64(fp, load_addr + 120)
-            mut r = write64(fp, load_addr + 120)
+            mut r = write64(fp, 176)
+            mut r = write64(fp, load_addr + 176)
+            mut r = write64(fp, load_addr + 176)
             mut r = write64(fp, 32)
             mut r = write64(fp, 32)
             mut r = write64(fp, 8)
