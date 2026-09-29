@@ -5348,10 +5348,10 @@ fn write_str(fp: i64, s: i64) (r: i64)
 
 fn init_parser1() (r: i64)
 {
-    mut g_tok_type = malloc(262144)
-    mut g_tok_val = malloc(262144)
-    mut g_ast_kind = malloc(524288)
-    mut g_ast_val = malloc(524288)
+    mut g_tok_type = malloc(524288)
+    mut g_tok_val = malloc(524288)
+    mut g_ast_kind = malloc(1048576)
+    mut g_ast_val = malloc(1048576)
     mut g_glob_name = malloc(4096)
     mut g_glob_off = malloc(4096)
     mut g_glob_val = malloc(4096)
@@ -5361,10 +5361,10 @@ fn init_parser1() (r: i64)
 
 fn init_parser2() (r: i64)
 {
-    mut g_ast_a = malloc(524288)
-    mut g_ast_b = malloc(524288)
-    mut g_ast_c = malloc(524288)
-    mut g_str_pool = malloc(524288)
+    mut g_ast_a = malloc(1048576)
+    mut g_ast_b = malloc(1048576)
+    mut g_ast_c = malloc(1048576)
+    mut g_str_pool = malloc(1048576)
     mut g_enum_name = malloc(4096)
     mut g_enum_tag = malloc(4096)
     mut g_enum_has_arg = malloc(4096)
@@ -5385,23 +5385,23 @@ fn init_parser() (r: i64)
 
 fn init_codegen1() (r: i64)
 {
-    mut g_code = malloc(524288)
-    mut g_var_name = malloc(4096)
-    mut g_var_off = malloc(4096)
-    mut g_fn_name = malloc(4096)
-    mut g_fn_off = malloc(4096)
+    mut g_code = malloc(2097152)
+    mut g_var_name = malloc(16384)
+    mut g_var_off = malloc(16384)
+    mut g_fn_name = malloc(16384)
+    mut g_fn_off = malloc(16384)
     mut r = 0
 }
 
 fn init_codegen2() (r: i64)
 {
-    mut g_patch_pos = malloc(65536)
-    mut g_patch_name = malloc(65536)
-    mut g_ext_name = malloc(65536)
-    mut g_ext_pos = malloc(65536)
-    mut g_str_const = malloc(65536)
-    mut g_adr_patch_pos = malloc(65536)
-    mut g_adr_patch_idx = malloc(65536)
+    mut g_patch_pos = malloc(262144)
+    mut g_patch_name = malloc(262144)
+    mut g_ext_name = malloc(262144)
+    mut g_ext_pos = malloc(262144)
+    mut g_str_const = malloc(262144)
+    mut g_adr_patch_pos = malloc(262144)
+    mut g_adr_patch_idx = malloc(262144)
     mut r = 0
 }
 
@@ -5426,8 +5426,8 @@ fn do_parse(arg1_ptr: i64) (r: i64)
         puts("fopen failed")
         mut r = 1
     } else {
-        mut g_src = malloc(524288)
-        mut g_size = fread(g_src, 1, 524287, fp)
+        mut g_src = malloc(1048576)
+        mut g_size = fread(g_src, 1, 1048575, fp)
         fclose(fp)
         mut r = init_parser()
         mut r = lex()
