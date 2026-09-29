@@ -143,7 +143,6 @@ let g_glob_count: i64 = 0
 let g_graph_transforms: i64 = 0
 let g_graph_count: i64 = 0
 let PIPE_CODE: i64 = 31862
-let g_glob_init_i: i64 = 0
 let g_graph_fn_off: i64 = -1
 
 // Indent for printing
@@ -1756,7 +1755,7 @@ fn x86_reg(logical: i64) (r: i64)
     if logical == 0 { mut r = 0 }
     else { if logical == 1 { mut r = 1 }
     else { if logical == 2 { mut r = 2 }
-    else { if logical == 3 { mut r = 12 }
+    else { if logical == 3 { mut r = 3 }
     else { if logical == 4 { mut r = 6 }
     else { if logical == 5 { mut r = 7 }
     else { if logical == 6 { mut r = 8 }
@@ -2015,18 +2014,7 @@ fn gen_sub_imm(rd: i64, rn: i64, imm12: i64) (r: i64)
 fn gen_str(rt: i64, rn: i64, imm12: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        let disp: i64 = 0
-        mut disp = imm12 * 8
-        let p: i64 = 0
-        mut p = g_code_pos
-        __byte_store(g_code, p, 72)
-        __byte_store(g_code, p + 1, 137)
-        __byte_store(g_code, p + 2, 131)
-        __byte_store(g_code, p + 3, disp & 255)
-        __byte_store(g_code, p + 4, (disp >> 8) & 255)
-        __byte_store(g_code, p + 5, (disp >> 16) & 255)
-        __byte_store(g_code, p + 6, (disp >> 24) & 255)
-        mut g_code_pos = p + 7
+        mut r = x86_store_reg(x86_reg(rt), x86_reg(rn), imm12 * 8)
     } else {
         mut r = emit32(0xF9000000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
     }
@@ -2036,18 +2024,7 @@ fn gen_str(rt: i64, rn: i64, imm12: i64) (r: i64)
 fn gen_ldr(rt: i64, rn: i64, imm12: i64) (r: i64)
 {
     if g_target_isa == 1 {
-        let disp: i64 = 0
-        mut disp = imm12 * 8
-        let p: i64 = 0
-        mut p = g_code_pos
-        __byte_store(g_code, p, 72)
-        __byte_store(g_code, p + 1, 139)
-        __byte_store(g_code, p + 2, 131)
-        __byte_store(g_code, p + 3, disp & 255)
-        __byte_store(g_code, p + 4, (disp >> 8) & 255)
-        __byte_store(g_code, p + 5, (disp >> 16) & 255)
-        __byte_store(g_code, p + 6, (disp >> 24) & 255)
-        mut g_code_pos = p + 7
+        mut r = x86_load_reg(x86_reg(rt), x86_reg(rn), imm12 * 8)
     } else {
         mut r = emit32(0xF9400000 | ((imm12 & 4095) << 10) | ((rn & 31) << 5) | (rt & 31))
     }
@@ -2619,48 +2596,15 @@ fn gen_binop(op: i64) (r: i64)
     }
     mut r = 0
 }
-
-fn x86_store_rax_to_rbx(disp: i64) (r: i64)
-{
-    mut r = emit_byte(72)
-    mut r = emit_byte(137)
-    mut r = emit_byte(131)
-    mut r = emit_byte(disp & 255)
-    mut r = emit_byte((disp >> 8) & 255)
-    mut r = emit_byte((disp >> 16) & 255)
-    mut r = emit_byte((disp >> 24) & 255)
-    mut r = 0
-}
-
-fn x86_load_rax_from_rbx(disp: i64) (r: i64)
-{
-    mut r = emit_byte(72)
-    mut r = emit_byte(139)
-    mut r = emit_byte(131)
-    mut r = emit_byte(disp & 255)
-    mut r = emit_byte((disp >> 8) & 255)
-    mut r = emit_byte((disp >> 16) & 255)
-    mut r = emit_byte((disp >> 24) & 255)
-    mut r = 0
-}
-
 fn gen_glob_load(off: i64) (r: i64)
 {
-    if g_target_isa == 1 {
-        mut r = x86_load_rax_from_rbx(off * 8)
-    } else {
-        mut r = gen_ldr(0, 19, off)
-    }
+    mut r = gen_ldr(0, 19, off)
     mut r = 0
 }
 
 fn gen_glob_store(off: i64) (r: i64)
 {
-    if g_target_isa == 1 {
-        mut r = x86_store_rax_to_rbx(off * 8)
-    } else {
-        mut r = gen_str(0, 19, off)
-    }
+    mut r = gen_str(0, 19, off)
     mut r = 0
 }
 
@@ -3126,21 +3070,21 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
     let n: i64 = 0
     mut n = arg_count
     if g_target_isa == 1 {
-        if n > 6 { mut r = x86_pop_reg(x86_reg(9)); mut n = n - 1 }
-        if n > 5 { mut r = x86_pop_reg(x86_reg(8)); mut n = n - 1 }
+        if n > 6 { mut r = x86_pop_reg(x86_reg(5)); mut n = n - 1 }
+        if n > 5 { mut r = x86_pop_reg(x86_reg(4)); mut n = n - 1 }
         if n > 4 { mut r = x86_pop_reg(x86_reg(3)); mut n = n - 1 }
         if n > 3 { mut r = x86_pop_reg(x86_reg(2)); mut n = n - 1 }
         if n > 2 { mut r = x86_pop_reg(x86_reg(1)); mut n = n - 1 }
         if n > 1 { mut r = x86_pop_reg(x86_reg(0)); mut n = n - 1 }
-        mut r = x86_pop_reg(6)
+        mut r = x86_pop_reg(x86_reg(6))
         mut r = gen_caller_save()
         if arg_count > 1 { mut r = x86_load_reg(7, 4, 16) }
         if arg_count > 2 { mut r = x86_load_reg(6, 4, 24) }
         if arg_count > 3 { mut r = x86_load_reg(2, 4, 32) }
         if arg_count > 4 { mut r = x86_load_reg(10, 4, 40) }
-        if arg_count > 5 { mut r = x86_load_reg(8, 4, 64) }
-        if arg_count > 6 { mut r = x86_load_reg(9, 4, 72) }
-        mut r = x86_load_reg(0, 4, 48)
+        if arg_count > 5 { mut r = x86_load_reg(8, 4, 48) }
+        if arg_count > 6 { mut r = x86_load_reg(9, 4, 56) }
+        mut r = x86_load_reg(0, 4, 64)
         mut r = x86_syscall()
     } else {
         if n > 6 { mut r = emit32(0xF84107E5); mut n = n - 1 }
@@ -3589,7 +3533,7 @@ fn gen_caller_save() (r: i64)
         mut r = x86_store_reg(0, 4, 16)
         mut r = x86_store_reg(1, 4, 24)
         mut r = x86_store_reg(2, 4, 32)
-        mut r = x86_store_reg(12, 4, 40)
+        mut r = x86_store_reg(3, 4, 40)
         mut r = x86_store_reg(6, 4, 48)
         mut r = x86_store_reg(7, 4, 56)
         mut r = x86_store_reg(8, 4, 64)
@@ -3639,7 +3583,7 @@ fn gen_caller_restore() (r: i64)
         mut r = x86_load_reg(0, 4, 16)
         mut r = x86_load_reg(1, 4, 24)
         mut r = x86_load_reg(2, 4, 32)
-        mut r = x86_load_reg(12, 4, 40)
+        mut r = x86_load_reg(3, 4, 40)
         mut r = x86_load_reg(6, 4, 48)
         mut r = x86_load_reg(7, 4, 56)
         mut r = x86_load_reg(8, 4, 64)
@@ -4399,26 +4343,12 @@ fn gen_main_init() (r: i64)
         mut r = x86_shl_imm(11, 16)        // R11 = 0x10000
         mut r = x86_or_reg(6, 11)          // RSI = 69632
         mut r = x86_mov_imm(2, 3)          // RDX = 3 (PROT_RW)
-        mut r = x86_mov_imm(10, T_MAP_FLAGS) // R10 = MAP flags
+        mut r = x86_mov_imm(10, 34)    // R10 = MAP_PRIVATE|MAP_ANONYMOUS (Linux)
+        mut r = x86_mov_imm(0, 9)      // RAX = mmap syscall # (Linux x86-64)
         mut r = x86_mov_imm(8, 0 - 1)      // R8 = -1 (fd)
         mut r = x86_mov_imm(9, 0)          // R9 = 0 (offset)
-        mut r = x86_mov_imm(0, TSC_MMAP)   // RAX = mmap syscall #
         mut r = x86_syscall()
         mut r = x86_mov_reg(3, 0)          // RBX = RAX (global base ptr)
-        if g_target_os == 1 {
-            mut r = gen_movz(0, 1)
-            mut r = gen_str(0, 19, glob_lookup("SC_WRITE"))
-            mut r = gen_movz(0, 0)
-            mut r = gen_str(0, 19, glob_lookup("SC_READ"))
-            mut r = gen_movz(0, 2)
-            mut r = gen_str(0, 19, glob_lookup("SC_OPEN"))
-            mut r = gen_movz(0, 3)
-            mut r = gen_str(0, 19, glob_lookup("SC_CLOSE"))
-            mut r = gen_movz(0, 9)
-            mut r = gen_str(0, 19, glob_lookup("SC_MMAP"))
-            mut r = gen_movz(0, 60)
-            mut r = gen_str(0, 19, glob_lookup("SC_EXIT"))
-        }
     } else {
         mut r = gen_movz(0, 0)
         mut r = gen_movz(1, 4096)
@@ -4440,42 +4370,26 @@ fn gen_main_init() (r: i64)
 }
 
 
-fn gen_glob_init_one() (r: i64)
-{
-    let val: i64 = 0
-    mut val = __mem_load(g_glob_val + g_glob_init_i * 8)
-    if val != 0 {
-        mut r = gen_movz(0, val & 65535)
-        if (val >> 16) != 0 {
-            mut r = gen_movk(0, (val >> 16) & 65535, 16)
-        }
-        if (val >> 32) != 0 {
-            mut r = gen_movk(0, (val >> 32) & 65535, 32)
-        }
-        if (val >> 48) != 0 {
-            mut r = gen_movk(0, (val >> 48) & 65535, 48)
-        }
-        let p: i64 = 0
-        mut p = g_code_pos
-        __byte_store(g_code, p, 72)
-        __byte_store(g_code, p + 1, 137)
-        __byte_store(g_code, p + 2, 131)
-        __byte_store(g_code, p + 3, (g_glob_init_i * 8) & 255)
-        __byte_store(g_code, p + 4, ((g_glob_init_i * 8) >> 8) & 255)
-        __byte_store(g_code, p + 5, ((g_glob_init_i * 8) >> 16) & 255)
-        __byte_store(g_code, p + 6, ((g_glob_init_i * 8) >> 24) & 255)
-        mut g_code_pos = p + 7
-    }
-    mut r = 0
-}
-
 fn gen_glob_init() (r: i64)
 {
     let i: i64 = 0
     mut i = 0
     while i < g_glob_count {
-        mut g_glob_init_i = i
-        mut r = gen_glob_init_one()
+        let val: i64 = 0
+        mut val = __mem_load(g_glob_val + i * 8)
+        if val != 0 {
+            mut r = gen_movz(0, val & 65535)
+            if (val >> 16) != 0 {
+                mut r = gen_movk(0, (val >> 16) & 65535, 16)
+            }
+            if (val >> 32) != 0 {
+                mut r = gen_movk(0, (val >> 32) & 65535, 32)
+            }
+            if (val >> 48) != 0 {
+                mut r = gen_movk(0, (val >> 48) & 65535, 48)
+            }
+            mut r = gen_str(0, 19, i)
+        }
         mut i = i + 1
     }
     mut r = 0
@@ -4678,9 +4592,9 @@ fn gen_graph() (r: i64)
 // x86-64 _start: reads argc from stack, sets up argv, calls main, exits
 fn gen_x86_start() (r: i64)
 {
-    // POP RAX = argc (58) — X0 for gen_params
+    // POP RDI = argc (1 byte)
     mut r = emit_byte(0x58)
-    // MOV RCX, RSP = argv (48 89 E1) — X1 for gen_params
+    // MOV RSI, RSP (3 bytes)
     mut r = emit_byte(0x48)
     mut r = emit_byte(0x89)
     mut r = emit_byte(0xE1)
@@ -5673,7 +5587,7 @@ fn run_compiler(argv_ptr: i64) (r: i64)
 fn main(argc: i32, argv: i64) (r: i32)
 {
     // When running as Linux init (argc=0), use default paths
-    if argc <= 1 {
+    if argc == 0 {
         mut g_target_isa = 1
         mut g_target_os = 1
         mut g_exec_elf = 1
@@ -5681,15 +5595,10 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut TSC_WRITE = 1
         mut TSC_MMAP = 9
         mut T_MAP_FLAGS = 34
-        mut SC_WRITE = 1
-        mut SC_READ = 0
-        mut SC_OPEN = 2
-        mut SC_CLOSE = 3
-        mut SC_MMAP = 9
-        mut SC_EXIT = 60
         let status: i64 = 0
         mut status = do_parse("/input.al")
         if status == 0 {
+            // Create a fake argv: ["/init", "/input.al", "/output.elf"]
             let fake_argv: i64 = 0
             mut fake_argv = malloc(24)
             __mem_store(fake_argv, 0, 0)

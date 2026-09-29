@@ -675,10 +675,11 @@ _compile_literal(dfir_compiler_t *c, literal_t *lit)
                 val = strtoll(lit->u.n, NULL, 10);
             }
         }
-        ir_reg_type_t rt = (val >= INT32_MIN && val <= INT32_MAX)
-                           ? IR_REG_I32 : IR_REG_I64;
-        result = _ssa(c, rt);
-        op = (rt == IR_REG_I32) ? _op_imm_i32((int32_t)val) : _op_imm_i64(val);
+        /* Always use IR_REG_I64 for integer literals to avoid type-widening
+         * bugs where i32 values have garbage in upper 32 bits of 64-bit
+         * registers. */
+        result = _ssa(c, IR_REG_I64);
+        op = _op_imm_i64(val);
         _emit(c, IR_OPCODE_CONST, &result, 1, &op);
         break;
     }

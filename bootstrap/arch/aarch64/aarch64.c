@@ -1125,6 +1125,14 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         }
         src0 = operand_reg_or_imm_scratch(ctx, &inst->operands[0], 16);
         src1 = operand_reg_or_imm_scratch(ctx, &inst->operands[1], 17);
+        /* Zero-extend register operands to clear garbage upper 32 bits
+         * from i32-typed values. mov w_reg, w_reg clears upper 32 bits. */
+        if (inst->operands[0].type == IR_OPERAND_REG) {
+            emit32(&ctx->tb, 0x2A0003E0 | ((src0 & 31) << 16) | (src0 & 31));
+        }
+        if (inst->operands[1].type == IR_OPERAND_REG) {
+            emit32(&ctx->tb, 0x2A0003E0 | ((src1 & 31) << 16) | (src1 & 31));
+        }
         { int __rc = emit_mul_reg(&ctx->tb, dst, src0, src1, 1); if (rspill) spill_store(dst, rspill); return __rc; }
 
     case IR_OPCODE_DIV:
