@@ -2189,10 +2189,20 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
             emit32(&ctx.tb, 0xF84107E0);  /* LDR X0, [SP], #16 */
         }
 
-        if (n_spill > 0) {
-            int sz = ((n_spill * 8 + 15) / 16) * 16;
-            uint32_t sub = (1U<<31)|(0x51U<<24)|((sz&0xFFF)<<10)|(31<<5)|31;
-            emit32(&ctx.tb, sub);
+        /* Allocate stack for spill slots AND caller-save area.
+         * The caller-save mechanism dynamically subtracts from SP at each
+         * call, which can overlap with spill slots if not enough space
+         * is allocated. We reserve space for the maximum caller-save
+         * area (max_ssa+1 registers * 8 bytes + 32 bytes overhead). */
+        {
+            int caller_save_sz = (max_ssa + 1) * 8 + 32;
+            if (caller_save_sz < 160) caller_save_sz = 160;
+            int total_sz = n_spill * 8 + caller_save_sz;
+            total_sz = ((total_sz + 15) / 16) * 16;
+            if (total_sz > 0) {
+                uint32_t sub = (1U<<31)|(0x51U<<24)|((total_sz&0xFFF)<<10)|(31<<5)|31;
+                emit32(&ctx.tb, sub);
+            }
         }
 
         for (size_t bi = 0; bi < func->nblocks; bi++) {
