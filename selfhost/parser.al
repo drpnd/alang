@@ -3076,7 +3076,7 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
         if n > 3 { mut r = x86_pop_reg(x86_reg(2)); mut n = n - 1 }
         if n > 2 { mut r = x86_pop_reg(x86_reg(1)); mut n = n - 1 }
         if n > 1 { mut r = x86_pop_reg(x86_reg(0)); mut n = n - 1 }
-        mut r = x86_pop_reg(x86_reg(6))
+        mut r = x86_pop_reg(6)
         mut r = gen_caller_save()
         if arg_count > 1 { mut r = x86_load_reg(7, 4, 16) }
         if arg_count > 2 { mut r = x86_load_reg(6, 4, 24) }
@@ -4349,6 +4349,20 @@ fn gen_main_init() (r: i64)
         mut r = x86_mov_imm(0, TSC_MMAP)   // RAX = mmap syscall #
         mut r = x86_syscall()
         mut r = x86_mov_reg(3, 0)          // RBX = RAX (global base ptr)
+        if g_target_os == 1 {
+            mut r = gen_movz(0, 1)
+            mut r = gen_str(0, 19, glob_lookup("SC_WRITE"))
+            mut r = gen_movz(0, 0)
+            mut r = gen_str(0, 19, glob_lookup("SC_READ"))
+            mut r = gen_movz(0, 2)
+            mut r = gen_str(0, 19, glob_lookup("SC_OPEN"))
+            mut r = gen_movz(0, 3)
+            mut r = gen_str(0, 19, glob_lookup("SC_CLOSE"))
+            mut r = gen_movz(0, 9)
+            mut r = gen_str(0, 19, glob_lookup("SC_MMAP"))
+            mut r = gen_movz(0, 60)
+            mut r = gen_str(0, 19, glob_lookup("SC_EXIT"))
+        }
     } else {
         mut r = gen_movz(0, 0)
         mut r = gen_movz(1, 4096)
@@ -4431,6 +4445,22 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
     if is_main_fn == 1 {
             mut r = gen_main_init()
             mut r = gen_glob_init()
+            if g_target_os == 1 {
+                if g_target_isa == 1 {
+                    mut r = x86_mov_imm(0, 1)
+                    mut r = x86_store_reg(0, 3, 40)
+                    mut r = x86_mov_imm(0, 0)
+                    mut r = x86_store_reg(0, 3, 32)
+                    mut r = x86_mov_imm(0, 2)
+                    mut r = x86_store_reg(0, 3, 48)
+                    mut r = x86_mov_imm(0, 3)
+                    mut r = x86_store_reg(0, 3, 56)
+                    mut r = x86_mov_imm(0, 9)
+                    mut r = x86_store_reg(0, 3, 64)
+                    mut r = x86_mov_imm(0, 60)
+                    mut r = x86_store_reg(0, 3, 72)
+                }
+            }
         }
     mut r = gen_block(body)
     mut r = gen_retval(rets)
@@ -4576,12 +4606,12 @@ fn gen_graph() (r: i64)
 // x86-64 _start: reads argc from stack, sets up argv, calls main, exits
 fn gen_x86_start() (r: i64)
 {
-    // POP RDI = argc (1 byte)
-    mut r = emit_byte(0x5F)
-    // MOV RSI, RSP (3 bytes)
+    // POP RAX = argc (58) — X0 for gen_params
+    mut r = emit_byte(0x58)
+    // MOV RCX, RSP = argv (48 89 E1) — X1 for gen_params
     mut r = emit_byte(0x48)
     mut r = emit_byte(0x89)
-    mut r = emit_byte(0xE6)
+    mut r = emit_byte(0xE1)
     // AND RSP, -16 (4 bytes)
     mut r = emit_byte(0x48)
     mut r = emit_byte(0x83)
