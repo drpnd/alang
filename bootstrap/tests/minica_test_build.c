@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern ir_object_t *compile_to_dfir(st_t *st);
+extern ir_object_t *compile_to_dfir(st_t *st, int target_os, int target_isa);
 
 static void
 usage(const char *prog)
@@ -148,7 +148,10 @@ main(int argc, const char *const argv[])
     printf("Parsed: %s\n", infile);
 
     /* 2. Compile to DFIR */
-    ir = compile_to_dfir(st);
+    /* Determine target platform for socket syscall numbers */
+    int target_os = (loader == ARCH_LD_MACH_O) ? 0 : 1;  /* 0=macOS, 1=Linux */
+    int target_isa = (cpu == ARCH_CPU_X86_64) ? 1 : 0;    /* 0=aarch64, 1=x86-64 */
+    ir = compile_to_dfir(st, target_os, target_isa);
     if (!ir) { fprintf(stderr, "Compile error\n"); return 1; }
 
     print_dfir(ir);

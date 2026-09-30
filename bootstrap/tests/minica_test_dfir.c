@@ -33,7 +33,7 @@
 #include <string.h>
 
 /* From compiler.c */
-extern ir_object_t *compile_to_dfir(st_t *st);
+extern ir_object_t *compile_to_dfir(st_t *st, int target_os, int target_isa);
 
 static void
 usage(const char *prog)
@@ -225,7 +225,7 @@ main(int argc, const char *const argv[])
     printf("\n");
 
     /* Compile to DFIR */
-    ir = compile_to_dfir(st);
+    ir = compile_to_dfir(st, 0, 0);  /* macOS aarch64 */
     if (!ir) {
         fprintf(stderr, "Compilation error\n");
         exit(EXIT_FAILURE);

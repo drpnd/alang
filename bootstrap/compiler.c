@@ -183,6 +183,9 @@ typedef struct {
     int nstructs;           /* number of registered structs */
     enum_desc_t enums[MAX_ENUMS];    /* registered enum types */
     int nenums;             /* number of registered enums */
+    /* Target platform for socket syscall number resolution */
+    int target_os;          /* 0=macOS, 1=Linux, 2=FreeBSD */
+    int target_isa;         /* 0=aarch64, 1=x86-64 */
 } dfir_compiler_t;
 
 /*======================================================================
@@ -1341,6 +1344,310 @@ _expr(dfir_compiler_t *c, expr_t *e)
             if (call->exprs) {
                 expr_t *arg = call->exprs->head;
                 while (arg && nargs < 8) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* ===== Socket builtins =====
+         * Each __socket_* builtin emits an IR_OPCODE_SYSCALL with the
+         * platform-appropriate syscall number as operand 0.
+         * target_os: 0=macOS, 1=Linux, 2=FreeBSD
+         * target_isa: 0=aarch64, 1=x86-64
+         *
+         * Syscall number tables (see docs/design/13-network.md):
+         *   socket:    macOS=97/0x2000061, Linux_aarch64=198, Linux_x86=41, FreeBSD=97
+         *   bind:      macOS=104/0x2000068, Linux_aarch64=200, Linux_x86=49, FreeBSD=104
+         *   listen:    macOS=106/0x200006A, Linux_aarch64=201, Linux_x86=50, FreeBSD=106
+         *   accept:    macOS=30/0x200001E, Linux_aarch64=202, Linux_x86=43, FreeBSD=30
+         *   connect:   macOS=98/0x2000062, Linux_aarch64=203, Linux_x86=42, FreeBSD=98
+         *   send:      macOS=9/0x2000009, Linux=206(sendto), Linux_x86=44(sendto), FreeBSD=4(sendto)
+         *   recv:      macOS=25/0x2000019, Linux=207(recvfrom), Linux_x86=45(recvfrom), FreeBSD=29(recvfrom)
+         *   setsockopt: macOS=105/0x2000069, Linux_aarch64=208, Linux_x86=54, FreeBSD=105
+         *   getsockopt: macOS=118/0x2000076, Linux_aarch64=209, Linux_x86=55, FreeBSD=118
+         *   close:     same as SC_CLOSE (already handled by __syscall)
+         */
+
+        /* Helper: resolve socket syscall number for the target platform.
+         * Returns the syscall number, or -1 if unknown. */
+#define _SC_SOCKET    0
+#define _SC_BIND      1
+#define _SC_LISTEN    2
+#define _SC_ACCEPT    3
+#define _SC_CONNECT   4
+#define _SC_SEND      5
+#define _SC_RECV      6
+#define _SC_SETSOCKOPT 7
+#define _SC_GETSOCKOPT 8
+
+        /* Builtin: __socket_create(domain, type, protocol) -> fd */
+        if (call->callee && strcmp(call->callee, "__socket_create") == 0) {
+            int64_t sc_num;
+            if (c->target_os == 0) { /* macOS */
+                sc_num = (c->target_isa == 1) ? 0x2000061 : 97;
+            } else if (c->target_os == 1) { /* Linux */
+                sc_num = (c->target_isa == 1) ? 41 : 198;
+            } else { /* FreeBSD */
+                sc_num = 97;
+            }
+            ir_operand_t ops[4];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 4) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __socket_bind(fd, addr_ptr, addr_len) -> 0 or -errno */
+        if (call->callee && strcmp(call->callee, "__socket_bind") == 0) {
+            int64_t sc_num;
+            if (c->target_os == 0) {
+                sc_num = (c->target_isa == 1) ? 0x2000068 : 104;
+            } else if (c->target_os == 1) {
+                sc_num = (c->target_isa == 1) ? 49 : 200;
+            } else {
+                sc_num = 104;
+            }
+            ir_operand_t ops[4];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 4) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __socket_listen(fd, backlog) -> 0 or -errno */
+        if (call->callee && strcmp(call->callee, "__socket_listen") == 0) {
+            int64_t sc_num;
+            if (c->target_os == 0) {
+                sc_num = (c->target_isa == 1) ? 0x200006A : 106;
+            } else if (c->target_os == 1) {
+                sc_num = (c->target_isa == 1) ? 50 : 201;
+            } else {
+                sc_num = 106;
+            }
+            ir_operand_t ops[3];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 3) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __socket_accept(fd) -> client_fd or -errno */
+        if (call->callee && strcmp(call->callee, "__socket_accept") == 0) {
+            int64_t sc_num;
+            if (c->target_os == 0) {
+                sc_num = (c->target_isa == 1) ? 0x200001E : 30;
+            } else if (c->target_os == 1) {
+                sc_num = (c->target_isa == 1) ? 43 : 202;
+            } else {
+                sc_num = 30;
+            }
+            /* accept(fd, NULL, NULL) — we pass addr/len as 0 */
+            ir_operand_t ops[4];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 4) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            /* Pad with NULL addr and len if not provided */
+            while (nargs < 3) {
+                ops[nargs] = _op_imm_i64(0);
+                nargs++;
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __socket_connect(fd, addr_ptr, addr_len) -> 0 or -errno */
+        if (call->callee && strcmp(call->callee, "__socket_connect") == 0) {
+            int64_t sc_num;
+            if (c->target_os == 0) {
+                sc_num = (c->target_isa == 1) ? 0x2000062 : 98;
+            } else if (c->target_os == 1) {
+                sc_num = (c->target_isa == 1) ? 42 : 203;
+            } else {
+                sc_num = 98;
+            }
+            ir_operand_t ops[4];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 4) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __socket_send(fd, buf_ptr, len, flags) -> bytes sent or -errno
+         * On macOS: send(fd, buf, len, flags)
+         * On Linux/FreeBSD: sendto(fd, buf, len, flags, NULL, 0) */
+        if (call->callee && strcmp(call->callee, "__socket_send") == 0) {
+            int64_t sc_num;
+            int needs_sendto = 0;
+            if (c->target_os == 0) {
+                sc_num = (c->target_isa == 1) ? 0x2000009 : 9;
+            } else if (c->target_os == 1) {
+                sc_num = (c->target_isa == 1) ? 44 : 206; /* sendto */
+                needs_sendto = 1;
+            } else {
+                sc_num = 4; /* FreeBSD sendto */
+                needs_sendto = 1;
+            }
+            ir_operand_t ops[7];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 5) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            if (needs_sendto) {
+                /* Pad with NULL dest_addr (0) and dest_len (0) for sendto */
+                while (nargs < 6) {
+                    ops[nargs] = _op_imm_i64(0);
+                    nargs++;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __socket_recv(fd, buf_ptr, len, flags) -> bytes recv or -errno
+         * On macOS: recv(fd, buf, len, flags)
+         * On Linux/FreeBSD: recvfrom(fd, buf, len, flags, NULL, NULL) */
+        if (call->callee && strcmp(call->callee, "__socket_recv") == 0) {
+            int64_t sc_num;
+            int needs_recvfrom = 0;
+            if (c->target_os == 0) {
+                sc_num = (c->target_isa == 1) ? 0x2000019 : 25;
+            } else if (c->target_os == 1) {
+                sc_num = (c->target_isa == 1) ? 45 : 207; /* recvfrom */
+                needs_recvfrom = 1;
+            } else {
+                sc_num = 29; /* FreeBSD recvfrom */
+                needs_recvfrom = 1;
+            }
+            ir_operand_t ops[7];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 5) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            if (needs_recvfrom) {
+                /* Pad with NULL src_addr (0) and src_len (0) for recvfrom */
+                while (nargs < 6) {
+                    ops[nargs] = _op_imm_i64(0);
+                    nargs++;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __socket_setsockopt(fd, level, optname, val_ptr, val_len) -> 0 or -errno */
+        if (call->callee && strcmp(call->callee, "__socket_setsockopt") == 0) {
+            int64_t sc_num;
+            if (c->target_os == 0) {
+                sc_num = (c->target_isa == 1) ? 0x2000069 : 105;
+            } else if (c->target_os == 1) {
+                sc_num = (c->target_isa == 1) ? 54 : 208;
+            } else {
+                sc_num = 105;
+            }
+            ir_operand_t ops[6];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 6) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
+        /* Builtin: __socket_getsockopt(fd, level, optname, val_ptr, val_len_ptr) -> 0 or -errno */
+        if (call->callee && strcmp(call->callee, "__socket_getsockopt") == 0) {
+            int64_t sc_num;
+            if (c->target_os == 0) {
+                sc_num = (c->target_isa == 1) ? 0x2000076 : 118;
+            } else if (c->target_os == 1) {
+                sc_num = (c->target_isa == 1) ? 55 : 209;
+            } else {
+                sc_num = 118;
+            }
+            ir_operand_t ops[6];
+            ops[0] = _op_imm_i64(sc_num);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 6) {
                     ir_reg_t v = _expr(c, arg);
                     ops[nargs] = _op_reg(v);
                     nargs++;
@@ -2951,12 +3258,14 @@ _graph(dfir_compiler_t *c, graph_decl_t *gd)
  * and then to the architecture-specific code generator (backend).
  */
 ir_object_t *
-compile_to_dfir(st_t *st)
+compile_to_dfir(st_t *st, int target_os, int target_isa)
 {
     dfir_compiler_t c;
     memset(&c, 0, sizeof(c));
     c.ir = ir_object_new();
     if (!c.ir) return NULL;
+    c.target_os = target_os;
+    c.target_isa = target_isa;
 
     c.scope = _scope_new(NULL);
 
