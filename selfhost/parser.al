@@ -2910,6 +2910,14 @@ fn is_builtin_name(name: i64) (r: i64)
                                     }
                                 }
                             }
+                        } else {
+                            if b2 == 102 {
+                                mut r = 1
+                            } else {
+                                if b2 == 112 {
+                                    mut r = 1
+                                }
+                            }
                         }
                     }
                 }
@@ -3646,6 +3654,89 @@ fn gen_socket_builtin(name: i64, arg_count: i64) (r: i64)
     mut r = 0
 }
 
+// __fcntl_set_nonblock(fd): set O_NONBLOCK via two fcntl syscalls
+// 1. Save fd to local var [FP-120]
+// 2. flags = fcntl(fd, F_GETFL=3)
+// 3. new_flags = flags | O_NONBLOCK
+// 4. result = fcntl(fd, F_SETFL=4, new_flags)
+fn gen_fcntl_nonblock_builtin(arg_count: i64) (r: i64)
+{
+    let fcntl_sc: i64 = 0
+    let o_nonblock: i64 = 0
+    mut fcntl_sc = 92
+    mut o_nonblock = 128
+    if g_target_os == 0 {
+        if g_target_isa == 1 {
+            mut fcntl_sc = 8389340
+        }
+    } else {
+        if g_target_os == 1 {
+            if g_target_isa == 1 {
+                mut fcntl_sc = 72
+                mut o_nonblock = 2048
+            } else {
+                mut fcntl_sc = 25
+                mut o_nonblock = 2048
+            }
+        }
+    }
+    // Pop fd from stack and save to [FP-120]
+    mut r = gen_pop_x0()
+    mut r = gen_stur(0, 29, 0 - 120)
+    // Step 1: fcntl(fd, F_GETFL=3) -> X0 = flags
+    // Push args: fd, F_GETFL=3
+    mut r = gen_ldur(0, 29, 0 - 120)
+    mut r = gen_push()
+    mut r = gen_movz(0, 3)
+    mut r = gen_push()
+    mut r = gen_socket_syscall(fcntl_sc, fcntl_sc, fcntl_sc, fcntl_sc, 2)
+    // X0 = flags. Compute flags | O_NONBLOCK
+    mut r = gen_movz(1, o_nonblock & 65535)
+    if (o_nonblock >> 16) != 0 {
+        mut r = gen_movk(1, (o_nonblock >> 16) & 65535, 16)
+    }
+    mut r = gen_or(0, 0, 1)
+    // Save new_flags to [FP-128]
+    mut r = gen_stur(0, 29, 0 - 128)
+    // Step 2: fcntl(fd, F_SETFL=4, new_flags) -> X0 = result
+    // Push args: fd, F_SETFL=4, new_flags
+    mut r = gen_ldur(0, 29, 0 - 120)
+    mut r = gen_push()
+    mut r = gen_movz(0, 4)
+    mut r = gen_push()
+    mut r = gen_ldur(0, 29, 0 - 128)
+    mut r = gen_push()
+    mut r = gen_socket_syscall(fcntl_sc, fcntl_sc, fcntl_sc, fcntl_sc, 3)
+    // X0 = result (0 on success, -errno on failure)
+    mut r = 0
+}
+
+// __poll(fds_ptr, nfds, timeout): poll() syscall
+// macOS aarch64: 230, macOS x86-64: 0x20000E6
+// Linux aarch64: 73, Linux x86-64: 7, FreeBSD: 209
+fn gen_poll_builtin(arg_count: i64) (r: i64)
+{
+    let poll_sc: i64 = 0
+    mut poll_sc = 230
+    if g_target_os == 0 {
+        if g_target_isa == 1 {
+            mut poll_sc = 8389606
+        }
+    } else {
+        if g_target_os == 1 {
+            if g_target_isa == 1 {
+                mut poll_sc = 7
+            } else {
+                mut poll_sc = 73
+            }
+        } else {
+            mut poll_sc = 209
+        }
+    }
+    mut r = gen_socket_syscall(poll_sc, poll_sc, poll_sc, poll_sc, arg_count)
+    mut r = 0
+}
+
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
     let b0: i64 = 0
@@ -3657,6 +3748,16 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
             if __byte_load(g_call_name, 3) == 111 {
                 mut r = gen_socket_builtin(g_call_name, arg_count)
                 mut r = 0
+            }
+        } else {
+            if b2 == 102 {
+                mut r = gen_fcntl_nonblock_builtin(arg_count)
+                mut r = 0
+            } else {
+                if b2 == 112 {
+                    mut r = gen_poll_builtin(arg_count)
+                    mut r = 0
+                }
             }
         }
     }

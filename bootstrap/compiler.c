@@ -1659,6 +1659,98 @@ _expr(dfir_compiler_t *c, expr_t *e)
             return result;
         }
 
+        /* ===== Non-blocking I/O builtins (Phase 4) ===== */
+
+        /* Builtin: __fcntl_set_nonblock(fd) -> 0 or -errno
+         * Sets O_NONBLOCK on a file descriptor via two fcntl calls:
+         * 1. fcntl(fd, F_GETFL=3, 0) -> get current flags
+         * 2. fcntl(fd, F_SETFL=4, flags | O_NONBLOCK) -> set non-blocking
+         *
+         * fcntl syscall numbers:
+         *   macOS aarch64: 92, macOS x86-64: 0x200005C
+         *   Linux aarch64: 25, Linux x86-64: 72
+         *   FreeBSD: 92
+         *
+         * O_NONBLOCK values:
+         *   macOS: 0x80, Linux: 0x800, FreeBSD: 0x80
+         */
+        if (call->callee && strcmp(call->callee, "__fcntl_set_nonblock") == 0) {
+            int64_t fcntl_sc;
+            int64_t o_nonblock;
+            if (c->target_os == 0) { /* macOS */
+                fcntl_sc = (c->target_isa == 1) ? 0x200005C : 92;
+                o_nonblock = 0x80;
+            } else if (c->target_os == 1) { /* Linux */
+                fcntl_sc = (c->target_isa == 1) ? 72 : 25;
+                o_nonblock = 0x800;
+            } else { /* FreeBSD */
+                fcntl_sc = 92;
+                o_nonblock = 0x80;
+            }
+
+            /* Get fd from argument */
+            ir_reg_t fd_reg = _ssa(c, IR_REG_I64);
+            if (call->exprs && call->exprs->head) {
+                fd_reg = _expr(c, call->exprs->head);
+            }
+
+            /* Step 1: flags = fcntl(fd, F_GETFL, 0) */
+            ir_operand_t ops1[3];
+            ops1[0] = _op_imm_i64(fcntl_sc);
+            ops1[1] = _op_reg(fd_reg);
+            ops1[2] = _op_imm_i32(3);  /* F_GETFL */
+            ir_reg_t flags = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &flags, 3, ops1);
+
+            /* Step 2: fcntl(fd, F_SETFL, flags | O_NONBLOCK) */
+            ir_operand_t ops2[4];
+            ops2[0] = _op_imm_i64(fcntl_sc);
+            ops2[1] = _op_reg(fd_reg);
+            ops2[2] = _op_imm_i32(4);  /* F_SETFL */
+            /* flags | O_NONBLOCK — we emit this as a separate OR instruction */
+            ir_reg_t new_flags = _ssa(c, IR_REG_I64);
+            ir_operand_t or_ops[2];
+            or_ops[0] = _op_reg(flags);
+            or_ops[1] = _op_imm_i64(o_nonblock);
+            _emit(c, IR_OPCODE_OR, &new_flags, 2, or_ops);
+            ops2[3] = _op_reg(new_flags);
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, 4, ops2);
+            return result;
+        }
+
+        /* Builtin: __poll(fds_ptr, nfds, timeout) -> ready count or -errno
+         * poll() syscall numbers:
+         *   macOS aarch64: 230, macOS x86-64: 0x20000E6
+         *   Linux aarch64: 73, Linux x86-64: 7
+         *   FreeBSD: 209
+         */
+        if (call->callee && strcmp(call->callee, "__poll") == 0) {
+            int64_t poll_sc;
+            if (c->target_os == 0) { /* macOS */
+                poll_sc = (c->target_isa == 1) ? 0x20000E6 : 230;
+            } else if (c->target_os == 1) { /* Linux */
+                poll_sc = (c->target_isa == 1) ? 7 : 73;
+            } else { /* FreeBSD */
+                poll_sc = 209;
+            }
+            ir_operand_t ops[4];
+            ops[0] = _op_imm_i64(poll_sc);
+            int nargs = 1;
+            if (call->exprs) {
+                expr_t *arg = call->exprs->head;
+                while (arg && nargs < 4) {
+                    ir_reg_t v = _expr(c, arg);
+                    ops[nargs] = _op_reg(v);
+                    nargs++;
+                    arg = arg->next;
+                }
+            }
+            ir_reg_t result = _ssa(c, IR_REG_I64);
+            _emit(c, IR_OPCODE_SYSCALL, &result, nargs, ops);
+            return result;
+        }
+
         /* Builtin: __str_len(s) — return length of null-terminated string */
         if (call->callee && strcmp(call->callee, "__str_len") == 0) {
             ir_operand_t ops[2];
