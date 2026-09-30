@@ -1223,6 +1223,17 @@ fn parse_graph() (r: i64)
                 if is_op(40) == 1 {
                     mut r = advance()
                     while is_op(41) == 0 {
+                        if cur_type() == 3 {
+                            if b0 == 115 {
+                                if b1 == 111 {
+                                    mut g_pos = cur_val()
+                                } else {
+                                    if b1 == 105 {
+                                        mut g_size = cur_val()
+                                    }
+                                }
+                            }
+                        }
                         if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
                     }
                     if is_op(41) == 1 { mut r = advance() }
@@ -1231,8 +1242,10 @@ fn parse_graph() (r: i64)
                 mut b1 = __byte_load(nname, 1)
                 if b0 == 115 {
                     if b1 == 111 {
+                        mut g_pos = nname
                     } else {
                         if b1 == 105 {
+                            mut g_size = nname
                         }
                     }
                 } else {
@@ -4700,6 +4713,253 @@ fn gen_func(nd: i64) (r: i64)
     mut r = 0
 }
 // Generate code for graph main { source |> f |> sink }
+// Check if a URI starts with a given prefix.
+fn uri_starts_with(uri: i64, prefix: i64) (r: i64)
+{
+    let i: i64 = 0
+    mut r = 1
+    mut i = 0
+    while __byte_load(prefix, i) != 0 {
+        if __byte_load(uri, i) != __byte_load(prefix, i) {
+            mut r = 0
+        }
+        mut i = i + 1
+    }
+}
+
+// Parse port number from a URI string starting at the given offset.
+fn uri_parse_port(uri: i64, start: i64) (r: i64)
+{
+    let port: i64 = 0
+    mut port = 0
+    let c: i64 = 0
+    mut c = __byte_load(uri, start)
+    while c >= 48 {
+        if c <= 57 {
+            mut port = port * 10 + (c - 48)
+            mut start = start + 1
+            mut c = __byte_load(uri, start)
+        } else {
+            mut c = 0
+        }
+    }
+    mut r = port
+}
+
+// Build sockaddr_in (16 bytes) on the stack at [FP+offset].
+// port and addr are compile-time constants.
+fn gen_build_sockaddr(fp_offset: i64, port: i64, addr: i64) (r: i64)
+{
+    mut r = gen_movz(1, 0)
+    mut r = gen_stur(1, 29, fp_offset)
+    mut r = gen_stur(1, 29, fp_offset + 8)
+    let val: i64 = 0
+    mut val = (addr << 32) | ((port & 255) << 24) | (((port >> 8) & 255) << 16) | 2
+    mut r = gen_movz(1, val & 65535)
+    if (val >> 16) != 0 {
+        mut r = gen_movk(1, (val >> 16) & 65535, 16)
+    }
+    if (val >> 32) != 0 {
+        mut r = gen_movk(1, (val >> 32) & 65535, 32)
+    }
+    if (val >> 48) != 0 {
+        mut r = gen_movk(1, (val >> 48) & 65535, 48)
+    }
+    mut r = gen_stur(1, 29, fp_offset)
+    mut r = 0
+}
+
+// Generate code for the graph source.
+// g_pos holds the source URI (reused global, set during parse_graph).
+fn gen_graph_source() (r: i64)
+{
+    if g_pos == 0 {
+        mut r = gen_ldur(0, 29, 0 - 8)
+    } else {
+        if uri_starts_with(g_pos, "tcp-listen:") == 1 {
+            let port: i64 = 0
+            mut port = uri_parse_port(g_pos, 11)
+            mut r = gen_ldur(0, 29, 0 - 24)
+            mut r = gen_movz(1, 0)
+            mut r = gen_cmp(0, 1)
+            let skip_listen: i64 = 0
+            mut skip_listen = g_code_pos
+            mut r = gen_bcond(0, 0)
+            mut r = gen_movz(0, 2)
+            mut r = gen_push()
+            mut r = gen_movz(0, 1)
+            mut r = gen_push()
+            mut r = gen_movz(0, 0)
+            mut r = gen_push()
+            mut r = gen_socket_syscall(97, 198, 41, 97, 3)
+            mut r = gen_stur(0, 29, 0 - 24)
+            mut r = gen_build_sockaddr(0 - 48, port, 0)
+            mut r = gen_ldur(0, 29, 0 - 24)
+            mut r = gen_push()
+            mut r = gen_mov(0, 29)
+            mut r = gen_add_imm(0, 0, 0 - 48)
+            mut r = gen_push()
+            mut r = gen_movz(0, 16)
+            mut r = gen_push()
+            mut r = gen_socket_syscall(104, 200, 49, 104, 3)
+            mut r = gen_ldur(0, 29, 0 - 24)
+            mut r = gen_push()
+            mut r = gen_movz(0, 128)
+            mut r = gen_push()
+            mut r = gen_socket_syscall(106, 201, 50, 106, 2)
+            mut r = patch_bcond(skip_listen, g_code_pos - skip_listen)
+            mut r = gen_movz(0, 1)
+            mut r = gen_stur(0, 29, 0 - 24)
+            mut r = gen_ldur(0, 29, 0 - 32)
+            mut r = gen_movz(1, 0)
+            mut r = gen_cmp(0, 1)
+            let skip_accept: i64 = 0
+            mut skip_accept = g_code_pos
+            mut r = gen_bcond(0, 0)
+            mut r = gen_ldur(0, 29, 0 - 24)
+            mut r = gen_push()
+            mut r = gen_movz(0, 0)
+            mut r = gen_push()
+            mut r = gen_push()
+            mut r = gen_socket_syscall(30, 202, 43, 30, 3)
+            mut r = gen_stur(0, 29, 0 - 32)
+            mut r = patch_bcond(skip_accept, g_code_pos - skip_accept)
+            mut r = gen_ldur(0, 29, 0 - 32)
+            mut r = gen_push()
+            mut r = gen_mov(0, 29)
+            mut r = gen_add_imm(0, 0, 0 - 56)
+            mut r = gen_push()
+            mut r = gen_movz(0, 8)
+            mut r = gen_push()
+            mut r = gen_movz(0, 0)
+            mut r = gen_push()
+            if g_target_os == 0 {
+                mut r = gen_socket_syscall(25, 207, 45, 29, 4)
+            } else {
+                mut r = gen_socket_syscall(25, 207, 45, 29, 6)
+            }
+            mut r = gen_ldur(0, 29, 0 - 56)
+        } else {
+            if uri_starts_with(g_pos, "tcp:") == 1 {
+                let port: i64 = 0
+                mut port = uri_parse_port(g_pos, 4)
+                mut r = gen_ldur(0, 29, 0 - 24)
+                mut r = gen_movz(1, 0)
+                mut r = gen_cmp(0, 1)
+                let skip_conn: i64 = 0
+                mut skip_conn = g_code_pos
+                mut r = gen_bcond(0, 0)
+                mut r = gen_movz(0, 2)
+                mut r = gen_push()
+                mut r = gen_movz(0, 1)
+                mut r = gen_push()
+                mut r = gen_movz(0, 0)
+                mut r = gen_push()
+                mut r = gen_socket_syscall(97, 198, 41, 97, 3)
+                mut r = gen_stur(0, 29, 0 - 24)
+                mut r = gen_build_sockaddr(0 - 40, port, 2130706433)
+                mut r = gen_ldur(0, 29, 0 - 24)
+                mut r = gen_push()
+                mut r = gen_mov(0, 29)
+                mut r = gen_add_imm(0, 0, 0 - 40)
+                mut r = gen_push()
+                mut r = gen_movz(0, 16)
+                mut r = gen_push()
+                mut r = gen_socket_syscall(98, 203, 42, 98, 3)
+                mut r = patch_bcond(skip_conn, g_code_pos - skip_conn)
+                mut r = gen_movz(0, 1)
+                mut r = gen_stur(0, 29, 0 - 24)
+                mut r = gen_ldur(0, 29, 0 - 24)
+                mut r = gen_push()
+                mut r = gen_mov(0, 29)
+                mut r = gen_add_imm(0, 0, 0 - 48)
+                mut r = gen_push()
+                mut r = gen_movz(0, 8)
+                mut r = gen_push()
+                mut r = gen_movz(0, 0)
+                mut r = gen_push()
+                if g_target_os == 0 {
+                    mut r = gen_socket_syscall(25, 207, 45, 29, 4)
+                } else {
+                    mut r = gen_socket_syscall(25, 207, 45, 29, 6)
+                }
+                mut r = gen_ldur(0, 29, 0 - 48)
+            } else {
+                mut r = gen_ldur(0, 29, 0 - 8)
+            }
+        }
+    }
+    mut r = 0
+}
+
+// Generate code for the graph sink.
+// g_tok_idx holds the sink URI (reused global, set during parse_graph).
+fn gen_graph_sink() (r: i64)
+{
+    if g_size == 0 {
+        mut r = gen_push()
+        if g_target_isa != 1 {
+            mut r = emit32(0x910003E3)
+        }
+        mut g_call_name = "println"
+        mut r = gen_print_int_builtin(1)
+    } else {
+        if uri_starts_with(g_size, "tcp:") == 1 {
+            let port: i64 = 0
+            mut port = uri_parse_port(g_size, 4)
+            mut r = gen_ldur(0, 29, 0 - 64)
+            mut r = gen_movz(1, 0)
+            mut r = gen_cmp(0, 1)
+            let skip_conn: i64 = 0
+            mut skip_conn = g_code_pos
+            mut r = gen_bcond(0, 0)
+            mut r = gen_movz(0, 2)
+            mut r = gen_push()
+            mut r = gen_movz(0, 1)
+            mut r = gen_push()
+            mut r = gen_movz(0, 0)
+            mut r = gen_push()
+            mut r = gen_socket_syscall(97, 198, 41, 97, 3)
+            mut r = gen_stur(0, 29, 0 - 64)
+            mut r = gen_build_sockaddr(0 - 80, port, 2130706433)
+            mut r = gen_ldur(0, 29, 0 - 64)
+            mut r = gen_push()
+            mut r = gen_mov(0, 29)
+            mut r = gen_add_imm(0, 0, 0 - 80)
+            mut r = gen_push()
+            mut r = gen_movz(0, 16)
+            mut r = gen_push()
+            mut r = gen_socket_syscall(98, 203, 42, 98, 3)
+            mut r = patch_bcond(skip_conn, g_code_pos - skip_conn)
+            mut r = gen_movz(0, 1)
+            mut r = gen_stur(0, 29, 0 - 64)
+            mut r = gen_stur(0, 29, 0 - 88)
+            mut r = gen_ldur(0, 29, 0 - 64)
+            mut r = gen_push()
+            mut r = gen_mov(0, 29)
+            mut r = gen_add_imm(0, 0, 0 - 88)
+            mut r = gen_push()
+            mut r = gen_movz(0, 8)
+            mut r = gen_push()
+            mut r = gen_movz(0, 0)
+            mut r = gen_push()
+            if g_target_os == 0 {
+                mut r = gen_socket_syscall(9, 206, 44, 4, 4)
+            } else {
+                mut r = gen_socket_syscall(9, 206, 44, 4, 6)
+            }
+        } else {
+            mut r = gen_push()
+            if g_target_isa != 1 {
+                mut r = emit32(0x910003E3)
+            }
+            mut g_call_name = "println"
+            mut r = gen_print_int_builtin(1)
+        }
+    }
+    mut r = 0
+}
+
 fn gen_graph() (r: i64)
 {
     let loop_start: i64 = 0
@@ -4736,8 +4996,8 @@ fn gen_graph() (r: i64)
     mut r = gen_cmp(0, 1)
     mut cond_pos = g_code_pos
     mut r = gen_bcond(10, 0)
-    // Body: val = counter
-    mut r = gen_ldur(0, 29, 0 - 8)
+    // Body: val = source data
+    mut r = gen_graph_source()
     // Apply transforms: use gen_extern_call for correct patch table handling
     mut i = 0
     while i < g_graph_count {
@@ -4749,15 +5009,8 @@ fn gen_graph() (r: i64)
         mut r = gen_call_finish()
         mut i = i + 1
     }
-    // Sink: println(val)
-    mut r = gen_push()
-    // Initialize X3 = SP (print_int uses [X3+27] for zero case;
-    // after SUB SP, #32, X3 = old SP = new SP + 32)
-    if g_target_isa != 1 {
-    mut r = emit32(0x910003E3)
-    }
-    mut g_call_name = "println"
-    mut r = gen_print_int_builtin(1)
+    // Sink: output val
+    mut r = gen_graph_sink()
     // Increment counter
     mut r = gen_ldur(0, 29, 0 - 8)
     mut r = gen_movz(1, 1)
