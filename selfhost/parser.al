@@ -1411,6 +1411,18 @@ let X86_R13: i64 = 13
 let X86_R14: i64 = 14
 let X86_R15: i64 = 15
 
+// Socket syscall numbers (macOS aarch64 defaults; updated per platform)
+// Indices 83-91, byte offsets 664-728 in the global area
+let SC_SOCKET: i64 = 97
+let SC_BIND: i64 = 104
+let SC_LISTEN: i64 = 106
+let SC_ACCEPT: i64 = 30
+let SC_CONNECT: i64 = 98
+let SC_SEND: i64 = 9
+let SC_RECV: i64 = 25
+let SC_SETSOCKOPT: i64 = 105
+let SC_GETSOCKOPT: i64 = 118
+
 // === x86-64 byte emitter and helpers ===
 
 fn emit_byte(val: i64) (r: i64)
@@ -2844,6 +2856,16 @@ fn is_builtin_name(name: i64) (r: i64)
     mut r = 0
     if __byte_load(name, 0) == 95 {
         if __byte_load(name, 1) == 95 {
+            if __byte_load(name, 2) == 115 {
+                if __byte_load(name, 3) == 111 {
+                    mut r = 1
+                }
+            }
+        }
+    }
+    if r == 0 {
+    if __byte_load(name, 0) == 95 {
+        if __byte_load(name, 1) == 95 {
             let b2: i64 = 0
             mut b2 = __byte_load(name, 2)
             if b2 == 98 {
@@ -2869,6 +2891,10 @@ fn is_builtin_name(name: i64) (r: i64)
                             } else {
                                 if __byte_load(name, 3) == 121 {
                                     mut r = check_bytes(name, 95, 95, 115, 121)
+                                } else {
+                                    if __byte_load(name, 3) == 111 {
+                                        mut r = 1
+                                    }
                                 }
                             }
                         }
@@ -2896,6 +2922,7 @@ fn is_builtin_name(name: i64) (r: i64)
                 }
             }
         }
+    }
     }
 }
 
@@ -3468,14 +3495,161 @@ mut r = gen_b(loop_pos - g_code_pos)
     mut r = 0
 }
 
+// Generate code for __socket_* builtins.
+// Each socket builtin pushes the SC_* syscall number (and extra NULL args
+// for sendto/recvfrom on Linux/FreeBSD), then calls gen_syscall_builtin.
+// Global indices: SC_SOCKET=83, SC_BIND=84, SC_LISTEN=85, SC_ACCEPT=86,
+// SC_CONNECT=87, SC_SEND=88, SC_RECV=89, SC_SETSOCKOPT=90, SC_GETSOCKOPT=91
+// Helper: emit a socket syscall with the syscall number as an immediate.
+// Pops user args from stack into X0-X5, loads syscall_num into X6,
+// then calls gen_caller_save/gen_caller_restore (same as gen_syscall_builtin
+// but without popping the syscall number from the stack).
+fn gen_socket_syscall(sc_macos: i64, sc_linux_aarch64: i64, sc_linux_x86: i64, sc_freebsd: i64, arg_count: i64) (r: i64)
+{
+    let sc: i64 = 0
+    let n: i64 = 0
+    mut sc = sc_macos
+    if g_target_os == 1 {
+        if g_target_isa == 1 {
+            mut sc = sc_linux_x86
+        } else {
+            mut sc = sc_linux_aarch64
+        }
+    } else {
+        if g_target_os == 2 {
+            mut sc = sc_freebsd
+        }
+    }
+    // Pop user args to registers (same order as gen_syscall_builtin, but without the syscall number)
+    mut n = arg_count
+    if g_target_isa == 1 {
+        if n > 5 { mut r = x86_pop_reg(x86_reg(5)); mut n = n - 1 }
+        if n > 4 { mut r = x86_pop_reg(x86_reg(4)); mut n = n - 1 }
+        if n > 3 { mut r = x86_pop_reg(x86_reg(3)); mut n = n - 1 }
+        if n > 2 { mut r = x86_pop_reg(x86_reg(2)); mut n = n - 1 }
+        if n > 1 { mut r = x86_pop_reg(x86_reg(1)); mut n = n - 1 }
+        if n > 0 { mut r = x86_pop_reg(x86_reg(0)); mut n = n - 1 }
+        mut r = gen_caller_save()
+        if arg_count > 0 { mut r = x86_load_reg(7, 4, 16) }
+        if arg_count > 1 { mut r = x86_load_reg(6, 4, 24) }
+        if arg_count > 2 { mut r = x86_load_reg(2, 4, 32) }
+        if arg_count > 3 { mut r = x86_load_reg(10, 4, 40) }
+        if arg_count > 4 { mut r = x86_load_reg(8, 4, 48) }
+        if arg_count > 5 { mut r = x86_load_reg(9, 4, 56) }
+        // Load syscall number into RAX
+        mut r = x86_mov_imm(0, sc)
+        mut r = x86_syscall()
+    } else {
+        if n > 5 { mut r = emit32(0xF84107E5); mut n = n - 1 }
+        if n > 4 { mut r = emit32(0xF84107E4); mut n = n - 1 }
+        if n > 3 { mut r = emit32(0xF84107E3); mut n = n - 1 }
+        if n > 2 { mut r = emit32(0xF84107E2); mut n = n - 1 }
+        if n > 1 { mut r = emit32(0xF84107E1); mut n = n - 1 }
+        if n > 0 { mut r = emit32(0xF84107E0); mut n = n - 1 }
+        mut r = gen_caller_save()
+        if arg_count > 0 { mut r = gen_ldr(0, 31, 2) }
+        if arg_count > 1 { mut r = gen_ldr(1, 31, 3) }
+        if arg_count > 2 { mut r = gen_ldr(2, 31, 4) }
+        if arg_count > 3 { mut r = gen_ldr(3, 31, 5) }
+        if arg_count > 4 { mut r = gen_ldr(4, 31, 6) }
+        if arg_count > 5 { mut r = gen_ldr(5, 31, 7) }
+        mut r = gen_movz(6, sc & 65535)
+        if (sc >> 16) != 0 {
+            mut r = gen_movk(6, (sc >> 16) & 65535, 16)
+        }
+        if g_target_os == 0 {
+            mut r = gen_mov(16, 6)
+            mut r = emit32(0xD4001001)
+        } else {
+            mut r = gen_mov(8, 6)
+            mut r = emit32(0xD4000001)
+        }
+    }
+    mut r = gen_call_finish()
+    mut r = 0
+}
+
+fn gen_socket_builtin(name: i64, arg_count: i64) (r: i64)
+{
+    let b9: i64 = 0
+    mut b9 = __byte_load(name, 9)
+
+    if b9 == 98 {
+        // __socket_bind(fd, addr, len): macOS=104, Linux_a64=200, Linux_x86=49, FreeBSD=104
+        mut r = gen_socket_syscall(104, 200, 49, 104, arg_count)
+    } else {
+    if b9 == 108 {
+        // __socket_listen(fd, backlog): macOS=106, Linux_a64=201, Linux_x86=50, FreeBSD=106
+        mut r = gen_socket_syscall(106, 201, 50, 106, arg_count)
+    } else {
+    if b9 == 97 {
+        // __socket_accept(fd): macOS=30, Linux_a64=202, Linux_x86=43, FreeBSD=30
+        // Need to add NULL addr and len args
+        mut r = gen_movz(0, 0)
+        mut r = gen_push()
+        mut r = gen_push()
+        mut r = gen_socket_syscall(30, 202, 43, 30, arg_count + 2)
+    } else {
+    if b9 == 114 {
+        // __socket_recv(fd, buf, len, flags)
+        if g_target_os == 0 {
+            mut r = gen_socket_syscall(25, 207, 45, 29, arg_count)
+        } else {
+            mut r = gen_movz(0, 0)
+            mut r = gen_push()
+            mut r = gen_push()
+            mut r = gen_socket_syscall(25, 207, 45, 29, arg_count + 2)
+        }
+    } else {
+    if b9 == 103 {
+        // __socket_getsockopt(fd, level, optname, val, len)
+        mut r = gen_socket_syscall(118, 209, 55, 118, arg_count)
+    } else {
+    if b9 == 99 {
+        if __byte_load(name, 10) == 114 {
+            // __socket_create(domain, type, protocol)
+            mut r = gen_socket_syscall(97, 198, 41, 97, arg_count)
+        } else {
+            // __socket_connect(fd, addr, len)
+            mut r = gen_socket_syscall(98, 203, 42, 98, arg_count)
+        }
+    } else {
+    if b9 == 115 {
+        if __byte_load(name, 11) == 110 {
+            // __socket_send(fd, buf, len, flags)
+            if g_target_os == 0 {
+                mut r = gen_socket_syscall(9, 206, 44, 4, arg_count)
+            } else {
+                mut r = gen_movz(0, 0)
+                mut r = gen_push()
+                mut r = gen_push()
+                mut r = gen_socket_syscall(9, 206, 44, 4, arg_count + 2)
+            }
+        } else {
+            // __socket_setsockopt(fd, level, optname, val, len)
+            mut r = gen_socket_syscall(105, 208, 54, 105, arg_count)
+        }
+    } } } } } } }
+    mut r = 0
+}
+
 fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
 {
     let b0: i64 = 0
+    let b2: i64 = 0
     mut b0 = __byte_load(g_call_name, 0)
+    mut b2 = __byte_load(g_call_name, 2)
+    if b0 == 95 {
+        if b2 == 115 {
+            if __byte_load(g_call_name, 3) == 111 {
+                mut r = gen_socket_builtin(g_call_name, arg_count)
+                mut r = 0
+            }
+        }
+    }
     if b0 == 112 {
         mut r = 0
     } else {
-        let b2: i64 = 0
         mut b2 = __byte_load(g_call_name, 2)
         if b2 == 98 {
             if __byte_load(g_call_name, 3) == 121 {
@@ -4463,6 +4637,24 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
                     mut r = x86_store_reg(0, 3, 0)
                     mut r = x86_mov_imm(0, 34)
                     mut r = x86_store_reg(0, 3, 96)
+                    mut r = x86_mov_imm(0, 41)
+                    mut r = x86_store_reg(0, 3, 664)
+                    mut r = x86_mov_imm(0, 49)
+                    mut r = x86_store_reg(0, 3, 672)
+                    mut r = x86_mov_imm(0, 50)
+                    mut r = x86_store_reg(0, 3, 680)
+                    mut r = x86_mov_imm(0, 43)
+                    mut r = x86_store_reg(0, 3, 688)
+                    mut r = x86_mov_imm(0, 42)
+                    mut r = x86_store_reg(0, 3, 696)
+                    mut r = x86_mov_imm(0, 44)
+                    mut r = x86_store_reg(0, 3, 704)
+                    mut r = x86_mov_imm(0, 45)
+                    mut r = x86_store_reg(0, 3, 712)
+                    mut r = x86_mov_imm(0, 54)
+                    mut r = x86_store_reg(0, 3, 720)
+                    mut r = x86_mov_imm(0, 55)
+                    mut r = x86_store_reg(0, 3, 728)
                 }
             }
         }
