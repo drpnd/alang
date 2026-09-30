@@ -1965,10 +1965,26 @@ fn gen_lsr(rd: i64, rn: i64, rm: i64) (r: i64)
         let rdp: i64 = 0
         mut rdp = x86_reg(rd)
         if rd != rn {
-            mut r = x86_mov_reg(rdp, x86_reg(rn))
-        }
-        if rm != 1 {
-            mut r = x86_mov_reg(1, x86_reg(rm))
+            if rm == rn {
+                mut r = x86_mov_reg(17, x86_reg(rn))
+                mut r = x86_mov_reg(rdp, x86_reg(rm))
+                mut r = x86_mov_reg(1, 17)
+            } else {
+                if rm == rd {
+                    mut r = x86_mov_reg(17, x86_reg(rm))
+                    mut r = x86_mov_reg(rdp, x86_reg(rn))
+                    mut r = x86_mov_reg(1, 17)
+                } else {
+                    mut r = x86_mov_reg(rdp, x86_reg(rn))
+                    if rm != 1 {
+                        mut r = x86_mov_reg(1, x86_reg(rm))
+                    }
+                }
+            }
+        } else {
+            if rm != 1 {
+                mut r = x86_mov_reg(1, x86_reg(rm))
+            }
         }
         mut r = emit_rex(1, 0, 0, (rdp >> 3) & 1)
         mut r = emit_byte(0xD3)
