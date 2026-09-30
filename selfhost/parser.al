@@ -68,6 +68,9 @@ fn sys_exit(code: i64) (r: i64)
 fn malloc(size: i64) (ptr: i64)
 {
     mut ptr = sys_mmap(0, size, 3, 4098, -1, 0)
+    if ptr < 0 {
+        mut ptr = sys_mmap(0, size, 3, 34, -1, 0)
+    }
 }
 
 // free is a no-op (short-lived process, OS reclaims on exit)
@@ -84,9 +87,15 @@ fn fopen(path: i64, mode: i64) (fp: i64)
     mut flags = 0
     // Check first byte of mode string: 'w' = 119
     if __byte_load(mode, 0) == 119 {
-        mut flags = 1537  // O_WRONLY(1) | O_CREAT(0x200) | O_TRUNC(0x400) = 0x601
+        mut flags = 1537
     }
-    mut fp = sys_open(path, flags, 420)  // 420 = 0644 file permissions
+    mut fp = sys_open(path, flags, 420)
+    if fp < 0 {
+        if __byte_load(mode, 0) == 119 {
+            mut flags = 577
+        }
+        mut fp = sys_open(path, flags, 420)
+    }  // 420 = 0644 file permissions
 }
 
 // fclose replacement: close(fd)
@@ -1755,7 +1764,7 @@ fn x86_reg(logical: i64) (r: i64)
     if logical == 0 { mut r = 0 }
     else { if logical == 1 { mut r = 1 }
     else { if logical == 2 { mut r = 2 }
-    else { if logical == 3 { mut r = 3 }
+    else { if logical == 3 { mut r = 12 }
     else { if logical == 4 { mut r = 6 }
     else { if logical == 5 { mut r = 7 }
     else { if logical == 6 { mut r = 8 }
@@ -3533,7 +3542,7 @@ fn gen_caller_save() (r: i64)
         mut r = x86_store_reg(0, 4, 16)
         mut r = x86_store_reg(1, 4, 24)
         mut r = x86_store_reg(2, 4, 32)
-        mut r = x86_store_reg(3, 4, 40)
+        mut r = x86_store_reg(12, 4, 40)
         mut r = x86_store_reg(6, 4, 48)
         mut r = x86_store_reg(7, 4, 56)
         mut r = x86_store_reg(8, 4, 64)
@@ -3583,7 +3592,7 @@ fn gen_caller_restore() (r: i64)
         mut r = x86_load_reg(0, 4, 16)
         mut r = x86_load_reg(1, 4, 24)
         mut r = x86_load_reg(2, 4, 32)
-        mut r = x86_load_reg(3, 4, 40)
+        mut r = x86_load_reg(12, 4, 40)
         mut r = x86_load_reg(6, 4, 48)
         mut r = x86_load_reg(7, 4, 56)
         mut r = x86_load_reg(8, 4, 64)
@@ -3637,6 +3646,9 @@ fn gen_direct_call(fn_off: i64) (r: i64)
 {
     let rel: i64 = 0
     mut rel = fn_off - g_code_pos
+    if g_target_isa == 1 {
+        mut rel = rel - 5
+    }
     mut r = gen_bl(rel)
 }
 
@@ -4304,6 +4316,7 @@ fn gen_epilogue() (r: i64)
 {
     if g_target_isa == 1 {
         mut r = x86_add_imm(4, 2048)
+        mut r = x86_pop_reg(3)
         mut r = x86_pop_reg(5)
         mut r = x86_ret()
     } else {
@@ -4323,6 +4336,7 @@ fn gen_prologue() (r: i64)
 {
     if g_target_isa == 1 {
         mut r = x86_push_reg(5)
+        mut r = x86_push_reg(3)
         mut r = x86_mov_reg(5, 4)
         mut r = x86_sub_imm(4, 2048)
     } else {
@@ -4445,6 +4459,10 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
                     mut r = x86_store_reg(0, 3, 64)
                     mut r = x86_mov_imm(0, 60)
                     mut r = x86_store_reg(0, 3, 72)
+                    mut r = x86_mov_imm(0, 1)
+                    mut r = x86_store_reg(0, 3, 0)
+                    mut r = x86_mov_imm(0, 34)
+                    mut r = x86_store_reg(0, 3, 96)
                 }
             }
         }
@@ -5587,7 +5605,7 @@ fn run_compiler(argv_ptr: i64) (r: i64)
 fn main(argc: i32, argv: i64) (r: i32)
 {
     // When running as Linux init (argc=0), use default paths
-    if argc == 0 {
+    if argc <= 1 {
         mut g_target_isa = 1
         mut g_target_os = 1
         mut g_exec_elf = 1
