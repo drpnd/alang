@@ -3934,9 +3934,6 @@ fn gen_direct_call(fn_off: i64) (r: i64)
 {
     let rel: i64 = 0
     mut rel = fn_off - g_code_pos
-    if g_target_isa == 1 {
-        mut rel = rel - 5
-    }
     mut r = gen_bl(rel)
 }
 
@@ -6165,7 +6162,7 @@ fn main(argc: i32, argv: i64) (r: i32)
             // Create a fake argv: ["/init", "/input.al", "/output.elf"]
             let fake_argv: i64 = 0
             mut fake_argv = malloc(24)
-            __mem_store(fake_argv, 0, 0)
+            __mem_store(fake_argv, 0)
             __mem_store(fake_argv + 8, 0)
             __mem_store(fake_argv + 16, "/output.elf")
             mut r = do_codegen(fake_argv)
