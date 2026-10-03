@@ -1786,20 +1786,20 @@ fn x86_nop() (r: i64)
 // 17->R10(10) scratch, 19->RBX(3) callee-saved, 29->RBP(5) FP, 31->RSP(4)
 fn x86_reg(logical: i64) (r: i64)
 {
+    mut r = logical
     if logical == 0 { mut r = 0 }
-    else { if logical == 1 { mut r = 1 }
-    else { if logical == 2 { mut r = 2 }
-    else { if logical == 3 { mut r = 12 }
-    else { if logical == 4 { mut r = 6 }
-    else { if logical == 5 { mut r = 7 }
-    else { if logical == 6 { mut r = 8 }
-    else { if logical == 7 { mut r = 9 }
-    else { if logical == 17 { mut r = 10 }
-    else { if logical == 19 { mut r = 3 }
-    else { if logical == 29 { mut r = 5 }
-    else { if logical == 30 { mut r = 0 }
-    else { if logical == 31 { mut r = 4 }
-    else { mut r = logical } } } } } } } } } } } } }
+    if logical == 1 { mut r = 1 }
+    if logical == 2 { mut r = 2 }
+    if logical == 3 { mut r = 12 }
+    if logical == 4 { mut r = 6 }
+    if logical == 5 { mut r = 7 }
+    if logical == 6 { mut r = 8 }
+    if logical == 7 { mut r = 9 }
+    if logical == 17 { mut r = 10 }
+    if logical == 19 { mut r = 3 }
+    if logical == 29 { mut r = 5 }
+    if logical == 30 { mut r = 0 }
+    if logical == 31 { mut r = 4 }
 }
 
 fn gen_movk(rd: i64, imm16: i64, shift: i64) (r: i64)
@@ -1966,14 +1966,14 @@ fn gen_lsr(rd: i64, rn: i64, rm: i64) (r: i64)
         mut rdp = x86_reg(rd)
         if rd != rn {
             if rm == rn {
-                mut r = x86_mov_reg(17, x86_reg(rn))
-                mut r = x86_mov_reg(rdp, x86_reg(rm))
-                mut r = x86_mov_reg(1, 17)
+                mut r = gen_push()
+                mut r = x86_mov_reg(rdp, x86_reg(rn))
+                mut r = x86_pop_reg(1)
             } else {
                 if rm == rd {
-                    mut r = x86_mov_reg(17, x86_reg(rm))
+                    mut r = gen_push()
                     mut r = x86_mov_reg(rdp, x86_reg(rn))
-                    mut r = x86_mov_reg(1, 17)
+                    mut r = x86_pop_reg(1)
                 } else {
                     mut r = x86_mov_reg(rdp, x86_reg(rn))
                     if rm != 1 {
@@ -1988,9 +1988,9 @@ fn gen_lsr(rd: i64, rn: i64, rm: i64) (r: i64)
         }
         mut r = emit_rex(1, 0, 0, (rdp >> 3) & 1)
         mut r = emit_byte(0xD3)
-        mut r = emit_modrm(3, 5, rdp & 7)
+        mut r = emit_modrm(3, 7, rdp & 7)
     } else {
-        mut r = emit32(0x9AC02400 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
+        mut r = emit32(0x9AC02800 | ((rm & 31) << 16) | ((rn & 31) << 5) | (rd & 31))
     }
 }
 
@@ -4748,40 +4748,42 @@ fn gen_func_body(name: i64, params: i64, rets: i64, body: i64, is_main: i64) (r:
             mut r = gen_glob_init()
             if g_target_os == 1 {
                 if g_target_isa == 1 {
-                    mut r = x86_mov_imm(0, 1)
-                    mut r = x86_store_reg(0, 3, 40)
-                    mut r = x86_mov_imm(0, 0)
-                    mut r = x86_store_reg(0, 3, 32)
-                    mut r = x86_mov_imm(0, 2)
-                    mut r = x86_store_reg(0, 3, 48)
-                    mut r = x86_mov_imm(0, 3)
-                    mut r = x86_store_reg(0, 3, 56)
-                    mut r = x86_mov_imm(0, 9)
-                    mut r = x86_store_reg(0, 3, 64)
-                    mut r = x86_mov_imm(0, 60)
-                    mut r = x86_store_reg(0, 3, 72)
-                    mut r = x86_mov_imm(0, 1)
-                    mut r = x86_store_reg(0, 3, 0)
-                    mut r = x86_mov_imm(0, 34)
-                    mut r = x86_store_reg(0, 3, 96)
-                    mut r = x86_mov_imm(0, 41)
-                    mut r = x86_store_reg(0, 3, 664)
-                    mut r = x86_mov_imm(0, 49)
-                    mut r = x86_store_reg(0, 3, 672)
-                    mut r = x86_mov_imm(0, 50)
-                    mut r = x86_store_reg(0, 3, 680)
-                    mut r = x86_mov_imm(0, 43)
-                    mut r = x86_store_reg(0, 3, 688)
-                    mut r = x86_mov_imm(0, 42)
-                    mut r = x86_store_reg(0, 3, 696)
-                    mut r = x86_mov_imm(0, 44)
-                    mut r = x86_store_reg(0, 3, 704)
-                    mut r = x86_mov_imm(0, 45)
-                    mut r = x86_store_reg(0, 3, 712)
-                    mut r = x86_mov_imm(0, 54)
-                    mut r = x86_store_reg(0, 3, 720)
-                    mut r = x86_mov_imm(0, 55)
-                    mut r = x86_store_reg(0, 3, 728)
+                    if g_glob_count > 80 {
+                        mut r = x86_mov_imm(0, 1)
+                        mut r = x86_store_reg(0, 3, 40)
+                        mut r = x86_mov_imm(0, 0)
+                        mut r = x86_store_reg(0, 3, 32)
+                        mut r = x86_mov_imm(0, 2)
+                        mut r = x86_store_reg(0, 3, 48)
+                        mut r = x86_mov_imm(0, 3)
+                        mut r = x86_store_reg(0, 3, 56)
+                        mut r = x86_mov_imm(0, 9)
+                        mut r = x86_store_reg(0, 3, 64)
+                        mut r = x86_mov_imm(0, 60)
+                        mut r = x86_store_reg(0, 3, 72)
+                        mut r = x86_mov_imm(0, 1)
+                        mut r = x86_store_reg(0, 3, 0)
+                        mut r = x86_mov_imm(0, 34)
+                        mut r = x86_store_reg(0, 3, 96)
+                        mut r = x86_mov_imm(0, 41)
+                        mut r = x86_store_reg(0, 3, 664)
+                        mut r = x86_mov_imm(0, 49)
+                        mut r = x86_store_reg(0, 3, 672)
+                        mut r = x86_mov_imm(0, 50)
+                        mut r = x86_store_reg(0, 3, 680)
+                        mut r = x86_mov_imm(0, 43)
+                        mut r = x86_store_reg(0, 3, 688)
+                        mut r = x86_mov_imm(0, 42)
+                        mut r = x86_store_reg(0, 3, 696)
+                        mut r = x86_mov_imm(0, 44)
+                        mut r = x86_store_reg(0, 3, 704)
+                        mut r = x86_mov_imm(0, 45)
+                        mut r = x86_store_reg(0, 3, 712)
+                        mut r = x86_mov_imm(0, 54)
+                        mut r = x86_store_reg(0, 3, 720)
+                        mut r = x86_mov_imm(0, 55)
+                        mut r = x86_store_reg(0, 3, 728)
+                    }
                 }
             }
         }

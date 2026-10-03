@@ -150,7 +150,7 @@ compile_and_check "lshift" \
     "lsl"
 compile_and_check "rshift" \
     "$HEADER let a: i64 = 256 let b: i64 = 4 let c: i64 = 0 mut c = a >> b $FOOTER" \
-    "lsr"
+    "asr"
 
 echo ""
 echo "--- Comparison Operators ---"
@@ -183,7 +183,7 @@ echo ""
 echo "--- Byte Operations (used by emit32/write32) ---"
 compile_and_check "byte_extract" \
     "$HEADER let v: i64 = 4277009103 let b1: i64 = 0 mut b1 = (v >> 8) & 255 $FOOTER" \
-    "lsr"
+    "asr"
 compile_and_check "byte_mask" \
     "$HEADER let v: i64 = 4277009103 let b0: i64 = 0 mut b0 = v & 255 $FOOTER" \
     "and"
