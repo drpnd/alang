@@ -1445,14 +1445,14 @@ fn emit_byte(val: i64) (r: i64)
     mut r = 0
 }
 
-fn emit_rex(w: i64, r: i64, x: i64, b: i64) (r: i64)
+fn emit_rex(w: i64, r: i64, x: i64, b: i64) (ret: i64)
 {
     let rex: i64 = 0x40
     mut rex = 0x40 | ((w & 1) << 3) | ((r & 1) << 2) | ((x & 1) << 1) | (b & 1)
     if rex != 0x40 {
-        mut r = emit_byte(rex)
+        mut ret = emit_byte(rex)
     }
-    mut r = 0
+    mut ret = 0
 }
 
 fn emit_modrm(mod_val: i64, reg: i64, rm: i64) (r: i64)
