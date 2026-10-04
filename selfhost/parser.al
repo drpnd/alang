@@ -6175,12 +6175,6 @@ fn run_compiler(argv_ptr: i64) (r: i64)
         if g_target_os == 1 {
             mut TSC_WRITE = 1
             mut TSC_MMAP = 9
-            mut SC_READ = 0
-            mut SC_WRITE = 1
-            mut SC_OPEN = 2
-            mut SC_CLOSE = 3
-            mut SC_MMAP = 9
-            mut SC_EXIT = 60
         }
     }
     mut status = do_parse(arg1_ptr)
@@ -6203,12 +6197,6 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut TSC_WRITE = 1
         mut TSC_MMAP = 9
         mut T_MAP_FLAGS = 34
-        mut SC_READ = 0
-        mut SC_WRITE = 1
-        mut SC_OPEN = 2
-        mut SC_CLOSE = 3
-        mut SC_MMAP = 9
-        mut SC_EXIT = 60
         let status: i64 = 0
         mut status = do_parse("/input.al")
         if status == 0 {
