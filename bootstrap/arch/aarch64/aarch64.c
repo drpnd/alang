@@ -102,6 +102,7 @@ typedef struct {
     label_map_t labels;
     patch_list_t patches;
     int max_ssa;
+    int frame_size;  /* total stack allocation in prologue (excluding FP/LR) */
     struct {
         size_t *adr_off;
         int *str_idx;
@@ -224,6 +225,7 @@ static const int arg_regs[8] = {0, 1, 2, 3, 4, 5, 6, 7};
  */
 static textbuf_t *g_tb = NULL;
 static int g_spill_off = 0;  /* base offset from FP for spill slots */
+static int emit_load_imm64(textbuf_t *tb, int rd, int64_t val);
 
 /* Space reserved below callee-saved area for runtime stack allocations.
  * The STR_EQ inline saves 64 bytes, caller-save saves up to 16*8+32=160 bytes.
@@ -377,15 +379,27 @@ emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
     emit32(&ctx->tb, 0x910003FD);
 
     /* Always save all callee-saved registers X19-X28 (10 regs = 80 bytes).
-     * Also allocate RUNTIME_SCRATCH bytes below the callee-saved area for
-     * runtime stack allocations (STR_EQ save area, caller-save area, etc).
-     * This prevents runtime SUB SP from overlapping with spill slots. */
+     * Also allocate RUNTIME_SCRATCH bytes for runtime stack allocations
+     * (STR_EQ save area, caller-save area, etc).
+     * Also allocate spill slots for SSA values that don't fit in registers. */
     int saved_count = 10;
-    int alloc_size = 80 + RUNTIME_SCRATCH;
+    int n_spill = (max_ssa >= AARCH64_MAX_REGS) ?
+                  (max_ssa - AARCH64_MAX_REGS + 1) : 0;
+    int alloc_size = 80 + RUNTIME_SCRATCH + n_spill * 8;
+    /* Round up to 16-byte alignment */
+    alloc_size = (alloc_size + 15) & ~15;
+    ctx->frame_size = alloc_size;
     /* sub sp, sp, #alloc_size */
-    uint32_t sub = (1U << 31) | (0x51U << 24) |
-                  ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
-    emit32(&ctx->tb, sub);
+    /* Use MOVZ + SUB for large allocations (> 4095) */
+    if (alloc_size <= 0xFFF) {
+        uint32_t sub = (1U << 31) | (0x51U << 24) |
+                      ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
+        emit32(&ctx->tb, sub);
+    } else {
+        /* Load alloc_size into X17 and subtract */
+        emit_load_imm64(&ctx->tb, 17, alloc_size);
+        emit32(&ctx->tb, (1U << 31) | (0xCBU << 24) | ((17 & 31) << 16) | (31U << 5) | 31);
+    }
     for (int j = 0; j < saved_count; j++) {
         int reg = 19 + j;
         int offset = j * 8;
@@ -406,27 +420,49 @@ emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
 static int
 emit_epilogue(asm_ctx_t *ctx, int max_ssa)
 {
-    /* Restore SP to point to callee-saved area:
-     * SP = X29 - (80 + RUNTIME_SCRATCH) */
-    /* mov sp, x29 = add sp, x29, #0 */
+    /* Restore SP to frame pointer, then point to callee-saved area.
+     * Stack layout from X29 downward:
+     *   [X29-16]  = saved X29/X30 (from STP pre-index)
+     *   [X29-96..X29-16] = callee-saved X19-X28
+     *   below that = runtime scratch + spill slots
+     * Epilogue: MOV SP, X29; SUB SP, #96; restore X19-X28 from [SP,#16..#88];
+     *           ADD SP, #80; LDP X29, X30, [SP], #16; RET */
+    /* Restore SP to frame pointer, then to callee-saved area.
+     * The prologue allocated frame_size bytes below X29 (after STP FP/LR).
+     * Callee-saved X19-X28 are at [X29 - frame_size + 0..72].
+     * We need: SP = X29 - frame_size, then load from [SP, #0..#72]. */
+    /* mov sp, x29 */
     emit32(&ctx->tb, (1U << 31) | (0x11U << 24) | (29U << 5) | 31);
-    /* sub sp, sp, #(80 + RUNTIME_SCRATCH) */
-    emit32(&ctx->tb, (1U << 31) | (0x51U << 24) | (((80 + RUNTIME_SCRATCH) & 0xFFF) << 10) | (31U << 5) | 31);
-    /* Always restore all callee-saved registers X19-X28 */
+    /* sub sp, sp, #frame_size */
+    int fs = ctx->frame_size;
+    if (fs <= 0xFFF) {
+        emit32(&ctx->tb, (1U << 31) | (0x51U << 24) | ((fs & 0xFFF) << 10) | (31U << 5) | 31);
+    } else {
+        emit_load_imm64(&ctx->tb, 17, fs);
+        emit32(&ctx->tb, (1U << 31) | (0xCBU << 24) | ((17 & 31) << 16) | (31U << 5) | 31);
+    }
+    /* Restore callee-saved X19-X28 from [SP, #0..#72] */
     int saved_count = 10;
-    int alloc_size = 80 + RUNTIME_SCRATCH;
     for (int j = 0; j < saved_count; j++) {
             int reg = 19 + j;
             int offset = j * 8;
-            /* LDR Xt, [sp, #offset] — bit 22=1 for load (not store) */
             uint32_t ldr = (0xF9U << 24) | (1U << 22) | (((offset / 8) & 0xFFF) << 10) |
                           (31U << 5) | reg;
             emit32(&ctx->tb, ldr);
         }
-        /* add sp, sp, #alloc_size */
-        uint32_t add = (1U << 31) | (0x11U << 24) |
-                       ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
-        emit32(&ctx->tb, add);
+        /* No ADD SP needed - LDP post-index restores SP to X29, then
+         * we need to get to [X29-16] for the FP/LR. Actually, after
+         * restoring callee-saved, SP is at X29 - frame_size. We need
+         * SP at X29 - 16 for the LDP. So ADD SP, #(frame_size - 16). */
+        int add_val = fs;  /* SP goes to X29, LDP loads from [X29] = saved FP/LR */
+        if (add_val <= 0xFFF) {
+            uint32_t add = (1U << 31) | (0x11U << 24) |
+                           ((add_val & 0xFFF) << 10) | (31U << 5) | 31;
+            emit32(&ctx->tb, add);
+        } else {
+            emit_load_imm64(&ctx->tb, 17, add_val);
+            emit32(&ctx->tb, (1U << 31) | (0x11U << 24) | ((17 & 31) << 16) | (31U << 5) | 31);
+        }
 
     /* ldp x29, x30, [sp], #16 = 0xA8C17BFD */
     emit32(&ctx->tb, 0xA8C17BFD);
@@ -2208,7 +2244,10 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
                       (max_ssa - AARCH64_MAX_REGS + 1) : 0;
         int csz = 80;  /* always save X19-X28 = 10 * 8 */
         /* Spill slots at [X29, -(16+csz+8)], [X29, -(16+csz+16)], ... */
-        g_spill_off = -(csz + RUNTIME_SCRATCH + MAX_RUNTIME_DEPTH + 8);
+        /* Spill slots go right below callee-saved area, ABOVE runtime scratch.
+         * This prevents runtime SUB SP (STR_EQ, caller-save) from overwriting
+         * spill slots. Layout: FP/LR(16) | callee-saved(80) | spill(n*8) | runtime(256+) */
+        g_spill_off = -(csz + 16 + 8);  /* first spill slot at X29-(96+8) */
 
         /* Emit prologue */
         emit_prologue(&ctx, func->nargs, max_ssa);
