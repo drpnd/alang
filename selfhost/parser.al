@@ -1995,16 +1995,35 @@ fn gen_lsr(rd: i64, rn: i64, rm: i64) (r: i64)
 }
 
 // LSL Xd, Xn, Xm (64-bit register shift left)
+// Same register clobber protection as gen_lsr: when rm==rn or rm==rd,
+// the MOV to rdp would clobber the shift amount in rm before it can be
+// moved to RCX. Use push/pop to save the shift amount first.
 fn gen_lsl(rd: i64, rn: i64, rm: i64) (r: i64)
 {
     if g_target_isa == 1 {
         let rdp: i64 = 0
         mut rdp = x86_reg(rd)
         if rd != rn {
-            mut r = x86_mov_reg(rdp, x86_reg(rn))
-        }
-        if rm != 1 {
-            mut r = x86_mov_reg(1, x86_reg(rm))
+            if rm == rn {
+                mut r = gen_push()
+                mut r = x86_mov_reg(rdp, x86_reg(rn))
+                mut r = x86_pop_reg(1)
+            } else {
+                if rm == rd {
+                    mut r = gen_push()
+                    mut r = x86_mov_reg(rdp, x86_reg(rn))
+                    mut r = x86_pop_reg(1)
+                } else {
+                    mut r = x86_mov_reg(rdp, x86_reg(rn))
+                    if rm != 1 {
+                        mut r = x86_mov_reg(1, x86_reg(rm))
+                    }
+                }
+            }
+        } else {
+            if rm != 1 {
+                mut r = x86_mov_reg(1, x86_reg(rm))
+            }
         }
         mut r = emit_rex(1, 0, 0, (rdp >> 3) & 1)
         mut r = emit_byte(0xD3)

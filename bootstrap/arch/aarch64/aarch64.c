@@ -225,6 +225,21 @@ static const int arg_regs[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 static textbuf_t *g_tb = NULL;
 static int g_spill_off = 0;  /* base offset from FP for spill slots */
 
+/* Space reserved below callee-saved area for runtime stack allocations.
+ * The STR_EQ inline saves 64 bytes, caller-save saves up to 16*8+32=160 bytes.
+ * These are allocated via SUB SP from the current SP position.
+ * Spill slots are placed BELOW this area to avoid overlap.
+ * Layout from FP downward:
+ *   [FP-8..FP-80]    = callee-saved X19-X28
+ *   [FP-80..FP-80-RS] = runtime scratch (STR_EQ, caller-save, etc.)
+ *   [FP-80-RS-8...]  = spill slots (g_spill_off)
+ * RS must be large enough for the deepest runtime stack:
+ *   caller-save(160) + STR_EQ(64) = 224, round up to 256. */
+#define RUNTIME_SCRATCH 256
+/* Maximum runtime stack depth below SP (for overlap checking):
+ * caller-save(160) + STR_EQ(64) = 224 */
+#define MAX_RUNTIME_DEPTH 224
+
 /* SSA to register mapping. Skip X16/X17 (IP0/IP1), X18 (platform reg),
  * and X19 (reserved as global base pointer for self-hosting compiler).
  * %0-%15  → X0-X15
@@ -361,10 +376,13 @@ emit_prologue(asm_ctx_t *ctx, int nargs, int max_ssa)
     /* mov x29, sp = add x29, sp, #0 = 0x910003FD */
     emit32(&ctx->tb, 0x910003FD);
 
-    /* Always save all callee-saved registers X19-X28 (10 regs = 80 bytes) */
+    /* Always save all callee-saved registers X19-X28 (10 regs = 80 bytes).
+     * Also allocate RUNTIME_SCRATCH bytes below the callee-saved area for
+     * runtime stack allocations (STR_EQ save area, caller-save area, etc).
+     * This prevents runtime SUB SP from overlapping with spill slots. */
     int saved_count = 10;
-    int alloc_size = 80;
-    /* sub sp, sp, #80 */
+    int alloc_size = 80 + RUNTIME_SCRATCH;
+    /* sub sp, sp, #alloc_size */
     uint32_t sub = (1U << 31) | (0x51U << 24) |
                   ((alloc_size & 0xFFF) << 10) | (31U << 5) | 31;
     emit32(&ctx->tb, sub);
@@ -389,14 +407,14 @@ static int
 emit_epilogue(asm_ctx_t *ctx, int max_ssa)
 {
     /* Restore SP to point to callee-saved area:
-     * SP = X29 - 80 (callee-saved area is 80 bytes below FP) */
+     * SP = X29 - (80 + RUNTIME_SCRATCH) */
     /* mov sp, x29 = add sp, x29, #0 */
     emit32(&ctx->tb, (1U << 31) | (0x11U << 24) | (29U << 5) | 31);
-    /* sub sp, sp, #80 */
-    emit32(&ctx->tb, (1U << 31) | (0x51U << 24) | ((80 & 0xFFF) << 10) | (31U << 5) | 31);
+    /* sub sp, sp, #(80 + RUNTIME_SCRATCH) */
+    emit32(&ctx->tb, (1U << 31) | (0x51U << 24) | (((80 + RUNTIME_SCRATCH) & 0xFFF) << 10) | (31U << 5) | 31);
     /* Always restore all callee-saved registers X19-X28 */
     int saved_count = 10;
-    int alloc_size = 80;
+    int alloc_size = 80 + RUNTIME_SCRATCH;
     for (int j = 0; j < saved_count; j++) {
             int reg = 19 + j;
             int offset = j * 8;
@@ -1768,16 +1786,36 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         emit32(&ctx->tb, 0x14000002);  /* B end (+2) */
         emit32(&ctx->tb, 0x52800025);  /* equal: MOV W5, #1 */
 
-        /* Step 4: Save result, restore original X0-X5 and X16 */
-        emit32(&ctx->tb, 0xB9000000 | (14 << 10) | (31 << 5) | 5);  /* STR W5, [SP, #56] */
-        emit32(&ctx->tb, 0xA94007E0);  /* LDP X0, X1, [SP, #0] — restore originals */
-        emit32(&ctx->tb, 0xA9410FE2);  /* LDP X2, X3, [SP, #16] */
-        emit32(&ctx->tb, 0xA94217E4);  /* LDP X4, X5, [SP, #32] */
-        if (dst != 31) {
+        /* Step 4: Save result and restore original X0-X5 and X16.
+         * The result is in W5. If dst is a register, save to [SP,#56],
+         * restore X0-X5, then load result to dst.
+         * If dst is spilled, store directly from W5 to spill area
+         * BEFORE restoring X5 (since X5 holds the result). */
+        if (dst >= 0 && dst != 31) {
+            emit32(&ctx->tb, 0xB9000000 | (14 << 10) | (31 << 5) | 5);  /* STR W5, [SP, #56] */
+            emit32(&ctx->tb, 0xA94007E0);  /* LDP X0, X1, [SP, #0] */
+            emit32(&ctx->tb, 0xA9410FE2);  /* LDP X2, X3, [SP, #16] */
+            emit32(&ctx->tb, 0xA94217E4);  /* LDP X4, X5, [SP, #32] */
             emit32(&ctx->tb, 0xB9400000 | (14 << 10) | (31 << 5) | (dst & 31));  /* LDR Wdst, [SP, #56] */
+            emit32(&ctx->tb, 0xF9400000 | (6 << 10) | (31 << 5) | 16);  /* LDR X16, [SP, #48] */
+        } else if (dst < 0 && inst->result.n > 0 && inst->result.reg[0].id) {
+            int spill_id = ssa_id(inst->result.reg[0].id);
+            spill_store(5, spill_id);
+            emit32(&ctx->tb, 0xA94007E0);  /* LDP X0, X1, [SP, #0] */
+            emit32(&ctx->tb, 0xA9410FE2);  /* LDP X2, X3, [SP, #16] */
+            emit32(&ctx->tb, 0xA94217E4);  /* LDP X4, X5, [SP, #32] */
+            emit32(&ctx->tb, 0xF9400000 | (6 << 10) | (31 << 5) | 16);  /* LDR X16, [SP, #48] */
+        } else {
+            emit32(&ctx->tb, 0xA94007E0);  /* LDP X0, X1, [SP, #0] */
+            emit32(&ctx->tb, 0xA9410FE2);  /* LDP X2, X3, [SP, #16] */
+            emit32(&ctx->tb, 0xA94217E4);  /* LDP X4, X5, [SP, #32] */
+            emit32(&ctx->tb, 0xF9400000 | (6 << 10) | (31 << 5) | 16);  /* LDR X16, [SP, #48] */
         }
-        emit32(&ctx->tb, 0xF9400000 | (6 << 10) | (31 << 5) | 16);  /* LDR X16, [SP, #48] */
         emit32(&ctx->tb, (1U << 31) | (0x11U << 24) | ((64 & 0xFFF) << 10) | (31U << 5) | 31);  /* ADD SP, SP, #64 */
+        /* STR_EQ handles its own result spill, so clear rspill to prevent
+         * the duplicate spill_store at the end of compile_instr from
+         * overwriting the result with a stale register value. */
+        rspill = 0;
         break;
     }
 
@@ -2170,7 +2208,7 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
                       (max_ssa - AARCH64_MAX_REGS + 1) : 0;
         int csz = 80;  /* always save X19-X28 = 10 * 8 */
         /* Spill slots at [X29, -(16+csz+8)], [X29, -(16+csz+16)], ... */
-        g_spill_off = -(csz + 8);
+        g_spill_off = -(csz + RUNTIME_SCRATCH + MAX_RUNTIME_DEPTH + 8);
 
         /* Emit prologue */
         emit_prologue(&ctx, func->nargs, max_ssa);
@@ -2197,21 +2235,11 @@ aarch64_assemble(ir_object_t *obj, arch_code_t *code)
             emit32(&ctx.tb, 0xF84107E0);  /* LDR X0, [SP], #16 */
         }
 
-        /* Allocate stack for spill slots AND caller-save area.
-         * The caller-save mechanism dynamically subtracts from SP at each
-         * call, which can overlap with spill slots if not enough space
-         * is allocated. We reserve space for the maximum caller-save
-         * area (max_ssa+1 registers * 8 bytes + 32 bytes overhead). */
-        {
-            int caller_save_sz = (max_ssa + 1) * 8 + 32;
-            if (caller_save_sz < 160) caller_save_sz = 160;
-            int total_sz = n_spill * 8 + caller_save_sz;
-            total_sz = ((total_sz + 15) / 16) * 16;
-            if (total_sz > 0) {
-                uint32_t sub = (1U<<31)|(0x51U<<24)|((total_sz&0xFFF)<<10)|(31<<5)|31;
-                emit32(&ctx.tb, sub);
-            }
-        }
+        /* Spill slots and caller-save area are already allocated in the
+         * prologue via RUNTIME_SCRATCH. The prologue allocates:
+         *   80 bytes (callee-saved X19-X28) + RUNTIME_SCRATCH (256 bytes)
+         * Spill slots are placed below RUNTIME_SCRATCH + MAX_RUNTIME_DEPTH
+         * to avoid overlap with dynamic stack allocations (STR_EQ, caller-save). */
 
         for (size_t bi = 0; bi < func->nblocks; bi++) {
             ir_block_t *blk = &func->blocks[bi];
