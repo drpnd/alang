@@ -3332,8 +3332,8 @@ fn gen_print_int_builtin(is_println: i64) (r: i64)
         mut zero_label2 = g_code_pos
         mut r = patch_bcond(zero_pos2, zero_label2 - zero_pos2)
         mut r = gen_movz(5, 48)
-        mut r = emit32(0x39006C65)
-        mut r = emit32(0x910073E1)
+        mut r = emit32(0x390077E5)
+        mut r = emit32(0x910077E1)
         let done_label2: i64 = 0
         mut done_label2 = g_code_pos
         mut r = patch_b(done_branch2, done_label2 - done_branch2)
@@ -6175,6 +6175,12 @@ fn run_compiler(argv_ptr: i64) (r: i64)
         if g_target_os == 1 {
             mut TSC_WRITE = 1
             mut TSC_MMAP = 9
+            mut SC_READ = 0
+            mut SC_WRITE = 1
+            mut SC_OPEN = 2
+            mut SC_CLOSE = 3
+            mut SC_MMAP = 9
+            mut SC_EXIT = 60
         }
     }
     mut status = do_parse(arg1_ptr)
@@ -6197,6 +6203,12 @@ fn main(argc: i32, argv: i64) (r: i32)
         mut TSC_WRITE = 1
         mut TSC_MMAP = 9
         mut T_MAP_FLAGS = 34
+        mut SC_READ = 0
+        mut SC_WRITE = 1
+        mut SC_OPEN = 2
+        mut SC_CLOSE = 3
+        mut SC_MMAP = 9
+        mut SC_EXIT = 60
         let status: i64 = 0
         mut status = do_parse("/input.al")
         if status == 0 {
