@@ -67,7 +67,15 @@ fn sys_exit(code: i64) (r: i64)
 // PROT_READ|PROT_WRITE = 3, MAP_PRIVATE|MAP_ANON = 4098
 fn malloc(size: i64) (ptr: i64)
 {
-    mut ptr = sys_mmap(0, size, 3, 4098, -1, 0)
+    let map_flags: i64 = 0
+    mut map_flags = 4098
+    if SC_MMAP != 197 {
+        mut map_flags = 34
+    }
+    mut ptr = sys_mmap(0, size, 3, map_flags, -1, 0)
+    if ptr < 0 {
+        mut ptr = sys_mmap(0, size, 3, 4098, -1, 0)
+    }
     if ptr < 0 {
         mut ptr = sys_mmap(0, size, 3, 34, -1, 0)
     }
