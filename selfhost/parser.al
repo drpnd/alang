@@ -1228,6 +1228,8 @@ fn parse_graph() (r: i64)
                 let b1: i64 = 0
                 mut nname = cur_val()
                 mut r = advance()
+                mut b0 = __byte_load(nname, 0)
+                mut b1 = __byte_load(nname, 1)
                 if is_op(40) == 1 {
                     mut r = advance()
                     while is_op(41) == 0 {
@@ -1246,17 +1248,7 @@ fn parse_graph() (r: i64)
                     }
                     if is_op(41) == 1 { mut r = advance() }
                 }
-                mut b0 = __byte_load(nname, 0)
-                mut b1 = __byte_load(nname, 1)
-                if b0 == 115 {
-                    if b1 == 111 {
-                        mut g_pos = nname
-                    } else {
-                        if b1 == 105 {
-                            mut g_size = nname
-                        }
-                    }
-                } else {
+                if b0 != 115 {
                     __mem_store(g_graph_transforms + g_graph_count * 8, nname)
                     mut g_graph_count = g_graph_count + 1
                 }
