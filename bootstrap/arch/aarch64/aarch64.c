@@ -226,6 +226,8 @@ static const int arg_regs[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 static textbuf_t *g_tb = NULL;
 static int g_spill_off = 0;  /* base offset from FP for spill slots */
 static int emit_load_imm64(textbuf_t *tb, int rd, int64_t val);
+static int emit_sub_reg(textbuf_t *tb, int rd, int rn, int rm, int sf);
+static int emit_add_reg(textbuf_t *tb, int rd, int rn, int rm, int sf);
 
 /* Space reserved below callee-saved area for runtime stack allocations.
  * The STR_EQ inline saves 64 bytes, caller-save saves up to 16*8+32=160 bytes.
@@ -261,21 +263,24 @@ spill_load(int id, int reg)
 {
     int off = g_spill_off - (id - AARCH64_MAX_REGS) * 8;
     if (off >= -256 && off <= 255) {
+        /* Small offset: single LDUR instruction */
         uint32_t insn = (0xF8U << 24) | (1U << 22) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
         emit32(g_tb, insn);
-    } else {
-        /* Large offset: sub/add xreg, x29, #hi; ldur xreg, [xreg, #lo]
-         * Using the destination register itself as the address temp is safe
-         * because the final LDUR overwrites the address with the loaded value.
-         * (Previously used X9, which clobbers SSA value 9.) */
-        int hi = (off / 256) * 256;
-        int lo = off - hi;
-        if (hi >= 0) {
-            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|(reg&31));
+    } else if (off >= -4095 && off <= 4095) {
+        /* Medium offset: SUB/ADD with 12-bit immediate, then LDUR with 0 */
+        if (off < 0) {
+            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-off)&0xFFF)<<10)|(29<<5)|(reg&31));
         } else {
-            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|(reg&31));
+            emit32(g_tb, (1U<<31)|(0x11U<<24)|((off&0xFFF)<<10)|(29<<5)|(reg&31));
         }
-        emit32(g_tb, (0xF8U<<24)|(1U<<22)|((lo&0x1FF)<<12)|((reg&31)<<5)|(reg&31));
+        emit32(g_tb, (0xF8U<<24)|(1U<<22)|((0&0x1FF)<<12)|((reg&31)<<5)|(reg&31));
+    } else {
+        /* Large offset (> 4095): load full offset into reg via MOVZ+MOVK,
+         * then SUB/ADD Xreg, X29, Xreg, then LDUR from reg.
+         * Safe because LDUR overwrites the address with the loaded value. */
+        emit_load_imm64(g_tb, reg, off);
+        emit_sub_reg(g_tb, reg, 29, reg, 1);
+        emit32(g_tb, (0xF8U<<24)|(1U<<22)|(0<<12)|((reg&31)<<5)|(reg&31));
     }
     return reg;
 }
@@ -285,21 +290,27 @@ spill_store(int reg, int id)
 {
     int off = g_spill_off - (id - AARCH64_MAX_REGS) * 8;
     if (off >= -256 && off <= 255) {
+        /* Small offset: single STUR instruction */
         uint32_t insn = (0xF8U << 24) | ((off & 0x1FF) << 12) | (29 << 5) | (reg & 31);
         emit32(g_tb, insn);
+    } else if (off >= -4095 && off <= 4095) {
+        /* Medium offset: SUB/ADD Xtmp, X29, #imm12; STUR Xreg, [Xtmp] */
+        int tmp = (reg == 16) ? 17 : 16;
+        if (off < 0) {
+            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-off)&0xFFF)<<10)|(29<<5)|tmp);
+        } else {
+            emit32(g_tb, (1U<<31)|(0x11U<<24)|((off&0xFFF)<<10)|(29<<5)|tmp);
+        }
+        emit32(g_tb, (0xF8U<<24)|(0<<12)|((tmp&31)<<5)|(reg&31));
     } else {
-        /* Large offset: sub/add xtmp, x29, #hi; stur xreg, [xtmp, #lo]
-         * Use X17 as address temp to avoid conflict when reg == X16.
+        /* Large offset (> 4095): load full offset into tmp via MOVZ+MOVK,
+         * then SUB/ADD Xtmp, X29, Xtmp, then STUR Xreg, [Xtmp].
+         * Use X17 as temp to avoid clobbering the value in reg.
          * X16/X17 (IP0/IP1) are never used for SSA values. */
         int tmp = (reg == 16) ? 17 : 16;
-        int hi = (off / 256) * 256;
-        int lo = off - hi;
-        if (hi >= 0) {
-            emit32(g_tb, (1U<<31)|(0x11U<<24)|((hi&0xFFF)<<10)|(29<<5)|tmp);
-        } else {
-            emit32(g_tb, (1U<<31)|(0x51U<<24)|(((-hi)&0xFFF)<<10)|(29<<5)|tmp);
-        }
-        emit32(g_tb, (0xF8U<<24)|((lo&0x1FF)<<12)|((tmp&31)<<5)|(reg&31));
+        emit_load_imm64(g_tb, tmp, -off);  /* Load absolute value of offset */
+        emit_sub_reg(g_tb, tmp, 29, tmp, 1);  /* tmp = X29 - (-off) = X29 + off */
+        emit32(g_tb, (0xF8U<<24)|(0<<12)|((tmp&31)<<5)|(reg&31));
     }
 }
 

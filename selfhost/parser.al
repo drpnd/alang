@@ -1644,10 +1644,10 @@ fn x86_load_reg(dst: i64, base: i64, disp: i64) (r: i64)
     } else {
         mut r = emit_modrm(2, dst & 7, base & 7)
     }
-    mut r = emit_disp_byte(disp, 0)
-    mut r = emit_disp_byte(disp, 8)
-    mut r = emit_disp_byte(disp, 16)
-    mut r = emit_disp_byte(disp, 24)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
 }
 
 
@@ -1669,10 +1669,10 @@ fn x86_store_reg(src: i64, base: i64, disp: i64) (r: i64)
     } else {
         mut r = emit_modrm(2, src & 7, base & 7)
     }
-    mut r = emit_disp_byte(disp, 0)
-    mut r = emit_disp_byte(disp, 8)
-    mut r = emit_disp_byte(disp, 16)
-    mut r = emit_disp_byte(disp, 24)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
 }
 
 // MOVZX reg64, byte [base64 + disp32]
@@ -1687,10 +1687,10 @@ fn x86_load8_reg(dst: i64, base: i64, disp: i64) (r: i64)
     } else {
         mut r = emit_modrm(2, dst & 7, base & 7)
     }
-    mut r = emit_disp_byte(disp, 0)
-    mut r = emit_disp_byte(disp, 8)
-    mut r = emit_disp_byte(disp, 16)
-    mut r = emit_disp_byte(disp, 24)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
 }
 
 // MOV byte [base64 + disp32], reg8
@@ -1704,10 +1704,10 @@ fn x86_store8_reg(src: i64, base: i64, disp: i64) (r: i64)
     } else {
         mut r = emit_modrm(2, src & 7, base & 7)
     }
-    mut r = emit_disp_byte(disp, 0)
-    mut r = emit_disp_byte(disp, 8)
-    mut r = emit_disp_byte(disp, 16)
-    mut r = emit_disp_byte(disp, 24)
+    mut r = emit_byte(disp & 255)
+    mut r = emit_byte((disp >> 8) & 255)
+    mut r = emit_byte((disp >> 16) & 255)
+    mut r = emit_byte((disp >> 24) & 255)
 }
 
 // ADD reg64, imm32 (sign-extended)
@@ -4916,6 +4916,103 @@ fn gen_build_sockaddr(fp_offset: i64, port: i64, addr: i64) (r: i64)
     mut r = 0
 }
 
+
+fn gen_file_source() (r: i64)
+{
+    mut r = gen_ldur(0, 29, 0 - 96)
+    mut r = gen_movz(1, 0)
+    mut r = gen_cmp(0, 1)
+    let skip_fo: i64 = 0
+    mut skip_fo = g_code_pos
+    mut r = gen_bcond(0, 0)
+    let fidx: i64 = 0
+    let fadr: i64 = 0
+    mut fidx = str_const_add(g_pos)
+    mut fadr = g_code_pos
+    if g_target_isa == 1 {
+        mut r = emit_byte(0x48)
+        mut r = emit_byte(0x8D)
+        mut r = emit_byte(0x05)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+    } else {
+        mut r = emit32(0x10000000)
+    }
+    mut r = str_adr_patch_add(fadr, fidx)
+    mut r = gen_movz(1, 5)
+    mut r = gen_add(0, 0, 1)
+    mut r = gen_push()
+    mut r = gen_movz(0, 0)
+    mut r = gen_push()
+    mut r = gen_movz(0, 0)
+    mut r = gen_push()
+    mut r = gen_socket_syscall(5, 56, 2, 5, 3)
+    mut r = gen_stur(0, 29, 0 - 96)
+    mut r = patch_bcond(skip_fo, g_code_pos - skip_fo)
+    mut r = gen_ldur(0, 29, 0 - 96)
+    mut r = gen_push()
+    mut r = gen_mov(0, 29)
+    mut r = gen_sub_imm(0, 0, 104)
+    mut r = gen_push()
+    mut r = gen_movz(0, 8)
+    mut r = gen_push()
+    mut r = gen_socket_syscall(3, 63, 0, 3, 3)
+    let eof_pos: i64 = 0
+    mut eof_pos = g_code_pos
+    mut r = gen_bcond(13, 0)
+    mut r = gen_ldur(0, 29, 0 - 104)
+    mut r = patch_bcond(eof_pos, g_code_pos - eof_pos)
+    mut r = 0
+}
+
+fn gen_file_sink() (r: i64)
+{
+    mut r = gen_ldur(0, 29, 0 - 112)
+    mut r = gen_movz(1, 0)
+    mut r = gen_cmp(0, 1)
+    let skip_fout: i64 = 0
+    mut skip_fout = g_code_pos
+    mut r = gen_bcond(0, 0)
+    let sidx: i64 = 0
+    let sadr: i64 = 0
+    mut sidx = str_const_add(g_size)
+    mut sadr = g_code_pos
+    if g_target_isa == 1 {
+        mut r = emit_byte(0x48)
+        mut r = emit_byte(0x8D)
+        mut r = emit_byte(0x05)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+    } else {
+        mut r = emit32(0x10000000)
+    }
+    mut r = str_adr_patch_add(sadr, sidx)
+    mut r = gen_movz(1, 5)
+    mut r = gen_add(0, 0, 1)
+    mut r = gen_push()
+    mut r = gen_movz(0, 577)
+    mut r = gen_push()
+    mut r = gen_movz(0, 420)
+    mut r = gen_push()
+    mut r = gen_socket_syscall(5, 56, 2, 5, 3)
+    mut r = gen_stur(0, 29, 0 - 112)
+    mut r = patch_bcond(skip_fout, g_code_pos - skip_fout)
+    mut r = gen_stur(0, 29, 0 - 120)
+    mut r = gen_ldur(0, 29, 0 - 112)
+    mut r = gen_push()
+    mut r = gen_mov(0, 29)
+    mut r = gen_sub_imm(0, 0, 120)
+    mut r = gen_push()
+    mut r = gen_movz(0, 8)
+    mut r = gen_push()
+    mut r = gen_socket_syscall(4, 64, 1, 4, 3)
+    mut r = 0
+}
+
 // Generate code for the graph source.
 // g_pos holds the source URI (reused global, set during parse_graph).
 fn gen_graph_source() (r: i64)
@@ -5032,7 +5129,11 @@ fn gen_graph_source() (r: i64)
                 }
                 mut r = gen_ldur(0, 29, 0 - 48)
             } else {
-                mut r = gen_ldur(0, 29, 0 - 8)
+                if uri_starts_with(g_pos, "file:") == 1 {
+                    mut r = gen_file_source()
+                } else {
+                    mut r = gen_ldur(0, 29, 0 - 8)
+                }
             }
         }
     }
@@ -5096,12 +5197,16 @@ fn gen_graph_sink() (r: i64)
                 mut r = gen_socket_syscall(9, 206, 44, 4, 6)
             }
         } else {
-            mut r = gen_push()
-            if g_target_isa != 1 {
-                mut r = emit32(0x910003E3)
+            if uri_starts_with(g_size, "file:") == 1 {
+                mut r = gen_file_sink()
+            } else {
+                mut r = gen_push()
+                if g_target_isa != 1 {
+                    mut r = emit32(0x910003E3)
+                }
+                mut g_call_name = "println"
+                mut r = gen_print_int_builtin(1)
             }
-            mut g_call_name = "println"
-            mut r = gen_print_int_builtin(1)
         }
     }
     mut r = 0
