@@ -163,6 +163,8 @@ let g_graph_types: i64 = 0
 let g_graph_reduces: i64 = 0
 let PIPE_CODE: i64 = 31862
 let g_graph_fn_off: i64 = -1
+let g_is_coro: i64 = 0
+
 
 // Indent for printing
 let g_done: i64 = 0
@@ -628,7 +630,11 @@ fn emit_case(pattern: i64, bind_var: i64, body: i64) (r: i64)
 
 fn emit_func(name: i64, params: i64, rets: i64, body: i64) (r: i64)
 {
-    mut r = emit_node(19, name, params, rets, body)
+    if g_is_coro == 1 {
+        mut r = emit_node(24, name, params, rets, body)
+    } else {
+        mut r = emit_node(19, name, params, rets, body)
+    }
 }
 
 fn emit_stmtlist(stmt: i64, next: i64) (r: i64)
@@ -1200,6 +1206,13 @@ fn parse_fn() (r: i64)
     let params: i64 = 0
     let rets: i64 = 0
     let body: i64 = 0
+    let was_coro: i64 = 0
+    mut was_coro = g_is_coro
+    if is_kw(16) == 1 {
+        mut g_is_coro = 1
+    } else {
+        mut g_is_coro = 0
+    }
     mut r = advance()
     if cur_type() == 1 {
         mut name = cur_val()
@@ -1212,6 +1225,7 @@ fn parse_fn() (r: i64)
     mut body = parse_block()
     mut fnode = emit_func(name, params, rets, body)
     mut g_func_list = emit_stmtlist(fnode, g_func_list)
+    mut g_is_coro = was_coro
     mut r = fnode
 }
 fn parse_glob_decl() (r: i64)
@@ -2136,6 +2150,19 @@ fn gen_mov(rd: i64, rm: i64) (r: i64)
     }
 }
 
+fn gen_mov_sp(rd: i64, rm: i64) (r: i64)
+{
+    if g_target_isa == 1 {
+        mut r = x86_mov_reg(x86_reg(rd), x86_reg(rm))
+    } else {
+        if rm == 31 {
+            mut r = emit32(0x910003E0 | (rd & 31))
+        } else {
+            mut r = emit32(0x9100001F | ((rm & 31) << 5))
+        }
+    }
+}
+
 // RET
 fn gen_ret() (r: i64)
 {
@@ -2653,6 +2680,7 @@ fn patch_calls() (r: i64)
     }
     mut r = 0
 }
+
 fn gen_cmp_lt() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(12, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594154464) } mut r = 0 }
 fn gen_cmp_gt() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(15, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594166752) } mut r = 0 }
 fn gen_cmp_le() (r: i64) { if g_target_isa == 1 { mut r = x86_setcc(14, 0) mut r = x86_movzx_64(0, 0) } else { mut r = emit32(2594162656) } mut r = 0 }
@@ -2788,6 +2816,7 @@ fn gen_expr_ident(v: i64) (r: i64)
 {
     let off: i64 = 0
     let etag: i64 = 0
+    let foff: i64 = 0
     mut etag = enum_lookup(v)
     if etag >= 0 {
         mut r = gen_enum_alloc()
@@ -2798,7 +2827,21 @@ fn gen_expr_ident(v: i64) (r: i64)
         if off >= 0 {
             mut r = gen_ldur(0, 29, 0 - (off + 1) * 8)
         } else {
-            mut r = gen_expr_glob(v)
+            mut foff = fn_lookup(v)
+            if foff >= 0 {
+                if g_target_isa == 1 {
+                    mut r = x86_mov_imm(0, foff)
+                } else {
+                    let adr_pos: i64 = 0
+                    mut adr_pos = g_code_pos
+                    mut r = emit32(0x10000000)
+                    let aoff: i64 = 0
+                    mut aoff = foff - adr_pos
+                    mut r = emit32_at(adr_pos, 0x10000000 | ((aoff & 3) << 29) | (((aoff >> 2) & 524287) << 5))
+                }
+            } else {
+                mut r = gen_expr_glob(v)
+            }
         }
     }
     mut r = 0
@@ -3047,6 +3090,10 @@ fn is_builtin_name(name: i64) (r: i64)
                             } else {
                                 if b2 == 112 {
                                     mut r = 1
+                                } else {
+                                    if b2 == 99 {
+                                        mut r = 1
+                                    }
                                 }
                             }
                         }
@@ -3586,6 +3633,78 @@ fn gen_malloc_builtin(arg_count: i64) (r: i64)
     }
 }
 
+fn gen_coro_create_builtin(arg_count: i64) (r: i64)
+{
+    if g_target_isa == 1 {
+        mut r = gen_pop_x0()
+        mut r = gen_epilogue()
+    } else {
+        mut r = gen_pop_x0()
+        mut r = gen_mov(19, 0)
+        mut r = gen_movz(0, 0)
+        mut r = gen_movz(1, 131072 & 65535)
+        if (131072 >> 16) != 0 {
+            mut r = gen_movk(1, (131072 >> 16) & 65535, 16)
+        }
+        mut r = gen_movz(2, 3)
+        mut r = gen_movz(3, T_MAP_FLAGS)
+        mut r = emit32(0x92800004)
+        mut r = gen_movz(5, 0)
+        mut r = gen_movz(16, TSC_MMAP)
+        mut r = emit32(0xD4001001)
+        mut r = gen_movz(1, 130816 & 65535)
+        if (130816 >> 16) != 0 {
+            mut r = gen_movk(1, (130816 >> 16) & 65535, 16)
+        }
+        mut r = gen_add(1, 0, 1)
+        mut r = gen_stur(1, 0, 0)
+        mut r = gen_stur(19, 0, 8)
+        mut r = gen_movz(1, 0)
+        mut r = gen_stur(1, 0, 32)
+    }
+    mut r = 0
+}
+
+fn gen_coro_resume_builtin(arg_count: i64) (r: i64)
+{
+    if g_target_isa == 1 {
+        mut r = gen_pop_x0()
+        mut r = gen_epilogue()
+    } else {
+        let ret_pos: i64 = 0
+        mut r = gen_pop_x0()
+        mut r = gen_mov(20, 0)
+        mut r = gen_stur(29, 20, 56)
+        mut r = gen_mov_sp(2, 31)
+        mut r = gen_stur(2, 20, 16)
+        mut ret_pos = g_code_pos
+        mut r = emit32(0x10000002)
+        mut r = gen_stur(2, 20, 24)
+        mut r = gen_ldur(2, 20, 0)
+        mut r = gen_mov_sp(31, 2)
+        mut r = gen_ldur(29, 20, 48)
+        mut r = gen_ldur(2, 20, 8)
+        mut r = emit32(0xD61F0040)
+        let off: i64 = 0
+        mut off = g_code_pos - ret_pos
+        mut r = emit32_at(ret_pos, 0x10000002 | ((off & 3) << 29) | (((off >> 2) & 524287) << 5))
+        mut r = gen_ldur(0, 20, 40)
+    }
+    mut r = 0
+}
+
+fn gen_coro_done_builtin(arg_count: i64) (r: i64)
+{
+    if g_target_isa == 1 {
+        mut r = gen_pop_x0()
+        mut r = gen_epilogue()
+    } else {
+        mut r = gen_pop_x0()
+        mut r = gen_ldur(0, 0, 32)
+    }
+    mut r = 0
+}
+
 fn gen_alloca_builtin(arg_count: i64) (r: i64)
 {
     if g_target_isa == 1 {
@@ -3874,19 +3993,36 @@ fn gen_call_builtin(name: i64, arg_count: i64) (r: i64)
     mut b0 = __byte_load(g_call_name, 0)
     mut b2 = __byte_load(g_call_name, 2)
     if b0 == 95 {
-        if b2 == 115 {
-            if __byte_load(g_call_name, 3) == 111 {
-                mut r = gen_socket_builtin(g_call_name, arg_count)
-                mut r = 0
-            }
-        } else {
-            if b2 == 102 {
-                mut r = gen_fcntl_nonblock_builtin(arg_count)
+        if b2 == 99 {
+            if __byte_load(g_call_name, 7) == 99 {
+                mut r = gen_coro_create_builtin(arg_count)
                 mut r = 0
             } else {
-                if b2 == 112 {
-                    mut r = gen_poll_builtin(arg_count)
+                if __byte_load(g_call_name, 7) == 114 {
+                    mut r = gen_coro_resume_builtin(arg_count)
                     mut r = 0
+                } else {
+                    if __byte_load(g_call_name, 7) == 100 {
+                        mut r = gen_coro_done_builtin(arg_count)
+                        mut r = 0
+                    }
+                }
+            }
+        } else {
+            if b2 == 115 {
+                if __byte_load(g_call_name, 3) == 111 {
+                    mut r = gen_socket_builtin(g_call_name, arg_count)
+                    mut r = 0
+                }
+            } else {
+                if b2 == 102 {
+                    mut r = gen_fcntl_nonblock_builtin(arg_count)
+                    mut r = 0
+                } else {
+                    if b2 == 112 {
+                        mut r = gen_poll_builtin(arg_count)
+                        mut r = 0
+                    }
                 }
             }
         }
@@ -4321,23 +4457,76 @@ fn gen_assign_stmt(a: i64, b: i64) (r: i64)
 
 fn gen_return_stmt(a: i64) (r: i64)
 {
-    if a > 0 {
-        mut r = gen_expr(a)
+    if g_is_coro == 1 {
+        if g_target_isa != 1 {
+            if a > 0 {
+                mut r = gen_expr(a)
+            } else {
+                mut r = gen_movz(0, 0)
+            }
+            mut r = gen_stur(0, 20, 40)
+            mut r = gen_movz(0, 1)
+            mut r = gen_stur(0, 20, 32)
+            mut r = gen_mov_sp(2, 31)
+            mut r = gen_ldur(3, 20, 16)
+            mut r = gen_mov_sp(31, 3)
+            mut r = gen_ldur(29, 20, 56)
+            mut r = gen_ldur(0, 20, 40)
+            mut r = gen_ldur(2, 20, 24)
+            mut r = emit32(0xD65F0040)
+        } else {
+            if a > 0 {
+                mut r = gen_expr(a)
+            } else {
+                mut r = gen_movz(0, 0)
+            }
+            mut r = gen_epilogue()
+        }
     } else {
-        mut r = gen_movz(0, 0)
+        if a > 0 {
+            mut r = gen_expr(a)
+        } else {
+            mut r = gen_movz(0, 0)
+        }
+        mut r = gen_epilogue()
     }
-    mut r = gen_epilogue()
     mut r = 0
 }
 
 fn gen_yield_stmt(a: i64) (r: i64)
 {
-    if a > 0 {
-        mut r = gen_expr(a)
+    if g_target_isa == 1 {
+        if a > 0 {
+            mut r = gen_expr(a)
+        } else {
+            mut r = gen_movz(0, 0)
+        }
+        mut r = gen_epilogue()
     } else {
-        mut r = gen_movz(0, 0)
+        if a > 0 {
+            mut r = gen_expr(a)
+        } else {
+            mut r = gen_movz(0, 0)
+        }
+        let resume_pos: i64 = 0
+        mut r = gen_stur(0, 20, 40)
+        mut r = gen_stur(29, 20, 48)
+        mut r = gen_mov_sp(2, 31)
+        mut r = gen_stur(2, 20, 0)
+        mut resume_pos = g_code_pos
+        mut r = emit32(0x10000002)
+        mut r = gen_stur(2, 20, 8)
+        mut r = gen_ldur(2, 20, 16)
+        mut r = gen_mov_sp(31, 2)
+        mut r = gen_ldur(29, 20, 56)
+        mut r = gen_ldur(0, 20, 40)
+        mut r = gen_ldur(2, 20, 24)
+        mut r = emit32(0xD65F0040)
+        let off: i64 = 0
+        mut off = g_code_pos - resume_pos
+        mut r = emit32_at(resume_pos, 0x10000002 | ((off & 3) << 29) | (((off >> 2) & 524287) << 5))
+        mut r = gen_ldur(0, 20, 40)
     }
-    mut r = gen_epilogue()
     mut r = 0
 }
 
@@ -4954,11 +5143,40 @@ fn gen_func(nd: i64) (r: i64)
     let params: i64 = 0
     let rets: i64 = 0
     let body: i64 = 0
+    let kind: i64 = 0
+    mut kind = ast_field(nd, g_ast_kind)
     mut name = ast_field(nd, g_ast_val)
     mut params = ast_field(nd, g_ast_a)
     mut rets = ast_field(nd, g_ast_b)
     mut body = ast_field(nd, g_ast_c)
-    mut r = gen_func_body(name, params, rets, body, 0)
+    if kind == 24 {
+        mut r = gen_coro_body(name, params, rets, body)
+    } else {
+        mut r = gen_func_body(name, params, rets, body, 0)
+    }
+    mut r = 0
+}
+
+fn gen_coro_body(name: i64, params: i64, rets: i64, body: i64) (r: i64)
+{
+    mut r = fn_add(name, g_code_pos)
+    mut g_var_count = 0
+    mut r = gen_prologue()
+    mut r = gen_params(params)
+    mut r = gen_rets(rets)
+    mut r = gen_mov(20, 0)
+    mut r = gen_block(body)
+    mut r = gen_movz(0, 0)
+    mut r = gen_stur(0, 20, 40)
+    mut r = gen_movz(0, 1)
+    mut r = gen_stur(0, 20, 32)
+    mut r = gen_mov_sp(2, 31)
+    mut r = gen_ldur(3, 20, 16)
+    mut r = gen_mov_sp(31, 3)
+    mut r = gen_ldur(29, 20, 56)
+    mut r = gen_ldur(0, 20, 40)
+    mut r = gen_ldur(2, 20, 24)
+    mut r = emit32(0xD65F0040)
     mut r = 0
 }
 // Generate code for graph main { source |> f |> sink }
@@ -6432,6 +6650,7 @@ fn do_codegen(argv_ptr: i64) (r: i64)
     }
     puts("GEN DONE")
     mut r = patch_calls()
+
     mut arg2_ptr = __mem_load(argv_ptr + 16)
     if g_exec_elf == 1 {
         mut r = write_elf_exec(arg2_ptr, g_code_pos)
