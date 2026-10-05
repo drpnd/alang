@@ -979,6 +979,9 @@ fn parse_let() (r: i64)
     let ty: i64 = 0
     let init: i64 = 0
     mut r = advance()
+    if is_kw(3) == 1 {
+        mut r = advance()
+    }
     if cur_type() == 1 {
         mut name = cur_val()
         mut r = advance()
@@ -3695,6 +3698,30 @@ fn gen_coro_create_builtin(arg_count: i64) (r: i64)
         mut r = gen_pop_x0()
         mut r = gen_epilogue()
     } else {
+        let n_args: i64 = 0
+        let ai: i64 = 0
+        let pop_pos: i64 = 0
+        mut n_args = arg_count - 1
+        if n_args > 4 {
+            mut r = gen_pop_x5()
+            mut r = gen_stur(5, 29, 0 - 232)
+        }
+        if n_args > 3 {
+            mut r = gen_pop_x4()
+            mut r = gen_stur(4, 29, 0 - 224)
+        }
+        if n_args > 2 {
+            mut r = gen_pop_x3()
+            mut r = gen_stur(3, 29, 0 - 216)
+        }
+        if n_args > 1 {
+            mut r = gen_pop_x2()
+            mut r = gen_stur(2, 29, 0 - 208)
+        }
+        if n_args > 0 {
+            mut r = gen_pop_x1()
+            mut r = gen_stur(1, 29, 0 - 200)
+        }
         mut r = gen_pop_x0()
         mut r = gen_mov(19, 0)
         mut r = gen_movz(0, 0)
@@ -3717,6 +3744,26 @@ fn gen_coro_create_builtin(arg_count: i64) (r: i64)
         mut r = gen_stur(19, 0, 8)
         mut r = gen_movz(1, 0)
         mut r = gen_stur(1, 0, 32)
+        if n_args > 0 {
+            mut r = gen_ldur(1, 29, 0 - 200)
+            mut r = gen_stur(1, 0, 64)
+        }
+        if n_args > 1 {
+            mut r = gen_ldur(1, 29, 0 - 208)
+            mut r = gen_stur(1, 0, 72)
+        }
+        if n_args > 2 {
+            mut r = gen_ldur(1, 29, 0 - 216)
+            mut r = gen_stur(1, 0, 80)
+        }
+        if n_args > 3 {
+            mut r = gen_ldur(1, 29, 0 - 224)
+            mut r = gen_stur(1, 0, 88)
+        }
+        if n_args > 4 {
+            mut r = gen_ldur(1, 29, 0 - 232)
+            mut r = gen_stur(1, 0, 96)
+        }
     }
     mut r = 0
 }
@@ -5213,14 +5260,34 @@ fn gen_func(nd: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_coro_params(params: i64) (r: i64)
+{
+    let p: i64 = 0
+    let reg: i64 = 0
+    let pname: i64 = 0
+    mut reg = g_var_count
+    mut p = params
+    while p > 0 {
+        mut pname = extract_name(p)
+        if pname > 0 {
+            mut r = var_add(pname, reg)
+            mut r = gen_ldur(0, 20, 64 + reg * 8)
+            mut r = gen_stur(0, 29, 0 - (reg + 1) * 8)
+            mut reg = reg + 1
+        }
+        mut p = extract_next(p)
+    }
+    mut r = 0
+}
+
 fn gen_coro_body(name: i64, params: i64, rets: i64, body: i64) (r: i64)
 {
     mut r = fn_add_coro(name, g_code_pos)
     mut g_var_count = 0
     mut r = gen_prologue()
-    mut r = gen_params(params)
-    mut r = gen_rets(rets)
     mut r = gen_mov(20, 0)
+    mut r = gen_coro_params(params)
+    mut r = gen_rets(rets)
     mut r = gen_block(body)
     mut r = gen_movz(0, 0)
     mut r = gen_stur(0, 20, 40)
