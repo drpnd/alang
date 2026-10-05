@@ -1644,10 +1644,10 @@ fn x86_load_reg(dst: i64, base: i64, disp: i64) (r: i64)
     } else {
         mut r = emit_modrm(2, dst & 7, base & 7)
     }
-    mut r = emit_byte(disp & 255)
-    mut r = emit_byte((disp >> 8) & 255)
-    mut r = emit_byte((disp >> 16) & 255)
-    mut r = emit_byte((disp >> 24) & 255)
+    mut r = emit_disp_byte(disp, 0)
+    mut r = emit_disp_byte(disp, 8)
+    mut r = emit_disp_byte(disp, 16)
+    mut r = emit_disp_byte(disp, 24)
 }
 
 
@@ -1669,10 +1669,10 @@ fn x86_store_reg(src: i64, base: i64, disp: i64) (r: i64)
     } else {
         mut r = emit_modrm(2, src & 7, base & 7)
     }
-    mut r = emit_byte(disp & 255)
-    mut r = emit_byte((disp >> 8) & 255)
-    mut r = emit_byte((disp >> 16) & 255)
-    mut r = emit_byte((disp >> 24) & 255)
+    mut r = emit_disp_byte(disp, 0)
+    mut r = emit_disp_byte(disp, 8)
+    mut r = emit_disp_byte(disp, 16)
+    mut r = emit_disp_byte(disp, 24)
 }
 
 // MOVZX reg64, byte [base64 + disp32]
@@ -1687,10 +1687,10 @@ fn x86_load8_reg(dst: i64, base: i64, disp: i64) (r: i64)
     } else {
         mut r = emit_modrm(2, dst & 7, base & 7)
     }
-    mut r = emit_byte(disp & 255)
-    mut r = emit_byte((disp >> 8) & 255)
-    mut r = emit_byte((disp >> 16) & 255)
-    mut r = emit_byte((disp >> 24) & 255)
+    mut r = emit_disp_byte(disp, 0)
+    mut r = emit_disp_byte(disp, 8)
+    mut r = emit_disp_byte(disp, 16)
+    mut r = emit_disp_byte(disp, 24)
 }
 
 // MOV byte [base64 + disp32], reg8
@@ -1704,10 +1704,10 @@ fn x86_store8_reg(src: i64, base: i64, disp: i64) (r: i64)
     } else {
         mut r = emit_modrm(2, src & 7, base & 7)
     }
-    mut r = emit_byte(disp & 255)
-    mut r = emit_byte((disp >> 8) & 255)
-    mut r = emit_byte((disp >> 16) & 255)
-    mut r = emit_byte((disp >> 24) & 255)
+    mut r = emit_disp_byte(disp, 0)
+    mut r = emit_disp_byte(disp, 8)
+    mut r = emit_disp_byte(disp, 16)
+    mut r = emit_disp_byte(disp, 24)
 }
 
 // ADD reg64, imm32 (sign-extended)
