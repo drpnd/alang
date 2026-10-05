@@ -1708,7 +1708,16 @@ compile_instr(asm_ctx_t *ctx, ir_instr_t *inst)
         int arg_regs[] = {0, 1, 2, 3, 4, 5};
         for (int i = 1; i < nargs && i < 7; i++) {
             ir_operand_t *arg = &inst->operands[i];
-            if (arg->type == IR_OPERAND_IMM) {
+            if (arg->type == IR_OPERAND_IMM &&
+                arg->u.imm.type == IR_IMM_STR) {
+                /* String argument: emit ADR to load string address */
+                const char *str = arg->u.imm.u.str ? arg->u.imm.u.str : "";
+                int sid = add_string(ctx, str);
+                size_t off = ctx->tb.size;
+                uint32_t adr = (1U << 28) | (arg_regs[i-1] & 31);
+                emit32(&ctx->tb, adr);
+                str_patch_add(ctx, off, sid);
+            } else if (arg->type == IR_OPERAND_IMM) {
                 int ok;
                 int64_t val = operand_imm(arg, &ok);
                 if (ok) emit_load_imm64(&ctx->tb, arg_regs[i-1], val);
