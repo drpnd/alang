@@ -159,6 +159,8 @@ let g_glob_val: i64 = 0
 let g_glob_count: i64 = 0
 let g_graph_transforms: i64 = 0
 let g_graph_count: i64 = 0
+let g_graph_types: i64 = 0
+let g_graph_reduces: i64 = 0
 let PIPE_CODE: i64 = 31862
 let g_graph_fn_off: i64 = -1
 
@@ -1231,6 +1233,7 @@ fn parse_graph() (r: i64)
                 mut b0 = __byte_load(nname, 0)
                 mut b1 = __byte_load(nname, 1)
                 if is_op(40) == 1 {
+                    let arg_idx: i64 = 0
                     mut r = advance()
                     while is_op(41) == 0 {
                         if cur_type() == 3 {
@@ -1243,13 +1246,67 @@ fn parse_graph() (r: i64)
                                     }
                                 }
                             }
+                        } else {
+                            if cur_type() == 1 {
+                                if b0 == 109 {
+                                    if b1 == 97 {
+                                        mut nname = cur_val()
+                                    }
+                                } else {
+                                    if b0 == 102 {
+                                        if b1 == 105 {
+                                            mut nname = cur_val()
+                                        }
+                                    } else {
+                                        if b0 == 114 {
+                                            if b1 == 101 {
+                                                mut nname = cur_val()
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                if cur_type() == 2 {
+                                    if b0 == 114 {
+                                        if b1 == 101 {
+                                            __mem_store(g_graph_reduces + g_graph_count * 8, cur_val())
+                                        }
+                                    }
+                                }
+                            }
                         }
+                        mut arg_idx = arg_idx + 1
                         if cur_type() == 0 { mut r = 1 } else { mut r = advance() }
                     }
                     if is_op(41) == 1 { mut r = advance() }
                 }
                 if b0 != 115 {
                     __mem_store(g_graph_transforms + g_graph_count * 8, nname)
+                    if b0 == 109 {
+                        if b1 == 97 {
+                            __mem_store(g_graph_types + g_graph_count * 8, 1)
+                        } else {
+                            __mem_store(g_graph_types + g_graph_count * 8, 0)
+                        }
+                    } else {
+                        if b0 == 102 {
+                            if b1 == 105 {
+                                __mem_store(g_graph_types + g_graph_count * 8, 2)
+                            } else {
+                                __mem_store(g_graph_types + g_graph_count * 8, 0)
+                            }
+                        } else {
+                            if b0 == 114 {
+                                if b1 == 101 {
+                                    __mem_store(g_graph_types + g_graph_count * 8, 3)
+                                } else {
+                                    __mem_store(g_graph_types + g_graph_count * 8, 0)
+                                }
+                            } else {
+                                __mem_store(g_graph_types + g_graph_count * 8, 0)
+                            }
+                        }
+                    }
                     mut g_graph_count = g_graph_count + 1
                 }
             }
@@ -5233,6 +5290,8 @@ fn gen_graph() (r: i64)
     let off26: i64 = 0
     let gi: i64 = 0
     let gname: i64 = 0
+    let has_reduce: i64 = 0
+    let ttype: i64 = 0
     // Register main function
     mut r = fn_add("main", g_code_pos)
     // Prologue
@@ -5243,6 +5302,27 @@ fn gen_graph() (r: i64)
     mut r = gen_movz(0, 0)
     mut r = gen_stur(0, 29, 0 - 96)
     mut r = gen_stur(0, 29, 0 - 112)
+    // Initialize reduce accumulator if any reduce transform exists
+    mut has_reduce = 0
+    mut i = 0
+    while i < g_graph_count {
+        if __mem_load(g_graph_types + i * 8) == 3 {
+            mut has_reduce = 1
+        }
+        mut i = i + 1
+    }
+    if has_reduce == 1 {
+        let first_reduce: i64 = 0
+        mut i = 0
+        while i < g_graph_count {
+            if __mem_load(g_graph_types + i * 8) == 3 {
+                mut first_reduce = __mem_load(g_graph_reduces + i * 8)
+            }
+            mut i = i + 1
+        }
+        mut r = gen_movz(0, first_reduce)
+        mut r = gen_stur(0, 29, 0 - 152)
+    }
     // Loop: infinite stream processing (break on source exhaustion)
     mut loop_start = g_code_pos
     mut saved_ls = g_loop_start
@@ -5263,25 +5343,64 @@ fn gen_graph() (r: i64)
     mut r = gen_bcond(13, 0)
     // Load data value from stack slot (stored by gen_file_source)
     mut r = gen_ldur(0, 29, 0 - 136)
-    // Apply transforms: use gen_extern_call for correct patch table handling
+    // Apply transforms
     mut i = 0
     while i < g_graph_count {
-        mut r = gen_push()
-        mut r = gen_pop_args(1)
-        mut r = gen_caller_save()
-        mut g_call_name = __mem_load(g_graph_transforms + i * 8)
-        mut r = gen_extern_call()
-        mut r = gen_call_finish()
+        let ttype: i64 = 0
+        mut ttype = __mem_load(g_graph_types + i * 8)
+        if ttype == 2 {
+            // filter(pred): call pred, if 0 skip to loop start
+            mut r = gen_stur(0, 29, 0 - 144)
+            mut r = gen_push()
+            mut r = gen_pop_args(1)
+            mut r = gen_caller_save()
+            mut g_call_name = __mem_load(g_graph_transforms + i * 8)
+            mut r = gen_extern_call()
+            mut r = gen_call_finish()
+            mut r = gen_movz(1, 0)
+            mut r = gen_cmp(0, 1)
+            mut r = gen_bcond(0, loop_start - g_code_pos)
+            mut r = gen_ldur(0, 29, 0 - 144)
+        } else {
+            if ttype == 3 {
+                // reduce(f, init): acc = f(val, acc)
+                mut r = gen_push()
+                mut r = gen_ldur(0, 29, 0 - 152)
+                mut r = gen_push()
+                mut r = gen_pop_args(2)
+                mut r = gen_caller_save()
+                mut g_call_name = __mem_load(g_graph_transforms + i * 8)
+                mut r = gen_extern_call()
+                mut r = gen_call_finish()
+                mut r = gen_stur(0, 29, 0 - 152)
+            } else {
+                // map(f) or plain function: val = f(val)
+                mut r = gen_push()
+                mut r = gen_pop_args(1)
+                mut r = gen_caller_save()
+                mut g_call_name = __mem_load(g_graph_transforms + i * 8)
+                mut r = gen_extern_call()
+                mut r = gen_call_finish()
+            }
+        }
         mut i = i + 1
     }
-    // Sink: output val
-    mut r = gen_graph_sink()
+    // Sink: output val (skip for reduce — output after loop)
+    if has_reduce == 0 {
+        mut r = gen_graph_sink()
+    }
     // Loop back
     mut r = gen_b(loop_start - g_code_pos)
-    // End / break target
+    // Break target: post-loop sink for reduce
+    let break_target: i64 = 0
+    mut break_target = g_code_pos
+    if has_reduce == 1 {
+        mut r = gen_ldur(0, 29, 0 - 152)
+        mut r = gen_graph_sink()
+    }
     mut g_loop_end = g_code_pos
     if src_break_pos > 0 {
-        mut r = patch_bcond(src_break_pos, g_code_pos - src_break_pos)
+        mut r = patch_bcond(src_break_pos, break_target - src_break_pos)
     }
     if g_break_pos > 0 {
         mut r = patch_b(g_break_pos, g_code_pos - g_break_pos)
@@ -6156,6 +6275,8 @@ fn init_parser1() (r: i64)
     mut g_glob_off = malloc(4096)
     mut g_glob_val = malloc(4096)
     mut g_graph_transforms = malloc(4096)
+    mut g_graph_types = malloc(4096)
+    mut g_graph_reduces = malloc(4096)
     mut r = 0
 }
 
