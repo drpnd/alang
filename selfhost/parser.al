@@ -1467,14 +1467,14 @@ fn x86_mov_imm(rd: i64, imm: i64) (r: i64)
 {
     mut r = emit_rex(1, 0, 0, (rd >> 3) & 1)
     mut r = emit_byte(0xB8 + (rd & 7))
-    mut r = emit_byte(imm & 255)
-    mut r = emit_byte((imm >> 8) & 255)
-    mut r = emit_byte((imm >> 16) & 255)
-    mut r = emit_byte((imm >> 24) & 255)
-    mut r = emit_byte((imm >> 32) & 255)
-    mut r = emit_byte((imm >> 40) & 255)
-    mut r = emit_byte((imm >> 48) & 255)
-    mut r = emit_byte((imm >> 56) & 255)
+    mut r = emit_disp_byte(imm, 0)
+    mut r = emit_disp_byte(imm, 8)
+    mut r = emit_disp_byte(imm, 16)
+    mut r = emit_disp_byte(imm, 24)
+    mut r = emit_disp_byte(imm, 32)
+    mut r = emit_disp_byte(imm, 40)
+    mut r = emit_disp_byte(imm, 48)
+    mut r = emit_disp_byte(imm, 56)
 }
 
 // MOV reg64, reg64
@@ -1583,30 +1583,30 @@ fn x86_jcc(cond: i64, offset: i64) (r: i64)
 {
     mut r = emit_byte(0x0F)
     mut r = emit_byte(0x80 + (cond & 15))
-    mut r = emit_byte(offset & 255)
-    mut r = emit_byte((offset >> 8) & 255)
-    mut r = emit_byte((offset >> 16) & 255)
-    mut r = emit_byte((offset >> 24) & 255)
+    mut r = emit_disp_byte(offset, 0)
+    mut r = emit_disp_byte(offset, 8)
+    mut r = emit_disp_byte(offset, 16)
+    mut r = emit_disp_byte(offset, 24)
 }
 
 // JMP rel32
 fn x86_jmp(offset: i64) (r: i64)
 {
     mut r = emit_byte(0xE9)
-    mut r = emit_byte(offset & 255)
-    mut r = emit_byte((offset >> 8) & 255)
-    mut r = emit_byte((offset >> 16) & 255)
-    mut r = emit_byte((offset >> 24) & 255)
+    mut r = emit_disp_byte(offset, 0)
+    mut r = emit_disp_byte(offset, 8)
+    mut r = emit_disp_byte(offset, 16)
+    mut r = emit_disp_byte(offset, 24)
 }
 
 // CALL rel32
 fn x86_call(offset: i64) (r: i64)
 {
     mut r = emit_byte(0xE8)
-    mut r = emit_byte(offset & 255)
-    mut r = emit_byte((offset >> 8) & 255)
-    mut r = emit_byte((offset >> 16) & 255)
-    mut r = emit_byte((offset >> 24) & 255)
+    mut r = emit_disp_byte(offset, 0)
+    mut r = emit_disp_byte(offset, 8)
+    mut r = emit_disp_byte(offset, 16)
+    mut r = emit_disp_byte(offset, 24)
 }
 
 // RET
