@@ -5232,6 +5232,10 @@ fn gen_graph() (r: i64)
     mut r = gen_prologue()
     mut r = gen_main_init()
     mut r = gen_glob_init()
+    // Initialize file fd slots to 0 (lazy init sentinel)
+    mut r = gen_movz(0, 0)
+    mut r = gen_stur(0, 29, 0 - 96)
+    mut r = gen_stur(0, 29, 0 - 112)
     // Loop: infinite stream processing (break on source exhaustion)
     mut loop_start = g_code_pos
     mut saved_ls = g_loop_start
