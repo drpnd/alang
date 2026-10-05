@@ -5135,24 +5135,24 @@ fn gen_graph() (r: i64)
     mut r = gen_prologue()
     mut r = gen_main_init()
     mut r = gen_glob_init()
-    // Counter at [FP-8]
-    mut r = gen_movz(0, 0)
-    mut r = gen_stur(0, 29, 0 - 8)
-    // Loop
+    // Loop: infinite stream processing (break on source exhaustion)
     mut loop_start = g_code_pos
     mut saved_ls = g_loop_start
     mut saved_le = g_loop_end
     mut saved_break = g_break_pos
     mut g_loop_start = loop_start
     mut g_break_pos = 0
-    // Condition: counter < 10 (exit if counter >= 10)
-    mut r = gen_ldur(0, 29, 0 - 8)
-    mut r = gen_movz(1, 10)
-    mut r = gen_cmp(0, 1)
-    mut cond_pos = g_code_pos
-    mut r = gen_bcond(10, 0)
+    // No condition at top - unconditional loop with break
+    mut cond_pos = 0
     // Body: val = source data
     mut r = gen_graph_source()
+    // Check if source returned <= 0 (connection closed / EOF)
+    // If so, break out of the loop
+    mut r = gen_movz(1, 0)
+    mut r = gen_cmp(0, 1)
+    let src_break_pos: i64 = 0
+    mut src_break_pos = g_code_pos
+    mut r = gen_bcond(13, 0)
     // Apply transforms: use gen_extern_call for correct patch table handling
     mut i = 0
     while i < g_graph_count {
@@ -5166,18 +5166,19 @@ fn gen_graph() (r: i64)
     }
     // Sink: output val
     mut r = gen_graph_sink()
-    // Increment counter
-    mut r = gen_ldur(0, 29, 0 - 8)
-    mut r = gen_movz(1, 1)
-    mut r = gen_add(0, 0, 1)
-    mut r = gen_stur(0, 29, 0 - 8)
+    // Loop back
     mut r = gen_b(loop_start - g_code_pos)
-    // End
+    // End / break target
     mut g_loop_end = g_code_pos
+    if src_break_pos > 0 {
+        mut r = patch_bcond(src_break_pos, g_code_pos - src_break_pos)
+    }
     if g_break_pos > 0 {
         mut r = patch_b(g_break_pos, g_code_pos - g_break_pos)
     }
-    mut r = patch_bcond(cond_pos, g_code_pos - cond_pos)
+    if cond_pos > 0 {
+        mut r = patch_bcond(cond_pos, g_code_pos - cond_pos)
+    }
     // Exit for --exec mode
     if g_exec_elf == 1 {
         if g_target_isa == 1 {
