@@ -293,6 +293,7 @@ fn check_kw3(s: i64) (r: i64)
     if __str_eq(s, "graph") == 1 { mut r = 15 }
     if __str_eq(s, "coro") == 1 { mut r = 16 }
     if __str_eq(s, "yield") == 1 { mut r = 17 }
+    if __str_eq(s, "await") == 1 { mut r = 18 }
 }
 
 fn check_keyword(s: i64) (r: i64)
@@ -608,6 +609,11 @@ fn emit_yield(val: i64) (r: i64)
     mut r = emit_node(23, 0, val, 0, 0)
 }
 
+fn emit_await(val: i64) (r: i64)
+{
+    mut r = emit_node(25, 0, val, 0, 0)
+}
+
 fn emit_break() (r: i64)
 {
     mut r = emit_node(15, 0, 0, 0, 0)
@@ -750,7 +756,13 @@ fn parse_unary() (r: i64)
             mut operand = parse_unary()
             mut nd = emit_unop(33, operand)
         } else {
-            mut nd = parse_postfix()
+            if is_kw(18) == 1 {
+                mut r = advance()
+                mut operand = parse_unary()
+                mut nd = emit_await(operand)
+            } else {
+                mut nd = parse_postfix()
+            }
         }
     }
     mut r = nd
@@ -3024,7 +3036,11 @@ fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
                             if k == 9 {
                                 mut r = gen_expr_assign(a, b)
                             } else {
-                                mut r = gen_movz(0, 0)
+                                if k == 25 {
+                                    mut r = gen_expr_await(a)
+                                } else {
+                                    mut r = gen_movz(0, 0)
+                                }
                             }
                         }
                     }
@@ -3032,6 +3048,23 @@ fn gen_expr_dispatch(k: i64, v: i64, a: i64, b: i64) (r: i64)
             }
         }
     }
+}
+
+fn gen_expr_await(a: i64) (r: i64)
+{
+    mut r = gen_expr(a)
+    mut r = gen_push()
+    if g_target_isa == 1 {
+        mut r = gen_push()
+        mut r = gen_coro_resume_builtin(1)
+        mut r = gen_pop_x0()
+        mut r = gen_mov(0, 0)
+    } else {
+        mut r = gen_mov(23, 20)
+        mut r = gen_coro_resume_builtin(1)
+        mut r = gen_mov(20, 23)
+    }
+    mut r = 0
 }
 
 fn gen_expr(nd: i64) (r: i64)
