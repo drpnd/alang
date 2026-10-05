@@ -5664,7 +5664,7 @@ fn gen_graph() (r: i64)
                 }
                 mut r = gen_push()
                 mut r = gen_coro_create_builtin(1)
-                mut r = gen_stur(0, 29, 0 - coro_slot)
+                mut r = gen_mov(21, 0)
             }
         }
         mut coro_slot = coro_slot + 8
@@ -5701,19 +5701,17 @@ fn gen_graph() (r: i64)
         mut tname2 = __mem_load(g_graph_transforms + i * 8)
         if fn_is_coro(tname2) == 1 {
             let coro_done_pos: i64 = 0
-            mut r = gen_ldur(0, 29, 0 - coro_slot2)
+            mut r = gen_mov(0, 21)
             mut r = gen_push()
             mut r = gen_coro_resume_builtin(1)
-            let coro_val_slot: i64 = 0
-            mut coro_val_slot = 0 - coro_slot2 - 4
-            mut r = gen_stur(0, 29, coro_val_slot)
-            mut r = gen_ldur(0, 29, 0 - coro_slot2)
+            mut r = gen_mov(22, 0)
+            mut r = gen_mov(0, 21)
             mut r = gen_push()
             mut r = gen_coro_done_builtin(1)
             mut r = gen_movz(1, 0)
             mut r = gen_cmp(0, 1)
             mut coro_done_pos = g_code_pos
-            mut r = gen_bcond(0, 0)
+            mut r = gen_bcond(1, 0)
             mut r = patch_bcond(coro_done_pos, loop_start - coro_done_pos)
         } else {
         if ttype == 2 {
@@ -5757,6 +5755,18 @@ fn gen_graph() (r: i64)
     }
     // Sink: output val (skip for reduce — output after loop)
     if has_reduce == 0 {
+        let has_coro: i64 = 0
+        mut has_coro = 0
+        mut i = 0
+        while i < g_graph_count {
+            if fn_is_coro(__mem_load(g_graph_transforms + i * 8)) == 1 {
+                mut has_coro = 1
+            }
+            mut i = i + 1
+        }
+        if has_coro == 1 {
+            mut r = gen_mov(0, 22)
+        }
         mut r = gen_graph_sink()
     }
     // Loop back
