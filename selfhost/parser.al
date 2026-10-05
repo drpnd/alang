@@ -2550,6 +2550,9 @@ fn ext_add(name: i64, pos: i64) (r: i64)
     __mem_store(g_ext_pos + idx * 8, pos)
     mut r = idx
 }
+// Note: ext_add only stores the last position per symbol.
+// write_ext_relocs now iterates g_patch_pos/g_patch_name directly
+// to handle multiple calls to the same external symbol.
 
 fn patch_calls() (r: i64)
 {
@@ -5599,27 +5602,46 @@ fn write_str_data(fp: i64) (r: i64)
     mut r = 0
 }
 
+
+fn count_ext_relocs() (r: i64)
+{
+    let i: i64 = 0
+    let count: i64 = 0
+    mut i = 0
+    while i < g_patch_count {
+        let pname: i64 = 0
+        mut pname = __mem_load(g_patch_name + i * 8)
+        if fn_lookup(pname) < 0 {
+            mut count = count + 1
+        }
+        mut i = i + 1
+    }
+    mut r = count
+}
+
 fn write_ext_relocs(fp: i64) (r: i64)
 {
     let i: i64 = 0
     let pos: i64 = 0
+    let pname: i64 = 0
+    let ext_idx: i64 = 0
     mut i = 0
-    while i < g_ext_count {
-        mut pos = __mem_load(g_ext_pos + i * 8)
-        if g_target_isa == 1 {
-            mut r = __byte_store(g_code, pos, 0xE8)
-            mut r = __byte_store(g_code, pos + 1, 0)
-            mut r = __byte_store(g_code, pos + 2, 0)
-            mut r = __byte_store(g_code, pos + 3, 0)
-            mut r = __byte_store(g_code, pos + 4, 0)
-        } else {
-            mut r = emit32_at(pos, 0x94000000)
-        }
-        mut r = write32(fp, pos)
-        if g_target_isa == 1 {
-            mut r = write32(fp, ((i + 1) & 16777215) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
-        } else {
-            mut r = write32(fp, ((i + 1) & 16777215) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
+    while i < g_patch_count {
+        mut pname = __mem_load(g_patch_name + i * 8)
+        mut pos = __mem_load(g_patch_pos + i * 8)
+        if fn_lookup(pname) < 0 {
+            mut ext_idx = ext_find(pname)
+            if g_target_isa == 1 {
+                mut r = __byte_store(g_code, pos, 0xE8)
+                mut r = __byte_store(g_code, pos + 1, 0)
+                mut r = __byte_store(g_code, pos + 2, 0)
+                mut r = __byte_store(g_code, pos + 3, 0)
+                mut r = __byte_store(g_code, pos + 4, 0)
+            } else {
+                mut r = emit32_at(pos, 0x94000000)
+            }
+            mut r = write32(fp, pos)
+            mut r = write32(fp, ((ext_idx + 1) & 16777215) | (1 << 24) | (2 << 25) | (1 << 27) | (2 << 28))
         }
         mut i = i + 1
     }
@@ -5973,13 +5995,15 @@ fn write_macho(path: i64, code_size: i64) (r: i64)
         let str_data_size: i64 = 0
         mut text_off = 32 + 152 + 16 + 24
         mut str_data_size = count_str_data()
+        let n_relocs: i64 = 0
+        mut n_relocs = count_ext_relocs()
         mut reloc_off = text_off + code_size + str_data_size
-        mut sym_off = reloc_off + g_ext_count * 8
+        mut sym_off = reloc_off + n_relocs * 8
         mut str_off = sym_off + (1 + g_ext_count) * 16
         mut str_size = count_ext_str()
         mut r = write_header(fp, 3, 152 + 16 + 24)
         mut r = write_segment(fp, text_off, code_size + str_data_size)
-        mut r = write_section2(fp, text_off, code_size + str_data_size, reloc_off, g_ext_count)
+        mut r = write_section2(fp, text_off, code_size + str_data_size, reloc_off, n_relocs)
         mut r = write_version(fp)
         mut r = write_symtab_header2(fp, sym_off, 1 + g_ext_count, str_off, str_size)
         mut r = patch_str_adrs(code_size)
