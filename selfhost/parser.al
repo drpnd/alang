@@ -289,6 +289,8 @@ fn check_kw3(s: i64) (r: i64)
     if __str_eq(s, "enum") == 1 { mut r = 13 }
     if __str_eq(s, "extern") == 1 { mut r = 14 }
     if __str_eq(s, "graph") == 1 { mut r = 15 }
+    if __str_eq(s, "coro") == 1 { mut r = 16 }
+    if __str_eq(s, "yield") == 1 { mut r = 17 }
 }
 
 fn check_keyword(s: i64) (r: i64)
@@ -597,6 +599,11 @@ fn emit_for(var_name: i64, start: i64, end_val: i64, body: i64) (r: i64)
 fn emit_return(val: i64) (r: i64)
 {
     mut r = emit_node(14, 0, val, 0, 0)
+}
+
+fn emit_yield(val: i64) (r: i64)
+{
+    mut r = emit_node(23, 0, val, 0, 0)
 }
 
 fn emit_break() (r: i64)
@@ -1056,6 +1063,19 @@ fn parse_return() (r: i64)
     mut r = emit_return(val)
 }
 
+fn parse_yield() (r: i64)
+{
+    let val: i64 = 0
+    mut r = advance()
+    if is_op(125) == 0 {
+        if cur_type() == 0 {
+        } else {
+            mut val = parse_expr()
+        }
+    }
+    mut r = emit_yield(val)
+}
+
 fn parse_for() (r: i64)
 {
     let var_name: i64 = 0
@@ -1149,15 +1169,19 @@ fn parse_stmt() (r: i64)
                             if is_kw(9) == 1 {
                                 mut r = parse_return()
                             } else {
-                                if is_kw(10) == 1 {
+                                if is_kw(17) == 1 {
+                                    mut r = parse_yield()
+                                } else {
+                                    if is_kw(10) == 1 {
                                     mut r = advance()
                                     mut r = emit_break()
                                 } else {
-                                    if is_kw(11) == 1 {
-                                        mut r = advance()
-                                        mut r = emit_continue()
-                                    } else {
-                                        mut r = parse_expr()
+                                        if is_kw(11) == 1 {
+                                            mut r = advance()
+                                            mut r = emit_continue()
+                                        } else {
+                                            mut r = parse_expr()
+                                        }
                                     }
                                 }
                             }
@@ -1344,6 +1368,9 @@ fn parse_program() (r: i64)
             if is_kw(1) == 1 {
                 mut r = parse_fn()
             } else {
+                if is_kw(16) == 1 {
+                    mut r = parse_fn()
+                } else {
                 if is_kw(2) == 1 {
                     mut r = parse_glob_decl()
                 } else {
@@ -1402,6 +1429,7 @@ fn parse_program() (r: i64)
                             }
                         }
                     }
+                }
                 }
             }
         }
@@ -4302,6 +4330,17 @@ fn gen_return_stmt(a: i64) (r: i64)
     mut r = 0
 }
 
+fn gen_yield_stmt(a: i64) (r: i64)
+{
+    if a > 0 {
+        mut r = gen_expr(a)
+    } else {
+        mut r = gen_movz(0, 0)
+    }
+    mut r = gen_epilogue()
+    mut r = 0
+}
+
 // Generate code for a match expression.
 // 1. Evaluate scrutinee -> X0, push to stack.
 // 2. For each case:
@@ -4438,7 +4477,11 @@ fn gen_stmt(nd: i64) (r: i64)
             if k == 14 {
                 mut r = gen_return_stmt(ast_field(nd, g_ast_a))
             } else {
-                mut r = gen_stmt2(nd, k)
+                if k == 23 {
+                    mut r = gen_yield_stmt(ast_field(nd, g_ast_a))
+                } else {
+                    mut r = gen_stmt2(nd, k)
+                }
             }
         }
     }
