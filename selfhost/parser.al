@@ -3204,7 +3204,6 @@ fn gen_syscall_builtin(arg_count: i64) (r: i64)
         if arg_count > 4 { mut r = gen_ldr(3, 31, 5) }
         if arg_count > 5 { mut r = gen_ldr(4, 31, 6) }
         if arg_count > 6 { mut r = gen_ldr(5, 31, 7) }
-        mut r = gen_ldr(6, 31, 8)
         if g_target_os == 0 {
             mut r = gen_mov(16, 6)
             mut r = emit32(0xD4001001)
@@ -4920,6 +4919,8 @@ fn gen_build_sockaddr(fp_offset: i64, port: i64, addr: i64) (r: i64)
 }
 
 
+
+
 fn gen_file_source() (r: i64)
 {
     mut r = gen_ldur(0, 29, 0 - 96)
@@ -4927,7 +4928,7 @@ fn gen_file_source() (r: i64)
     mut r = gen_cmp(0, 1)
     let skip_fo: i64 = 0
     mut skip_fo = g_code_pos
-    mut r = gen_bcond(0, 0)
+    mut r = gen_bcond(1, 0)
     let fidx: i64 = 0
     let fadr: i64 = 0
     mut fidx = str_const_add(g_pos)
@@ -4963,9 +4964,12 @@ fn gen_file_source() (r: i64)
     mut r = gen_push()
     mut r = gen_socket_syscall(3, 63, 0, 3, 3)
     let eof_pos: i64 = 0
+    mut r = gen_movz(1, 0)
+    mut r = gen_cmp(0, 1)
     mut eof_pos = g_code_pos
     mut r = gen_bcond(13, 0)
     mut r = gen_ldur(0, 29, 0 - 104)
+    mut r = gen_stur(0, 29, 0 - 136)
     mut r = patch_bcond(eof_pos, g_code_pos - eof_pos)
     mut r = 0
 }
@@ -4977,7 +4981,7 @@ fn gen_file_sink() (r: i64)
     mut r = gen_cmp(0, 1)
     let skip_fout: i64 = 0
     mut skip_fout = g_code_pos
-    mut r = gen_bcond(0, 0)
+    mut r = gen_bcond(1, 0)
     let sidx: i64 = 0
     let sadr: i64 = 0
     mut sidx = str_const_add(g_size)
@@ -5257,6 +5261,8 @@ fn gen_graph() (r: i64)
     let src_break_pos: i64 = 0
     mut src_break_pos = g_code_pos
     mut r = gen_bcond(13, 0)
+    // Load data value from stack slot (stored by gen_file_source)
+    mut r = gen_ldur(0, 29, 0 - 136)
     // Apply transforms: use gen_extern_call for correct patch table handling
     mut i = 0
     while i < g_graph_count {
