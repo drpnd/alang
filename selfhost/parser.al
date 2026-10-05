@@ -2559,7 +2559,11 @@ fn fn_store(h: i64, offset: i64) (r: i64)
 
 fn fn_add(name: i64, offset: i64) (r: i64)
 {
-    mut r = fn_store(name, offset)
+    __mem_store(g_fn_name + g_fn_count * 8, name)
+    __mem_store(g_fn_off + g_fn_count * 8, offset)
+    __mem_store(g_fn_is_coro + g_fn_count * 8, 0)
+    mut g_fn_count = g_fn_count + 1
+    mut r = 0
 }
 
 fn fn_add_coro(name: i64, offset: i64) (r: i64)
@@ -2892,14 +2896,7 @@ fn gen_expr_ident(v: i64) (r: i64)
                     mut r = emit32_at(adr_pos, 0x10000000 | ((aoff & 3) << 29) | (((aoff >> 2) & 524287) << 5))
                 }
             } else {
-                if g_target_isa == 1 {
-                    mut r = x86_mov_imm(0, 0)
-                } else {
-                    __mem_store(g_fn_adr_patch_pos + g_fn_adr_patch_count * 8, g_code_pos)
-                    __mem_store(g_fn_adr_patch_name + g_fn_adr_patch_count * 8, v)
-                    mut g_fn_adr_patch_count = g_fn_adr_patch_count + 1
-                    mut r = emit32(0x10000000)
-                }
+                mut r = gen_expr_glob(v)
             }
         }
     }
@@ -5845,7 +5842,18 @@ fn gen_all_funcs() (r: i64)
 {
     let list: i64 = 0
     let nd: i64 = 0
-    mut list = g_func_list
+    let prev: i64 = 0
+    let curr: i64 = 0
+    let next: i64 = 0
+    mut prev = 0
+    mut curr = g_func_list
+    while curr > 0 {
+        mut next = __mem_load(g_ast_b + curr * 8)
+        __mem_store(g_ast_b + curr * 8, prev)
+        mut prev = curr
+        mut curr = next
+    }
+    mut list = prev
     while list > 0 {
         mut nd = __mem_load(g_ast_a + list * 8)
         if nd > 0 {
@@ -6765,7 +6773,6 @@ fn do_codegen(argv_ptr: i64) (r: i64)
     }
     puts("GEN DONE")
     mut r = patch_calls()
-    mut r = patch_fn_adr_calls()
 
     mut arg2_ptr = __mem_load(argv_ptr + 16)
     if g_exec_elf == 1 {
