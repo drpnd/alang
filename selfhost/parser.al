@@ -1465,7 +1465,10 @@ let g_str_const: i64 = 0
 let g_str_const_count: i64 = 0
 let g_adr_patch_pos: i64 = 0
 let g_adr_patch_idx: i64 = 0
+let g_fn_adr_patch_pos: i64 = 0
+let g_fn_adr_patch_name: i64 = 0
 let g_adr_patch_count: i64 = 0
+let g_fn_adr_patch_count: i64 = 0
 let g_loop_start: i64 = 0
 let g_loop_end: i64 = 0
 let g_saved_loop_start: i64 = 0
@@ -1475,6 +1478,7 @@ let g_break_pos: i64 = 0
 // Function table (name string offset -> code offset)
 let g_fn_name: i64 = 0
 let g_fn_off: i64 = 0
+let g_fn_is_coro: i64 = 0
 let g_fn_count: i64 = 0
 
 // Enum variant table (name -> tag, has_arg)
@@ -2548,6 +2552,7 @@ fn fn_store(h: i64, offset: i64) (r: i64)
 {
     __mem_store(g_fn_name + g_fn_count * 8, h)
     __mem_store(g_fn_off + g_fn_count * 8, offset)
+    __mem_store(g_fn_is_coro + g_fn_count * 8, 0)
     mut g_fn_count = g_fn_count + 1
     mut r = 0
 }
@@ -2555,6 +2560,15 @@ fn fn_store(h: i64, offset: i64) (r: i64)
 fn fn_add(name: i64, offset: i64) (r: i64)
 {
     mut r = fn_store(name, offset)
+}
+
+fn fn_add_coro(name: i64, offset: i64) (r: i64)
+{
+    __mem_store(g_fn_name + g_fn_count * 8, name)
+    __mem_store(g_fn_off + g_fn_count * 8, offset)
+    __mem_store(g_fn_is_coro + g_fn_count * 8, 1)
+    mut g_fn_count = g_fn_count + 1
+    mut r = 0
 }
 
 fn fn_lookup(name: i64) (r: i64)
@@ -2568,6 +2582,23 @@ fn fn_lookup(name: i64) (r: i64)
         mut stored = __mem_load(g_fn_name + i * 8)
         if my_str_eq(stored, name) == 1 {
             mut result = __mem_load(g_fn_off + i * 8)
+        }
+        mut i = i + 1
+    }
+    mut r = result
+}
+
+fn fn_is_coro(name: i64) (r: i64)
+{
+    let i: i64 = 0
+    let stored: i64 = 0
+    let result: i64 = 0
+    mut result = 0
+    mut i = 0
+    while i < g_fn_count {
+        mut stored = __mem_load(g_fn_name + i * 8)
+        if my_str_eq(stored, name) == 1 {
+            mut result = __mem_load(g_fn_is_coro + i * 8)
         }
         mut i = i + 1
     }
@@ -2676,6 +2707,27 @@ fn patch_calls() (r: i64)
         mut ppos = __mem_load(g_patch_pos + i * 8)
         mut pname = __mem_load(g_patch_name + i * 8)
         mut r = patch_one(ppos, pname)
+        mut i = i + 1
+    }
+    mut r = 0
+}
+
+fn patch_fn_adr_calls() (r: i64)
+{
+    let i: i64 = 0
+    let ppos: i64 = 0
+    let pname: i64 = 0
+    let foff: i64 = 0
+    let aoff: i64 = 0
+    mut i = 0
+    while i < g_fn_adr_patch_count {
+        mut ppos = __mem_load(g_fn_adr_patch_pos + i * 8)
+        mut pname = __mem_load(g_fn_adr_patch_name + i * 8)
+        mut foff = fn_lookup(pname)
+        if foff >= 0 {
+            mut aoff = foff - ppos
+            mut r = emit32_at(ppos, 0x10000000 | ((aoff & 3) << 29) | (((aoff >> 2) & 524287) << 5))
+        }
         mut i = i + 1
     }
     mut r = 0
@@ -2840,7 +2892,14 @@ fn gen_expr_ident(v: i64) (r: i64)
                     mut r = emit32_at(adr_pos, 0x10000000 | ((aoff & 3) << 29) | (((aoff >> 2) & 524287) << 5))
                 }
             } else {
-                mut r = gen_expr_glob(v)
+                if g_target_isa == 1 {
+                    mut r = x86_mov_imm(0, 0)
+                } else {
+                    __mem_store(g_fn_adr_patch_pos + g_fn_adr_patch_count * 8, g_code_pos)
+                    __mem_store(g_fn_adr_patch_name + g_fn_adr_patch_count * 8, v)
+                    mut g_fn_adr_patch_count = g_fn_adr_patch_count + 1
+                    mut r = emit32(0x10000000)
+                }
             }
         }
     }
@@ -5159,7 +5218,7 @@ fn gen_func(nd: i64) (r: i64)
 
 fn gen_coro_body(name: i64, params: i64, rets: i64, body: i64) (r: i64)
 {
-    mut r = fn_add(name, g_code_pos)
+    mut r = fn_add_coro(name, g_code_pos)
     mut g_var_count = 0
     mut r = gen_prologue()
     mut r = gen_params(params)
@@ -5553,6 +5612,9 @@ fn gen_graph() (r: i64)
     let gname: i64 = 0
     let has_reduce: i64 = 0
     let ttype: i64 = 0
+    let coro_slot2: i64 = 0
+    let tname2: i64 = 0
+    let coro_val_slot: i64 = 0
     // Register main function
     mut r = fn_add("main", g_code_pos)
     // Prologue
@@ -5584,6 +5646,33 @@ fn gen_graph() (r: i64)
         mut r = gen_movz(0, first_reduce)
         mut r = gen_stur(0, 29, 0 - 152)
     }
+    // Initialize coro states for coro transforms
+    let coro_slot: i64 = 0
+    mut coro_slot = 160
+    mut i = 0
+    while i < g_graph_count {
+        let tname: i64 = 0
+        mut tname = __mem_load(g_graph_transforms + i * 8)
+        if fn_is_coro(tname) == 1 {
+            if fn_lookup(tname) >= 0 {
+                let adr_pos2: i64 = 0
+                mut adr_pos2 = g_code_pos
+                if g_target_isa == 1 {
+                    mut r = x86_mov_imm(0, fn_lookup(tname))
+                } else {
+                    mut r = emit32(0x10000000)
+                    let aoff2: i64 = 0
+                    mut aoff2 = fn_lookup(tname) - adr_pos2
+                    mut r = emit32_at(adr_pos2, 0x10000000 | ((aoff2 & 3) << 29) | (((aoff2 >> 2) & 524287) << 5))
+                }
+                mut r = gen_push()
+                mut r = gen_coro_create_builtin(1)
+                mut r = gen_stur(0, 29, 0 - coro_slot)
+            }
+        }
+        mut coro_slot = coro_slot + 8
+        mut i = i + 1
+    }
     // Loop: infinite stream processing (break on source exhaustion)
     mut loop_start = g_code_pos
     mut saved_ls = g_loop_start
@@ -5605,10 +5694,31 @@ fn gen_graph() (r: i64)
     // Load data value from stack slot (stored by gen_file_source)
     mut r = gen_ldur(0, 29, 0 - 136)
     // Apply transforms
+    let coro_slot2: i64 = 0
+    mut coro_slot2 = 160
     mut i = 0
     while i < g_graph_count {
         let ttype: i64 = 0
+        let tname2: i64 = 0
         mut ttype = __mem_load(g_graph_types + i * 8)
+        mut tname2 = __mem_load(g_graph_transforms + i * 8)
+        if fn_is_coro(tname2) == 1 {
+            let coro_done_pos: i64 = 0
+            mut r = gen_ldur(0, 29, 0 - coro_slot2)
+            mut r = gen_push()
+            mut r = gen_coro_resume_builtin(1)
+            let coro_val_slot: i64 = 0
+            mut coro_val_slot = 0 - coro_slot2 - 4
+            mut r = gen_stur(0, 29, coro_val_slot)
+            mut r = gen_ldur(0, 29, 0 - coro_slot2)
+            mut r = gen_push()
+            mut r = gen_coro_done_builtin(1)
+            mut r = gen_movz(1, 0)
+            mut r = gen_cmp(0, 1)
+            mut coro_done_pos = g_code_pos
+            mut r = gen_bcond(0, 0)
+            mut r = patch_bcond(coro_done_pos, loop_start - coro_done_pos)
+        } else {
         if ttype == 2 {
             // filter(pred): call pred, if 0 skip to loop start
             mut r = gen_stur(0, 29, 0 - 144)
@@ -5644,6 +5754,8 @@ fn gen_graph() (r: i64)
                 mut r = gen_call_finish()
             }
         }
+        }
+        mut coro_slot2 = coro_slot2 + 8
         mut i = i + 1
     }
     // Sink: output val (skip for reduce — output after loop)
@@ -6572,6 +6684,7 @@ fn init_codegen1() (r: i64)
     mut g_var_off = malloc(16384)
     mut g_fn_name = malloc(16384)
     mut g_fn_off = malloc(16384)
+    mut g_fn_is_coro = malloc(16384)
     mut r = 0
 }
 
@@ -6584,6 +6697,8 @@ fn init_codegen2() (r: i64)
     mut g_str_const = malloc(262144)
     mut g_adr_patch_pos = malloc(262144)
     mut g_adr_patch_idx = malloc(262144)
+    mut g_fn_adr_patch_pos = malloc(4096)
+    mut g_fn_adr_patch_name = malloc(4096)
     mut r = 0
 }
 
@@ -6597,7 +6712,7 @@ fn init_codegen() (r: i64)
     mut g_patch_count = 0
     mut g_ext_count = 0
     mut g_str_const_count = 0
-    mut g_adr_patch_count = 0
+    mut g_fn_adr_patch_count = 0
     mut r = 0
 }
 fn do_parse(arg1_ptr: i64) (r: i64)
@@ -6650,6 +6765,7 @@ fn do_codegen(argv_ptr: i64) (r: i64)
     }
     puts("GEN DONE")
     mut r = patch_calls()
+    mut r = patch_fn_adr_calls()
 
     mut arg2_ptr = __mem_load(argv_ptr + 16)
     if g_exec_elf == 1 {
