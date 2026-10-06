@@ -1916,13 +1916,17 @@ fn x86_reg(logical: i64) (r: i64)
     if logical == 0 { mut r = 0 }
     if logical == 1 { mut r = 1 }
     if logical == 2 { mut r = 2 }
-    if logical == 3 { mut r = 12 }
+    if logical == 3 { mut r = 13 }
     if logical == 4 { mut r = 6 }
     if logical == 5 { mut r = 7 }
     if logical == 6 { mut r = 8 }
     if logical == 7 { mut r = 9 }
     if logical == 17 { mut r = 10 }
     if logical == 19 { mut r = 3 }
+    if logical == 20 { mut r = 12 }
+    if logical == 21 { mut r = 14 }
+    if logical == 22 { mut r = 15 }
+    if logical == 23 { mut r = 11 }
     if logical == 29 { mut r = 5 }
     if logical == 30 { mut r = 0 }
     if logical == 31 { mut r = 4 }
@@ -3056,9 +3060,9 @@ fn gen_expr_await(a: i64) (r: i64)
     mut r = gen_push()
     if g_target_isa == 1 {
         mut r = gen_push()
+        mut r = x86_mov_reg(x86_reg(23), x86_reg(20))
         mut r = gen_coro_resume_builtin(1)
-        mut r = gen_pop_x0()
-        mut r = gen_mov(0, 0)
+        mut r = x86_mov_reg(x86_reg(20), x86_reg(23))
     } else {
         mut r = gen_mov(23, 20)
         mut r = gen_coro_resume_builtin(1)
@@ -3728,8 +3732,68 @@ fn gen_malloc_builtin(arg_count: i64) (r: i64)
 fn gen_coro_create_builtin(arg_count: i64) (r: i64)
 {
     if g_target_isa == 1 {
+        let n_args: i64 = 0
+        mut n_args = arg_count - 1
+        if n_args > 4 {
+            mut r = gen_pop_x5()
+            mut r = x86_store_reg(x86_reg(5), x86_reg(29), 0 - 232)
+        }
+        if n_args > 3 {
+            mut r = gen_pop_x4()
+            mut r = x86_store_reg(x86_reg(4), x86_reg(29), 0 - 224)
+        }
+        if n_args > 2 {
+            mut r = gen_pop_x3()
+            mut r = x86_store_reg(x86_reg(3), x86_reg(29), 0 - 216)
+        }
+        if n_args > 1 {
+            mut r = gen_pop_x2()
+            mut r = x86_store_reg(x86_reg(2), x86_reg(29), 0 - 208)
+        }
+        if n_args > 0 {
+            mut r = gen_pop_x1()
+            mut r = x86_store_reg(x86_reg(1), x86_reg(29), 0 - 200)
+        }
         mut r = gen_pop_x0()
-        mut r = gen_epilogue()
+        mut r = x86_mov_reg(x86_reg(19), x86_reg(0))
+        mut r = x86_mov_imm(x86_reg(0), 0)
+        mut r = x86_mov_imm(x86_reg(4), 131072)
+        mut r = x86_mov_imm(x86_reg(2), 3)
+        mut r = x86_mov_imm(x86_reg(10), T_MAP_FLAGS)
+        mut r = x86_mov_imm(x86_reg(8), 0 - 1)
+        mut r = x86_mov_imm(x86_reg(9), 0)
+        if g_target_os == 0 {
+            mut r = x86_mov_imm(x86_reg(0), 0x20000C5)
+        } else {
+            mut r = x86_mov_imm(x86_reg(0), 9)
+        }
+        mut r = x86_syscall()
+        mut r = x86_mov_imm(x86_reg(1), 130816)
+        mut r = x86_add_reg(x86_reg(1), x86_reg(0))
+        mut r = x86_store_reg(x86_reg(1), x86_reg(0), 0)
+        mut r = x86_store_reg(x86_reg(19), x86_reg(0), 8)
+        mut r = x86_mov_imm(x86_reg(1), 0)
+        mut r = x86_store_reg(x86_reg(1), x86_reg(0), 32)
+        if n_args > 0 {
+            mut r = x86_load_reg(x86_reg(1), x86_reg(29), 0 - 200)
+            mut r = x86_store_reg(x86_reg(1), x86_reg(0), 64)
+        }
+        if n_args > 1 {
+            mut r = x86_load_reg(x86_reg(1), x86_reg(29), 0 - 208)
+            mut r = x86_store_reg(x86_reg(1), x86_reg(0), 72)
+        }
+        if n_args > 2 {
+            mut r = x86_load_reg(x86_reg(1), x86_reg(29), 0 - 216)
+            mut r = x86_store_reg(x86_reg(1), x86_reg(0), 80)
+        }
+        if n_args > 3 {
+            mut r = x86_load_reg(x86_reg(1), x86_reg(29), 0 - 224)
+            mut r = x86_store_reg(x86_reg(1), x86_reg(0), 88)
+        }
+        if n_args > 4 {
+            mut r = x86_load_reg(x86_reg(1), x86_reg(29), 0 - 232)
+            mut r = x86_store_reg(x86_reg(1), x86_reg(0), 96)
+        }
     } else {
         let n_args: i64 = 0
         let ai: i64 = 0
@@ -3804,8 +3868,32 @@ fn gen_coro_create_builtin(arg_count: i64) (r: i64)
 fn gen_coro_resume_builtin(arg_count: i64) (r: i64)
 {
     if g_target_isa == 1 {
+        let ret_pos: i64 = 0
         mut r = gen_pop_x0()
-        mut r = gen_epilogue()
+        mut r = x86_mov_reg(x86_reg(20), x86_reg(0))
+        mut r = x86_store_reg(x86_reg(29), x86_reg(20), 56)
+        mut r = x86_mov_reg(x86_reg(2), x86_reg(31))
+        mut r = x86_store_reg(x86_reg(2), x86_reg(20), 16)
+        mut ret_pos = g_code_pos
+        mut r = emit_byte(0xE8)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = x86_store_reg(x86_reg(2), x86_reg(20), 24)
+        mut r = x86_load_reg(x86_reg(2), x86_reg(20), 0)
+        mut r = x86_mov_reg(x86_reg(31), x86_reg(2))
+        mut r = x86_load_reg(x86_reg(29), x86_reg(20), 48)
+        mut r = x86_load_reg(x86_reg(2), x86_reg(20), 8)
+        mut r = emit_byte(0xFF)
+        mut r = emit_byte(0xE2)
+        let off: i64 = 0
+        mut off = g_code_pos - (ret_pos + 5)
+        mut r = __byte_store(g_code, ret_pos + 1, off & 255)
+        mut r = __byte_store(g_code, ret_pos + 2, (off >> 8) & 255)
+        mut r = __byte_store(g_code, ret_pos + 3, (off >> 16) & 255)
+        mut r = __byte_store(g_code, ret_pos + 4, (off >> 24) & 255)
+        mut r = x86_load_reg(x86_reg(0), x86_reg(20), 40)
     } else {
         let ret_pos: i64 = 0
         mut r = gen_pop_x0()
@@ -3833,7 +3921,7 @@ fn gen_coro_done_builtin(arg_count: i64) (r: i64)
 {
     if g_target_isa == 1 {
         mut r = gen_pop_x0()
-        mut r = gen_epilogue()
+        mut r = x86_load_reg(x86_reg(0), x86_reg(0), 32)
     } else {
         mut r = gen_pop_x0()
         mut r = gen_ldur(0, 0, 32)
@@ -4594,7 +4682,24 @@ fn gen_assign_stmt(a: i64, b: i64) (r: i64)
 fn gen_return_stmt(a: i64) (r: i64)
 {
     if g_is_coro == 1 {
-        if g_target_isa != 1 {
+        if g_target_isa == 1 {
+            if a > 0 {
+                mut r = gen_expr(a)
+            } else {
+                mut r = gen_movz(0, 0)
+            }
+            mut r = x86_store_reg(x86_reg(0), x86_reg(20), 40)
+            mut r = x86_mov_imm(x86_reg(0), 1)
+            mut r = x86_store_reg(x86_reg(0), x86_reg(20), 32)
+            mut r = x86_mov_reg(x86_reg(2), x86_reg(31))
+            mut r = x86_load_reg(x86_reg(3), x86_reg(20), 16)
+            mut r = x86_mov_reg(x86_reg(31), x86_reg(3))
+            mut r = x86_load_reg(x86_reg(29), x86_reg(20), 56)
+            mut r = x86_load_reg(x86_reg(0), x86_reg(20), 40)
+            mut r = x86_load_reg(x86_reg(2), x86_reg(20), 24)
+            mut r = emit_byte(0xFF)
+            mut r = emit_byte(0xE2)
+        } else {
             if a > 0 {
                 mut r = gen_expr(a)
             } else {
@@ -4610,13 +4715,6 @@ fn gen_return_stmt(a: i64) (r: i64)
             mut r = gen_ldur(0, 20, 40)
             mut r = gen_ldur(2, 20, 24)
             mut r = emit32(0xD65F0040)
-        } else {
-            if a > 0 {
-                mut r = gen_expr(a)
-            } else {
-                mut r = gen_movz(0, 0)
-            }
-            mut r = gen_epilogue()
         }
     } else {
         if a > 0 {
@@ -4632,12 +4730,37 @@ fn gen_return_stmt(a: i64) (r: i64)
 fn gen_yield_stmt(a: i64) (r: i64)
 {
     if g_target_isa == 1 {
+        let resume_pos: i64 = 0
         if a > 0 {
             mut r = gen_expr(a)
         } else {
             mut r = gen_movz(0, 0)
         }
-        mut r = gen_epilogue()
+        mut r = x86_store_reg(x86_reg(0), x86_reg(20), 40)
+        mut r = x86_store_reg(x86_reg(29), x86_reg(20), 48)
+        mut r = x86_mov_reg(x86_reg(2), x86_reg(31))
+        mut r = x86_store_reg(x86_reg(2), x86_reg(20), 0)
+        mut resume_pos = g_code_pos
+        mut r = emit_byte(0xE8)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = emit_byte(0)
+        mut r = x86_store_reg(x86_reg(2), x86_reg(20), 8)
+        mut r = x86_load_reg(x86_reg(2), x86_reg(20), 16)
+        mut r = x86_mov_reg(x86_reg(31), x86_reg(2))
+        mut r = x86_load_reg(x86_reg(29), x86_reg(20), 56)
+        mut r = x86_load_reg(x86_reg(0), x86_reg(20), 40)
+        mut r = x86_load_reg(x86_reg(2), x86_reg(20), 24)
+        mut r = emit_byte(0xFF)
+        mut r = emit_byte(0xE2)
+        let yoff: i64 = 0
+        mut yoff = g_code_pos - (resume_pos + 5)
+        mut r = __byte_store(g_code, resume_pos + 1, yoff & 255)
+        mut r = __byte_store(g_code, resume_pos + 2, (yoff >> 8) & 255)
+        mut r = __byte_store(g_code, resume_pos + 3, (yoff >> 16) & 255)
+        mut r = __byte_store(g_code, resume_pos + 4, (yoff >> 24) & 255)
+        mut r = x86_load_reg(x86_reg(0), x86_reg(20), 40)
     } else {
         if a > 0 {
             mut r = gen_expr(a)
@@ -5326,13 +5449,24 @@ fn gen_coro_body(name: i64, params: i64, rets: i64, body: i64) (r: i64)
     mut r = gen_stur(0, 20, 40)
     mut r = gen_movz(0, 1)
     mut r = gen_stur(0, 20, 32)
-    mut r = gen_mov_sp(2, 31)
-    mut r = gen_ldur(3, 20, 16)
-    mut r = gen_mov_sp(31, 3)
-    mut r = gen_ldur(29, 20, 56)
-    mut r = gen_ldur(0, 20, 40)
-    mut r = gen_ldur(2, 20, 24)
-    mut r = emit32(0xD65F0040)
+    if g_target_isa == 1 {
+        mut r = x86_mov_reg(x86_reg(2), x86_reg(31))
+        mut r = x86_load_reg(x86_reg(3), x86_reg(20), 16)
+        mut r = x86_mov_reg(x86_reg(31), x86_reg(3))
+        mut r = x86_load_reg(x86_reg(29), x86_reg(20), 56)
+        mut r = x86_load_reg(x86_reg(0), x86_reg(20), 40)
+        mut r = x86_load_reg(x86_reg(2), x86_reg(20), 24)
+        mut r = emit_byte(0xFF)
+        mut r = emit_byte(0xE2)
+    } else {
+        mut r = gen_mov_sp(2, 31)
+        mut r = gen_ldur(3, 20, 16)
+        mut r = gen_mov_sp(31, 3)
+        mut r = gen_ldur(29, 20, 56)
+        mut r = gen_ldur(0, 20, 40)
+        mut r = gen_ldur(2, 20, 24)
+        mut r = emit32(0xD65F0040)
+    }
     mut r = 0
 }
 // Generate code for graph main { source |> f |> sink }
