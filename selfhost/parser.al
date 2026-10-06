@@ -1916,7 +1916,7 @@ fn x86_reg(logical: i64) (r: i64)
     if logical == 0 { mut r = 0 }
     if logical == 1 { mut r = 1 }
     if logical == 2 { mut r = 2 }
-    if logical == 3 { mut r = 13 }
+    if logical == 3 { mut r = 12 }
     if logical == 4 { mut r = 6 }
     if logical == 5 { mut r = 7 }
     if logical == 6 { mut r = 8 }
@@ -2905,7 +2905,21 @@ fn gen_expr_ident(v: i64) (r: i64)
             mut foff = fn_lookup(v)
             if foff >= 0 {
                 if g_target_isa == 1 {
-                    mut r = x86_mov_imm(0, foff)
+                    let adr_pos4: i64 = 0
+                    mut adr_pos4 = g_code_pos
+                    mut r = emit_byte(0x48)
+                    mut r = emit_byte(0x8D)
+                    mut r = emit_byte(0x05)
+                    mut r = emit_byte(0)
+                    mut r = emit_byte(0)
+                    mut r = emit_byte(0)
+                    mut r = emit_byte(0)
+                    let aoff4: i64 = 0
+                    mut aoff4 = foff - (adr_pos4 + 7)
+                    mut r = __byte_store(g_code, adr_pos4 + 3, aoff4 & 255)
+                    mut r = __byte_store(g_code, adr_pos4 + 4, (aoff4 >> 8) & 255)
+                    mut r = __byte_store(g_code, adr_pos4 + 5, (aoff4 >> 16) & 255)
+                    mut r = __byte_store(g_code, adr_pos4 + 6, (aoff4 >> 24) & 255)
                 } else {
                     let adr_pos: i64 = 0
                     mut adr_pos = g_code_pos
@@ -3759,12 +3773,15 @@ fn gen_coro_create_builtin(arg_count: i64) (r: i64)
         mut r = x86_mov_imm(x86_reg(0), 0)
         mut r = x86_mov_imm(x86_reg(4), 131072)
         mut r = x86_mov_imm(x86_reg(2), 3)
-        mut r = x86_mov_imm(x86_reg(10), T_MAP_FLAGS)
         mut r = x86_mov_imm(x86_reg(8), 0 - 1)
         mut r = x86_mov_imm(x86_reg(9), 0)
         if g_target_os == 0 {
+            mut r = x86_mov_imm(x86_reg(2), 3)
+            mut r = x86_mov_imm(x86_reg(10), T_MAP_FLAGS)
             mut r = x86_mov_imm(x86_reg(0), 0x20000C5)
         } else {
+            mut r = x86_mov_imm(x86_reg(2), 3)
+            mut r = x86_mov_imm(x86_reg(10), 34)
             mut r = x86_mov_imm(x86_reg(0), 9)
         }
         mut r = x86_syscall()
@@ -3875,7 +3892,9 @@ fn gen_coro_resume_builtin(arg_count: i64) (r: i64)
         mut r = x86_mov_reg(x86_reg(2), x86_reg(31))
         mut r = x86_store_reg(x86_reg(2), x86_reg(20), 16)
         mut ret_pos = g_code_pos
-        mut r = emit_byte(0xE8)
+        mut r = emit_byte(0x48)
+        mut r = emit_byte(0x8D)
+        mut r = emit_byte(0x15)
         mut r = emit_byte(0)
         mut r = emit_byte(0)
         mut r = emit_byte(0)
@@ -3888,11 +3907,11 @@ fn gen_coro_resume_builtin(arg_count: i64) (r: i64)
         mut r = emit_byte(0xFF)
         mut r = emit_byte(0xE2)
         let off: i64 = 0
-        mut off = g_code_pos - (ret_pos + 5)
-        mut r = __byte_store(g_code, ret_pos + 1, off & 255)
-        mut r = __byte_store(g_code, ret_pos + 2, (off >> 8) & 255)
-        mut r = __byte_store(g_code, ret_pos + 3, (off >> 16) & 255)
-        mut r = __byte_store(g_code, ret_pos + 4, (off >> 24) & 255)
+        mut off = g_code_pos - (ret_pos + 7)
+        mut r = __byte_store(g_code, ret_pos + 3, off & 255)
+        mut r = __byte_store(g_code, ret_pos + 4, (off >> 8) & 255)
+        mut r = __byte_store(g_code, ret_pos + 5, (off >> 16) & 255)
+        mut r = __byte_store(g_code, ret_pos + 6, (off >> 24) & 255)
         mut r = x86_load_reg(x86_reg(0), x86_reg(20), 40)
     } else {
         let ret_pos: i64 = 0
@@ -4741,7 +4760,9 @@ fn gen_yield_stmt(a: i64) (r: i64)
         mut r = x86_mov_reg(x86_reg(2), x86_reg(31))
         mut r = x86_store_reg(x86_reg(2), x86_reg(20), 0)
         mut resume_pos = g_code_pos
-        mut r = emit_byte(0xE8)
+        mut r = emit_byte(0x48)
+        mut r = emit_byte(0x8D)
+        mut r = emit_byte(0x15)
         mut r = emit_byte(0)
         mut r = emit_byte(0)
         mut r = emit_byte(0)
@@ -4755,11 +4776,11 @@ fn gen_yield_stmt(a: i64) (r: i64)
         mut r = emit_byte(0xFF)
         mut r = emit_byte(0xE2)
         let yoff: i64 = 0
-        mut yoff = g_code_pos - (resume_pos + 5)
-        mut r = __byte_store(g_code, resume_pos + 1, yoff & 255)
-        mut r = __byte_store(g_code, resume_pos + 2, (yoff >> 8) & 255)
-        mut r = __byte_store(g_code, resume_pos + 3, (yoff >> 16) & 255)
-        mut r = __byte_store(g_code, resume_pos + 4, (yoff >> 24) & 255)
+        mut yoff = g_code_pos - (resume_pos + 7)
+        mut r = __byte_store(g_code, resume_pos + 3, yoff & 255)
+        mut r = __byte_store(g_code, resume_pos + 4, (yoff >> 8) & 255)
+        mut r = __byte_store(g_code, resume_pos + 5, (yoff >> 16) & 255)
+        mut r = __byte_store(g_code, resume_pos + 6, (yoff >> 24) & 255)
         mut r = x86_load_reg(x86_reg(0), x86_reg(20), 40)
     } else {
         if a > 0 {
